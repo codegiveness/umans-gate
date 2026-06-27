@@ -1,0 +1,19 @@
+bind: "0.0.0.0:8080"
+dashboard_bind: "0.0.0.0:9090"
+providers:
+  - id: openai
+    upstream_url: "https://api.openai.com"
+    capacity: 4.0
+    models:
+      - id: gpt-4
+        weight: 1.0
+      - id: gpt-3.5-turbo
+        weight: 0.5
+  - id: anthropic
+    upstream_url: "https://api.anthropic.com"
+    capacity: 2.0
+    models:
+      - id: claude-3-opus
+        weight: 1.0
+      - id: claude-3-haiku
+        weight: 0.25

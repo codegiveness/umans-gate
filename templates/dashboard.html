@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>umans-gate · Dashboard</title>
+  <script src="/static/htmx.min.js"></script>
+  <script src="/static/sse.js"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; background: #0d1117; color: #c9d1d9; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #30363d; padding: 0.5rem 1rem; text-align: left; }
+    th { background: #161b22; }
+    .active { color: #3fb950; } .pending { color: #d29922; }
+    .capacity-bar { height: 20px; background: #21262d; border-radius: 4px; overflow: hidden; }
+    .capacity-fill { height: 100%; background: linear-gradient(90deg, #3fb950, #d29922, #f85149); transition: width 0.3s; }
+  </style>
+</head>
+<body>
+  <h1>umans-gate · Provider Concurrency</h1>
+  <div hx-ext="sse" sse-connect="/dashboard/stream" sse-swap="providers" hx-swap="innerHTML" id="provider-list">
+    {% for p in providers %}
+    <div id="provider-{{ p.provider }}">
+      <h2>{{ p.provider }} <span class="capacity-bar"><span class="capacity-fill" style="width: {{ p.pct() }}%"></span></span></h2>
+      <p>{{ p.in_flight }} / {{ p.capacity }} weight in use</p>
+      <table>
+        <tr><th>Model</th><th>State</th><th>Active</th></tr>
+        {% for m in &p.active_models %}
+        <tr><td>{{ m.model }}</td><td class="{{ m.state }}">{{ m.state }}</td><td>{{ m.count }}</td></tr>
+        {% endfor %}
+      </table>
+    </div>
+    {% endfor %}
+  </div>
+</body>
+</html>
