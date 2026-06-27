@@ -1,19 +1,33 @@
 bind: "0.0.0.0:8080"
 dashboard_bind: "0.0.0.0:9090"
 providers:
-  - id: openai
-    upstream_url: "https://api.openai.com"
+  - id: umans
+    upstream_url: "https://api.code.umans.ai"
     capacity: 4.0
+    timeouts:
+      connect: { secs: 10, nanos: 0 }
+      ttfb: { secs: 30, nanos: 0 }
+      stream_idle: { secs: 60, nanos: 0 }
+      total: { secs: 300, nanos: 0 }
     models:
-      - id: gpt-4
+      - id: umans-coder
         weight: 1.0
-      - id: gpt-3.5-turbo
+      - id: umans-flash
         weight: 0.5
-  - id: anthropic
-    upstream_url: "https://api.anthropic.com"
-    capacity: 2.0
-    models:
-      - id: claude-3-opus
+      - id: umans-kimi-k2.7
         weight: 1.0
-      - id: claude-3-haiku
-        weight: 0.25
+      - id: umans-glm-5.2
+        weight: 1.0
+      - id: umans-qwen3.6-35b-a3b
+        weight: 0.5
+  - id: opencode-go
+    upstream_url: "http://127.0.0.1:0"
+    capacity: 4.0
+    timeouts:
+      connect: { secs: 10, nanos: 0 }
+      ttfb: { secs: 30, nanos: 0 }
+      stream_idle: { secs: 60, nanos: 0 }
+      total: { secs: 300, nanos: 0 }
+    models:
+      - id: opencode-go-default
+        weight: 1.0
