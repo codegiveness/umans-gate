@@ -22,13 +22,13 @@ use super::gating::acquire_for_request;
 use super::router::ProxyState;
 use super::timeouts::forward_with_timeouts;
 
-/// Proxy handler — single-provider passthrough.
+/// Proxy handler — prefix-routed multi-provider passthrough.
 ///
-/// Loads config once, resolves the first (single) provider, parses the request
-/// body JSON for `"model"` and `"stream"`, acquires a [`WeightedPermit`], and
-/// forwards the buffered body unchanged. The permit is moved into the response
-/// body stream by [`forward_with_timeouts`]; this function never holds it after
-/// return.
+/// Loads config once, resolves the provider from the first path segment,
+/// parses the request body JSON for `"model"` and `"stream"`, acquires a
+/// [`WeightedPermit`], and forwards the buffered body unchanged. The permit is
+/// moved into the response body stream by [`forward_with_timeouts`]; this
+/// function never holds it after return.
 ///
 /// The `"stream"` flag is detected for logging/metrics only; it does not affect
 /// routing or forwarding.
@@ -41,10 +41,14 @@ pub async fn proxy_handler(
 ) -> Result<Response> {
     let config = state.config_store.load();
 
+    // `axum` captures `/{*path}` without the leading `/`.
+    let (provider_id, remainder) = path.split_once('/').unwrap_or((path.as_str(), ""));
+
     let provider_config = config
         .providers
-        .first()
-        .ok_or_else(|| GatewayError::Config(Box::new(figment::Error::from("no providers configured"))))?;
+        .iter()
+        .find(|p| p.id.as_ref() == provider_id)
+        .ok_or_else(|| GatewayError::UnknownProvider(provider_id.to_string()))?;
 
     let model_id = serde_json::from_slice::<Value>(&body)
         .ok()
@@ -52,7 +56,7 @@ pub async fn proxy_handler(
         .unwrap_or_else(|| ModelId::new(""));
 
     let stream = detect_stream(&body);
-    tracing::debug!(stream, model = %model_id, "proxy request");
+    tracing::debug!(stream, model = %model_id, provider = %provider_config.id, "proxy request");
 
     let weight = provider_config
         .model_weight(&model_id)
@@ -67,7 +71,13 @@ pub async fn proxy_handler(
     } else {
         format!("{base}/")
     };
-    let upstream_uri = format!("{base}{path}");
+
+    let normalized_path = if remainder == "v1" || remainder.starts_with("v1/") {
+        remainder.to_string()
+    } else {
+        format!("v1/{remainder}")
+    };
+    let upstream_uri = format!("{base}{normalized_path}");
 
     let body = axum::body::Body::from(body);
 
@@ -226,7 +236,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/v1/chat/completions")
+                    .uri("/openai/v1/chat/completions")
                     .header("authorization", "Bearer sk-test")
                     .header("content-type", "application/json")
                     .body(Body::from(expected_body))
@@ -274,7 +284,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/v1/messages")
+                    .uri("/openai/v1/messages")
                     .header("content-type", "application/json")
                     .body(Body::from(expected_body))
                     .unwrap(),
@@ -314,7 +324,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("GET")
-                    .uri("/v1/models")
+                    .uri("/openai/v1/models")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -346,7 +356,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/v1/foo/bar")
+                    .uri("/openai/v1/foo/bar")
                     .header("content-type", "application/json")
                     .body(Body::from(expected_body))
                     .unwrap(),
@@ -386,7 +396,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/v1/chat/completions")
+                    .uri("/openai/v1/chat/completions")
                     .body(Body::from(r#"{"model":"gpt-4"}"#))
                     .unwrap(),
             )
@@ -427,7 +437,7 @@ mod tests {
 
         let expected_body = "not json";
         let resp = proxy_handler(
-            Path("v1/chat/completions".to_string()),
+            Path("openai/v1/chat/completions".to_string()),
             State(state),
             Method::POST,
             HeaderMap::new(),
