@@ -39,3 +39,5 @@ arc-swap = { workspace = true, optional = true }
 [dev-dependencies]
 tempfile = { workspace = true }
 serde_yaml = "0.9"
+reqwest = { version = "0.12", default-features = false, features = ["stream", "json"] }
+tracing-subscriber = { workspace = true }
