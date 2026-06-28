@@ -96,6 +96,24 @@ pub struct TimeoutConfig {
     pub ttfb: Duration,
     pub stream_idle: Duration,
     pub total: Duration,
+    #[serde(default = "default_queuetimeout")]
+    pub queuetimeout: Duration,
+    #[serde(default = "default_maxqueue")]
+    pub maxqueue: usize,
+    #[serde(default = "default_permit_cooldown")]
+    pub permit_cooldown: Duration,
+}
+
+fn default_queuetimeout() -> Duration {
+    Duration::from_secs(30)
+}
+
+fn default_maxqueue() -> usize {
+    64
+}
+
+fn default_permit_cooldown() -> Duration {
+    Duration::from_millis(500)
 }
 
 impl Default for TimeoutConfig {
@@ -105,6 +123,9 @@ impl Default for TimeoutConfig {
             ttfb: Duration::from_secs(30),
             stream_idle: Duration::from_secs(60),
             total: Duration::from_secs(300),
+            queuetimeout: default_queuetimeout(),
+            maxqueue: default_maxqueue(),
+            permit_cooldown: default_permit_cooldown(),
         }
     }
 }
@@ -182,6 +203,16 @@ mod tests {
         assert_eq!(t.ttfb, Duration::from_secs(30));
         assert_eq!(t.stream_idle, Duration::from_secs(60));
         assert_eq!(t.total, Duration::from_secs(300));
+        assert_eq!(t.queuetimeout, Duration::from_secs(30));
+        assert_eq!(t.maxqueue, 64);
+        assert_eq!(t.permit_cooldown, Duration::from_millis(500));
+    }
+
+    #[test]
+    fn permit_cooldown_serde_default() {
+        let yaml = "connect:\n  secs: 10\n  nanos: 0\nttfb:\n  secs: 30\n  nanos: 0\nstream_idle:\n  secs: 60\n  nanos: 0\ntotal:\n  secs: 300\n  nanos: 0\nqueuetimeout:\n  secs: 30\n  nanos: 0\nmaxqueue: 64";
+        let t: TimeoutConfig = serde_yaml::from_str(yaml).expect("deserialize TimeoutConfig");
+        assert_eq!(t.permit_cooldown, Duration::from_millis(500));
     }
 
     #[test]

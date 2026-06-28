@@ -38,3 +38,4 @@ arc-swap = { workspace = true, optional = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+serde_yaml = "0.9"
