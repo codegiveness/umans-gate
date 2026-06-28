@@ -16,20 +16,30 @@
 
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
+use http_body_util::BodyExt;
+use hyper::header::{AUTHORIZATION, CONTENT_TYPE};
+use hyper::{HeaderMap, Method};
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto::Builder;
 use hyper_util::service::TowerToHyperService;
 use tokio::net::TcpListener;
 use tokio::sync::broadcast;
 use tokio::task::{JoinHandle, JoinSet};
+use tokio::time::sleep;
 use umans_gate::concurrency::{MetricUpdate, ProviderLimiter};
 use umans_gate::config_store::ConfigStore;
+use umans_gate::dashboard::tracked_permit::TrackedPermit;
+use umans_gate::dashboard::tracker::{ProtocolVersion, RequestTracker};
 use umans_gate::proxy::router::{proxy_router, ProxyState};
+use umans_gate::proxy::timeouts::forward_with_timeouts;
 use umans_gate::proxy::upstream::UpstreamClient;
 use umans_gate::shutdown::{ShutdownSignal, ShutdownToken};
-use umans_gate::types::GatewayConfig;
+use umans_gate::types::{
+    GatewayConfig, ModelConfig, ModelId, ProviderConfig, ProviderId, TimeoutConfig, Weight,
+};
+use uuid::Uuid;
 
 // ---------------------------------------------------------------------------
 // Helpers (mirror crates/umans-gate/tests/integration_passthrough.rs)
@@ -39,7 +49,9 @@ use umans_gate::types::GatewayConfig;
 ///
 /// Returns (proxy_addr, shutdown_token, server_join_handle). Call
 /// `token.signal()` to stop accepting and drain in-flight connections.
-async fn spawn_proxy(state: Arc<ProxyState>) -> (std::net::SocketAddr, ShutdownToken, JoinHandle<()>) {
+async fn spawn_proxy(
+    state: Arc<ProxyState>,
+) -> (std::net::SocketAddr, ShutdownToken, JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
 
@@ -132,6 +144,7 @@ async fn e2e_real_models_info() {
     let state = Arc::new(ProxyState {
         config_store,
         limiter,
+        tracker: Arc::new(RequestTracker::new()),
         upstream_client,
     });
 
@@ -142,14 +155,11 @@ async fn e2e_real_models_info() {
     let client = http1_client();
 
     // 6. GET /umans/v1/models/info with a generous timeout (TLS handshake + upstream latency).
-    let url = format!("http://{proxy_addr}{path}", path="/umans/v1/models/info");
-    let resp = tokio::time::timeout(
-        Duration::from_secs(30),
-        client.get(&url).send(),
-    )
-    .await
-    .expect("request did not complete within 30s")
-    .expect("request failed");
+    let url = format!("http://{proxy_addr}{path}", path = "/umans/v1/models/info");
+    let resp = tokio::time::timeout(Duration::from_secs(30), client.get(&url).send())
+        .await
+        .expect("request did not complete within 30s")
+        .expect("request failed");
 
     // 7. Assert HTTP 200.
     assert!(
@@ -173,15 +183,9 @@ async fn e2e_real_models_info() {
     let bytes = resp.bytes().await.expect("read response body");
     let body: serde_json::Value =
         serde_json::from_slice(&bytes).expect("response body is not valid JSON");
-    assert!(
-        body.is_object(),
-        "response JSON is not an object: {body}"
-    );
+    assert!(body.is_object(), "response JSON is not an object: {body}");
     let obj = body.as_object().unwrap();
-    assert!(
-        !obj.is_empty(),
-        "response JSON object is empty: {body}"
-    );
+    assert!(!obj.is_empty(), "response JSON object is empty: {body}");
     let has_models_field = obj.contains_key("models") || obj.contains_key("data");
     let has_model_entries = obj.keys().any(|k| k.starts_with("umans-"));
     assert!(
@@ -192,4 +196,225 @@ async fn e2e_real_models_info() {
     // 10. Cleanup.
     token.signal();
     let _ = tokio::time::timeout(Duration::from_secs(10), server_handle).await;
+}
+
+/// Build a `TrackedPermit` against the shared live limiter/tracker.
+async fn make_live_permit(
+    limiter: &Arc<ProviderLimiter>,
+    tracker: &Arc<RequestTracker>,
+) -> TrackedPermit {
+    let provider_id = ProviderId::new("umans");
+    let model_id = ModelId::new("umans-flash");
+    let id = Uuid::new_v4();
+
+    tracker.register_queued(
+        id,
+        &provider_id,
+        &model_id,
+        Weight::from(1.0),
+        ProtocolVersion::Http11,
+    );
+
+    let permit = limiter
+        .acquire(&provider_id, &model_id, Weight::from(1.0))
+        .await
+        .expect("acquire live permit");
+
+    tracker.mark_running(id, Some(ProtocolVersion::Http11));
+    TrackedPermit::new(permit, id, Arc::clone(tracker))
+}
+
+/// Fetch `/v1/usage` for the account and return the JSON value.
+async fn fetch_usage(client: &reqwest::Client, api_key: &str) -> Option<serde_json::Value> {
+    client
+        .get("https://api.code.umans.ai/v1/usage")
+        .header("Authorization", format!("Bearer {api_key}"))
+        .send()
+        .await
+        .ok()?
+        .json::<serde_json::Value>()
+        .await
+        .ok()
+}
+
+/// Live QA regression: after one of two concurrent SSE streams is dropped,
+/// the provider-side `concurrent_sessions` count must never spike above 2.
+///
+/// Requires `UMANS_API_KEY` and outbound network to `api.code.umans.ai`.
+/// Ignored by default; run with `--ignored`.
+#[tokio::test]
+#[ignore]
+async fn live_429_regression_cooldown_holds_permit() {
+    let api_key = std::env::var("UMANS_API_KEY").unwrap_or_default();
+    if api_key.is_empty() {
+        eprintln!("skipping live_429_regression_cooldown_holds_permit: UMANS_API_KEY not set");
+        return;
+    }
+
+    let usage_client = http1_client();
+    let Some(usage) = fetch_usage(&usage_client, &api_key).await else {
+        eprintln!("skipping live_429_regression_cooldown_holds_permit: /v1/usage unreachable");
+        return;
+    };
+    let boxed = usage["usage"]["priority"]["boxed_until"]
+        .as_str()
+        .map(|s| !s.is_empty())
+        .unwrap_or(false);
+    if boxed {
+        eprintln!(
+            "skipping live_429_regression_cooldown_holds_permit: account is boxed until {:?}",
+            usage["usage"]["priority"]["boxed_until"]
+        );
+        return;
+    }
+
+    eprintln!(
+        "live_429_regression: baseline concurrent_sessions = {:?}",
+        usage["usage"]["concurrent_sessions"]
+    );
+
+    let provider = ProviderConfig {
+        id: ProviderId::new("umans"),
+        upstream_url: url::Url::parse("https://api.code.umans.ai").unwrap(),
+        capacity: Weight::from(4.0),
+        models: vec![ModelConfig {
+            id: ModelId::new("umans-flash"),
+            weight: Weight::from(1.0),
+        }],
+        timeouts: TimeoutConfig {
+            stream_idle: Duration::from_secs(60),
+            total: Duration::from_secs(300),
+            ..Default::default()
+        },
+    };
+
+    let (tx, _rx) = broadcast::channel::<MetricUpdate>(16);
+    let limiter = Arc::new(ProviderLimiter::new(tx));
+    limiter.register(
+        &provider.id,
+        provider.capacity,
+        provider.timeouts.queuetimeout,
+        provider.timeouts.maxqueue,
+    );
+    let tracker = Arc::new(RequestTracker::new());
+    let client = UpstreamClient::new();
+
+    let permit_a = make_live_permit(&limiter, &tracker).await;
+    let permit_b = make_live_permit(&limiter, &tracker).await;
+
+    let body_json = serde_json::json!({
+        "model": "umans-flash",
+        "messages": [{"role": "user", "content": "hi"}],
+        "max_tokens": 3,
+        "stream": true
+    })
+    .to_string();
+    let upstream_uri = "/v1/chat/completions".to_string();
+
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        AUTHORIZATION,
+        format!("Bearer {api_key}").parse().expect("valid bearer header"),
+    );
+    headers.insert(
+        CONTENT_TYPE,
+        "application/json".parse().expect("valid content-type"),
+    );
+
+    let (result_a, result_b) = tokio::join!(
+        forward_with_timeouts(
+            &client,
+            &provider,
+            Method::POST,
+            upstream_uri.clone(),
+            headers.clone(),
+            axum::body::Body::from(body_json.clone()),
+            permit_a,
+        ),
+        forward_with_timeouts(
+            &client,
+            &provider,
+            Method::POST,
+            upstream_uri,
+            headers,
+            axum::body::Body::from(body_json),
+            permit_b,
+        ),
+    );
+
+    let resp_a = result_a.expect("first stream connect+ttfb failed");
+    let resp_b = result_b.expect("second stream connect+ttfb failed");
+    assert!(resp_a.status().is_success(), "first stream not 2xx: {}", resp_a.status());
+    assert!(resp_b.status().is_success(), "second stream not 2xx: {}", resp_b.status());
+
+    let mut body_a = resp_a.into_body();
+    let frame = body_a
+        .frame()
+        .await
+        .expect("stream A ended before first frame")
+        .expect("stream A first frame error");
+    let _first_chunk = frame
+        .into_data()
+        .expect("stream A first frame is not data");
+    let disconnect_at = Instant::now();
+    eprintln!("live_429_regression: dropped stream A at {:?}", disconnect_at);
+    drop(body_a);
+
+    let mut first_below_two: Option<Instant> = None;
+    for _ in 0..20 {
+        if let Some(usage) = fetch_usage(&usage_client, &api_key).await {
+            let sessions = usage["usage"]["concurrent_sessions"].as_i64().unwrap_or(-1);
+            assert!(
+                sessions <= 2,
+                "provider concurrent_sessions spiked above 2: {}",
+                sessions
+            );
+            if sessions < 2 && first_below_two.is_none() {
+                first_below_two = Some(Instant::now());
+                let latency = disconnect_at.elapsed();
+                eprintln!(
+                    "live_429_regression: first usage sample <2 after disconnect: {:?}",
+                    latency
+                );
+                if latency > Duration::from_millis(500) {
+                    eprintln!(
+                        "WARNING: permit cooldown exceeded 500ms; hyper may be pooling the upstream connection"
+                    );
+                }
+            }
+        }
+        sleep(Duration::from_millis(100)).await;
+    }
+
+    let elapsed = disconnect_at.elapsed();
+    if elapsed < Duration::from_millis(700) {
+        sleep(Duration::from_millis(700) - elapsed).await;
+    }
+    if let Some(usage) = fetch_usage(&usage_client, &api_key).await {
+        let sessions = usage["usage"]["concurrent_sessions"].as_i64().unwrap_or(-1);
+        assert_eq!(
+            sessions, 1,
+            "expected exactly 1 remaining live session ~700ms after disconnect, got {}",
+            sessions
+        );
+    } else {
+        panic!("failed to fetch /v1/usage at 700ms checkpoint");
+    }
+
+    let _remaining = resp_b
+        .into_body()
+        .collect()
+        .await
+        .expect("consume remaining stream B failed");
+
+    if let Some(usage) = fetch_usage(&usage_client, &api_key).await {
+        let sessions = usage["usage"]["concurrent_sessions"].as_i64().unwrap_or(-1);
+        assert_eq!(
+            sessions, 0,
+            "expected zero provider concurrent_sessions after stream B ended, got {}",
+            sessions
+        );
+    } else {
+        panic!("failed to fetch /v1/usage after stream B completed");
+    }
 }
