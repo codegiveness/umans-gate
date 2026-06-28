@@ -38,6 +38,7 @@ fn test_timeouts() -> TimeoutConfig {
         total: Duration::from_secs(300),
         queuetimeout: Duration::from_secs(1),
         maxqueue: 2,
+        ..Default::default()
     }
 }
 
