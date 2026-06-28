@@ -1,35 +1,43 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>umans-gate · Dashboard</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>umans-gate dashboard</title>
+  <link rel="stylesheet" href="/static/app.css">
   <script src="/static/htmx.min.js"></script>
-  <script src="/static/sse.js"></script>
-  <style>
-    body { font-family: system-ui, sans-serif; margin: 2rem; background: #0d1117; color: #c9d1d9; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid #30363d; padding: 0.5rem 1rem; text-align: left; }
-    th { background: #161b22; }
-    .active { color: #3fb950; } .pending { color: #d29922; }
-    .capacity-bar { height: 20px; background: #21262d; border-radius: 4px; overflow: hidden; }
-    .capacity-fill { height: 100%; background: linear-gradient(90deg, #3fb950, #d29922, #f85149); transition: width 0.3s; }
-  </style>
 </head>
-<body>
-  <h1>umans-gate · Provider Concurrency</h1>
-  <div hx-ext="sse" sse-connect="/dashboard/stream" sse-swap="providers" hx-swap="innerHTML" id="provider-list">
-    {% for p in providers %}
-    <div id="provider-{{ p.provider }}">
-      <h2>{{ p.provider }} <span class="capacity-bar"><span class="capacity-fill" style="width: {{ p.pct() }}%"></span></span></h2>
-      <p>{{ p.in_flight }} / {{ p.capacity }} weight in use</p>
-      <table>
-        <tr><th>Model</th><th>State</th><th>Active</th></tr>
-        {% for m in &p.active_models %}
-        <tr><td>{{ m.model }}</td><td class="{{ m.state }}">{{ m.state }}</td><td>{{ m.count }}</td></tr>
-        {% endfor %}
-      </table>
+<body class="bg-slate-950 text-slate-200 min-h-screen">
+  <div class="max-w-7xl mx-auto px-4 py-6">
+    <header class="mb-6">
+      <h1 class="text-2xl md:text-3xl font-semibold tracking-tight text-slate-100">umans-gate</h1>
+      <p class="text-sm text-slate-500">weighted concurrency dashboard</p>
+    </header>
+
+    <div id="provider-gauges"
+         hx-get="/dashboard/providers"
+         hx-trigger="every 1s"
+         hx-swap="innerHTML">
+    <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {% for provider in providers %}
+      <article class="bg-slate-900 rounded-lg p-4">
+        <div class="flex items-baseline justify-between gap-3">
+          <h2 class="text-sm font-medium text-slate-300">{{ provider.provider }}</h2>
+          <span class="text-xs tabular-nums text-slate-500">{{ provider.in_flight }} / {{ provider.capacity }} weight</span>
+        </div>
+        <div class="mt-3 bg-slate-700 h-2 rounded-full overflow-hidden">
+          <div class="bg-emerald-500 h-2 rounded-full" style="width: {{ provider.pct() }}%"></div>
+        </div>
+      </article>
+      {% endfor %}
+    </section>
     </div>
-    {% endfor %}
+
+    <div id="request-list"
+         hx-get="/dashboard/requests"
+         hx-trigger="every 1s"
+         hx-swap="innerHTML"
+         class="mt-6"></div>
   </div>
 </body>
 </html>

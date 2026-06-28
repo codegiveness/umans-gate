@@ -1,0 +1,31 @@
+[package]
+name = "umans-gate-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+
+[[bin]]
+name = "umans-gate"
+path = "src/main.rs"
+
+[features]
+hot-reload = ["umans-gate/hot-reload"]
+
+[dependencies]
+umans-gate = { path = "../umans-gate", features = ["hot-reload"] }
+clap = { workspace = true }
+clap_complete = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tokio = { workspace = true }
+hyper-util = { workspace = true }
+self_update = { workspace = true }
+self-replace = { workspace = true }
+tempfile = { workspace = true }
+sha2 = { workspace = true }
