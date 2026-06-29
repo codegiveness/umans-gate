@@ -1374,6 +1374,130 @@ fn internal_status_set_on_terminal() {
 
 #[cfg(test)]
 #[test]
+fn kill_queued_request_returns_400() {
+    use axum::http::StatusCode;
+    use axum::response::IntoResponse;
+    use crate::error::GatewayError;
+
+    let tracker = RequestTracker::new();
+    let id = Uuid::new_v4();
+    tracker.register_queued(
+        id,
+        &ProviderId::new("openai"),
+        &ModelId::new("gpt-4"),
+        Weight::from(1.0),
+        ProtocolVersion::Http11,
+        "/v1/chat/completions".to_string(),
+    );
+
+    assert!(
+        tracker.cancel(id),
+        "cancel should return true for live queued request"
+    );
+
+    let snap = tracker.snapshot();
+    let record = snap.iter().find(|r| r.id == id).expect("record exists");
+    assert_eq!(record.status, RequestStatus::Cancelled);
+    assert_eq!(
+        record.internal_status,
+        Some(400),
+        "internal_status should be 400 for killed request"
+    );
+    assert!(record.is_terminal);
+
+    let resp = GatewayError::Cancelled.into_response();
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        resp.headers().get("x-umans-stop-reason"),
+        Some(&axum::http::HeaderValue::from_static("cancelled")),
+    );
+}
+
+#[cfg(test)]
+#[tokio::test]
+async fn kill_releases_permit_exactly_once() {
+    use crate::concurrency::{MetricUpdate, ProviderLimiter};
+    use crate::dashboard::tracked_permit::TrackedPermit;
+    use tokio::sync::broadcast;
+
+    let (tx, _rx) = broadcast::channel::<MetricUpdate>(256);
+    let lim = Arc::new(ProviderLimiter::new(tx));
+    lim.register(
+        &ProviderId::new("test"),
+        Weight::from(4.0),
+        Duration::from_secs(30),
+        64,
+    );
+    let tracker = Arc::new(RequestTracker::new());
+    let id = Uuid::new_v4();
+    tracker.register_queued(
+        id,
+        &ProviderId::new("test"),
+        &ModelId::new("gpt-4"),
+        Weight::from(1.0),
+        ProtocolVersion::Http11,
+        "/v1/chat/completions".to_string(),
+    );
+    let permit = lim
+        .acquire(
+            &ProviderId::new("test"),
+            &ModelId::new("gpt-4"),
+            Weight::from(1.0),
+        )
+        .await
+        .unwrap();
+    tracker.mark_running(id, None);
+    let token = tracker.cancellation_token(id).unwrap();
+    let tracked = TrackedPermit::new(permit, id, Arc::clone(&tracker), token);
+
+    let snap = lim.snapshot().into_iter().next().unwrap();
+    assert!((snap.in_flight - 1.0).abs() < 1e-6, "in_flight should be 1.0");
+
+    assert!(tracker.cancel(id), "cancel should return true");
+
+    drop(tracked);
+
+    for _ in 0..100 {
+        let s = lim.snapshot().into_iter().next().unwrap();
+        if (s.in_flight - 0.0).abs() < 1e-6 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    let snap = lim.snapshot().into_iter().next().unwrap();
+    assert!(
+        (snap.in_flight - 0.0).abs() < 1e-6,
+        "in_flight should be 0.0 after permit drop"
+    );
+
+    assert!(
+        !tracker.cancel(id),
+        "cancel should return false for terminal record (idempotent)"
+    );
+
+    let snap = lim.snapshot().into_iter().next().unwrap();
+    assert!(
+        (snap.in_flight - 0.0).abs() < 1e-6,
+        "in_flight should still be 0.0 after idempotent cancel"
+    );
+
+    let _permit2 = lim
+        .acquire(
+            &ProviderId::new("test"),
+            &ModelId::new("gpt-4"),
+            Weight::from(1.0),
+        )
+        .await
+        .unwrap();
+    let snap = lim.snapshot().into_iter().next().unwrap();
+    assert!(
+        (snap.in_flight - 1.0).abs() < 1e-6,
+        "in_flight should be 1.0 after re-acquire"
+    );
+}
+
+#[cfg(test)]
+#[test]
 fn no_double_push_on_prune() {
     let tracker = RequestTracker::new();
     let id = Uuid::new_v4();

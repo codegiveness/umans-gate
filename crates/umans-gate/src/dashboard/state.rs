@@ -69,6 +69,8 @@ pub struct DashboardState {
     tracker: Arc<RequestTracker>,
     /// OS timezone offset label (`[+-]HH.MM`) passed to request templates.
     pub offset_label: String,
+    /// Minimum age (seconds) before the Kill button is shown in the UI.
+    pub kill_min_age_seconds: u64,
 }
 
 impl DashboardState {
@@ -77,7 +79,7 @@ impl DashboardState {
 
     /// Bind a dashboard to an existing limiter. The limiter's broadcast channel
     /// is reused — subscribers see every `MetricUpdate` the engine emits.
-    pub fn new(limiter: Arc<ProviderLimiter>) -> Self {
+    pub fn new(limiter: Arc<ProviderLimiter>, kill_min_age_seconds: u64) -> Self {
         let metric_tx = limiter.metric_tx();
         DashboardState {
             providers: Arc::new(DashMap::new()),
@@ -85,6 +87,7 @@ impl DashboardState {
             limiter,
             tracker: Arc::new(RequestTracker::new()),
             offset_label: local_offset_label(),
+            kill_min_age_seconds,
         }
     }
 
@@ -157,7 +160,7 @@ mod tests {
     fn make_state(capacity: usize) -> (Arc<ProviderLimiter>, DashboardState) {
         let (tx, _) = broadcast::channel(capacity);
         let limiter = Arc::new(ProviderLimiter::new(tx));
-        let dashboard = DashboardState::new(Arc::clone(&limiter));
+        let dashboard = DashboardState::new(Arc::clone(&limiter), 300);
         (limiter, dashboard)
     }
 

@@ -6,10 +6,11 @@ use askama::Template;
 use axum::extract::{Path, State};
 use axum::http::{header, HeaderValue, StatusCode};
 use axum::response::{Html, IntoResponse, Response};
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::Router;
 
 use crate::dashboard::assets;
+use crate::dashboard::history::{history_csv, history_fragment};
 use crate::dashboard::providers::providers_fragment;
 use crate::dashboard::requests::requests_fragment;
 use crate::dashboard::state::DashboardState;
@@ -40,12 +41,32 @@ async fn static_handler(Path(path): Path<String>) -> Response {
     }
 }
 
+/// Cancel a tracked request via the dashboard Kill button.
+async fn kill_request(
+    Path(id): Path<String>,
+    State(state): State<Arc<DashboardState>>,
+) -> StatusCode {
+    match uuid::Uuid::parse_str(&id) {
+        Ok(id) => {
+            if state.tracker().cancel(id) {
+                StatusCode::OK
+            } else {
+                StatusCode::NOT_FOUND
+            }
+        }
+        Err(_) => StatusCode::BAD_REQUEST,
+    }
+}
+
 /// Build the dashboard Router with all routes wired to shared state.
 pub fn dashboard_router(state: Arc<DashboardState>) -> Router<()> {
     Router::new()
         .route("/dashboard", get(dashboard_page))
         .route("/dashboard/requests", get(requests_fragment))
+        .route("/dashboard/requests/{id}/kill", post(kill_request))
         .route("/dashboard/providers", get(providers_fragment))
+        .route("/dashboard/history", get(history_fragment))
+        .route("/dashboard/history/export.csv", get(history_csv))
         .route("/static/{*path}", get(static_handler))
         .with_state(state)
 }
@@ -66,7 +87,7 @@ mod tests {
             std::time::Duration::from_secs(30),
             64,
         );
-        Arc::new(DashboardState::new(limiter))
+        Arc::new(DashboardState::new(limiter, 300))
     }
 
     #[tokio::test]
@@ -114,5 +135,127 @@ mod tests {
     #[tokio::test]
     async fn dashboard_router_builds_with_all_routes() {
         let _router = dashboard_router(make_state());
+    }
+
+    #[tokio::test]
+    async fn history_fragment_renders_empty_state() {
+        let state = make_state();
+        let Html(html) = history_fragment(State(Arc::clone(&state))).await;
+        assert!(html.contains("No terminal requests yet"));
+        assert!(!html.contains("<table"));
+    }
+
+    #[tokio::test]
+    async fn history_csv_returns_csv_with_headers() {
+        let state = make_state();
+        let resp = history_csv(State(Arc::clone(&state))).await;
+        assert_eq!(resp.status(), StatusCode::OK, "csv status");
+        let ct = resp
+            .headers()
+            .get(header::CONTENT_TYPE)
+            .expect("content-type")
+            .to_str()
+            .unwrap();
+        assert!(ct.contains("text/csv"), "expected text/csv, got: {ct}");
+        let cd = resp
+            .headers()
+            .get(header::CONTENT_DISPOSITION)
+            .expect("content-disposition")
+            .to_str()
+            .unwrap();
+        assert!(cd.contains("attachment"), "expected attachment, got: {cd}");
+        assert!(
+            cd.contains("umans-history.csv"),
+            "expected filename, got: {cd}"
+        );
+        let body = axum::body::to_bytes(resp.into_body(), 1024 * 1024)
+            .await
+            .expect("body bytes");
+        let csv = String::from_utf8(body.to_vec()).expect("utf8");
+        assert!(
+            csv.starts_with("enqueued,api,provider,model,status,umans_status,total_time,ttft,prompt_tokens,completion_tokens,cached_tokens,tps"),
+            "csv header row missing or incorrect, got: {}",
+            csv.lines().next().unwrap_or("")
+        );
+    }
+
+    #[test]
+    fn kill_button_not_shown_for_recent_requests() {
+        use crate::dashboard::templates::RequestFragment;
+        use crate::dashboard::tracker::{
+            local_offset_label, ProtocolVersion, RequestTracker,
+        };
+        use crate::types::{ModelId, ProviderId, Weight};
+        use uuid::Uuid;
+
+        let tracker = RequestTracker::new();
+        let id = Uuid::new_v4();
+        tracker.register_queued(
+            id,
+            &ProviderId::new("openai"),
+            &ModelId::new("gpt-4"),
+            Weight::from(1.0),
+            ProtocolVersion::Http11,
+            "/v1/chat/completions".to_string(),
+        );
+
+        let requests = tracker.snapshot();
+        let html = RequestFragment {
+            requests,
+            offset_label: local_offset_label(),
+            kill_min_age_seconds: 300,
+        }
+        .render()
+        .expect("render");
+
+        assert!(
+            !html.contains("Kill"),
+            "Kill button should not be shown for recent requests (age < min_age)"
+        );
+        assert!(
+            !html.contains("/kill"),
+            "kill endpoint should not appear in HTML for recent requests"
+        );
+    }
+
+    #[test]
+    fn kill_button_shown_for_old_requests() {
+        use crate::dashboard::templates::RequestFragment;
+        use crate::dashboard::tracker::{
+            local_offset_label, ProtocolVersion, RequestTracker,
+        };
+        use crate::types::{ModelId, ProviderId, Weight};
+        use uuid::Uuid;
+
+        let tracker = RequestTracker::new();
+        let id = Uuid::new_v4();
+        tracker.register_queued(
+            id,
+            &ProviderId::new("openai"),
+            &ModelId::new("gpt-4"),
+            Weight::from(1.0),
+            ProtocolVersion::Http11,
+            "/v1/chat/completions".to_string(),
+        );
+
+        std::thread::sleep(std::time::Duration::from_millis(1100));
+
+        let requests = tracker.snapshot();
+        let html = RequestFragment {
+            requests,
+            offset_label: local_offset_label(),
+            kill_min_age_seconds: 0,
+        }
+        .render()
+        .expect("render");
+
+        assert!(
+            html.contains("Kill"),
+            "Kill button should be shown for old requests (age > min_age)"
+        );
+        assert!(
+            html.contains(&format!("/dashboard/requests/{id}/kill")),
+            "kill endpoint URL should appear in HTML for old requests"
+        );
     }
 }

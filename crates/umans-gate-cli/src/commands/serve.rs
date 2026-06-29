@@ -105,6 +105,11 @@ async fn serve_with_listeners(
 
     let (metric_tx, _) = broadcast::channel::<MetricUpdate>(256);
     let limiter = Arc::new(ProviderLimiter::new(metric_tx));
+    let kill_min_age = config
+        .dashboard
+        .as_ref()
+        .map(|d| d.kill_button.min_age_seconds)
+        .unwrap_or(300);
     let config_store = Arc::new(ConfigStore::new(config, limiter.clone()));
 
     #[cfg(not(feature = "hot-reload"))]
@@ -140,7 +145,7 @@ async fn serve_with_listeners(
     };
 
     let upstream_client = Arc::new(UpstreamClient::new());
-    let dashboard_state = Arc::new(DashboardState::new(Arc::clone(&limiter)));
+    let dashboard_state = Arc::new(DashboardState::new(Arc::clone(&limiter), kill_min_age));
     let proxy_state = Arc::new(ProxyState {
         config_store,
         limiter,

@@ -17,8 +17,8 @@ pub enum GatewayError {
     #[error("concurrency limit exceeded for provider {provider}")]
     ConcurrencyLimit { provider: String },
 
-    #[error("upstream error: {source}")]
-    Upstream { #[source] source: hyper::Error },
+    #[error("upstream error: {0}")]
+    Upstream(String),
 
     #[error("timeout: {0}")]
     Timeout(String),
@@ -28,6 +28,9 @@ pub enum GatewayError {
 
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),
+
+    #[error("request cancelled")]
+    Cancelled,
 }
 
 /// Concurrency acquire failure (async path).
@@ -88,13 +91,19 @@ mod tests {
 
     #[test]
     fn acquire_error_variants() {
-        assert_eq!(AcquireError::UnknownProvider.to_string(), "unknown provider");
+        assert_eq!(
+            AcquireError::UnknownProvider.to_string(),
+            "unknown provider"
+        );
         assert_eq!(AcquireError::Closed.to_string(), "semaphore closed");
     }
 
     #[test]
     fn try_acquire_error_variants() {
-        assert_eq!(TryAcquireError::UnknownProvider.to_string(), "unknown provider");
+        assert_eq!(
+            TryAcquireError::UnknownProvider.to_string(),
+            "unknown provider"
+        );
         assert_eq!(TryAcquireError::NoCapacity.to_string(), "no capacity");
     }
 }

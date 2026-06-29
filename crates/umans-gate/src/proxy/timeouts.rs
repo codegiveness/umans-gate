@@ -36,6 +36,21 @@ use crate::types::ProviderConfig;
 
 use super::upstream::UpstreamClient;
 
+/// Build the provider-native SSE error frame for an in-stream kill.
+///
+/// - **Anthropic**: `event: error\ndata: {"type":"error","error":{"type":"invalid_request_error","message":"..."}}`
+/// - **OpenAI**: `data: {"error":{...},"choices":[{"index":0,"delta":{},"finish_reason":"error"}]}\n\ndata: [DONE]`
+fn kill_sse_error_frame(api_kind: ApiKind) -> Vec<u8> {
+    match api_kind {
+        ApiKind::Anthropic => {
+            b"event: error\ndata: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Request killed from umans dashboard\"}}\n\n".to_vec()
+        }
+        ApiKind::OpenAI | ApiKind::Unknown => {
+            b"data: {\"error\":{\"message\":\"Request killed from umans dashboard\",\"type\":\"invalid_request_error\",\"param\":null,\"code\":null},\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"error\"}]}\n\ndata: [DONE]\n\n".to_vec()
+        }
+    }
+}
+
 /// Discriminant for which timeout fired when wrapping a future with both an
 /// optional total deadline and an optional per-phase timeout.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -287,17 +302,24 @@ pub async fn forward_with_timeouts(
         headers,
         body,
     );
-    let upstream_resp = match wrap_timeouts(total_deadline, t.connect, forward_fut).await {
-        Ok(resp) => resp,
-        Err(TimeoutElapsed::Total) => {
-            let id = permit.request_id();
-            permit.tracker().mark_timeout(id);
-            return Err(GatewayError::Timeout("total timeout".into()));
+    let upstream_resp = tokio::select! {
+        result = wrap_timeouts(total_deadline, t.connect, forward_fut) => {
+            match result {
+                Ok(resp) => resp,
+                Err(TimeoutElapsed::Total) => {
+                    let id = permit.request_id();
+                    permit.tracker().mark_timeout(id);
+                    return Err(GatewayError::Timeout("total timeout".into()));
+                }
+                Err(TimeoutElapsed::Phase) => {
+                    let id = permit.request_id();
+                    permit.tracker().mark_timeout(id);
+                    return Err(GatewayError::Timeout("connect timeout".into()));
+                }
+            }
         }
-        Err(TimeoutElapsed::Phase) => {
-            let id = permit.request_id();
-            permit.tracker().mark_timeout(id);
-            return Err(GatewayError::Timeout("connect timeout".into()));
+        () = token.cancelled() => {
+            return Err(GatewayError::Cancelled);
         }
     };
 
@@ -309,17 +331,24 @@ pub async fn forward_with_timeouts(
     let mut body = upstream_resp.body;
 
     // Phase 2: TTFB timeout on first body frame.
-    let first_frame = match wrap_timeouts(total_deadline, t.ttfb, body.frame()).await {
-        Ok(frame) => frame,
-        Err(TimeoutElapsed::Total) => {
-            let id = permit.request_id();
-            permit.tracker().mark_timeout(id);
-            return Err(GatewayError::Timeout("total timeout".into()));
+    let first_frame = tokio::select! {
+        result = wrap_timeouts(total_deadline, t.ttfb, body.frame()) => {
+            match result {
+                Ok(frame) => frame,
+                Err(TimeoutElapsed::Total) => {
+                    let id = permit.request_id();
+                    permit.tracker().mark_timeout(id);
+                    return Err(GatewayError::Timeout("total timeout".into()));
+                }
+                Err(TimeoutElapsed::Phase) => {
+                    let id = permit.request_id();
+                    permit.tracker().mark_timeout(id);
+                    return Err(GatewayError::Timeout("ttfb timeout".into()));
+                }
+            }
         }
-        Err(TimeoutElapsed::Phase) => {
-            let id = permit.request_id();
-            permit.tracker().mark_timeout(id);
-            return Err(GatewayError::Timeout("ttfb timeout".into()));
+        () = token.cancelled() => {
+            return Err(GatewayError::Cancelled);
         }
     };
 
@@ -375,6 +404,10 @@ pub async fn forward_with_timeouts(
                 () = tx.closed() => break,
                 () = token.cancelled() => {
                     debug!(reason = "cancelled", "upstream drain aborted by cancellation token");
+                    if is_sse {
+                        let frame = kill_sse_error_frame(api_kind);
+                        let _ = tx.send(Ok(Bytes::from(frame))).await;
+                    }
                     return;
                 }
                 result = wrap_timeouts(total_deadline, stream_idle, body.frame()) => {
@@ -530,6 +563,10 @@ mod test_helpers {
     }
 
     pub async fn make_permit() -> (Arc<ProviderLimiter>, TrackedPermit) {
+        make_permit_with_path("/v1/chat/completions").await
+    }
+
+    pub async fn make_permit_with_path(path: &str) -> (Arc<ProviderLimiter>, TrackedPermit) {
         let (tx, _rx) = broadcast::channel::<MetricUpdate>(256);
         let lim = Arc::new(ProviderLimiter::new(tx));
         lim.register(
@@ -546,7 +583,7 @@ mod test_helpers {
             &ModelId::new("gpt-4"),
             Weight::from(1.0),
             ProtocolVersion::Http11,
-            "/v1/chat/completions".to_string(),
+            path.to_string(),
         );
         let permit = lim
             .acquire(
@@ -1473,4 +1510,206 @@ mod token_tap {
         // Zero elapsed (avoid division by zero).
         assert_eq!(compute_tps(Some(10), Some(Duration::ZERO)), None);
     }
+}
+
+#[cfg(test)]
+#[tokio::test]
+async fn kill_pre_stream_returns_400() {
+    use crate::types::TimeoutConfig;
+    use std::sync::Arc;
+    use std::time::Duration;
+
+    let (lim, permit) = test_helpers::make_permit().await;
+    let token = permit.token();
+    let tracker = Arc::clone(permit.tracker());
+    let id = permit.request_id();
+
+    let client = UpstreamClient::new();
+    let provider = test_helpers::test_provider(TimeoutConfig {
+        connect: Some(Duration::from_secs(60)),
+        ttfb: Some(Duration::from_secs(60)),
+        stream_idle: Some(Duration::from_secs(60)),
+        total: Some(Duration::from_secs(60)),
+        ..Default::default()
+    });
+
+    assert!(tracker.cancel(id), "cancel should return true");
+
+    let err = forward_with_timeouts(
+        &client,
+        &provider,
+        Method::GET,
+        "http://127.0.0.1:1/".to_string(),
+        HeaderMap::new(),
+        test_helpers::empty_body(),
+        permit,
+        token,
+    )
+    .await
+    .unwrap_err();
+
+    assert!(
+        matches!(err, GatewayError::Cancelled),
+        "expected GatewayError::Cancelled, got: {err:?}"
+    );
+
+    test_helpers::assert_in_flight(&lim, 0.0);
+}
+
+#[cfg(test)]
+#[tokio::test]
+async fn kill_in_stream_emits_sse_error_anthropic() {
+    use crate::types::TimeoutConfig;
+    use hyper::StatusCode;
+    use std::sync::Arc;
+    use std::time::Duration;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
+
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    tokio::spawn(async move {
+        let (mut sock, _) = listener.accept().await.unwrap();
+        let mut buf = vec![0u8; 1024];
+        let _ = sock.read(&mut buf).await;
+        let sse_data = b"event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"delta\":{\"text\":\"Hi\"}}\n\n";
+        let chunk_header = format!("{:x}\r\n", sse_data.len());
+        sock.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nTransfer-Encoding: chunked\r\n\r\n").await.unwrap();
+        sock.write_all(chunk_header.as_bytes()).await.unwrap();
+        sock.write_all(sse_data).await.unwrap();
+        sock.write_all(b"\r\n").await.unwrap();
+        sock.flush().await.unwrap();
+        tokio::time::sleep(Duration::from_secs(60)).await;
+    });
+
+    let (lim, permit) = test_helpers::make_permit_with_path("/v1/messages").await;
+    let token = permit.token();
+    let tracker = Arc::clone(permit.tracker());
+    let id = permit.request_id();
+
+    let client = UpstreamClient::new();
+    let provider = test_helpers::test_provider(TimeoutConfig {
+        connect: Some(Duration::from_secs(5)),
+        ttfb: Some(Duration::from_secs(5)),
+        stream_idle: Some(Duration::from_secs(5)),
+        total: Some(Duration::from_secs(60)),
+        ..Default::default()
+    });
+
+    let resp = forward_with_timeouts(
+        &client,
+        &provider,
+        Method::GET,
+        format!("http://127.0.0.1:{port}/"),
+        HeaderMap::new(),
+        test_helpers::empty_body(),
+        permit,
+        token,
+    )
+    .await
+    .expect("forward succeeds — headers + first chunk arrive");
+
+    assert_eq!(resp.status(), StatusCode::OK);
+    test_helpers::assert_in_flight(&lim, 1.0);
+
+    assert!(tracker.cancel(id), "cancel should return true");
+
+    let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+    let body = String::from_utf8_lossy(&bytes);
+
+    assert!(
+        body.contains("event: error"),
+        "Anthropic SSE error frame should contain 'event: error', got: {body}"
+    );
+    assert!(
+        body.contains("\"type\":\"invalid_request_error\""),
+        "error frame should use invalid_request_error, got: {body}"
+    );
+    assert!(
+        body.contains("Request killed from umans dashboard"),
+        "error frame should contain kill message, got: {body}"
+    );
+
+    test_helpers::wait_for_in_flight_zero(&lim, 2000).await;
+}
+
+#[cfg(test)]
+#[tokio::test]
+async fn kill_in_stream_emits_sse_error_openai() {
+    use crate::types::TimeoutConfig;
+    use hyper::StatusCode;
+    use std::sync::Arc;
+    use std::time::Duration;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
+
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    tokio::spawn(async move {
+        let (mut sock, _) = listener.accept().await.unwrap();
+        let mut buf = vec![0u8; 1024];
+        let _ = sock.read(&mut buf).await;
+        let sse_data = b"data: {\"choices\":[{\"delta\":{\"content\":\"Hi\"}}]}\n\n";
+        let chunk_header = format!("{:x}\r\n", sse_data.len());
+        sock.write_all(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nTransfer-Encoding: chunked\r\n\r\n").await.unwrap();
+        sock.write_all(chunk_header.as_bytes()).await.unwrap();
+        sock.write_all(sse_data).await.unwrap();
+        sock.write_all(b"\r\n").await.unwrap();
+        sock.flush().await.unwrap();
+        tokio::time::sleep(Duration::from_secs(60)).await;
+    });
+
+    let (lim, permit) = test_helpers::make_permit().await;
+    let token = permit.token();
+    let tracker = Arc::clone(permit.tracker());
+    let id = permit.request_id();
+
+    let client = UpstreamClient::new();
+    let provider = test_helpers::test_provider(TimeoutConfig {
+        connect: Some(Duration::from_secs(5)),
+        ttfb: Some(Duration::from_secs(5)),
+        stream_idle: Some(Duration::from_secs(5)),
+        total: Some(Duration::from_secs(60)),
+        ..Default::default()
+    });
+
+    let resp = forward_with_timeouts(
+        &client,
+        &provider,
+        Method::GET,
+        format!("http://127.0.0.1:{port}/"),
+        HeaderMap::new(),
+        test_helpers::empty_body(),
+        permit,
+        token,
+    )
+    .await
+    .expect("forward succeeds — headers + first chunk arrive");
+
+    assert_eq!(resp.status(), StatusCode::OK);
+    test_helpers::assert_in_flight(&lim, 1.0);
+
+    assert!(tracker.cancel(id), "cancel should return true");
+
+    let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+    let body = String::from_utf8_lossy(&bytes);
+
+    assert!(
+        body.contains("\"type\":\"invalid_request_error\""),
+        "OpenAI SSE error frame should use invalid_request_error, got: {body}"
+    );
+    assert!(
+        body.contains("\"finish_reason\":\"error\""),
+        "error frame should have finish_reason=error, got: {body}"
+    );
+    assert!(
+        body.contains("data: [DONE]"),
+        "error frame should end with [DONE], got: {body}"
+    );
+    assert!(
+        body.contains("Request killed from umans dashboard"),
+        "error frame should contain kill message, got: {body}"
+    );
+
+    test_helpers::wait_for_in_flight_zero(&lim, 2000).await;
 }

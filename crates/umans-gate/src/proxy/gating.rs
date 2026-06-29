@@ -80,6 +80,17 @@ pub async fn acquire_for_request(
 
     match result {
         Ok(Ok(permit)) => {
+            // If the request was killed while queued, the record is already
+            // terminal (Cancelled). Drop the permit (releases capacity since
+            // TrackedPermit::Drop skips mark_done when terminal) and return
+            // the 400 kill response.
+            if tracker.is_terminal(request_id) {
+                let token = tracker
+                    .cancellation_token(request_id)
+                    .unwrap_or_default();
+                let _ = TrackedPermit::new(permit, request_id, Arc::clone(tracker), token);
+                return Err(GatewayError::Cancelled);
+            }
             tracker.mark_running(request_id, None);
             let token = tracker
                 .cancellation_token(request_id)

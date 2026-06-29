@@ -1,7 +1,7 @@
 use askama::Template;
 
 use crate::dashboard::state::ProviderMetric;
-use crate::dashboard::tracker::RequestRecord;
+use crate::dashboard::tracker::{HistoryRecord, RequestRecord, RequestStatus};
 
 /// Full dashboard page — dark Tailwind theme, loads embedded htmx, polls /dashboard/requests.
 #[derive(Template, Default)]
@@ -14,6 +14,14 @@ pub struct DashboardTemplate<'a> {
 #[template(path = "request_fragment.html")]
 pub struct RequestFragment {
     pub requests: Vec<RequestRecord>,
+    pub offset_label: String,
+    pub kill_min_age_seconds: u64,
+}
+
+#[derive(Template)]
+#[template(path = "history_fragment.html")]
+pub struct HistoryFragment {
+    pub records: Vec<HistoryRecord>,
     pub offset_label: String,
 }
 
@@ -52,11 +60,98 @@ mod tests {
         let html = RequestFragment {
             requests: vec![],
             offset_label: String::new(),
+            kill_min_age_seconds: 300,
         }
         .render()
         .expect("render");
         assert!(html.contains("No active requests"));
         assert!(!html.contains("<table"));
+    }
+
+    #[test]
+    fn history_fragment_renders_empty() {
+        let html = HistoryFragment {
+            records: vec![],
+            offset_label: String::new(),
+        }
+        .render()
+        .expect("render");
+        assert!(html.contains("No terminal requests yet"));
+        assert!(!html.contains("<table"));
+    }
+
+    #[test]
+    fn history_fragment_renders_rows() {
+        use crate::dashboard::tracker::{local_offset_label, ApiKind, HistoryRecord, RequestStatus};
+        use chrono::Utc;
+        use std::time::Duration;
+        use uuid::Uuid;
+
+        let records = vec![HistoryRecord {
+            id: Uuid::new_v4(),
+            provider: ProviderId::new("umans"),
+            model: ModelId::new("umans-coder"),
+            api_kind: ApiKind::OpenAI,
+            status: RequestStatus::Done,
+            enqueued_at_wall: Utc::now(),
+            total_time: Some(Duration::from_secs(1)),
+            upstream_status: Some(200),
+            internal_status: Some(200),
+            ttft: Some(Duration::from_millis(100)),
+            streaming_elapsed: Some(Duration::from_millis(900)),
+            prompt_tokens: Some(10),
+            completion_tokens: Some(20),
+            cached_tokens: Some(5),
+            tps: Some(22.2),
+        }];
+        let offset_label = local_offset_label();
+        let html = HistoryFragment {
+            records,
+            offset_label: offset_label.clone(),
+        }
+        .render()
+        .expect("render");
+
+        println!("{html}");
+
+        assert!(html.contains("hidden md:table"), "desktop table missing");
+        assert!(html.contains("md:hidden"), "mobile cards missing");
+        assert!(
+            html.contains(&format!("Enqueued time ({})", offset_label)),
+            "enqueued header with offset missing"
+        );
+        assert!(html.contains("API"), "api header missing");
+        assert!(html.contains("Provider"), "provider header missing");
+        assert!(html.contains("Model"), "model header missing");
+        assert!(html.contains("Status"), "status header missing");
+        assert!(
+            html.contains("umans response"),
+            "umans response header missing"
+        );
+        assert!(html.contains("Total time"), "total time header missing");
+        assert!(html.contains("TTFT"), "ttft header missing");
+        assert!(
+            html.contains("Token in/out"),
+            "token in/out header missing"
+        );
+        assert!(
+            html.contains("Token cached %"),
+            "token cached % header missing"
+        );
+        assert!(html.contains("TPS"), "tps header missing");
+        assert!(html.contains("OpenAI"), "openai api label missing");
+        assert!(html.contains("umans-coder"), "model name missing");
+        assert!(html.contains("1.00s"), "total time display missing");
+        assert!(html.contains("100ms"), "ttft display missing");
+        assert!(html.contains("10/20"), "token in/out display missing");
+        assert!(html.contains("50%"), "cached pct display missing");
+        assert!(html.contains("22.20"), "tps display missing");
+        assert!(html.contains("200"), "internal status display missing");
+        assert!(html.contains("Done"), "status label missing");
+        assert!(
+            !html.contains("No terminal requests yet"),
+            "should not show empty state"
+        );
     }
 
     #[test]
@@ -96,6 +191,7 @@ mod tests {
         let html = RequestFragment {
             requests,
             offset_label: offset_label.clone(),
+            kill_min_age_seconds: 300,
         }
         .render()
         .expect("render");

@@ -20,7 +20,7 @@ fn make_state() -> (Arc<ProviderLimiter>, Arc<DashboardState>) {
         std::time::Duration::from_secs(30),
         64,
     );
-    let state = Arc::new(DashboardState::new(Arc::clone(&limiter)));
+    let state = Arc::new(DashboardState::new(Arc::clone(&limiter), 300));
     (limiter, state)
 }
 
