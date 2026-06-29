@@ -165,6 +165,7 @@ mod tests {
             }],
             bind: "0.0.0.0:0".parse().unwrap(),
             dashboard_bind: "0.0.0.0:0".parse().unwrap(),
+            dashboard: None,
         };
         let (tx, _rx) = broadcast::channel::<MetricUpdate>(64);
         let limiter = Arc::new(ProviderLimiter::new(tx));
@@ -192,6 +193,7 @@ mod tests {
             }],
             bind: "0.0.0.0:0".parse().unwrap(),
             dashboard_bind: "0.0.0.0:0".parse().unwrap(),
+            dashboard: None,
         };
         let (tx, _rx) = broadcast::channel::<MetricUpdate>(64);
         let limiter = Arc::new(ProviderLimiter::new(tx));

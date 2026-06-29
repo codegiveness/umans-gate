@@ -29,7 +29,11 @@ mod tests {
         }
         let output = String::from_utf8(buf).expect("completion output is utf-8");
         for needle in ["umans-gate", "serve", "update", "uninstall"] {
-            assert!(output.contains(needle), "missing '{}' in completions", needle);
+            assert!(
+                output.contains(needle),
+                "missing '{}' in completions",
+                needle
+            );
         }
     }
 }

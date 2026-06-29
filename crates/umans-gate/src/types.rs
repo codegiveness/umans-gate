@@ -6,6 +6,73 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
+/// History retention configuration for the dashboard.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HistoryConfig {
+    /// Maximum in-memory terminal records. 0 = unlimited.
+    #[serde(default = "default_history_max")]
+    pub max: usize,
+}
+
+fn default_history_max() -> usize {
+    1000
+}
+
+impl Default for HistoryConfig {
+    fn default() -> Self {
+        HistoryConfig {
+            max: default_history_max(),
+        }
+    }
+}
+
+/// Kill button configuration for the dashboard.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KillButtonConfig {
+    /// Minimum request age (seconds) before the kill button is enabled.
+    #[serde(default = "default_kill_min_age_seconds")]
+    pub min_age_seconds: u64,
+}
+
+fn default_kill_min_age_seconds() -> u64 {
+    300
+}
+
+impl Default for KillButtonConfig {
+    fn default() -> Self {
+        KillButtonConfig {
+            min_age_seconds: default_kill_min_age_seconds(),
+        }
+    }
+}
+
+/// Dashboard configuration: bind address + history/kill-button settings.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DashboardConfig {
+    #[serde(default = "default_dashboard_bind")]
+    pub bind: SocketAddr,
+    #[serde(default)]
+    pub history: HistoryConfig,
+    #[serde(default)]
+    pub kill_button: KillButtonConfig,
+}
+
+fn default_dashboard_bind() -> SocketAddr {
+    "0.0.0.0:3001"
+        .parse()
+        .expect("valid dashboard bind addr literal")
+}
+
+impl Default for DashboardConfig {
+    fn default() -> Self {
+        DashboardConfig {
+            bind: default_dashboard_bind(),
+            history: HistoryConfig::default(),
+            kill_button: KillButtonConfig::default(),
+        }
+    }
+}
+
 /// Weight of a model relative to provider capacity (config-side float).
 /// Internal representation uses fixed-point u32 milliunits (×1000) for race-free CAS.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -165,15 +232,23 @@ impl ProviderConfig {
 }
 
 /// Top-level gateway configuration.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+///
+/// `dashboard` is populated from the `dashboard` YAML key (struct form) or
+/// falls back to the legacy `dashboard_bind` string field. This keeps existing
+/// configs that only specify `dashboard_bind` working without changes.
+#[derive(Debug, Clone, Serialize)]
 pub struct GatewayConfig {
     pub providers: Vec<ProviderConfig>,
     pub bind: SocketAddr,
     pub dashboard_bind: SocketAddr,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dashboard: Option<DashboardConfig>,
 }
 
 impl Default for GatewayConfig {
     fn default() -> Self {
+        let dashboard_bind: SocketAddr =
+            "0.0.0.0:9090".parse().expect("valid socket addr literal");
         GatewayConfig {
             providers: vec![ProviderConfig {
                 id: ProviderId::new("umans"),
@@ -209,8 +284,55 @@ impl Default for GatewayConfig {
                 timeouts: TimeoutConfig::default(),
             }],
             bind: "0.0.0.0:8080".parse().expect("valid socket addr literal"),
-            dashboard_bind: "0.0.0.0:9090".parse().expect("valid socket addr literal"),
+            dashboard_bind,
+            dashboard: None,
         }
+    }
+}
+
+impl<'de> Deserialize<'de> for GatewayConfig {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        struct Raw {
+            #[serde(default)]
+            providers: Vec<ProviderConfig>,
+            #[serde(default = "default_bind")]
+            bind: SocketAddr,
+            #[serde(default = "default_dashboard_bind_legacy")]
+            dashboard_bind: SocketAddr,
+            #[serde(default)]
+            dashboard: Option<DashboardConfig>,
+        }
+
+        fn default_bind() -> SocketAddr {
+            "0.0.0.0:8080"
+                .parse()
+                .expect("valid socket addr literal")
+        }
+
+        fn default_dashboard_bind_legacy() -> SocketAddr {
+            "0.0.0.0:9090"
+                .parse()
+                .expect("valid socket addr literal")
+        }
+
+        let raw = Raw::deserialize(deserializer)?;
+        let dashboard = Some(match raw.dashboard {
+            Some(d) => d,
+            None => DashboardConfig {
+                bind: raw.dashboard_bind,
+                ..Default::default()
+            },
+        });
+        Ok(GatewayConfig {
+            providers: raw.providers,
+            bind: raw.bind,
+            dashboard_bind: raw.dashboard_bind,
+            dashboard,
+        })
     }
 }
 
@@ -284,6 +406,9 @@ mod tests {
         assert_send_sync::<ProviderConfig>();
         assert_send_sync::<TimeoutConfig>();
         assert_send_sync::<GatewayConfig>();
+        assert_send_sync::<DashboardConfig>();
+        assert_send_sync::<HistoryConfig>();
+        assert_send_sync::<KillButtonConfig>();
     }
 
     #[test]
@@ -320,6 +445,63 @@ mod tests {
         assert_eq!(t2.ttfb, Some(Duration::from_secs(5)));
         assert_eq!(t2.stream_idle, None);
         assert_eq!(t2.total, Some(Duration::from_secs(120)));
+    }
+
+    #[test]
+    fn dashboard_config_backward_compat() {
+        let yaml = r#"
+providers:
+  - id: test
+    upstream_url: "https://example.com"
+    capacity: 4.0
+    models:
+      - id: m1
+        weight: 1.0
+bind: "0.0.0.0:8080"
+dashboard_bind: "0.0.0.0:3001"
+"#;
+        let config: GatewayConfig =
+            serde_yaml::from_str(yaml).expect("deserialize with dashboard_bind only");
+        assert_eq!(config.dashboard_bind, "0.0.0.0:3001".parse().unwrap());
+        let dash = config.dashboard.expect("dashboard should be populated");
+        assert_eq!(dash.bind, "0.0.0.0:3001".parse().unwrap());
+        assert_eq!(dash.history.max, 1000);
+        assert_eq!(dash.kill_button.min_age_seconds, 300);
+    }
+
+    #[test]
+    fn dashboard_config_explicit_struct() {
+        let yaml = r#"
+providers:
+  - id: test
+    upstream_url: "https://example.com"
+    capacity: 4.0
+    models:
+      - id: m1
+        weight: 1.0
+bind: "0.0.0.0:8080"
+dashboard_bind: "0.0.0.0:9090"
+dashboard:
+  bind: "0.0.0.0:3001"
+  history:
+    max: 500
+  kill_button:
+    min_age_seconds: 120
+"#;
+        let config: GatewayConfig =
+            serde_yaml::from_str(yaml).expect("deserialize with explicit dashboard");
+        let dash = config.dashboard.unwrap();
+        assert_eq!(dash.bind, "0.0.0.0:3001".parse().unwrap());
+        assert_eq!(dash.history.max, 500);
+        assert_eq!(dash.kill_button.min_age_seconds, 120);
+    }
+
+    #[test]
+    fn dashboard_config_default_values() {
+        let d = DashboardConfig::default();
+        assert_eq!(d.bind, "0.0.0.0:3001".parse().unwrap());
+        assert_eq!(d.history.max, 1000);
+        assert_eq!(d.kill_button.min_age_seconds, 300);
     }
 
     #[test]

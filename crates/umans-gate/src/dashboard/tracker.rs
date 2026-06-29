@@ -9,12 +9,13 @@
 //! field is stored solely for wall-clock display (HH:MM:SS) and is never used
 //! for ordering or elapsed-time math.
 
+use std::collections::VecDeque;
 use std::fmt;
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, OnceLock, RwLock};
 use std::time::{Duration, Instant, SystemTime};
 
 use axum::http::Version;
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Local, Utc};
 
 use dashmap::DashMap;
 use tokio_util::sync::CancellationToken;
@@ -206,6 +207,77 @@ impl RequestRecord {
     }
 }
 
+/// Terminal snapshot of a completed request for the history view.
+///
+/// Mirrors the display-relevant fields of [`RequestRecord`] but with all
+/// timing stored as `DateTime<Utc>` / `Option<Duration>` so the history
+/// table can render without `Instant` (monotonic) references that are
+/// meaningless after the original record is dropped.
+#[derive(Debug, Clone)]
+pub struct HistoryRecord {
+    pub id: Uuid,
+    pub provider: ProviderId,
+    pub model: ModelId,
+    pub api_kind: ApiKind,
+    pub status: RequestStatus,
+    pub enqueued_at_wall: DateTime<Utc>,
+    pub total_time: Option<Duration>,
+    pub upstream_status: Option<u16>,
+    pub internal_status: Option<u16>,
+    pub ttft: Option<Duration>,
+    pub streaming_elapsed: Option<Duration>,
+    pub prompt_tokens: Option<usize>,
+    pub completion_tokens: Option<usize>,
+    pub cached_tokens: Option<usize>,
+    pub tps: Option<f64>,
+}
+
+/// Bounded FIFO ring buffer of terminal request records.
+///
+/// `max == 0` means unlimited. Otherwise, when `len() == max`, the oldest
+/// entry is evicted before the new one is pushed.
+#[derive(Debug)]
+pub struct HistoryStore {
+    records: VecDeque<HistoryRecord>,
+    max: usize,
+}
+
+impl HistoryStore {
+    pub fn new(max: usize) -> Self {
+        HistoryStore {
+            records: VecDeque::with_capacity(if max > 0 { max } else { 64 }),
+            max,
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.records.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.records.is_empty()
+    }
+
+    /// Push a record, evicting the oldest if at capacity (FIFO).
+    pub fn push(&mut self, record: HistoryRecord) {
+        if self.max > 0 && self.records.len() == self.max {
+            self.records.pop_front();
+        }
+        self.records.push_back(record);
+    }
+
+    /// Return all records newest-first (reverse insertion order).
+    pub fn snapshot(&self) -> Vec<HistoryRecord> {
+        self.records.iter().rev().cloned().collect()
+    }
+}
+
+impl Default for HistoryStore {
+    fn default() -> Self {
+        Self::new(1000)
+    }
+}
+
 /// Per-request lifecycle tracker.
 ///
 /// Lives behind `Arc` inside `DashboardState`. The concurrency engine calls
@@ -215,13 +287,20 @@ impl RequestRecord {
 #[derive(Debug)]
 pub struct RequestTracker {
     requests: Arc<DashMap<Uuid, RequestRecord>>,
+    history: RwLock<HistoryStore>,
 }
 
 impl RequestTracker {
-    /// Create an empty tracker.
+    /// Create an empty tracker with default history capacity (1000).
     pub fn new() -> Self {
+        RequestTracker::with_history_max(1000)
+    }
+
+    /// Create a tracker with a specific history capacity. `0` = unlimited.
+    pub fn with_history_max(history_max: usize) -> Self {
         RequestTracker {
             requests: Arc::new(DashMap::new()),
+            history: RwLock::new(HistoryStore::new(history_max)),
         }
     }
 
@@ -367,6 +446,21 @@ impl RequestTracker {
             .collect();
         records.sort_by_key(|a| a.enqueued_at);
         records
+    }
+
+    /// Record a terminal request into the history store (FIFO eviction).
+    pub fn record_history(&self, record: HistoryRecord) {
+        if let Ok(mut store) = self.history.write() {
+            store.push(record);
+        }
+    }
+
+    /// Return a newest-first snapshot of the history store.
+    pub fn history(&self) -> Vec<HistoryRecord> {
+        self.history
+            .read()
+            .map(|store| store.snapshot())
+            .unwrap_or_default()
     }
 }
 
@@ -699,6 +793,8 @@ mod tests {
         assert_send_sync::<RequestRecord>();
         assert_send_sync::<RequestStatus>();
         assert_send_sync::<ProtocolVersion>();
+        assert_send_sync::<HistoryRecord>();
+        assert_send_sync::<HistoryStore>();
     }
 }
 
@@ -845,4 +941,81 @@ fn cancel_marks_cancelled_and_returns_true() {
         !tracker.cancel(missing),
         "cancel should return false for missing record"
     );
+}
+
+#[cfg(test)]
+fn sample_history_record(id: Uuid) -> HistoryRecord {
+    HistoryRecord {
+        id,
+        provider: ProviderId::new("openai"),
+        model: ModelId::new("gpt-4"),
+        api_kind: ApiKind::OpenAI,
+        status: RequestStatus::Done,
+        enqueued_at_wall: DateTime::<Utc>::from(SystemTime::now()),
+        total_time: Some(Duration::from_secs(1)),
+        upstream_status: Some(200),
+        internal_status: None,
+        ttft: Some(Duration::from_millis(100)),
+        streaming_elapsed: Some(Duration::from_millis(900)),
+        prompt_tokens: Some(10),
+        completion_tokens: Some(20),
+        cached_tokens: None,
+        tps: Some(22.2),
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn history_store_fifo_eviction() {
+    let mut store = HistoryStore::new(3);
+    let id1 = Uuid::new_v4();
+    let id2 = Uuid::new_v4();
+    let id3 = Uuid::new_v4();
+    let id4 = Uuid::new_v4();
+
+    store.push(sample_history_record(id1));
+    store.push(sample_history_record(id2));
+    store.push(sample_history_record(id3));
+    assert_eq!(store.len(), 3);
+
+    store.push(sample_history_record(id4));
+    assert_eq!(store.len(), 3, "len should stay at max after eviction");
+
+    let snap = store.snapshot();
+    let ids: Vec<Uuid> = snap.iter().map(|r| r.id).collect();
+    assert!(!ids.contains(&id1), "oldest record should be evicted");
+    assert!(ids.contains(&id4), "newest record should be present");
+    assert_eq!(snap[0].id, id4, "newest-first ordering");
+    assert_eq!(snap[2].id, id2, "second-oldest should now be last");
+}
+
+#[cfg(test)]
+#[test]
+fn history_store_zero_max_unlimited() {
+    let mut store = HistoryStore::new(0);
+    for _ in 0..5 {
+        store.push(sample_history_record(Uuid::new_v4()));
+    }
+    assert_eq!(store.len(), 5, "unlimited store should keep all records");
+}
+
+#[cfg(test)]
+#[test]
+fn tracker_history_records_and_reads() {
+    let tracker = RequestTracker::with_history_max(10);
+    let id = Uuid::new_v4();
+    tracker.record_history(sample_history_record(id));
+
+    let hist = tracker.history();
+    assert_eq!(hist.len(), 1);
+    assert_eq!(hist[0].id, id);
+    assert_eq!(hist[0].status, RequestStatus::Done);
+}
+
+#[cfg(test)]
+#[test]
+fn tracker_history_send_sync() {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<HistoryRecord>();
+    assert_send_sync::<HistoryStore>();
 }

@@ -37,9 +37,30 @@ pub async fn run(
     config_path: &Path,
     bind: Option<String>,
     watch: bool,
+    history_max: Option<usize>,
+    kill_min_age_seconds: Option<u64>,
 ) -> anyhow::Result<ExitCode> {
-    let config = GatewayConfig::load(config_path)
-        .with_context(|| format!("loading config from {}", config_path.display()))?;
+    let mut config = if config_path.is_file() {
+        GatewayConfig::load(config_path)
+            .with_context(|| format!("loading config from {}", config_path.display()))?
+    } else {
+        info!(
+            "No config file found at {}, fetching model list from https://api.code.umans.ai/v1/models/info...",
+            config_path.display()
+        );
+        umans_gate::model_fetch::fetch_default_config()
+            .await
+            .with_context(|| "fetching default config from Umans API")?
+    };
+
+    if let Some(ref mut dash) = config.dashboard {
+        if let Some(max) = history_max {
+            dash.history.max = max;
+        }
+        if let Some(min_age) = kill_min_age_seconds {
+            dash.kill_button.min_age_seconds = min_age;
+        }
+    }
 
     let bind_addr = match &bind {
         Some(b) => b

@@ -59,6 +59,7 @@ fn make_state(upstream_url: Url) -> Arc<ProxyState> {
         }],
         bind: "0.0.0.0:0".parse().unwrap(),
         dashboard_bind: "0.0.0.0:0".parse().unwrap(),
+        dashboard: None,
     };
     let (tx, _rx) = broadcast::channel::<MetricUpdate>(16);
     let limiter = Arc::new(ProviderLimiter::new(tx));
