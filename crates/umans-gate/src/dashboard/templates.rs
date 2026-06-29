@@ -14,6 +14,7 @@ pub struct DashboardTemplate<'a> {
 #[template(path = "request_fragment.html")]
 pub struct RequestFragment {
     pub requests: Vec<RequestRecord>,
+    pub offset_label: String,
 }
 
 #[derive(Template)]
@@ -48,16 +49,19 @@ mod tests {
 
     #[test]
     fn request_fragment_renders_empty() {
-        let html = RequestFragment { requests: vec![] }
-            .render()
-            .expect("render");
+        let html = RequestFragment {
+            requests: vec![],
+            offset_label: String::new(),
+        }
+        .render()
+        .expect("render");
         assert!(html.contains("No active requests"));
         assert!(!html.contains("<table"));
     }
 
     #[test]
     fn request_fragment_renders_rows() {
-        use crate::dashboard::tracker::RequestTracker;
+        use crate::dashboard::tracker::{local_offset_label, ProtocolVersion, RequestTracker};
         use crate::types::Weight;
         use uuid::Uuid;
 
@@ -70,38 +74,55 @@ mod tests {
             &ProviderId::new("umans"),
             &ModelId::new("umans-coder"),
             Weight::from(1.0),
+            ProtocolVersion::Http11,
         );
         tracker.register_queued(
             id2,
             &ProviderId::new("umans"),
             &ModelId::new("umans-flash"),
             Weight::from(0.5),
+            ProtocolVersion::H2,
         );
-        tracker.mark_running(id2);
+        tracker.mark_running(id2, Some(ProtocolVersion::Http11));
 
         let requests = tracker.snapshot();
-        let html = RequestFragment { requests }.render().expect("render");
+        // Capture display strings before the snapshot is moved into the template.
+        let enqueued1 = requests[0].enqueued_at_display();
+        let io1 = requests[0].io_display();
+        let io2 = requests[1].io_display();
+        let offset_label = local_offset_label();
+        let html = RequestFragment {
+            requests,
+            offset_label: offset_label.clone(),
+        }
+        .render()
+        .expect("render");
 
         println!("{html}");
 
         assert!(html.contains("hidden md:table"), "desktop table missing");
         assert!(html.contains("md:hidden"), "mobile cards missing");
-        assert!(html.contains("Session ID"), "session id header missing");
+        assert!(
+            html.contains(&format!("Enqueued time ({})", offset_label)),
+            "enqueued header with offset missing"
+        );
         assert!(html.contains("Provider"), "provider header missing");
         assert!(html.contains("Model"), "model header missing");
         assert!(html.contains("Weight"), "weight header missing");
         assert!(html.contains("Status"), "status header missing");
         assert!(html.contains("Age"), "age header missing");
-        assert!(
-            html.contains("font-mono text-xs"),
-            "session id mono styling missing"
-        );
+        assert!(html.contains("I/O"), "i/o header missing");
+        assert!(!html.contains("Session ID"), "session id header should be gone");
         assert!(html.contains("tabular-nums"), "tabular nums missing");
-        assert!(
-            html.contains("title=\""),
-            "title attr for full uuid missing"
-        );
-        assert!(html.contains("\u{2026}"), "ellipsis in short id missing");
+        // Enqueued time renders as HH:MM:SS (two colons, eight digits).
+        assert!(enqueued1.len() == 8, "enqueued time should be HH:MM:SS");
+        assert_eq!(enqueued1.matches(':').count(), 2, "enqueued time needs two colons");
+        assert!(html.contains(&enqueued1), "enqueued time missing from html");
+        // I/O display: queued request shows h1.1/-, running shows h2/h1.1.
+        assert_eq!(io1, "h1.1/-", "queued i/o should be h1.1/-");
+        assert_eq!(io2, "h2/h1.1", "running i/o should be h2/h1.1");
+        assert!(html.contains(&io1), "queued i/o missing from html");
+        assert!(html.contains(&io2), "running i/o missing from html");
         assert!(
             html.contains("bg-amber-500/15 text-amber-400"),
             "queued badge class missing"

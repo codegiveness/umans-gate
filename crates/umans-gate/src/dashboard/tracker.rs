@@ -10,10 +10,11 @@
 //! for ordering or elapsed-time math.
 
 use std::fmt;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant, SystemTime};
 
 use axum::http::Version;
+use chrono::{DateTime, Local};
 
 use dashmap::DashMap;
 use uuid::Uuid;
@@ -128,6 +129,17 @@ pub struct RequestRecord {
     pub is_terminal: bool,
 }
 
+/// Cached OS timezone offset label for the request-fragment header.
+///
+/// Computes the offset once at process startup and returns it as `[+-]HH.MM`
+/// (colons replaced with dots so the header is easy to scan).
+pub fn local_offset_label() -> String {
+    static LABEL: OnceLock<String> = OnceLock::new();
+    LABEL
+        .get_or_init(|| Local::now().offset().to_string().replace(':', "."))
+        .clone()
+}
+
 impl RequestRecord {
     pub fn short_id(&self) -> String {
         let s = self.id.to_string();
@@ -138,17 +150,11 @@ impl RequestRecord {
         self.enqueued_at.elapsed().as_secs()
     }
 
-    /// Format `enqueued_at_wall` as `HH:MM:SS` (UTC).
+    /// Format `enqueued_at_wall` as `HH:MM:SS` in local wall-clock time.
     pub fn enqueued_at_display(&self) -> String {
-        let elapsed = self
-            .enqueued_at_wall
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-        let hours = (elapsed / 3600) % 24;
-        let minutes = (elapsed / 60) % 60;
-        let seconds = elapsed % 60;
-        format!("{hours:02}:{minutes:02}:{seconds:02}")
+        DateTime::<Local>::from(self.enqueued_at_wall)
+            .format("%H:%M:%S")
+            .to_string()
     }
 
     /// Render the I/O protocol pair as `client_proto/upstream_proto`.
@@ -341,6 +347,7 @@ mod tests {
 
     #[test]
     fn enqueued_at_display_formats_hhmmss() {
+        let wall = SystemTime::UNIX_EPOCH + Duration::from_secs(3661);
         let record = RequestRecord {
             id: Uuid::new_v4(),
             provider: ProviderId::new("openai"),
@@ -350,12 +357,13 @@ mod tests {
             enqueued_at: Instant::now(),
             acquired_at: None,
             completed_at: None,
-            enqueued_at_wall: SystemTime::UNIX_EPOCH + Duration::from_secs(3661),
+            enqueued_at_wall: wall,
             client_protocol: sample_protocol(),
             upstream_protocol: None,
             is_terminal: false,
         };
-        assert_eq!(record.enqueued_at_display(), "01:01:01");
+        let expected = DateTime::<Local>::from(wall).format("%H:%M:%S").to_string();
+        assert_eq!(record.enqueued_at_display(), expected);
     }
 
     #[test]
@@ -621,4 +629,53 @@ mod tests {
         assert_send_sync::<RequestStatus>();
         assert_send_sync::<ProtocolVersion>();
     }
+}
+
+#[cfg(test)]
+#[test]
+fn enqueued_at_display_returns_local_time_format() {
+    let record = RequestRecord {
+        id: Uuid::new_v4(),
+        provider: ProviderId::new("openai"),
+        model: ModelId::new("gpt-4"),
+        weight: Weight::from(1.0),
+        status: RequestStatus::Queued,
+        enqueued_at: Instant::now(),
+        acquired_at: None,
+        completed_at: None,
+        enqueued_at_wall: SystemTime::now(),
+        client_protocol: ProtocolVersion::Http11,
+        upstream_protocol: None,
+        is_terminal: false,
+    };
+    let display = record.enqueued_at_display();
+    assert_eq!(display.len(), 8, "expected HH:MM:SS, got {}", display);
+    assert_eq!(
+        display.matches(':').count(),
+        2,
+        "expected two colons in {}",
+        display
+    );
+    assert!(
+        display.bytes().enumerate().all(|(i, c)| {
+            if i == 2 || i == 5 {
+                c == b':'
+            } else {
+                c.is_ascii_digit()
+            }
+        }),
+        "expected digits at all other positions in {}",
+        display
+    );
+}
+
+#[cfg(test)]
+#[test]
+fn local_offset_label_returns_nonempty() {
+    let label = local_offset_label();
+    assert_eq!(label.len(), 6, "expected [+-]HH.MM, got {}", label);
+    assert!(label.starts_with('+') || label.starts_with('-'));
+    assert_eq!(label.as_bytes()[3], b'.');
+    assert!(label[1..3].chars().all(|c| c.is_ascii_digit()));
+    assert!(label[4..6].chars().all(|c| c.is_ascii_digit()));
 }

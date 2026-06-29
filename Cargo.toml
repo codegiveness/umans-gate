@@ -1,0 +1,81 @@
+[workspace]
+resolver = "2"
+members = ["crates/umans-gate", "crates/umans-gate-cli"]
+default-members = ["crates/umans-gate-cli"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+license = "MIT OR Apache-2.0"
+authors = ["umans-ai"]
+repository = "https://github.com/umans-ai/umans-gate"
+homepage = "https://github.com/umans-ai/umans-gate"
+documentation = "https://github.com/umans-ai/umans-gate"
+
+[workspace.dependencies]
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.45", features = ["full"] }
+axum = "0.8"
+hyper = { version = "1", features = ["full"] }
+hyper-util = { version = "0.1", features = ["client-legacy", "tokio", "server", "http1"] }
+tower = "0.5"
+dashmap = "6.2"
+figment = { version = "0.10", features = ["toml", "yaml", "env"] }
+notify = "7.0"
+notify-debouncer-mini = "0.4"
+arc-swap = "1.7"
+thiserror = "2.0"
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+askama = "0.16"
+rust-embed = "8.11"
+self_update = { version = "0.44", default-features = false, features = ["rustls", "reqwest", "archive-tar", "compression-flate2"] }
+self-replace = "1.5"
+clap = { version = "4.5", features = ["derive", "env"] }
+clap_complete = "4.5"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"] }
+async-stream = "0.3"
+futures-util = "0.3"
+tokio-stream = "0.1"
+mime_guess = "2.0"
+tempfile = "3.10"
+url = { version = "2", features = ["serde"] }
+hyper-rustls = { version = "0.27", default-features = false, features = ["http1", "http2", "webpki-tokio", "aws-lc-rs", "logging", "tls12"] }
+http-body-util = "0.1"
+bytes = "1"
+sha2 = "0.10"
+uuid = { version = "1", features = ["v4"] }
+
+# Config for 'dist'
+[workspace.metadata.dist]
+# The preferred dist version to use in CI (Cargo.toml SemVer syntax)
+cargo-dist-version = "0.32.0"
+# CI backends to support
+ci = "github"
+# The installers to generate for each app
+installers = ["shell", "powershell", "homebrew"]
+# Target platforms to build apps for (Rust target-triple syntax)
+targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc"]
+# A GitHub repo to push Homebrew formulas to
+tap = "umans-ai/homebrew-tap"
+# Publish jobs to run in CI
+publish-jobs = ["homebrew"]
+# Path that installers should place binaries in
+install-path = "CARGO_HOME"
+# Whether to install an updater program
+install-updater = false
+
+[profile.release]
+lto = "thin"
+strip = "symbols"
+codegen-units = 1
+panic = "abort"
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"

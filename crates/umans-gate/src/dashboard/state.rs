@@ -10,6 +10,7 @@ use dashmap::DashMap;
 use tokio::sync::broadcast;
 
 use crate::concurrency::{MetricUpdate, ProviderLimiter, ProviderSnapshot};
+use crate::dashboard::tracker::{local_offset_label, RequestRecord, RequestTracker};
 use crate::types::{ModelId, ProviderId};
 
 /// Aggregated metric for a single provider, rendered by the dashboard.
@@ -65,6 +66,9 @@ pub struct DashboardState {
     providers: Arc<DashMap<ProviderId, ProviderMetric>>,
     metric_tx: broadcast::Sender<MetricUpdate>,
     limiter: Arc<ProviderLimiter>,
+    tracker: Arc<RequestTracker>,
+    /// OS timezone offset label (`[+-]HH.MM`) passed to request templates.
+    pub offset_label: String,
 }
 
 impl DashboardState {
@@ -79,6 +83,8 @@ impl DashboardState {
             providers: Arc::new(DashMap::new()),
             metric_tx,
             limiter,
+            tracker: Arc::new(RequestTracker::new()),
+            offset_label: local_offset_label(),
         }
     }
 
@@ -89,8 +95,12 @@ impl DashboardState {
 
     /// Snapshot current provider metrics from the limiter; refreshes the cache.
     pub fn snapshot(&self) -> Vec<ProviderMetric> {
-        let metrics: Vec<ProviderMetric> =
-            self.limiter.snapshot().into_iter().map(map_snapshot).collect();
+        let metrics: Vec<ProviderMetric> = self
+            .limiter
+            .snapshot()
+            .into_iter()
+            .map(map_snapshot)
+            .collect();
         self.providers.clear();
         for m in &metrics {
             self.providers.insert(m.provider.clone(), m.clone());
@@ -101,6 +111,23 @@ impl DashboardState {
     /// Clone of the broadcast sender (for the concurrency engine / SSE source).
     pub fn metric_tx(&self) -> broadcast::Sender<MetricUpdate> {
         self.metric_tx.clone()
+    }
+
+    /// Shared per-request lifecycle tracker (hooks go inside
+    /// `acquire_for_request` in Task 3).
+    pub fn tracker(&self) -> &RequestTracker {
+        self.tracker.as_ref()
+    }
+
+    /// Clone of the tracker `Arc`, for wiring into `ProxyState` / middleware
+    /// that need an owned `Arc<RequestTracker>` handle.
+    pub fn tracker_arc(&self) -> Arc<RequestTracker> {
+        Arc::clone(&self.tracker)
+    }
+
+    /// Read-only snapshot of all tracked requests.
+    pub fn snapshot_requests(&self) -> Vec<RequestRecord> {
+        self.tracker.snapshot()
     }
 }
 
@@ -139,9 +166,17 @@ mod tests {
         let (limiter, dashboard) = make_state(256);
         let pid = ProviderId::new("openai");
         let mid = ModelId::new("gpt-4");
-        limiter.register(&pid, Weight::from(4.0));
+        limiter.register(
+            &pid,
+            Weight::from(4.0),
+            std::time::Duration::from_secs(30),
+            64,
+        );
 
-        let _permit = limiter.acquire(&pid, &mid, Weight::from(1.0)).await.unwrap();
+        let _permit = limiter
+            .acquire(&pid, &mid, Weight::from(1.0))
+            .await
+            .unwrap();
         let snap = dashboard.snapshot();
         assert_eq!(snap.len(), 1);
         assert_eq!(snap[0].provider, pid);
@@ -158,10 +193,18 @@ mod tests {
         let (limiter, dashboard) = make_state(256);
         let pid = ProviderId::new("openai");
         let mid = ModelId::new("gpt-4");
-        limiter.register(&pid, Weight::from(4.0));
+        limiter.register(
+            &pid,
+            Weight::from(4.0),
+            std::time::Duration::from_secs(30),
+            64,
+        );
 
         let mut rx = dashboard.subscribe();
-        let permit = limiter.acquire(&pid, &mid, Weight::from(1.0)).await.unwrap();
+        let permit = limiter
+            .acquire(&pid, &mid, Weight::from(1.0))
+            .await
+            .unwrap();
 
         let acquired = rx.recv().await.expect("receiver closed");
         assert!(
@@ -186,7 +229,12 @@ mod tests {
         let (limiter, dashboard) = make_state(2);
         let pid = ProviderId::new("openai");
         let mid = ModelId::new("gpt-4");
-        limiter.register(&pid, Weight::from(100.0));
+        limiter.register(
+            &pid,
+            Weight::from(100.0),
+            std::time::Duration::from_secs(30),
+            64,
+        );
 
         let mut rx = dashboard.subscribe();
         for _ in 0..10 {
@@ -223,13 +271,21 @@ mod tests {
         let (limiter, dashboard) = make_state(256);
         let pid = ProviderId::new("openai");
         let mid = ModelId::new("gpt-4");
-        limiter.register(&pid, Weight::from(4.0));
+        limiter.register(
+            &pid,
+            Weight::from(4.0),
+            std::time::Duration::from_secs(30),
+            64,
+        );
 
         let mut rx1 = dashboard.subscribe();
         let mut rx2 = dashboard.subscribe();
         let mut rx3 = dashboard.subscribe();
 
-        let _permit = limiter.acquire(&pid, &mid, Weight::from(1.0)).await.unwrap();
+        let _permit = limiter
+            .acquire(&pid, &mid, Weight::from(1.0))
+            .await
+            .unwrap();
 
         for (i, rx) in [(&mut rx1), (&mut rx2), (&mut rx3)].iter_mut().enumerate() {
             let msg = rx.recv().await.expect("receiver closed");

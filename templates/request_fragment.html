@@ -1,0 +1,64 @@
+{% if requests.is_empty() %}
+<div class="text-center text-slate-500 py-8 text-sm">No active requests</div>
+{% else %}
+<table class="hidden md:table w-full text-sm">
+  <thead>
+    <tr class="text-left text-slate-500 text-xs uppercase tracking-wide">
+      <th class="py-2 px-3 font-medium">Enqueued time ({{ offset_label }})</th>
+      <th class="py-2 px-3 font-medium">Provider</th>
+      <th class="py-2 px-3 font-medium">Model</th>
+      <th class="py-2 px-3 font-medium">Weight</th>
+      <th class="py-2 px-3 font-medium">Status</th>
+      <th class="py-2 px-3 font-medium">Age</th>
+      <th class="py-2 px-3 font-medium">I/O</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in &requests %}
+    <tr class="border-t border-slate-800">
+      <td class="py-2 px-3 text-slate-400 tabular-nums">{{ r.enqueued_at_display() }}</td>
+      <td class="py-2 px-3 text-slate-200">{{ r.provider }}</td>
+      <td class="py-2 px-3 text-slate-200">{{ r.model }}</td>
+      <td class="py-2 px-3 text-slate-300 tabular-nums">{{ r.weight }}</td>
+      <td class="py-2 px-3">
+        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium {{ r.status.badge_class() }}">
+          <span class="w-1.5 h-1.5 rounded-full {{ r.status.dot_class() }}"></span>
+          {{ r.status.label() }}
+        </span>
+      </td>
+      <td class="py-2 px-3 text-slate-400 tabular-nums">{{ r.age_secs() }}s</td>
+      <td class="py-2 px-3 text-slate-400 font-mono text-xs">{{ r.io_display() }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<div class="md:hidden space-y-3">
+  {% for r in &requests %}
+  <div class="bg-slate-900 rounded-lg p-3 space-y-2">
+    <div class="flex items-center justify-between gap-2">
+      <span class="text-slate-400 tabular-nums text-xs">{{ r.enqueued_at_display() }}</span>
+      <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium {{ r.status.badge_class() }}">
+        <span class="w-1.5 h-1.5 rounded-full {{ r.status.dot_class() }}"></span>
+        {{ r.status.label() }}
+      </span>
+    </div>
+    <div class="flex items-center justify-between text-sm">
+      <span class="text-slate-200">{{ r.provider }}</span>
+      <span class="text-slate-400">{{ r.model }}</span>
+    </div>
+    <div class="flex items-center justify-between text-sm">
+      <span class="text-slate-500">Weight</span>
+      <span class="text-slate-300 tabular-nums">{{ r.weight }}</span>
+    </div>
+    <div class="flex items-center justify-between text-sm">
+      <span class="text-slate-500">Age</span>
+      <span class="text-slate-400 tabular-nums">{{ r.age_secs() }}s</span>
+    </div>
+    <div class="flex items-center justify-between text-sm">
+      <span class="text-slate-500">I/O</span>
+      <span class="text-slate-400 font-mono text-xs">{{ r.io_display() }}</span>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
