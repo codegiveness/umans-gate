@@ -1,0 +1,88 @@
+{% if records.is_empty() %}
+<div class="text-center text-slate-500 py-8 text-sm">No terminal requests yet</div>
+{% else %}
+<table class="hidden md:table w-full text-sm">
+  <thead>
+    <tr class="text-left text-slate-500 text-xs uppercase tracking-wide">
+      <th class="py-2 px-3 font-medium">Enqueued time ({{ offset_label }})</th>
+      <th class="py-2 px-3 font-medium">API</th>
+      <th class="py-2 px-3 font-medium">Provider</th>
+      <th class="py-2 px-3 font-medium">Model</th>
+      <th class="py-2 px-3 font-medium">Status</th>
+      <th class="py-2 px-3 font-medium">umans response</th>
+      <th class="py-2 px-3 font-medium">Total time</th>
+      <th class="py-2 px-3 font-medium">TTFT</th>
+      <th class="py-2 px-3 font-medium">Token in/out</th>
+      <th class="py-2 px-3 font-medium">Token cached %</th>
+      <th class="py-2 px-3 font-medium">TPS</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in &records %}
+    <tr class="border-t border-slate-800">
+      <td class="py-2 px-3 text-slate-400 tabular-nums">{{ r.enqueued_at_display() }}</td>
+      <td class="py-2 px-3 text-slate-400 text-xs">{{ r.api_kind }}</td>
+      <td class="py-2 px-3 text-slate-200">{{ r.provider }}</td>
+      <td class="py-2 px-3 text-slate-200">{{ r.model }}</td>
+      <td class="py-2 px-3">
+        <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium {{ r.status.badge_class() }}">
+          <span class="w-1.5 h-1.5 rounded-full {{ r.status.dot_class() }}"></span>
+          {{ r.status.label() }}
+        </span>
+      </td>
+      <td class="py-2 px-3 text-slate-400 tabular-nums">{{ r.internal_status_display() }}</td>
+      <td class="py-2 px-3 text-slate-400 tabular-nums">{{ r.total_time_display() }}</td>
+      <td class="py-2 px-3 text-slate-400 tabular-nums">{{ r.ttft_display() }}</td>
+      <td class="py-2 px-3 text-slate-400 tabular-nums">{{ r.tokens_display() }}</td>
+      <td class="py-2 px-3 text-slate-400 tabular-nums">{{ r.cached_pct_display() }}</td>
+      <td class="py-2 px-3 text-slate-400 tabular-nums">{{ r.tps_display() }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+<div class="md:hidden space-y-3">
+  {% for r in &records %}
+  <div class="bg-slate-900 rounded-lg p-3 space-y-2">
+    <div class="flex items-center justify-between gap-2">
+      <span class="text-slate-400 tabular-nums text-xs">{{ r.enqueued_at_display() }}</span>
+      <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-medium {{ r.status.badge_class() }}">
+        <span class="w-1.5 h-1.5 rounded-full {{ r.status.dot_class() }}"></span>
+        {{ r.status.label() }}
+      </span>
+    </div>
+    <div class="flex items-center justify-between text-sm">
+      <span class="text-slate-200">{{ r.provider }}</span>
+      <span class="text-slate-400">{{ r.model }}</span>
+    </div>
+    <div class="flex items-center justify-between text-sm">
+      <span class="text-slate-500">API</span>
+      <span class="text-slate-400 text-xs">{{ r.api_kind }}</span>
+    </div>
+    <div class="flex items-center justify-between text-sm">
+      <span class="text-slate-500">umans response</span>
+      <span class="text-slate-400 tabular-nums">{{ r.internal_status_display() }}</span>
+    </div>
+    <div class="flex items-center justify-between text-sm">
+      <span class="text-slate-500">Total time</span>
+      <span class="text-slate-400 tabular-nums">{{ r.total_time_display() }}</span>
+    </div>
+    <div class="flex items-center justify-between text-sm">
+      <span class="text-slate-500">TTFT</span>
+      <span class="text-slate-400 tabular-nums">{{ r.ttft_display() }}</span>
+    </div>
+    <div class="flex items-center justify-between text-sm">
+      <span class="text-slate-500">Token in/out</span>
+      <span class="text-slate-400 tabular-nums">{{ r.tokens_display() }}</span>
+    </div>
+    <div class="flex items-center justify-between text-sm">
+      <span class="text-slate-500">Token cached %</span>
+      <span class="text-slate-400 tabular-nums">{{ r.cached_pct_display() }}</span>
+    </div>
+    <div class="flex items-center justify-between text-sm">
+      <span class="text-slate-500">TPS</span>
+      <span class="text-slate-400 tabular-nums">{{ r.tps_display() }}</span>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}

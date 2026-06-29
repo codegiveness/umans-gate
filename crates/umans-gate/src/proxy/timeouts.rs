@@ -30,7 +30,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::{debug, warn};
 
 use crate::dashboard::tracked_permit::TrackedPermit;
-use crate::dashboard::tracker::ProtocolVersion;
+use crate::dashboard::tracker::{ApiKind, ProtocolVersion};
 use crate::error::{GatewayError, Result};
 use crate::types::ProviderConfig;
 
@@ -76,6 +76,183 @@ where
     }
 }
 
+/// Lightweight SSE/JSON token usage inspector for the upstream drain loop.
+///
+/// Inspects response bytes as they flow through the drain loop and extracts
+/// token usage metrics (prompt_tokens, completion_tokens, cached_tokens).
+/// Fail-closed: on any parse error, fields remain `None` and the stream
+/// continues unchanged.
+struct TokenTap {
+    api_kind: ApiKind,
+    is_sse: bool,
+    line_buf: Vec<u8>,
+    body_buf: Vec<u8>,
+    done: bool,
+    prompt_tokens: Option<usize>,
+    completion_tokens: Option<usize>,
+    cached_tokens: Option<usize>,
+}
+
+impl TokenTap {
+    fn new(api_kind: ApiKind, is_sse: bool) -> Self {
+        TokenTap {
+            api_kind,
+            is_sse,
+            line_buf: Vec::new(),
+            body_buf: Vec::new(),
+            done: false,
+            prompt_tokens: None,
+            completion_tokens: None,
+            cached_tokens: None,
+        }
+    }
+
+    fn feed(&mut self, data: &Bytes) {
+        if self.done {
+            return;
+        }
+        if self.is_sse {
+            self.line_buf.extend_from_slice(data);
+            while let Some(pos) = self.line_buf.iter().position(|&b| b == b'\n') {
+                let line_bytes: Vec<u8> = self.line_buf.drain(..=pos).collect();
+                let line = std::str::from_utf8(&line_bytes).unwrap_or("").trim_end();
+                self.process_sse_line(line);
+                if self.done {
+                    break;
+                }
+            }
+        } else {
+            self.body_buf.extend_from_slice(data);
+        }
+    }
+
+    fn finish(&mut self) {
+        if self.done {
+            return;
+        }
+        if self.is_sse {
+            if !self.line_buf.is_empty() {
+                let remaining = std::mem::take(&mut self.line_buf);
+                let line = std::str::from_utf8(&remaining).unwrap_or("").trim_end();
+                self.process_sse_line(line);
+            }
+        } else {
+            self.parse_non_sse_body();
+        }
+        self.done = true;
+    }
+
+    fn process_sse_line(&mut self, line: &str) {
+        let payload = match line.strip_prefix("data: ") {
+            Some(p) => p,
+            None => return,
+        };
+        if payload == "[DONE]" {
+            return;
+        }
+        let json: serde_json::Value = match serde_json::from_str(payload) {
+            Ok(v) => v,
+            Err(_) => return,
+        };
+        match self.api_kind {
+            ApiKind::OpenAI => self.extract_openai_sse(&json),
+            ApiKind::Anthropic => self.extract_anthropic_sse(&json),
+            ApiKind::Unknown => {}
+        }
+    }
+
+    fn extract_openai_sse(&mut self, json: &serde_json::Value) {
+        let choices_empty = json
+            .get("choices")
+            .and_then(|c| c.as_array())
+            .map(|a| a.is_empty())
+            .unwrap_or(false);
+        if !choices_empty {
+            return;
+        }
+        let usage = match json.get("usage") {
+            Some(u) if !u.is_null() => u,
+            _ => return,
+        };
+        self.prompt_tokens = opt_u64(usage.get("prompt_tokens"));
+        self.completion_tokens = opt_u64(usage.get("completion_tokens"));
+        self.cached_tokens = opt_u64(
+            usage
+                .get("prompt_tokens_details")
+                .and_then(|d| d.get("cached_tokens")),
+        );
+        self.done = true;
+    }
+
+    fn extract_anthropic_sse(&mut self, json: &serde_json::Value) {
+        let msg_type = json.get("type").and_then(|v| v.as_str());
+        match msg_type {
+            Some("message_start") => {
+                if let Some(usage) = json.get("message").and_then(|m| m.get("usage")) {
+                    self.prompt_tokens = opt_u64(usage.get("input_tokens"));
+                    self.cached_tokens = opt_u64(usage.get("cache_read_input_tokens"));
+                }
+            }
+            Some("message_delta") => {
+                if let Some(output) = opt_u64(
+                    json.get("usage").and_then(|u| u.get("output_tokens")),
+                ) {
+                    self.completion_tokens = Some(output);
+                    self.done = true;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn parse_non_sse_body(&mut self) {
+        if self.body_buf.is_empty() {
+            return;
+        }
+        let json: serde_json::Value = match serde_json::from_slice(&self.body_buf) {
+            Ok(v) => v,
+            Err(_) => return,
+        };
+        let usage = match json.get("usage") {
+            Some(u) if !u.is_null() => u,
+            _ => return,
+        };
+        match self.api_kind {
+            ApiKind::OpenAI => {
+                self.prompt_tokens = opt_u64(usage.get("prompt_tokens"));
+                self.completion_tokens = opt_u64(usage.get("completion_tokens"));
+                self.cached_tokens = opt_u64(
+                    usage
+                        .get("prompt_tokens_details")
+                        .and_then(|d| d.get("cached_tokens")),
+                );
+            }
+            ApiKind::Anthropic => {
+                self.prompt_tokens = opt_u64(usage.get("input_tokens"));
+                self.completion_tokens = opt_u64(usage.get("output_tokens"));
+                self.cached_tokens = opt_u64(usage.get("cache_read_input_tokens"));
+            }
+            ApiKind::Unknown => {}
+        }
+    }
+
+    fn prompt(&self) -> Option<usize> {
+        self.prompt_tokens
+    }
+
+    fn completion(&self) -> Option<usize> {
+        self.completion_tokens
+    }
+
+    fn cached(&self) -> Option<usize> {
+        self.cached_tokens
+    }
+}
+
+fn opt_u64(v: Option<&serde_json::Value>) -> Option<usize> {
+    v.and_then(|v| v.as_u64()).map(|v| v as usize)
+}
+
 /// Forward a request upstream with the AI-tuned timeout hierarchy.
 ///
 /// `provider_config.timeouts` is the source of truth (defaults: connect None,
@@ -112,8 +289,16 @@ pub async fn forward_with_timeouts(
     );
     let upstream_resp = match wrap_timeouts(total_deadline, t.connect, forward_fut).await {
         Ok(resp) => resp,
-        Err(TimeoutElapsed::Total) => return Err(GatewayError::Timeout("total timeout".into())),
-        Err(TimeoutElapsed::Phase) => return Err(GatewayError::Timeout("connect timeout".into())),
+        Err(TimeoutElapsed::Total) => {
+            let id = permit.request_id();
+            permit.tracker().mark_timeout(id);
+            return Err(GatewayError::Timeout("total timeout".into()));
+        }
+        Err(TimeoutElapsed::Phase) => {
+            let id = permit.request_id();
+            permit.tracker().mark_timeout(id);
+            return Err(GatewayError::Timeout("connect timeout".into()));
+        }
     };
 
     let upstream_resp = upstream_resp?;
@@ -126,8 +311,16 @@ pub async fn forward_with_timeouts(
     // Phase 2: TTFB timeout on first body frame.
     let first_frame = match wrap_timeouts(total_deadline, t.ttfb, body.frame()).await {
         Ok(frame) => frame,
-        Err(TimeoutElapsed::Total) => return Err(GatewayError::Timeout("total timeout".into())),
-        Err(TimeoutElapsed::Phase) => return Err(GatewayError::Timeout("ttfb timeout".into())),
+        Err(TimeoutElapsed::Total) => {
+            let id = permit.request_id();
+            permit.tracker().mark_timeout(id);
+            return Err(GatewayError::Timeout("total timeout".into()));
+        }
+        Err(TimeoutElapsed::Phase) => {
+            let id = permit.request_id();
+            permit.tracker().mark_timeout(id);
+            return Err(GatewayError::Timeout("ttfb timeout".into()));
+        }
     };
 
     let first_data: Option<Bytes> = match first_frame {
@@ -141,6 +334,17 @@ pub async fn forward_with_timeouts(
     permit
         .tracker()
         .set_upstream_protocol(permit.request_id(), ProtocolVersion::from(upstream_version));
+    permit
+        .tracker()
+        .set_upstream_status_and_ttft(permit.request_id(), status.as_u16());
+    let is_sse = resp_headers
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|s| s.contains("text/event-stream"));
+    let api_kind = permit
+        .tracker()
+        .api_kind(permit.request_id())
+        .unwrap_or(ApiKind::Unknown);
     // Clamp cooldown at use site: bounded permit retention after downstream
     // disconnect, but never exceed the configured value or 500ms.
     let cooldown = provider_config
@@ -157,9 +361,11 @@ pub async fn forward_with_timeouts(
     tokio::spawn(async move {
         let _permit = permit;
         let mut body = body;
+        let mut tap = TokenTap::new(api_kind, is_sse);
 
         // Forward first frame data (already polled — TTFB applied above).
         if let Some(data) = first_data {
+            tap.feed(&data);
             let _ = tx.send(Ok(data)).await;
         }
 
@@ -175,6 +381,8 @@ pub async fn forward_with_timeouts(
                     match result {
                         // Total deadline hit — send error then return (permit drops).
                         Err(TimeoutElapsed::Total) => {
+                            let id = _permit.request_id();
+                            _permit.tracker().mark_timeout(id);
                             let _ = tx
                                 .send(Err(std::io::Error::new(
                                     std::io::ErrorKind::TimedOut,
@@ -185,6 +393,8 @@ pub async fn forward_with_timeouts(
                         }
                         // Stream-idle elapsed — send error then return (permit drops).
                         Err(TimeoutElapsed::Phase) => {
+                            let id = _permit.request_id();
+                            _permit.tracker().mark_timeout(id);
                             let _ = tx
                                 .send(Err(std::io::Error::new(
                                     std::io::ErrorKind::TimedOut,
@@ -193,13 +403,23 @@ pub async fn forward_with_timeouts(
                                 .await;
                             return;
                         }
-                        // Clean upstream EOS — return (permit drops immediately).
-                        Ok(None) => return,
+                        // Clean upstream EOS — finish tap, apply usage, return.
+                        Ok(None) => {
+                            tap.finish();
+                            _permit.tracker().set_token_usage(
+                                _permit.request_id(),
+                                tap.prompt(),
+                                tap.completion(),
+                                tap.cached(),
+                            );
+                            return;
+                        }
                         // Upstream body read error — return (permit drops immediately).
                         Ok(Some(Err(_))) => return,
                         // Got a frame — forward data bytes.
                         Ok(Some(Ok(frame))) => {
                             if let Ok(data) = frame.into_data() {
+                                tap.feed(&data);
                                 match wrap_timeouts(total_deadline, None, tx.send(Ok(data))).await {
                                     Ok(Ok(())) => {}
                                     Ok(Err(_)) | Err(_) => break,
@@ -236,6 +456,8 @@ pub async fn forward_with_timeouts(
                 }
                 // Total deadline hit during cooldown.
                 () = tokio::time::sleep_until(td) => {
+                    let id = _permit.request_id();
+                    _permit.tracker().mark_timeout(id);
                     warn!(
                         reason = "total_deadline",
                         "total timeout during permit cooldown"
@@ -1043,5 +1265,212 @@ mod cancellation {
             RequestStatus::Cancelled,
             "record should be Cancelled after tracker.cancel()"
         );
+    }
+}
+
+#[cfg(test)]
+#[tokio::test]
+async fn ttft_captured_from_first_frame() {
+    use std::sync::Arc;
+    use crate::types::TimeoutConfig;
+    use hyper::StatusCode;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
+
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    tokio::spawn(async move {
+        let (mut sock, _) = listener.accept().await.unwrap();
+        let mut buf = vec![0u8; 1024];
+        let _ = sock.read(&mut buf).await;
+        sock.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello")
+            .await
+            .unwrap();
+        sock.flush().await.unwrap();
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    });
+
+    let (lim, permit) = test_helpers::make_permit().await;
+    let token = permit.token();
+    let tracker = Arc::clone(permit.tracker());
+    let id = permit.request_id();
+
+    let client = UpstreamClient::new();
+    let provider = test_helpers::test_provider(TimeoutConfig {
+        connect: Some(Duration::from_secs(2)),
+        ttfb: Some(Duration::from_secs(2)),
+        stream_idle: Some(Duration::from_secs(2)),
+        total: Some(Duration::from_secs(5)),
+        ..Default::default()
+    });
+
+    let resp = forward_with_timeouts(
+        &client,
+        &provider,
+        Method::GET,
+        format!("http://127.0.0.1:{port}/"),
+        HeaderMap::new(),
+        test_helpers::empty_body(),
+        permit,
+        token,
+    )
+    .await
+    .expect("forward succeeds");
+
+    assert_eq!(resp.status(), StatusCode::OK);
+
+    let snap = tracker.snapshot();
+    let record = snap.iter().find(|r| r.id == id).expect("record exists");
+    assert_eq!(
+        record.upstream_status,
+        Some(200),
+        "upstream_status should be captured from first frame"
+    );
+    assert!(
+        record.ttft.is_some(),
+        "ttft should be captured from first frame"
+    );
+
+    let _ = resp.into_body().collect().await;
+    test_helpers::wait_for_in_flight_zero(&lim, 1000).await;
+}
+
+#[cfg(test)]
+mod token_tap {
+    use super::*;
+    use bytes::Bytes;
+
+    #[test]
+    fn token_tap_openai_stream_with_usage() {
+        let mut tap = TokenTap::new(ApiKind::OpenAI, true);
+
+        tap.feed(&Bytes::from(
+            r#"data: {"choices":[{"delta":{"content":"Hello"}}]}"#,
+        ));
+        tap.feed(&Bytes::from("\n\n"));
+
+        // Usage frame split across two chunks (tests line buffer).
+        tap.feed(&Bytes::from(
+            r#"data: {"choices":[],"usage":{"prompt_tok"#,
+        ));
+        tap.feed(&Bytes::from(
+            r#"ens":12,"completion_tokens":3,"prompt_tokens_details":{"cached_tokens":2}}}"#,
+        ));
+        tap.feed(&Bytes::from("\n\n"));
+
+        tap.feed(&Bytes::from("data: [DONE]\n\n"));
+
+        tap.finish();
+        assert_eq!(tap.prompt(), Some(12));
+        assert_eq!(tap.completion(), Some(3));
+        assert_eq!(tap.cached(), Some(2));
+    }
+
+    #[test]
+    fn token_tap_openai_stream_without_usage() {
+        let mut tap = TokenTap::new(ApiKind::OpenAI, true);
+
+        tap.feed(&Bytes::from(
+            r#"data: {"choices":[{"delta":{"content":"Hello"}}]}"#,
+        ));
+        tap.feed(&Bytes::from("\n\n"));
+        tap.feed(&Bytes::from("data: [DONE]\n\n"));
+
+        tap.finish();
+        assert_eq!(tap.prompt(), None);
+        assert_eq!(tap.completion(), None);
+        assert_eq!(tap.cached(), None);
+    }
+
+    #[test]
+    fn token_tap_anthropic_stream() {
+        let mut tap = TokenTap::new(ApiKind::Anthropic, true);
+
+        // message_start: input_tokens=12, cache_read=2 (output_tokens=0 placeholder, ignore).
+        tap.feed(&Bytes::from("event: message_start\n"));
+        tap.feed(&Bytes::from(
+            r#"data: {"type":"message_start","message":{"usage":{"input_tokens":12,"cache_read_input_tokens":2,"output_tokens":0}}}"#,
+        ));
+        tap.feed(&Bytes::from("\n\n"));
+
+        // Content delta (should be skipped).
+        tap.feed(&Bytes::from("event: content_block_delta\n"));
+        tap.feed(&Bytes::from(
+            r#"data: {"type":"content_block_delta","delta":{"text":"Hello"}}"#,
+        ));
+        tap.feed(&Bytes::from("\n\n"));
+
+        // message_delta: output_tokens=3 (cumulative — overwrite placeholder).
+        tap.feed(&Bytes::from("event: message_delta\n"));
+        tap.feed(&Bytes::from(
+            r#"data: {"type":"message_delta","usage":{"output_tokens":3}}"#,
+        ));
+        tap.feed(&Bytes::from("\n\n"));
+
+        tap.finish();
+        assert_eq!(tap.prompt(), Some(12));
+        assert_eq!(tap.completion(), Some(3));
+        assert_eq!(tap.cached(), Some(2));
+    }
+
+    #[test]
+    fn token_tap_non_sse() {
+        // OpenAI non-SSE.
+        {
+            let mut tap = TokenTap::new(ApiKind::OpenAI, false);
+            let body = r#"{"id":"chatcmpl-1","choices":[],"usage":{"prompt_tokens":12,"completion_tokens":3,"prompt_tokens_details":{"cached_tokens":2}}}"#;
+            tap.feed(&Bytes::from(body));
+            tap.finish();
+            assert_eq!(tap.prompt(), Some(12));
+            assert_eq!(tap.completion(), Some(3));
+            assert_eq!(tap.cached(), Some(2));
+        }
+        // Anthropic non-SSE.
+        {
+            let mut tap = TokenTap::new(ApiKind::Anthropic, false);
+            let body = r#"{"usage":{"input_tokens":12,"output_tokens":3,"cache_read_input_tokens":2}}"#;
+            tap.feed(&Bytes::from(body));
+            tap.finish();
+            assert_eq!(tap.prompt(), Some(12));
+            assert_eq!(tap.completion(), Some(3));
+            assert_eq!(tap.cached(), Some(2));
+        }
+    }
+
+    #[test]
+    fn token_tap_parse_error_fails_closed() {
+        let mut tap = TokenTap::new(ApiKind::OpenAI, true);
+
+        // Malformed JSON in SSE data line.
+        tap.feed(&Bytes::from("data: {invalid json}\n\n"));
+        // A valid-looking frame with missing usage (should still not set tokens).
+        tap.feed(&Bytes::from(r#"data: {"choices":[]}"#));
+        tap.feed(&Bytes::from("\n\n"));
+        tap.feed(&Bytes::from("data: [DONE]\n\n"));
+
+        tap.finish();
+        assert_eq!(tap.prompt(), None);
+        assert_eq!(tap.completion(), None);
+        assert_eq!(tap.cached(), None);
+    }
+
+    #[test]
+    fn tps_computed_correctly() {
+        use crate::dashboard::tracker::compute_tps;
+        use std::time::Duration;
+
+        // 10 tokens in 2 seconds = 5.0 TPS.
+        let tps = compute_tps(Some(10), Some(Duration::from_secs(2)));
+        assert!(tps.is_some());
+        assert!((tps.unwrap() - 5.0).abs() < 0.001);
+
+        // Missing completion_tokens.
+        assert_eq!(compute_tps(None, Some(Duration::from_secs(2))), None);
+
+        // Missing streaming_elapsed.
+        assert_eq!(compute_tps(Some(10), None), None);
+
+        // Zero elapsed (avoid division by zero).
+        assert_eq!(compute_tps(Some(10), Some(Duration::ZERO)), None);
     }
 }

@@ -166,6 +166,27 @@ pub struct RequestRecord {
     /// Cancellation token for aborting the upstream request mid-stream.
     /// Clones share cancellation state; `cancel(id)` cancels all clones.
     pub cancellation_token: CancellationToken,
+    /// HTTP status code from the upstream response, captured at first frame.
+    pub upstream_status: Option<u16>,
+    /// Internal status code representing the terminal transition reason.
+    /// 200=Done, 503=Rejected, 400=Cancelled, 504=Timeout.
+    pub internal_status: Option<u16>,
+    /// Time to first token (byte): elapsed from acquired_at to first body frame.
+    pub ttft: Option<Duration>,
+    /// Instant the first upstream body frame arrived.
+    pub first_body_frame_at: Option<Instant>,
+    /// Whether this record has been migrated to HistoryStore.
+    /// Prevents double-push on terminal transition and prune_stale.
+    pub migrated_to_history: bool,
+    /// Prompt (input) token count extracted from upstream usage frame.
+    pub prompt_tokens: Option<usize>,
+    /// Completion (output) token count extracted from upstream usage frame.
+    pub completion_tokens: Option<usize>,
+    /// Cached input token count (prompt_tokens_details.cached_tokens / cache_read_input_tokens).
+    pub cached_tokens: Option<usize>,
+    /// Tokens-per-second, best-effort: completion_tokens / streaming_elapsed.
+    /// Set during streaming; recomputed with exact streaming_elapsed at migration.
+    pub tps: Option<f64>,
 }
 
 /// Cached OS timezone offset label for the request-fragment header.
@@ -230,6 +251,76 @@ pub struct HistoryRecord {
     pub completion_tokens: Option<usize>,
     pub cached_tokens: Option<usize>,
     pub tps: Option<f64>,
+}
+
+impl HistoryRecord {
+    /// Format `enqueued_at_wall` as `HH:MM:SS` in local wall-clock time.
+    pub fn enqueued_at_display(&self) -> String {
+        self.enqueued_at_wall
+            .with_timezone(&Local)
+            .format("%H:%M:%S")
+            .to_string()
+    }
+
+    /// Format `total_time` as seconds (e.g., `1.23s`) or `-` if `None`.
+    pub fn total_time_display(&self) -> String {
+        self.total_time
+            .map(|d| format!("{:.2}s", d.as_secs_f64()))
+            .unwrap_or_else(|| "-".to_string())
+    }
+
+    /// Format `ttft` as milliseconds (e.g., `100ms`) or `-` if `None`.
+    pub fn ttft_display(&self) -> String {
+        self.ttft
+            .map(|d| format!("{}ms", d.as_millis()))
+            .unwrap_or_else(|| "-".to_string())
+    }
+
+    /// Format `internal_status` as a string or `-` if `None`.
+    pub fn internal_status_display(&self) -> String {
+        self.internal_status
+            .map(|s| s.to_string())
+            .unwrap_or_else(|| "-".to_string())
+    }
+
+    /// Format token in/out as `prompt/completion` or `-` if both are `None`.
+    pub fn tokens_display(&self) -> String {
+        match (self.prompt_tokens, self.completion_tokens) {
+            (Some(p), Some(c)) => format!("{}/{}", p, c),
+            (Some(p), None) => format!("{}/-", p),
+            (None, Some(c)) => format!("-/{}", c),
+            (None, None) => "-".to_string(),
+        }
+    }
+
+    /// Format cached token percentage relative to `prompt_tokens`, or `-`.
+    pub fn cached_pct_display(&self) -> String {
+        match (self.cached_tokens, self.prompt_tokens) {
+            (Some(cached), Some(prompt)) if prompt > 0 => {
+                format!("{:.0}%", (cached as f64 / prompt as f64) * 100.0)
+            }
+            _ => "-".to_string(),
+        }
+    }
+
+    /// Format `tps` with 2 decimal places or `-` if `None`.
+    pub fn tps_display(&self) -> String {
+        self.tps
+            .map(|t| format!("{:.2}", t))
+            .unwrap_or_else(|| "-".to_string())
+    }
+}
+
+/// Compute tokens-per-second from completion token count and streaming elapsed.
+/// Returns `None` if either input is `None` or elapsed is zero.
+pub fn compute_tps(
+    completion_tokens: Option<usize>,
+    streaming_elapsed: Option<Duration>,
+) -> Option<f64> {
+    match (completion_tokens, streaming_elapsed) {
+        (Some(c), Some(d)) if d.as_secs_f64() > 0.0 => Some(c as f64 / d.as_secs_f64()),
+        _ => None,
+    }
 }
 
 /// Bounded FIFO ring buffer of terminal request records.
@@ -331,6 +422,15 @@ impl RequestTracker {
             path,
             api_kind,
             cancellation_token: CancellationToken::new(),
+            upstream_status: None,
+            internal_status: None,
+            ttft: None,
+            first_body_frame_at: None,
+            migrated_to_history: false,
+            prompt_tokens: None,
+            completion_tokens: None,
+            cached_tokens: None,
+            tps: None,
         };
         self.requests.insert(id, record);
     }
@@ -356,6 +456,48 @@ impl RequestTracker {
         }
     }
 
+    /// Record the upstream HTTP status and compute TTFT (time to first token)
+    /// from the first body frame arrival. Called from `forward_with_timeouts`
+    /// after the TTFB phase succeeds.
+    pub fn set_upstream_status_and_ttft(&self, id: Uuid, status: u16) {
+        if let Some(mut entry) = self.requests.get_mut(&id) {
+            let now = Instant::now();
+            entry.upstream_status = Some(status);
+            entry.first_body_frame_at = Some(now);
+            let start = entry.acquired_at.unwrap_or(entry.enqueued_at);
+            entry.ttft = now.checked_duration_since(start);
+        }
+    }
+
+    /// Record token usage extracted from the upstream response stream/body.
+    /// Also computes a best-effort TPS from `completion_tokens` and elapsed
+    /// time since `first_body_frame_at`. `to_history_record` recomputes TPS
+    /// with the exact `streaming_elapsed` at migration time.
+    pub fn set_token_usage(
+        &self,
+        id: Uuid,
+        prompt: Option<usize>,
+        completion: Option<usize>,
+        cached: Option<usize>,
+    ) {
+        if let Some(mut entry) = self.requests.get_mut(&id) {
+            entry.prompt_tokens = prompt;
+            entry.completion_tokens = completion;
+            entry.cached_tokens = cached;
+            if let (Some(c), Some(f)) = (completion, entry.first_body_frame_at) {
+                let elapsed = f.elapsed();
+                if elapsed.as_secs_f64() > 0.0 {
+                    entry.tps = Some(c as f64 / elapsed.as_secs_f64());
+                }
+            }
+        }
+    }
+
+    /// Return the `ApiKind` for a tracked request, if it exists.
+    pub fn api_kind(&self, id: Uuid) -> Option<ApiKind> {
+        self.requests.get(&id).map(|r| r.api_kind)
+    }
+
     /// True if the record is currently in a terminal state. Missing records are
     /// treated as terminal so that Drop guards do not attempt transitions.
     pub fn is_terminal(&self, id: Uuid) -> bool {
@@ -366,36 +508,77 @@ impl RequestTracker {
 
     /// Transition a request to Done. Idempotent: no-op if already terminal.
     pub fn mark_done(&self, id: Uuid) {
-        if let Some(mut entry) = self.requests.get_mut(&id) {
+        {
+            let Some(mut entry) = self.requests.get_mut(&id) else {
+                return;
+            };
             if entry.is_terminal {
                 return;
             }
             entry.status = RequestStatus::Done;
+            entry.internal_status = Some(200);
             entry.completed_at = Some(Instant::now());
+        }
+        self.record_history(id);
+        if let Some(mut entry) = self.requests.get_mut(&id) {
             entry.is_terminal = true;
         }
     }
 
     /// Transition a request to Rejected. Idempotent: no-op if already terminal.
     pub fn mark_rejected(&self, id: Uuid) {
-        if let Some(mut entry) = self.requests.get_mut(&id) {
+        {
+            let Some(mut entry) = self.requests.get_mut(&id) else {
+                return;
+            };
             if entry.is_terminal {
                 return;
             }
             entry.status = RequestStatus::Rejected;
+            entry.internal_status = Some(503);
             entry.completed_at = Some(Instant::now());
+        }
+        self.record_history(id);
+        if let Some(mut entry) = self.requests.get_mut(&id) {
             entry.is_terminal = true;
         }
     }
 
     /// Transition a request to Cancelled. Idempotent: no-op if already terminal.
     pub fn mark_cancelled(&self, id: Uuid) {
-        if let Some(mut entry) = self.requests.get_mut(&id) {
+        {
+            let Some(mut entry) = self.requests.get_mut(&id) else {
+                return;
+            };
             if entry.is_terminal {
                 return;
             }
             entry.status = RequestStatus::Cancelled;
+            entry.internal_status = Some(400);
             entry.completed_at = Some(Instant::now());
+        }
+        self.record_history(id);
+        if let Some(mut entry) = self.requests.get_mut(&id) {
+            entry.is_terminal = true;
+        }
+    }
+
+    /// Transition a request to Rejected with internal_status 504 (timeout).
+    /// Idempotent: no-op if already terminal.
+    pub fn mark_timeout(&self, id: Uuid) {
+        {
+            let Some(mut entry) = self.requests.get_mut(&id) else {
+                return;
+            };
+            if entry.is_terminal {
+                return;
+            }
+            entry.status = RequestStatus::Rejected;
+            entry.internal_status = Some(504);
+            entry.completed_at = Some(Instant::now());
+        }
+        self.record_history(id);
+        if let Some(mut entry) = self.requests.get_mut(&id) {
             entry.is_terminal = true;
         }
     }
@@ -421,17 +604,34 @@ impl RequestTracker {
         true
     }
 
-    /// Remove Done/Rejected entries whose `completed_at` is older than
-    /// `max_age`. Queued/Running entries are always retained.
+    /// Remove Done/Rejected/Cancelled entries whose `completed_at` is older than
+    /// `max_age`. Queued/Running entries are always retained. Records not yet
+    /// migrated to history are migrated before removal.
     pub fn prune_stale(&self, max_age: Duration) {
         let cutoff = Instant::now()
             .checked_sub(max_age)
             .unwrap_or_else(Instant::now);
-        self.requests.retain(|_, record| match record.status {
-            RequestStatus::Done | RequestStatus::Rejected => {
-                record.completed_at.map_or(true, |t| t > cutoff)
+        let history = &self.history;
+        self.requests.retain(|_, record| {
+            let is_terminal_status = matches!(
+                record.status,
+                RequestStatus::Done | RequestStatus::Rejected | RequestStatus::Cancelled
+            );
+            if !is_terminal_status {
+                return true;
             }
-            _ => true,
+            let is_stale = record.completed_at.map_or(true, |t| t <= cutoff);
+            if !is_stale {
+                return true;
+            }
+            if !record.migrated_to_history {
+                record.migrated_to_history = true;
+                let hist = RequestTracker::to_history_record(record);
+                if let Ok(mut store) = history.write() {
+                    store.push(hist);
+                }
+            }
+            false
         });
     }
 
@@ -448,10 +648,50 @@ impl RequestTracker {
         records
     }
 
-    /// Record a terminal request into the history store (FIFO eviction).
-    pub fn record_history(&self, record: HistoryRecord) {
+    /// Convert a live `RequestRecord` into a terminal `HistoryRecord`.
+    fn to_history_record(record: &RequestRecord) -> HistoryRecord {
+        let total_time = record
+            .completed_at
+            .and_then(|c| c.checked_duration_since(record.enqueued_at));
+        let streaming_elapsed = match (record.completed_at, record.first_body_frame_at) {
+            (Some(c), Some(f)) => c.checked_duration_since(f),
+            _ => None,
+        };
+        let tps = compute_tps(record.completion_tokens, streaming_elapsed).or(record.tps);
+        HistoryRecord {
+            id: record.id,
+            provider: record.provider.clone(),
+            model: record.model.clone(),
+            api_kind: record.api_kind,
+            status: record.status,
+            enqueued_at_wall: DateTime::<Utc>::from(record.enqueued_at_wall),
+            total_time,
+            upstream_status: record.upstream_status,
+            internal_status: record.internal_status,
+            ttft: record.ttft,
+            streaming_elapsed,
+            prompt_tokens: record.prompt_tokens,
+            completion_tokens: record.completion_tokens,
+            cached_tokens: record.cached_tokens,
+            tps,
+        }
+    }
+
+    /// Migrate a live record into the history store. Sets `migrated_to_history`
+    /// atomically to prevent double-push. No-op if already migrated or missing.
+    pub fn record_history(&self, id: Uuid) {
+        let history_record = {
+            let Some(mut entry) = self.requests.get_mut(&id) else {
+                return;
+            };
+            if entry.migrated_to_history {
+                return;
+            }
+            entry.migrated_to_history = true;
+            RequestTracker::to_history_record(&entry)
+        };
         if let Ok(mut store) = self.history.write() {
-            store.push(record);
+            store.push(history_record);
         }
     }
 
@@ -522,6 +762,15 @@ mod tests {
             path: "/v1/chat/completions".to_string(),
             api_kind: ApiKind::OpenAI,
             cancellation_token: CancellationToken::new(),
+            upstream_status: None,
+            internal_status: None,
+            ttft: None,
+            first_body_frame_at: None,
+            migrated_to_history: false,
+            prompt_tokens: None,
+            completion_tokens: None,
+            cached_tokens: None,
+            tps: None,
         };
         let expected = DateTime::<Local>::from(wall).format("%H:%M:%S").to_string();
         assert_eq!(record.enqueued_at_display(), expected);
@@ -545,6 +794,15 @@ mod tests {
             path: "/v1/chat/completions".to_string(),
             api_kind: ApiKind::OpenAI,
             cancellation_token: CancellationToken::new(),
+            upstream_status: None,
+            internal_status: None,
+            ttft: None,
+            first_body_frame_at: None,
+            migrated_to_history: false,
+            prompt_tokens: None,
+            completion_tokens: None,
+            cached_tokens: None,
+            tps: None,
         };
 
         let with_upstream = RequestRecord {
@@ -817,6 +1075,15 @@ fn enqueued_at_display_returns_local_time_format() {
         path: "/v1/chat/completions".to_string(),
         api_kind: ApiKind::OpenAI,
         cancellation_token: CancellationToken::new(),
+        upstream_status: None,
+        internal_status: None,
+        ttft: None,
+        first_body_frame_at: None,
+        migrated_to_history: false,
+        prompt_tokens: None,
+        completion_tokens: None,
+        cached_tokens: None,
+        tps: None,
     };
     let display = record.enqueued_at_display();
     assert_eq!(display.len(), 8, "expected HH:MM:SS, got {}", display);
@@ -1004,12 +1271,19 @@ fn history_store_zero_max_unlimited() {
 fn tracker_history_records_and_reads() {
     let tracker = RequestTracker::with_history_max(10);
     let id = Uuid::new_v4();
-    tracker.record_history(sample_history_record(id));
+    tracker.register_queued(
+        id,
+        &ProviderId::new("openai"),
+        &ModelId::new("gpt-4"),
+        Weight::from(1.0),
+        ProtocolVersion::Http11,
+        "/v1/chat/completions".to_string(),
+    );
+    tracker.record_history(id);
 
     let hist = tracker.history();
     assert_eq!(hist.len(), 1);
     assert_eq!(hist[0].id, id);
-    assert_eq!(hist[0].status, RequestStatus::Done);
 }
 
 #[cfg(test)]
@@ -1018,4 +1292,113 @@ fn tracker_history_send_sync() {
     fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<HistoryRecord>();
     assert_send_sync::<HistoryStore>();
+}
+
+#[cfg(test)]
+#[test]
+fn mark_done_migrates_to_history() {
+    let tracker = RequestTracker::new();
+    let id = Uuid::new_v4();
+    tracker.register_queued(
+        id,
+        &ProviderId::new("openai"),
+        &ModelId::new("gpt-4"),
+        Weight::from(1.0),
+        ProtocolVersion::Http11,
+        "/v1/chat/completions".to_string(),
+    );
+    tracker.mark_running(id, None);
+    tracker.mark_done(id);
+
+    let snap = tracker.snapshot();
+    assert_eq!(snap.len(), 1);
+    assert!(snap[0].migrated_to_history);
+    assert!(snap[0].is_terminal);
+    assert_eq!(snap[0].internal_status, Some(200));
+
+    let hist = tracker.history();
+    assert_eq!(hist.len(), 1);
+    assert_eq!(hist[0].id, id);
+    assert_eq!(hist[0].status, RequestStatus::Done);
+    assert_eq!(hist[0].internal_status, Some(200));
+    assert!(hist[0].total_time.is_some());
+}
+
+#[cfg(test)]
+#[test]
+fn internal_status_set_on_terminal() {
+    let tracker = RequestTracker::new();
+    let mk = || {
+        let id = Uuid::new_v4();
+        tracker.register_queued(
+            id,
+            &ProviderId::new("openai"),
+            &ModelId::new("gpt-4"),
+            Weight::from(1.0),
+            ProtocolVersion::Http11,
+            "/v1/chat/completions".to_string(),
+        );
+        id
+    };
+
+    let id1 = mk();
+    tracker.mark_running(id1, None);
+    tracker.mark_done(id1);
+    assert_eq!(
+        tracker.snapshot().iter().find(|r| r.id == id1).unwrap().internal_status,
+        Some(200)
+    );
+
+    let id2 = mk();
+    tracker.mark_rejected(id2);
+    assert_eq!(
+        tracker.snapshot().iter().find(|r| r.id == id2).unwrap().internal_status,
+        Some(503)
+    );
+
+    let id3 = mk();
+    tracker.mark_cancelled(id3);
+    assert_eq!(
+        tracker.snapshot().iter().find(|r| r.id == id3).unwrap().internal_status,
+        Some(400)
+    );
+
+    let id4 = mk();
+    tracker.mark_running(id4, None);
+    tracker.mark_timeout(id4);
+    assert_eq!(
+        tracker.snapshot().iter().find(|r| r.id == id4).unwrap().internal_status,
+        Some(504)
+    );
+}
+
+#[cfg(test)]
+#[test]
+fn no_double_push_on_prune() {
+    let tracker = RequestTracker::new();
+    let id = Uuid::new_v4();
+    tracker.register_queued(
+        id,
+        &ProviderId::new("openai"),
+        &ModelId::new("gpt-4"),
+        Weight::from(1.0),
+        ProtocolVersion::Http11,
+        "/v1/chat/completions".to_string(),
+    );
+    tracker.mark_done(id);
+
+    assert_eq!(tracker.history().len(), 1);
+
+    std::thread::sleep(Duration::from_millis(50));
+    tracker.prune_stale(Duration::from_millis(25));
+
+    assert_eq!(
+        tracker.history().len(),
+        1,
+        "prune_stale should not double-push to history"
+    );
+    assert!(
+        tracker.snapshot().is_empty(),
+        "stale record should be pruned from live map"
+    );
 }
