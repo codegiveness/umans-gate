@@ -18,6 +18,7 @@ use tokio::sync::{broadcast, oneshot};
 use tokio::task::{JoinHandle, JoinSet};
 use umans_gate::concurrency::{MetricUpdate, ProviderLimiter};
 use umans_gate::config_store::ConfigStore;
+use umans_gate::dashboard::tracker::RequestTracker;
 use umans_gate::proxy::router::{proxy_router, ProxyState};
 use umans_gate::proxy::upstream::UpstreamClient;
 use umans_gate::shutdown::{ShutdownSignal, ShutdownToken};
@@ -32,10 +33,10 @@ use url::Url;
 
 fn test_timeouts() -> TimeoutConfig {
     TimeoutConfig {
-        connect: Duration::from_secs(10),
-        ttfb: Duration::from_secs(30),
-        stream_idle: Duration::from_secs(60),
-        total: Duration::from_secs(300),
+        connect: Some(Duration::from_secs(10)),
+        ttfb: Some(Duration::from_secs(30)),
+        stream_idle: Some(Duration::from_secs(60)),
+        total: Some(Duration::from_secs(300)),
         queuetimeout: Duration::from_secs(1),
         maxqueue: 2,
         ..Default::default()
@@ -66,6 +67,7 @@ fn make_state(upstream_url: Url) -> Arc<ProxyState> {
     Arc::new(ProxyState {
         config_store,
         limiter,
+        tracker: Arc::new(RequestTracker::new()),
         upstream_client,
     })
 }
@@ -74,7 +76,9 @@ fn make_state(upstream_url: Url) -> Arc<ProxyState> {
 ///
 /// Returns (proxy_addr, shutdown_token, server_join_handle).  Call
 /// `token.signal()` to stop accepting and drain in-flight connections.
-async fn spawn_proxy(state: Arc<ProxyState>) -> (std::net::SocketAddr, ShutdownToken, JoinHandle<()>) {
+async fn spawn_proxy(
+    state: Arc<ProxyState>,
+) -> (std::net::SocketAddr, ShutdownToken, JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
 
@@ -128,10 +132,7 @@ async fn spawn_proxy(state: Arc<ProxyState>) -> (std::net::SocketAddr, ShutdownT
 
 /// Spawn a mock upstream that captures the raw request (line + headers + body)
 /// via a oneshot channel, then replies with `response`.
-fn spawn_mock_capture(
-    listener: TcpListener,
-    response: &'static [u8],
-) -> oneshot::Receiver<String> {
+fn spawn_mock_capture(listener: TcpListener, response: &'static [u8]) -> oneshot::Receiver<String> {
     let (tx, rx) = oneshot::channel();
     tokio::spawn(async move {
         let (mut sock, _) = listener.accept().await.unwrap();
@@ -189,7 +190,8 @@ async fn full_chat_passthrough() {
 
     let client = http1_client();
     let url = format!("http://{proxy_addr}{}", "/umans/v1/chat/completions");
-    let body = r#"{"model":"umans-kimi-k2.7","messages":[{"role":"user","content":"hi"}],"stream":true}"#;
+    let body =
+        r#"{"model":"umans-kimi-k2.7","messages":[{"role":"user","content":"hi"}],"stream":true}"#;
 
     let resp = client
         .post(&url)
@@ -349,7 +351,8 @@ async fn sse_streaming() {
 
     let client = http1_client();
     let url = format!("http://{proxy_addr}{}", "/umans/v1/chat/completions");
-    let body = r#"{"model":"umans-kimi-k2.7","messages":[{"role":"user","content":"hi"}],"stream":true}"#;
+    let body =
+        r#"{"model":"umans-kimi-k2.7","messages":[{"role":"user","content":"hi"}],"stream":true}"#;
 
     let resp = client
         .post(&url)
@@ -405,7 +408,9 @@ async fn queue_timeout() {
         let _ = signal_tx.send(());
         tokio::time::sleep(Duration::from_secs(5)).await;
         // Ignore write errors — proxy may have closed the connection during shutdown.
-        let _ = sock.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok").await;
+        let _ = sock
+            .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+            .await;
         let _ = sock.flush().await;
         tokio::time::sleep(Duration::from_millis(50)).await;
     });

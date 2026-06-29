@@ -282,8 +282,8 @@ async fn live_429_regression_cooldown_holds_permit() {
             weight: Weight::from(1.0),
         }],
         timeouts: TimeoutConfig {
-            stream_idle: Duration::from_secs(60),
-            total: Duration::from_secs(300),
+            stream_idle: Some(Duration::from_secs(60)),
+            total: Some(Duration::from_secs(300)),
             ..Default::default()
         },
     };
@@ -314,7 +314,9 @@ async fn live_429_regression_cooldown_holds_permit() {
     let mut headers = HeaderMap::new();
     headers.insert(
         AUTHORIZATION,
-        format!("Bearer {api_key}").parse().expect("valid bearer header"),
+        format!("Bearer {api_key}")
+            .parse()
+            .expect("valid bearer header"),
     );
     headers.insert(
         CONTENT_TYPE,
@@ -344,8 +346,16 @@ async fn live_429_regression_cooldown_holds_permit() {
 
     let resp_a = result_a.expect("first stream connect+ttfb failed");
     let resp_b = result_b.expect("second stream connect+ttfb failed");
-    assert!(resp_a.status().is_success(), "first stream not 2xx: {}", resp_a.status());
-    assert!(resp_b.status().is_success(), "second stream not 2xx: {}", resp_b.status());
+    assert!(
+        resp_a.status().is_success(),
+        "first stream not 2xx: {}",
+        resp_a.status()
+    );
+    assert!(
+        resp_b.status().is_success(),
+        "second stream not 2xx: {}",
+        resp_b.status()
+    );
 
     let mut body_a = resp_a.into_body();
     let frame = body_a
@@ -353,11 +363,12 @@ async fn live_429_regression_cooldown_holds_permit() {
         .await
         .expect("stream A ended before first frame")
         .expect("stream A first frame error");
-    let _first_chunk = frame
-        .into_data()
-        .expect("stream A first frame is not data");
+    let _first_chunk = frame.into_data().expect("stream A first frame is not data");
     let disconnect_at = Instant::now();
-    eprintln!("live_429_regression: dropped stream A at {:?}", disconnect_at);
+    eprintln!(
+        "live_429_regression: dropped stream A at {:?}",
+        disconnect_at
+    );
     drop(body_a);
 
     let mut first_below_two: Option<Instant> = None;

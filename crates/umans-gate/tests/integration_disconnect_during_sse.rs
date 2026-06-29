@@ -182,10 +182,10 @@ async fn permit_held_during_cooldown_after_downstream_disconnect() {
     let (lim, permit) = make_permit().await;
     let client = UpstreamClient::new();
     let provider = test_provider(TimeoutConfig {
-        connect: Duration::from_secs(2),
-        ttfb: Duration::from_secs(2),
-        stream_idle: Duration::from_secs(2),
-        total: Duration::from_secs(10),
+        connect: Some(Duration::from_secs(2)),
+        ttfb: Some(Duration::from_secs(2)),
+        stream_idle: Some(Duration::from_secs(2)),
+        total: Some(Duration::from_secs(10)),
         permit_cooldown: Duration::from_millis(500),
         ..Default::default()
     });
@@ -235,10 +235,10 @@ async fn permit_released_immediately_on_normal_completion() {
     let (lim, permit) = make_permit().await;
     let client = UpstreamClient::new();
     let provider = test_provider(TimeoutConfig {
-        connect: Duration::from_secs(2),
-        ttfb: Duration::from_secs(2),
-        stream_idle: Duration::from_secs(2),
-        total: Duration::from_secs(5),
+        connect: Some(Duration::from_secs(2)),
+        ttfb: Some(Duration::from_secs(2)),
+        stream_idle: Some(Duration::from_secs(2)),
+        total: Some(Duration::from_secs(5)),
         permit_cooldown: Duration::from_millis(500),
         ..Default::default()
     });
@@ -283,10 +283,10 @@ async fn permit_released_on_upstream_timeout() {
     let (lim, permit) = make_permit().await;
     let client = UpstreamClient::new();
     let provider = test_provider(TimeoutConfig {
-        connect: Duration::from_secs(2),
-        ttfb: Duration::from_secs(2),
-        stream_idle: Duration::from_millis(200),
-        total: Duration::from_secs(10),
+        connect: Some(Duration::from_secs(2)),
+        ttfb: Some(Duration::from_secs(2)),
+        stream_idle: Some(Duration::from_millis(200)),
+        total: Some(Duration::from_secs(10)),
         permit_cooldown: Duration::from_millis(500),
         ..Default::default()
     });
@@ -334,10 +334,10 @@ async fn cooldown_cancelled_by_upstream_eos() {
     let (lim, permit) = make_permit().await;
     let client = UpstreamClient::new();
     let provider = test_provider(TimeoutConfig {
-        connect: Duration::from_secs(2),
-        ttfb: Duration::from_secs(2),
-        stream_idle: Duration::from_secs(2),
-        total: Duration::from_secs(10),
+        connect: Some(Duration::from_secs(2)),
+        ttfb: Some(Duration::from_secs(2)),
+        stream_idle: Some(Duration::from_secs(2)),
+        total: Some(Duration::from_secs(10)),
         permit_cooldown: Duration::from_millis(500),
         ..Default::default()
     });
@@ -386,10 +386,10 @@ async fn cooldown_cancelled_by_total_deadline() {
     let (lim, permit) = make_permit().await;
     let client = UpstreamClient::new();
     let provider = test_provider(TimeoutConfig {
-        connect: Duration::from_secs(2),
-        ttfb: Duration::from_secs(2),
-        stream_idle: Duration::from_secs(2),
-        total: Duration::from_millis(400),
+        connect: Some(Duration::from_secs(2)),
+        ttfb: Some(Duration::from_secs(2)),
+        stream_idle: Some(Duration::from_secs(2)),
+        total: Some(Duration::from_millis(400)),
         permit_cooldown: Duration::from_millis(500),
         ..Default::default()
     });
@@ -438,10 +438,10 @@ async fn permit_cooldown_clamped_to_max() {
     let (lim, permit) = make_permit().await;
     let client = UpstreamClient::new();
     let provider = test_provider(TimeoutConfig {
-        connect: Duration::from_secs(2),
-        ttfb: Duration::from_secs(2),
-        stream_idle: Duration::from_secs(2),
-        total: Duration::from_secs(10),
+        connect: Some(Duration::from_secs(2)),
+        ttfb: Some(Duration::from_secs(2)),
+        stream_idle: Some(Duration::from_secs(2)),
+        total: Some(Duration::from_secs(10)),
         permit_cooldown: Duration::from_secs(10),
         ..Default::default()
     });
@@ -490,10 +490,10 @@ async fn permit_cooldown_zero_disables_cooldown() {
     let (lim, permit) = make_permit().await;
     let client = UpstreamClient::new();
     let provider = test_provider(TimeoutConfig {
-        connect: Duration::from_secs(2),
-        ttfb: Duration::from_secs(2),
-        stream_idle: Duration::from_secs(2),
-        total: Duration::from_secs(10),
+        connect: Some(Duration::from_secs(2)),
+        ttfb: Some(Duration::from_secs(2)),
+        stream_idle: Some(Duration::from_secs(2)),
+        total: Some(Duration::from_secs(10)),
         permit_cooldown: Duration::ZERO,
         ..Default::default()
     });
@@ -542,10 +542,10 @@ async fn diagnostic_logs_present() {
     let (lim, permit) = make_permit().await;
     let client = UpstreamClient::new();
     let provider = test_provider(TimeoutConfig {
-        connect: Duration::from_secs(2),
-        ttfb: Duration::from_secs(2),
-        stream_idle: Duration::from_secs(2),
-        total: Duration::from_secs(10),
+        connect: Some(Duration::from_secs(2)),
+        ttfb: Some(Duration::from_secs(2)),
+        stream_idle: Some(Duration::from_secs(2)),
+        total: Some(Duration::from_secs(10)),
         permit_cooldown: Duration::from_millis(500),
         ..Default::default()
     });

@@ -17,6 +17,7 @@
 //!    connect, TTFB, and every body frame poll. Elapsed → `"total timeout"`
 //!    (pre-response) or body yields `io::Error(TimedOut)` (mid-stream).
 
+use std::future::Future;
 use std::time::Duration;
 
 use async_stream::stream;
@@ -34,10 +35,50 @@ use crate::types::ProviderConfig;
 
 use super::upstream::UpstreamClient;
 
+/// Discriminant for which timeout fired when wrapping a future with both an
+/// optional total deadline and an optional per-phase timeout.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TimeoutElapsed {
+    Total,
+    Phase,
+}
+
+/// Wrap `fut` with an optional per-phase timeout (`dur`) and an optional total
+/// deadline. Returns `Ok(value)` on success, or `Err(TimeoutElapsed)`
+/// indicating which timeout fired.
+///
+/// - `dur = None` → no per-phase timeout.
+/// - `total_deadline = None` → no total deadline.
+async fn wrap_timeouts<F, T>(
+    total_deadline: Option<Instant>,
+    dur: Option<Duration>,
+    fut: F,
+) -> std::result::Result<T, TimeoutElapsed>
+where
+    F: Future<Output = T>,
+{
+    match (total_deadline, dur) {
+        (Some(td), Some(d)) => match timeout_at(td, timeout(d, fut)).await {
+            Err(_) => Err(TimeoutElapsed::Total),
+            Ok(Err(_)) => Err(TimeoutElapsed::Phase),
+            Ok(Ok(v)) => Ok(v),
+        },
+        (Some(td), None) => match timeout_at(td, fut).await {
+            Err(_) => Err(TimeoutElapsed::Total),
+            Ok(v) => Ok(v),
+        },
+        (None, Some(d)) => match timeout(d, fut).await {
+            Err(_) => Err(TimeoutElapsed::Phase),
+            Ok(v) => Ok(v),
+        },
+        (None, None) => Ok(fut.await),
+    }
+}
+
 /// Forward a request upstream with the AI-tuned timeout hierarchy.
 ///
-/// `provider_config.timeouts` is the source of truth (defaults: connect 10s,
-/// ttfb 30s, stream_idle 60s, total 300s — see [`crate::types::TimeoutConfig`]).
+/// `provider_config.timeouts` is the source of truth (defaults: connect None,
+/// ttfb None, stream_idle 300s, total None — see [`crate::types::TimeoutConfig`]).
 ///
 /// The `WeightedPermit` is moved into the returned body stream (`let _permit =
 /// permit;` as the first statement of the generator), so it drops on stream
@@ -53,28 +94,24 @@ pub async fn forward_with_timeouts(
     permit: TrackedPermit,
 ) -> Result<axum::response::Response> {
     let t = &provider_config.timeouts;
-    let total_deadline = Instant::now() + t.total;
+    let total_deadline = t.total.map(|d| Instant::now() + d);
 
     // Phase 1: connect timeout wraps client.forward().
     // Nested: timeout_at(total_deadline, timeout(connect, forward)).
     // - Outer Err(Elapsed) → total deadline hit.
     // - Inner Err(Elapsed) → connect elapsed.
-    let upstream_resp = timeout_at(
-        total_deadline,
-        timeout(
-            t.connect,
-            client.forward(
-                method,
-                upstream_uri,
-                &provider_config.upstream_url,
-                headers,
-                body,
-            ),
-        ),
-    )
-    .await
-    .map_err(|_| GatewayError::Timeout("total timeout".into()))?
-    .map_err(|_| GatewayError::Timeout("connect timeout".into()))?;
+    let forward_fut = client.forward(
+        method,
+        upstream_uri,
+        &provider_config.upstream_url,
+        headers,
+        body,
+    );
+    let upstream_resp = match wrap_timeouts(total_deadline, t.connect, forward_fut).await {
+        Ok(resp) => resp,
+        Err(TimeoutElapsed::Total) => return Err(GatewayError::Timeout("total timeout".into())),
+        Err(TimeoutElapsed::Phase) => return Err(GatewayError::Timeout("connect timeout".into())),
+    };
 
     let upstream_resp = upstream_resp?;
 
@@ -84,10 +121,11 @@ pub async fn forward_with_timeouts(
     let mut body = upstream_resp.body;
 
     // Phase 2: TTFB timeout on first body frame.
-    let first_frame = timeout_at(total_deadline, timeout(t.ttfb, body.frame()))
-        .await
-        .map_err(|_| GatewayError::Timeout("total timeout".into()))?
-        .map_err(|_| GatewayError::Timeout("ttfb timeout".into()))?;
+    let first_frame = match wrap_timeouts(total_deadline, t.ttfb, body.frame()).await {
+        Ok(frame) => frame,
+        Err(TimeoutElapsed::Total) => return Err(GatewayError::Timeout("total timeout".into())),
+        Err(TimeoutElapsed::Phase) => return Err(GatewayError::Timeout("ttfb timeout".into())),
+    };
 
     let first_data: Option<Bytes> = match first_frame {
         None => None,
@@ -126,10 +164,10 @@ pub async fn forward_with_timeouts(
         loop {
             tokio::select! {
                 () = tx.closed() => break,
-                result = timeout_at(total_deadline, timeout(stream_idle, body.frame())) => {
+                result = wrap_timeouts(total_deadline, stream_idle, body.frame()) => {
                     match result {
                         // Total deadline hit — send error then return (permit drops).
-                        Err(_) => {
+                        Err(TimeoutElapsed::Total) => {
                             let _ = tx
                                 .send(Err(std::io::Error::new(
                                     std::io::ErrorKind::TimedOut,
@@ -139,7 +177,7 @@ pub async fn forward_with_timeouts(
                             return;
                         }
                         // Stream-idle elapsed — send error then return (permit drops).
-                        Ok(Err(_)) => {
+                        Err(TimeoutElapsed::Phase) => {
                             let _ = tx
                                 .send(Err(std::io::Error::new(
                                     std::io::ErrorKind::TimedOut,
@@ -149,13 +187,13 @@ pub async fn forward_with_timeouts(
                             return;
                         }
                         // Clean upstream EOS — return (permit drops immediately).
-                        Ok(Ok(None)) => return,
+                        Ok(None) => return,
                         // Upstream body read error — return (permit drops immediately).
-                        Ok(Ok(Some(Err(_)))) => return,
+                        Ok(Some(Err(_))) => return,
                         // Got a frame — forward data bytes.
-                        Ok(Ok(Some(Ok(frame)))) => {
+                        Ok(Some(Ok(frame))) => {
                             if let Ok(data) = frame.into_data() {
-                                match timeout_at(total_deadline, tx.send(Ok(data))).await {
+                                match wrap_timeouts(total_deadline, None, tx.send(Ok(data))).await {
                                     Ok(Ok(())) => {}
                                     Ok(Err(_)) | Err(_) => break,
                                 }
@@ -172,25 +210,42 @@ pub async fn forward_with_timeouts(
         }
         debug!(reason = "downstream_disconnect", "entering permit cooldown");
 
-        tokio::select! {
-            // Cooldown elapsed — release permit.
-            () = tokio::time::sleep(cooldown) => {
-                debug!(reason = "cooldown_elapsed", "permit cooldown complete");
+        if let Some(td) = total_deadline {
+            tokio::select! {
+                // Cooldown elapsed — release permit.
+                () = tokio::time::sleep(cooldown) => {
+                    debug!(reason = "cooldown_elapsed", "permit cooldown complete");
+                }
+                // Upstream EOS or error during cooldown.
+                res = body.frame() => {
+                    let _ = res;
+                    debug!(
+                        reason = "upstream_eos_during_cooldown",
+                        "upstream ended during cooldown"
+                    );
+                }
+                // Total deadline hit during cooldown.
+                () = tokio::time::sleep_until(td) => {
+                    warn!(
+                        reason = "total_deadline",
+                        "total timeout during permit cooldown"
+                    );
+                }
             }
-            // Upstream EOS or error during cooldown.
-            res = body.frame() => {
-                let _ = res;
-                debug!(
-                    reason = "upstream_eos_during_cooldown",
-                    "upstream ended during cooldown"
-                );
-            }
-            // Total deadline hit during cooldown.
-            () = tokio::time::sleep_until(total_deadline) => {
-                warn!(
-                    reason = "total_deadline",
-                    "total timeout during permit cooldown"
-                );
+        } else {
+            tokio::select! {
+                // Cooldown elapsed — release permit.
+                () = tokio::time::sleep(cooldown) => {
+                    debug!(reason = "cooldown_elapsed", "permit cooldown complete");
+                }
+                // Upstream EOS or error during cooldown.
+                res = body.frame() => {
+                    let _ = res;
+                    debug!(
+                        reason = "upstream_eos_during_cooldown",
+                        "upstream ended during cooldown"
+                    );
+                }
             }
         }
     });
@@ -357,10 +412,10 @@ mod tests {
 
         let client = UpstreamClient::new();
         let provider = test_provider(TimeoutConfig {
-            connect: Duration::from_millis(200),
-            ttfb: Duration::from_secs(5),
-            stream_idle: Duration::from_secs(5),
-            total: Duration::from_secs(10),
+            connect: Some(Duration::from_millis(200)),
+            ttfb: Some(Duration::from_secs(5)),
+            stream_idle: Some(Duration::from_secs(5)),
+            total: Some(Duration::from_secs(10)),
             ..Default::default()
         });
 
@@ -410,10 +465,10 @@ mod tests {
 
         let client = UpstreamClient::new();
         let provider = test_provider(TimeoutConfig {
-            connect: Duration::from_secs(5),
-            ttfb: Duration::from_millis(200),
-            stream_idle: Duration::from_secs(5),
-            total: Duration::from_secs(10),
+            connect: Some(Duration::from_secs(5)),
+            ttfb: Some(Duration::from_millis(200)),
+            stream_idle: Some(Duration::from_secs(5)),
+            total: Some(Duration::from_secs(10)),
             ..Default::default()
         });
 
@@ -462,10 +517,10 @@ mod tests {
 
         let client = UpstreamClient::new();
         let provider = test_provider(TimeoutConfig {
-            connect: Duration::from_secs(5),
-            ttfb: Duration::from_secs(5),
-            stream_idle: Duration::from_millis(200),
-            total: Duration::from_secs(10),
+            connect: Some(Duration::from_secs(5)),
+            ttfb: Some(Duration::from_secs(5)),
+            stream_idle: Some(Duration::from_millis(200)),
+            total: Some(Duration::from_secs(10)),
             ..Default::default()
         });
 
@@ -522,10 +577,10 @@ mod tests {
 
         let client = UpstreamClient::new();
         let provider = test_provider(TimeoutConfig {
-            connect: Duration::from_secs(5),
-            ttfb: Duration::from_secs(5),
-            stream_idle: Duration::from_secs(5),
-            total: Duration::from_millis(300),
+            connect: Some(Duration::from_secs(5)),
+            ttfb: Some(Duration::from_secs(5)),
+            stream_idle: Some(Duration::from_secs(5)),
+            total: Some(Duration::from_millis(300)),
             ..Default::default()
         });
 
@@ -573,10 +628,10 @@ mod tests {
 
         let client = UpstreamClient::new();
         let provider = test_provider(TimeoutConfig {
-            connect: Duration::from_secs(2),
-            ttfb: Duration::from_secs(2),
-            stream_idle: Duration::from_secs(2),
-            total: Duration::from_secs(5),
+            connect: Some(Duration::from_secs(2)),
+            ttfb: Some(Duration::from_secs(2)),
+            stream_idle: Some(Duration::from_secs(2)),
+            total: Some(Duration::from_secs(5)),
             ..Default::default()
         });
 
@@ -591,6 +646,112 @@ mod tests {
         )
         .await
         .expect("forward succeeds");
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_in_flight(&lim, 1.0);
+
+        let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+        assert_eq!(&bytes[..], b"hello");
+
+        wait_for_in_flight_zero(&lim, 1000).await;
+    }
+
+    // -----------------------------------------------------------------------
+    // None timeouts: all four timeout fields are None. The mock responds
+    // normally — no timeout wrapper should fire.
+    // -----------------------------------------------------------------------
+    #[tokio::test]
+    async fn timeout_none_skips_wrapper() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        tokio::spawn(async move {
+            let (mut sock, _) = listener.accept().await.unwrap();
+            let mut buf = vec![0u8; 1024];
+            let _ = sock.read(&mut buf).await;
+            sock.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello")
+                .await
+                .unwrap();
+            sock.flush().await.unwrap();
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        });
+
+        let (lim, permit) = make_permit().await;
+
+        let client = UpstreamClient::new();
+        let provider = test_provider(TimeoutConfig {
+            connect: None,
+            ttfb: None,
+            stream_idle: None,
+            total: None,
+            ..Default::default()
+        });
+
+        let resp = forward_with_timeouts(
+            &client,
+            &provider,
+            Method::GET,
+            format!("http://127.0.0.1:{port}/"),
+            HeaderMap::new(),
+            empty_body(),
+            permit,
+        )
+        .await
+        .expect("forward succeeds with no timeouts");
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_in_flight(&lim, 1.0);
+
+        let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+        assert_eq!(&bytes[..], b"hello");
+
+        wait_for_in_flight_zero(&lim, 1000).await;
+    }
+
+    // -----------------------------------------------------------------------
+    // total: None — no total deadline. Mock sends body with a delay that
+    // would exceed a hypothetical short total timeout, but since total is
+    // None, the stream completes successfully.
+    // -----------------------------------------------------------------------
+    #[tokio::test]
+    async fn timeout_total_none_no_deadline() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        tokio::spawn(async move {
+            let (mut sock, _) = listener.accept().await.unwrap();
+            let mut buf = vec![0u8; 1024];
+            let _ = sock.read(&mut buf).await;
+            sock.write_all(b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n")
+                .await
+                .unwrap();
+            sock.flush().await.unwrap();
+            tokio::time::sleep(Duration::from_millis(400)).await;
+            sock.write_all(b"5\r\nhello\r\n0\r\n\r\n").await.unwrap();
+            sock.flush().await.unwrap();
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        });
+
+        let (lim, permit) = make_permit().await;
+
+        let client = UpstreamClient::new();
+        let provider = test_provider(TimeoutConfig {
+            connect: Some(Duration::from_secs(2)),
+            ttfb: Some(Duration::from_secs(2)),
+            stream_idle: Some(Duration::from_secs(2)),
+            total: None,
+            ..Default::default()
+        });
+
+        let resp = forward_with_timeouts(
+            &client,
+            &provider,
+            Method::GET,
+            format!("http://127.0.0.1:{port}/"),
+            HeaderMap::new(),
+            empty_body(),
+            permit,
+        )
+        .await
+        .expect("forward succeeds — no total deadline");
 
         assert_eq!(resp.status(), StatusCode::OK);
         assert_in_flight(&lim, 1.0);
@@ -642,10 +803,10 @@ mod permit_cooldown {
 
         let client = UpstreamClient::new();
         let provider = test_provider(TimeoutConfig {
-            connect: Duration::from_secs(5),
-            ttfb: Duration::from_secs(5),
-            stream_idle: Duration::from_secs(5),
-            total: Duration::from_secs(60),
+            connect: Some(Duration::from_secs(5)),
+            ttfb: Some(Duration::from_secs(5)),
+            stream_idle: Some(Duration::from_secs(5)),
+            total: Some(Duration::from_secs(60)),
             permit_cooldown: Duration::from_millis(200),
             ..Default::default()
         });
