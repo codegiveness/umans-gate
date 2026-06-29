@@ -211,22 +211,21 @@ pub async fn forward_with_timeouts(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
+mod test_helpers {
     use crate::concurrency::{MetricUpdate, ProviderLimiter};
     use crate::dashboard::tracked_permit::TrackedPermit;
     use crate::dashboard::tracker::{ProtocolVersion, RequestTracker};
-    use crate::types::{ModelConfig, ModelId, ProviderId, TimeoutConfig, Weight};
-    use hyper::StatusCode;
+    use crate::types::{ModelConfig, ModelId, ProviderConfig, ProviderId, TimeoutConfig, Weight};
+    use axum::body::Body;
+    use bytes::Bytes;
+    use http_body_util::Empty;
     use std::sync::Arc;
     use std::time::Duration;
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    use tokio::net::TcpListener;
     use tokio::sync::broadcast;
     use uuid::Uuid;
 
     /// Build a provider config with the given timeouts.
-    fn test_provider(timeouts: TimeoutConfig) -> ProviderConfig {
+    pub fn test_provider(timeouts: TimeoutConfig) -> ProviderConfig {
         ProviderConfig {
             id: ProviderId::new("test"),
             upstream_url: url::Url::parse("http://127.0.0.1").unwrap(),
@@ -239,13 +238,13 @@ mod tests {
         }
     }
 
-    async fn make_permit() -> (Arc<ProviderLimiter>, TrackedPermit) {
+    pub async fn make_permit() -> (Arc<ProviderLimiter>, TrackedPermit) {
         let (tx, _rx) = broadcast::channel::<MetricUpdate>(256);
         let lim = Arc::new(ProviderLimiter::new(tx));
         lim.register(
             &ProviderId::new("test"),
             Weight::from(4.0),
-            std::time::Duration::from_secs(30),
+            Duration::from_secs(30),
             64,
         );
         let tracker = Arc::new(RequestTracker::new());
@@ -271,7 +270,7 @@ mod tests {
     }
 
     /// Assert in_flight weight for the test provider matches `expected`.
-    fn assert_in_flight(lim: &ProviderLimiter, expected: f32) {
+    pub fn assert_in_flight(lim: &ProviderLimiter, expected: f32) {
         let snap = lim.snapshot().into_iter().next().unwrap();
         assert!(
             (snap.in_flight - expected).abs() < 1e-6,
@@ -284,7 +283,7 @@ mod tests {
     /// Poll `in_flight` until it reaches zero, or panic after `timeout_ms`.
     /// Needed because the permit now lives in a spawned task — its drop is
     /// asynchronous w.r.t. downstream body consumption.
-    async fn wait_for_in_flight_zero(lim: &ProviderLimiter, timeout_ms: u64) {
+    pub async fn wait_for_in_flight_zero(lim: &ProviderLimiter, timeout_ms: u64) {
         for _ in 0..(timeout_ms / 10).max(1) {
             if (lim.snapshot().into_iter().next().unwrap().in_flight - 0.0).abs() < 1e-6 {
                 return;
@@ -295,9 +294,47 @@ mod tests {
     }
 
     /// Empty request body for tests (Empty<Bytes> wrapped in axum Body).
-    fn empty_body() -> axum::body::Body {
-        axum::body::Body::new(http_body_util::Empty::<Bytes>::new())
+    pub fn empty_body() -> Body {
+        Body::new(Empty::<Bytes>::new())
     }
+}
+
+#[cfg(test)]
+mod tests {
+    // Stop-gate regression baseline — these 22 tests must keep passing after
+    // every wave. They protect the weighted-permit concurrency invariants:
+    //
+    // cargo test -p umans-gate --features hot-reload -- \
+    //   concurrency::acquire_releases_correctly \
+    //   concurrency::weighted_accounting \
+    //   concurrency::concurrent_no_overcommit \
+    //   concurrency::try_acquire_rejects_when_full \
+    //   concurrency::permit_drop_on_disconnect \
+    //   concurrency::broadcast_receives_acquired_and_released \
+    //   gating::queue_timeout_fires \
+    //   gating::maxqueue_rejects \
+    //   gating::counter_no_leak_on_timeout \
+    //   gating::tracker_marks_rejected_on_maxqueue \
+    //   gating::permit_releases_on_stream_complete \
+    //   gating::permit_releases_on_client_disconnect \
+    //   gating::permit_not_in_handler_scope \
+    //   gating::permit_released_after_completion \
+    //   timeouts::connect_timeout_unreachable_address \
+    //   timeouts::ttfb_timeout_mock_sends_no_body \
+    //   timeouts::stream_idle_timeout_mock_stalls_after_first_chunk \
+    //   timeouts::total_timeout_mock_sends_slowly \
+    //   timeouts::happy_path_streams_body \
+    //   tracked_permit::drop_calls_mark_done \
+    //   tracked_permit::drop_during_unwinding_still_marks_done \
+    //   handler::permit_acquired_during_request_and_released_after
+
+    use super::*;
+    use super::test_helpers::*;
+    use crate::types::TimeoutConfig;
+    use hyper::StatusCode;
+    use std::time::Duration;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
 
     // -----------------------------------------------------------------------
     // Test 1: connect timeout — mock accepts TCP but never sends response.
@@ -561,6 +598,118 @@ mod tests {
         let bytes = resp.into_body().collect().await.unwrap().to_bytes();
         assert_eq!(&bytes[..], b"hello");
 
+        wait_for_in_flight_zero(&lim, 1000).await;
+    }
+}
+
+#[cfg(test)]
+mod permit_cooldown {
+    //! Unit tests for the downstream-disconnect cooldown path in
+    //! [`super::forward_with_timeouts`].
+
+    use super::*;
+    use super::test_helpers::*;
+    use crate::types::TimeoutConfig;
+    use hyper::{Method, StatusCode};
+    use std::sync::Arc;
+    use std::time::Duration;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
+    use tokio::sync::Notify;
+
+    // Downstream disconnect triggers the cooldown path (`tx.closed()` at line
+    // 128 of the production function). The permit must stay held for the
+    // cooldown duration and then release.
+    #[tokio::test]
+    async fn permit_cooldown_holds_after_disconnect() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        tokio::spawn(async move {
+            let (mut sock, _) = listener.accept().await.unwrap();
+            let mut buf = vec![0u8; 1024];
+            let _ = sock.read(&mut buf).await;
+            // Send headers + one chunk, then stall forever.
+            sock.write_all(
+                b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nhello\r\n",
+            )
+            .await
+            .unwrap();
+            sock.flush().await.unwrap();
+            tokio::time::sleep(Duration::from_secs(60)).await;
+        });
+
+        let (lim, permit) = make_permit().await;
+
+        let client = UpstreamClient::new();
+        let provider = test_provider(TimeoutConfig {
+            connect: Duration::from_secs(5),
+            ttfb: Duration::from_secs(5),
+            stream_idle: Duration::from_secs(5),
+            total: Duration::from_secs(60),
+            permit_cooldown: Duration::from_millis(200),
+            ..Default::default()
+        });
+
+        let resp = forward_with_timeouts(
+            &client,
+            &provider,
+            Method::GET,
+            format!("http://127.0.0.1:{port}/"),
+            HeaderMap::new(),
+            empty_body(),
+            permit,
+        )
+        .await
+        .expect("forward succeeds — headers + first chunk arrive");
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_in_flight(&lim, 1.0);
+
+        // Downstream disconnect: drop the response body. This closes the mpsc
+        // receiver, so the upstream task sees `tx.closed()` and enters the
+        // cooldown `select!`.
+        drop(resp);
+
+        // Permit must still be held during cooldown (200ms).
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        assert_in_flight(&lim, 1.0);
+
+        // After cooldown elapses, the spawned task returns and the permit
+        // drops. `wait_for_in_flight_zero` accounts for async drop latency.
+        wait_for_in_flight_zero(&lim, 1000).await;
+    }
+
+    // Forward-looking simulation: a cancellation wake-up during the cooldown
+    // window releases the permit early. `tokio::sync::Notify` stands in for
+    // `tokio_util::sync::CancellationToken`; the real plumbing is added in
+    // task 6.
+    #[tokio::test]
+    async fn kill_during_cooldown_cancels() {
+        let (lim, permit) = make_permit().await;
+        assert_in_flight(&lim, 1.0);
+
+        let cancel = Arc::new(Notify::new());
+        let cancel2 = Arc::clone(&cancel);
+
+        tokio::spawn(async move {
+            let _permit = permit;
+            let cooldown = Duration::from_millis(500);
+            tokio::select! {
+                // Cooldown elapsed naturally — permit released at end of scope.
+                () = tokio::time::sleep(cooldown) => {}
+                // CancellationToken-style wake-up — permit released at end of
+                // scope as soon as this branch fires.
+                () = cancel2.notified() => {}
+            }
+        });
+
+        // Permit is held while the spawned task is inside the cooldown.
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        assert_in_flight(&lim, 1.0);
+
+        // Simulated kill: the cancellation branch fires and the task exits,
+        // dropping the permit.
+        cancel.notify_one();
         wait_for_in_flight_zero(&lim, 1000).await;
     }
 }
