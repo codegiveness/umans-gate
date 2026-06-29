@@ -14,6 +14,7 @@
 use std::ops::Deref;
 use std::sync::Arc;
 
+use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 use crate::concurrency::WeightedPermit;
@@ -25,16 +26,25 @@ pub struct TrackedPermit {
     permit: WeightedPermit,
     id: Uuid,
     tracker: Arc<RequestTracker>,
+    cancellation_token: CancellationToken,
 }
 
 impl TrackedPermit {
     /// Wrap a `WeightedPermit` with tracking. The caller must have already
     /// called `tracker.register_queued(id, ...)` and `tracker.mark_running(id)`.
-    pub fn new(permit: WeightedPermit, id: Uuid, tracker: Arc<RequestTracker>) -> Self {
+    /// `cancellation_token` should be cloned from the `RequestRecord` created by
+    /// `register_queued`.
+    pub fn new(
+        permit: WeightedPermit,
+        id: Uuid,
+        tracker: Arc<RequestTracker>,
+        cancellation_token: CancellationToken,
+    ) -> Self {
         TrackedPermit {
             permit,
             id,
             tracker,
+            cancellation_token,
         }
     }
 
@@ -53,6 +63,13 @@ impl TrackedPermit {
     /// the permit is moved into the body stream.
     pub fn tracker(&self) -> &Arc<RequestTracker> {
         &self.tracker
+    }
+
+    /// Clone the request's cancellation token. Clones share cancellation state
+    /// — cancelling one cancels all. Used by `forward_with_timeouts` to add a
+    /// `token.cancelled()` branch in the stream drain and cooldown `select!`s.
+    pub fn token(&self) -> CancellationToken {
+        self.cancellation_token.clone()
     }
 }
 
@@ -116,7 +133,10 @@ mod tests {
         );
         tracker.mark_running(id, Some(ProtocolVersion::Http11));
 
-        let tracked = TrackedPermit::new(permit, id, Arc::clone(&tracker));
+        let token = tracker
+            .cancellation_token(id)
+            .unwrap_or_else(CancellationToken::new);
+        let tracked = TrackedPermit::new(permit, id, Arc::clone(&tracker), token);
         (lim, tracker, tracked, id)
     }
 

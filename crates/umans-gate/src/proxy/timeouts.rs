@@ -26,6 +26,7 @@ use http_body_util::BodyExt;
 use hyper::{HeaderMap, Method};
 use tokio::sync::mpsc;
 use tokio::time::{timeout, timeout_at, Instant};
+use tokio_util::sync::CancellationToken;
 use tracing::{debug, warn};
 
 use crate::dashboard::tracked_permit::TrackedPermit;
@@ -84,6 +85,7 @@ where
 /// permit;` as the first statement of the generator), so it drops on stream
 /// completion or client disconnect. The caller MUST NOT retain the permit after
 /// this call returns `Ok`.
+#[allow(clippy::too_many_arguments)]
 pub async fn forward_with_timeouts(
     client: &UpstreamClient,
     provider_config: &ProviderConfig,
@@ -92,6 +94,7 @@ pub async fn forward_with_timeouts(
     headers: HeaderMap,
     body: axum::body::Body,
     permit: TrackedPermit,
+    token: CancellationToken,
 ) -> Result<axum::response::Response> {
     let t = &provider_config.timeouts;
     let total_deadline = t.total.map(|d| Instant::now() + d);
@@ -164,6 +167,10 @@ pub async fn forward_with_timeouts(
         loop {
             tokio::select! {
                 () = tx.closed() => break,
+                () = token.cancelled() => {
+                    debug!(reason = "cancelled", "upstream drain aborted by cancellation token");
+                    return;
+                }
                 result = wrap_timeouts(total_deadline, stream_idle, body.frame()) => {
                     match result {
                         // Total deadline hit — send error then return (permit drops).
@@ -212,6 +219,9 @@ pub async fn forward_with_timeouts(
 
         if let Some(td) = total_deadline {
             tokio::select! {
+                () = token.cancelled() => {
+                    debug!(reason = "cancelled", "permit cooldown aborted by cancellation token");
+                }
                 // Cooldown elapsed — release permit.
                 () = tokio::time::sleep(cooldown) => {
                     debug!(reason = "cooldown_elapsed", "permit cooldown complete");
@@ -234,6 +244,9 @@ pub async fn forward_with_timeouts(
             }
         } else {
             tokio::select! {
+                () = token.cancelled() => {
+                    debug!(reason = "cancelled", "permit cooldown aborted by cancellation token");
+                }
                 // Cooldown elapsed — release permit.
                 () = tokio::time::sleep(cooldown) => {
                     debug!(reason = "cooldown_elapsed", "permit cooldown complete");
@@ -277,6 +290,7 @@ mod test_helpers {
     use std::sync::Arc;
     use std::time::Duration;
     use tokio::sync::broadcast;
+    use tokio_util::sync::CancellationToken;
     use uuid::Uuid;
 
     /// Build a provider config with the given timeouts.
@@ -321,7 +335,10 @@ mod test_helpers {
             .await
             .unwrap();
         tracker.mark_running(id, None);
-        let tracked = TrackedPermit::new(permit, id, Arc::clone(&tracker));
+        let token = tracker
+            .cancellation_token(id)
+            .unwrap_or_else(CancellationToken::new);
+        let tracked = TrackedPermit::new(permit, id, Arc::clone(&tracker), token);
         (lim, tracked)
     }
 
@@ -409,6 +426,7 @@ mod tests {
         });
 
         let (lim, permit) = make_permit().await;
+        let token = permit.token();
         assert_in_flight(&lim, 1.0);
 
         let client = UpstreamClient::new();
@@ -428,6 +446,7 @@ mod tests {
             HeaderMap::new(),
             empty_body(),
             permit,
+            token,
         )
         .await
         .unwrap_err();
@@ -462,6 +481,7 @@ mod tests {
         });
 
         let (lim, permit) = make_permit().await;
+        let token = permit.token();
         assert_in_flight(&lim, 1.0);
 
         let client = UpstreamClient::new();
@@ -481,6 +501,7 @@ mod tests {
             HeaderMap::new(),
             empty_body(),
             permit,
+            token,
         )
         .await
         .unwrap_err();
@@ -515,6 +536,7 @@ mod tests {
         });
 
         let (lim, permit) = make_permit().await;
+        let token = permit.token();
 
         let client = UpstreamClient::new();
         let provider = test_provider(TimeoutConfig {
@@ -533,6 +555,7 @@ mod tests {
             HeaderMap::new(),
             empty_body(),
             permit,
+            token,
         )
         .await
         .expect("forward succeeds — headers + first chunk arrive");
@@ -575,6 +598,7 @@ mod tests {
         });
 
         let (lim, permit) = make_permit().await;
+        let token = permit.token();
 
         let client = UpstreamClient::new();
         let provider = test_provider(TimeoutConfig {
@@ -593,6 +617,7 @@ mod tests {
             HeaderMap::new(),
             empty_body(),
             permit,
+            token,
         )
         .await
         .expect("forward succeeds — headers arrive before total");
@@ -626,6 +651,7 @@ mod tests {
         });
 
         let (lim, permit) = make_permit().await;
+        let token = permit.token();
 
         let client = UpstreamClient::new();
         let provider = test_provider(TimeoutConfig {
@@ -644,6 +670,7 @@ mod tests {
             HeaderMap::new(),
             empty_body(),
             permit,
+            token,
         )
         .await
         .expect("forward succeeds");
@@ -677,6 +704,7 @@ mod tests {
         });
 
         let (lim, permit) = make_permit().await;
+        let token = permit.token();
 
         let client = UpstreamClient::new();
         let provider = test_provider(TimeoutConfig {
@@ -695,6 +723,7 @@ mod tests {
             HeaderMap::new(),
             empty_body(),
             permit,
+            token,
         )
         .await
         .expect("forward succeeds with no timeouts");
@@ -732,6 +761,7 @@ mod tests {
         });
 
         let (lim, permit) = make_permit().await;
+        let token = permit.token();
 
         let client = UpstreamClient::new();
         let provider = test_provider(TimeoutConfig {
@@ -750,6 +780,7 @@ mod tests {
             HeaderMap::new(),
             empty_body(),
             permit,
+            token,
         )
         .await
         .expect("forward succeeds — no total deadline");
@@ -773,11 +804,9 @@ mod permit_cooldown {
     use super::test_helpers::*;
     use crate::types::TimeoutConfig;
     use hyper::{Method, StatusCode};
-    use std::sync::Arc;
     use std::time::Duration;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpListener;
-    use tokio::sync::Notify;
 
     // Downstream disconnect triggers the cooldown path (`tx.closed()` at line
     // 128 of the production function). The permit must stay held for the
@@ -801,6 +830,7 @@ mod permit_cooldown {
         });
 
         let (lim, permit) = make_permit().await;
+        let token = permit.token();
 
         let client = UpstreamClient::new();
         let provider = test_provider(TimeoutConfig {
@@ -820,6 +850,7 @@ mod permit_cooldown {
             HeaderMap::new(),
             empty_body(),
             permit,
+            token,
         )
         .await
         .expect("forward succeeds — headers + first chunk arrive");
@@ -841,37 +872,176 @@ mod permit_cooldown {
         wait_for_in_flight_zero(&lim, 1000).await;
     }
 
-    // Forward-looking simulation: a cancellation wake-up during the cooldown
-    // window releases the permit early. `tokio::sync::Notify` stands in for
-    // `tokio_util::sync::CancellationToken`; the real plumbing is added in
-    // task 6.
+    // Cancellation token aborts the cooldown early, releasing the permit.
     #[tokio::test]
     async fn kill_during_cooldown_cancels() {
         let (lim, permit) = make_permit().await;
+        let token = permit.token();
         assert_in_flight(&lim, 1.0);
 
-        let cancel = Arc::new(Notify::new());
-        let cancel2 = Arc::clone(&cancel);
+        let task_token = token.clone();
 
         tokio::spawn(async move {
             let _permit = permit;
             let cooldown = Duration::from_millis(500);
             tokio::select! {
-                // Cooldown elapsed naturally — permit released at end of scope.
                 () = tokio::time::sleep(cooldown) => {}
-                // CancellationToken-style wake-up — permit released at end of
-                // scope as soon as this branch fires.
-                () = cancel2.notified() => {}
+                () = task_token.cancelled() => {}
             }
         });
 
-        // Permit is held while the spawned task is inside the cooldown.
         tokio::time::sleep(Duration::from_millis(50)).await;
         assert_in_flight(&lim, 1.0);
 
-        // Simulated kill: the cancellation branch fires and the task exits,
-        // dropping the permit.
-        cancel.notify_one();
+        token.cancel();
         wait_for_in_flight_zero(&lim, 1000).await;
+    }
+}
+
+#[cfg(test)]
+mod cancellation {
+    use super::*;
+    use super::test_helpers::*;
+    use crate::dashboard::tracker::RequestStatus;
+    use crate::types::TimeoutConfig;
+    use hyper::{Method, StatusCode};
+    use std::sync::Arc;
+    use std::time::Duration;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpListener;
+
+    // Cancel mid-stream: the drain loop's token.cancelled() branch fires,
+    // the spawned task exits, the permit drops, and capacity is released.
+    #[tokio::test]
+    async fn cancellation_token_cancelled_aborts_upstream() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        tokio::spawn(async move {
+            let (mut sock, _) = listener.accept().await.unwrap();
+            let mut buf = vec![0u8; 1024];
+            let _ = sock.read(&mut buf).await;
+            sock.write_all(
+                b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nhello\r\n",
+            )
+            .await
+            .unwrap();
+            sock.flush().await.unwrap();
+            for _ in 0..100 {
+                tokio::time::sleep(Duration::from_millis(50)).await;
+                let _ = sock.write_all(b"1\r\na\r\n").await;
+                let _ = sock.flush().await;
+            }
+        });
+
+        let (lim, permit) = make_permit().await;
+        let token = permit.token();
+        let tracker = Arc::clone(permit.tracker());
+        let id = permit.request_id();
+
+        let client = UpstreamClient::new();
+        let provider = test_provider(TimeoutConfig {
+            connect: Some(Duration::from_secs(5)),
+            ttfb: Some(Duration::from_secs(5)),
+            stream_idle: Some(Duration::from_secs(5)),
+            total: Some(Duration::from_secs(60)),
+            ..Default::default()
+        });
+
+        let resp = forward_with_timeouts(
+            &client,
+            &provider,
+            Method::GET,
+            format!("http://127.0.0.1:{port}/"),
+            HeaderMap::new(),
+            empty_body(),
+            permit,
+            token,
+        )
+        .await
+        .expect("forward succeeds — headers + first chunk arrive");
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_in_flight(&lim, 1.0);
+
+        assert!(tracker.cancel(id), "cancel should return true for live record");
+
+        wait_for_in_flight_zero(&lim, 2000).await;
+
+        let snap = tracker.snapshot();
+        let record = snap.iter().find(|r| r.id == id).expect("record exists");
+        assert_eq!(
+            record.status,
+            RequestStatus::Cancelled,
+            "record should be Cancelled after tracker.cancel()"
+        );
+    }
+
+    // Cancel during cooldown: the cooldown select!'s token.cancelled() branch
+    // fires, the task exits early, and the permit is released before the
+    // cooldown duration elapses.
+    #[tokio::test]
+    async fn cancellation_during_cooldown_releases_permit() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        tokio::spawn(async move {
+            let (mut sock, _) = listener.accept().await.unwrap();
+            let mut buf = vec![0u8; 1024];
+            let _ = sock.read(&mut buf).await;
+            sock.write_all(
+                b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nhello\r\n",
+            )
+            .await
+            .unwrap();
+            sock.flush().await.unwrap();
+            tokio::time::sleep(Duration::from_secs(60)).await;
+        });
+
+        let (lim, permit) = make_permit().await;
+        let token = permit.token();
+        let tracker = Arc::clone(permit.tracker());
+        let id = permit.request_id();
+
+        let client = UpstreamClient::new();
+        let provider = test_provider(TimeoutConfig {
+            connect: Some(Duration::from_secs(5)),
+            ttfb: Some(Duration::from_secs(5)),
+            stream_idle: Some(Duration::from_secs(5)),
+            total: Some(Duration::from_secs(60)),
+            permit_cooldown: Duration::from_millis(500),
+            ..Default::default()
+        });
+
+        let resp = forward_with_timeouts(
+            &client,
+            &provider,
+            Method::GET,
+            format!("http://127.0.0.1:{port}/"),
+            HeaderMap::new(),
+            empty_body(),
+            permit,
+            token,
+        )
+        .await
+        .expect("forward succeeds — headers + first chunk arrive");
+
+        assert_eq!(resp.status(), StatusCode::OK);
+        assert_in_flight(&lim, 1.0);
+
+        drop(resp);
+
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        assert_in_flight(&lim, 1.0);
+
+        assert!(tracker.cancel(id), "cancel should return true for live record");
+
+        wait_for_in_flight_zero(&lim, 1000).await;
+
+        let snap = tracker.snapshot();
+        let record = snap.iter().find(|r| r.id == id).expect("record exists");
+        assert_eq!(
+            record.status,
+            RequestStatus::Cancelled,
+            "record should be Cancelled after tracker.cancel()"
+        );
     }
 }

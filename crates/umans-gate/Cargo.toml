@@ -37,6 +37,7 @@ hyper-rustls = { workspace = true }
 http-body-util = { workspace = true }
 bytes = { workspace = true }
 uuid = { workspace = true }
+tokio-util = { workspace = true }
 notify = { workspace = true, optional = true }
 notify-debouncer-mini = { workspace = true, optional = true }
 arc-swap = { workspace = true, optional = true }

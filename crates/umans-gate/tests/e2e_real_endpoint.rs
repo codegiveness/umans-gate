@@ -28,6 +28,7 @@ use tokio::net::TcpListener;
 use tokio::sync::broadcast;
 use tokio::task::{JoinHandle, JoinSet};
 use tokio::time::sleep;
+use tokio_util::sync::CancellationToken;
 use umans_gate::concurrency::{MetricUpdate, ProviderLimiter};
 use umans_gate::config_store::ConfigStore;
 use umans_gate::dashboard::tracked_permit::TrackedPermit;
@@ -222,7 +223,10 @@ async fn make_live_permit(
         .expect("acquire live permit");
 
     tracker.mark_running(id, Some(ProtocolVersion::Http11));
-    TrackedPermit::new(permit, id, Arc::clone(tracker))
+    let token = tracker
+        .cancellation_token(id)
+        .unwrap_or_else(CancellationToken::new);
+    TrackedPermit::new(permit, id, Arc::clone(tracker), token)
 }
 
 /// Fetch `/v1/usage` for the account and return the JSON value.
@@ -302,6 +306,8 @@ async fn live_429_regression_cooldown_holds_permit() {
 
     let permit_a = make_live_permit(&limiter, &tracker).await;
     let permit_b = make_live_permit(&limiter, &tracker).await;
+    let token_a = permit_a.token();
+    let token_b = permit_b.token();
 
     let body_json = serde_json::json!({
         "model": "umans-flash",
@@ -333,6 +339,7 @@ async fn live_429_regression_cooldown_holds_permit() {
             headers.clone(),
             axum::body::Body::from(body_json.clone()),
             permit_a,
+            token_a,
         ),
         forward_with_timeouts(
             &client,
@@ -342,6 +349,7 @@ async fn live_429_regression_cooldown_holds_permit() {
             headers,
             axum::body::Body::from(body_json),
             permit_b,
+            token_b,
         ),
     );
 

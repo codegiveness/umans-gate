@@ -87,6 +87,7 @@ pub async fn proxy_handler(
     )
     .await?;
 
+    let token = permit.token();
     let base = provider_config.upstream_url.as_str();
     let base = if base.ends_with('/') {
         base.to_string()
@@ -106,6 +107,7 @@ pub async fn proxy_handler(
         headers,
         body,
         permit,
+        token,
     )
     .await
 }

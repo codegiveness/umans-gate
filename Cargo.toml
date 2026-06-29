@@ -49,6 +49,7 @@ http-body-util = "0.1"
 bytes = "1"
 sha2 = "0.10"
 uuid = { version = "1", features = ["v4"] }
+tokio-util = { version = "0.7", features = ["rt"] }
 
 # Config for 'dist'
 [workspace.metadata.dist]

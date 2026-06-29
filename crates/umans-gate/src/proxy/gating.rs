@@ -81,7 +81,10 @@ pub async fn acquire_for_request(
     match result {
         Ok(Ok(permit)) => {
             tracker.mark_running(request_id, None);
-            Ok(TrackedPermit::new(permit, request_id, Arc::clone(tracker)))
+            let token = tracker
+                .cancellation_token(request_id)
+                .unwrap_or_default();
+            Ok(TrackedPermit::new(permit, request_id, Arc::clone(tracker), token))
         }
         Ok(Err(err)) => {
             tracing::debug!(provider = %provider, error = %err, "concurrency acquire failed");

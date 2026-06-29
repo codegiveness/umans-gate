@@ -17,6 +17,7 @@ use axum::http::Version;
 use chrono::{DateTime, Local};
 
 use dashmap::DashMap;
+use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 use crate::types::{ModelId, ProviderId, Weight};
@@ -161,6 +162,9 @@ pub struct RequestRecord {
     pub path: String,
     /// Derived API family label for the dashboard.
     pub api_kind: ApiKind,
+    /// Cancellation token for aborting the upstream request mid-stream.
+    /// Clones share cancellation state; `cancel(id)` cancels all clones.
+    pub cancellation_token: CancellationToken,
 }
 
 /// Cached OS timezone offset label for the request-fragment header.
@@ -247,6 +251,7 @@ impl RequestTracker {
             is_terminal: false,
             path,
             api_kind,
+            cancellation_token: CancellationToken::new(),
         };
         self.requests.insert(id, record);
     }
@@ -314,6 +319,27 @@ impl RequestTracker {
             entry.completed_at = Some(Instant::now());
             entry.is_terminal = true;
         }
+    }
+
+    /// Clone the request's cancellation token, if the record exists.
+    pub fn cancellation_token(&self, id: Uuid) -> Option<CancellationToken> {
+        self.requests.get(&id).map(|r| r.cancellation_token.clone())
+    }
+
+    /// Cancel a tracked request: aborts the upstream stream via the token and
+    /// marks the record `Cancelled`. Returns `true` if the record existed and
+    /// was not already terminal; `false` otherwise.
+    pub fn cancel(&self, id: Uuid) -> bool {
+        let Some(entry) = self.requests.get(&id) else {
+            return false;
+        };
+        if entry.is_terminal {
+            return false;
+        }
+        entry.cancellation_token.cancel();
+        drop(entry);
+        self.mark_cancelled(id);
+        true
     }
 
     /// Remove Done/Rejected entries whose `completed_at` is older than
@@ -401,6 +427,7 @@ mod tests {
             is_terminal: false,
             path: "/v1/chat/completions".to_string(),
             api_kind: ApiKind::OpenAI,
+            cancellation_token: CancellationToken::new(),
         };
         let expected = DateTime::<Local>::from(wall).format("%H:%M:%S").to_string();
         assert_eq!(record.enqueued_at_display(), expected);
@@ -423,6 +450,7 @@ mod tests {
             is_terminal: false,
             path: "/v1/chat/completions".to_string(),
             api_kind: ApiKind::OpenAI,
+            cancellation_token: CancellationToken::new(),
         };
 
         let with_upstream = RequestRecord {
@@ -692,6 +720,7 @@ fn enqueued_at_display_returns_local_time_format() {
         is_terminal: false,
         path: "/v1/chat/completions".to_string(),
         api_kind: ApiKind::OpenAI,
+        cancellation_token: CancellationToken::new(),
     };
     let display = record.enqueued_at_display();
     assert_eq!(display.len(), 8, "expected HH:MM:SS, got {}", display);
@@ -775,4 +804,45 @@ fn register_queued_stores_path_and_kind() {
     assert_eq!(snap.len(), 1);
     assert_eq!(snap[0].path, path);
     assert_eq!(snap[0].api_kind, ApiKind::Anthropic);
+}
+
+#[cfg(test)]
+#[test]
+fn cancel_marks_cancelled_and_returns_true() {
+    let tracker = RequestTracker::new();
+    let id = Uuid::new_v4();
+    let provider = ProviderId::new("openai");
+    let model = ModelId::new("gpt-4");
+    let weight = Weight::from(1.0);
+
+    tracker.register_queued(
+        id,
+        &provider,
+        &model,
+        weight,
+        ProtocolVersion::Http11,
+        "/v1/chat/completions".to_string(),
+    );
+
+    assert!(tracker.cancel(id), "cancel should return true for live record");
+
+    let snap = tracker.snapshot();
+    assert_eq!(snap.len(), 1);
+    assert_eq!(
+        snap[0].status,
+        RequestStatus::Cancelled,
+        "record should be Cancelled after cancel()"
+    );
+    assert!(snap[0].is_terminal, "record should be terminal after cancel()");
+
+    assert!(
+        !tracker.cancel(id),
+        "cancel should return false for already-terminal record"
+    );
+
+    let missing = Uuid::new_v4();
+    assert!(
+        !tracker.cancel(missing),
+        "cancel should return false for missing record"
+    );
 }
