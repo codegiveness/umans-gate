@@ -11,7 +11,7 @@ The workspace contains two crates:
 - `crates/umans-gate` — the library (types, config, concurrency engine, proxy, dashboard).
 - `crates/umans-gate-cli` — the `umans-gate` binary and clap command tree.
 
-Configuration is a single YAML file loaded at startup and optionally reloaded when the file changes. There is no external database, no Redis, and no load balancer; the gateway is entirely self-contained.
+Configuration is a single YAML file loaded at startup and optionally reloaded when the file changes. If no config file is supplied and no file exists at the default path, umans-gate fetches the model list from `https://api.code.umans.ai/v1/models/info` and builds a default config with all models at weight `1.0` and provider capacity `4.0`. There is no external database, no Redis, and no load balancer; the gateway is entirely self-contained.
 
 ## Component Diagram
 
@@ -92,7 +92,7 @@ Because the semaphore is the single source of truth, the relaxed atomic mirror u
 
 ## Hot Reload
 
-When the CLI starts with `--watch`, `ConfigStore::watch` spawns a `notify-debouncer-mini` watcher on the config file with a 500 ms debounce. When the file changes, the new YAML is loaded and validated through `GatewayConfig::load`. If validation passes, `ConfigStore::reload` updates the `ArcSwap` and rebuilds the concurrency map.
+Config file watching is enabled by default; start with `--no-watch` to opt out. `ConfigStore::watch` spawns a `notify-debouncer-mini` watcher on the config file with a 500 ms debounce. When the file changes, the new YAML is loaded and validated through `GatewayConfig::load`. If validation passes, `ConfigStore::reload` updates the `ArcSwap` and rebuilds the concurrency map.
 
 Provider recreation follows these rules:
 
@@ -115,19 +115,97 @@ The dashboard shows, per provider:
 - capacity and consumed weight
 - utilization percentage
 - active model counts (pending and active states distinguished in the fragment)
+- a request list sorted oldest→newest, showing each request's enqueued-at timestamp, provider, model, weight, status, age, and client/upstream i/o protocol version
 
-There is no authentication on the dashboard. Bind it to a private interface or place it behind a reverse proxy when running on an untrusted network.
+### Dashboard Configuration
+
+The dashboard is configured through the top-level `dashboard` key in `config.yaml` and two CLI overrides.
+
+```yaml
+dashboard:
+  bind: "0.0.0.0:3001"
+  history:
+    max: 1000
+  kill_button:
+    min_age_seconds: 300
+```
+
+- `dashboard.history.max` sets the number of completed requests kept in the history store. Use `0` to keep an unlimited number of records.
+- `dashboard.kill_button.min_age_seconds` controls how many seconds a request must be queued or running before the kill button appears.
+
+The same values can be overridden at startup with CLI flags:
+
+```bash
+umans-gate serve --config config.yaml --history-max 2000 --kill-min-age-seconds 60
+```
+
+`--history-max` caps the number of history records, with `0` meaning unlimited. `--kill-min-age-seconds` sets the minimum age for the kill button.
+
+Timeouts can be disabled for a phase by setting them to YAML `null` (infinity), or supplied as a finite `{ secs, nanos }` struct:
+
+```yaml
+providers:
+  - id: umans
+    upstream_url: "https://api.code.umans.ai"
+    capacity: 4.0
+    timeouts:
+      connect: null
+      ttfb: null
+      stream_idle: { secs: 300, nanos: 0 }
+      total: null
+```
+
+Set a finite override such as `{ secs: 10, nanos: 0 }`. A `null` value removes that phase ceiling entirely, so the request is never timed out for that phase.
+
+### CSV Export
+
+The dashboard exposes a CSV export of terminal request history at `/dashboard/history/export.csv`. The file includes headers and one row per completed, rejected, timed-out, or cancelled request.
+
+```bash
+curl http://localhost:3001/dashboard/history/export.csv
+```
+
+The export is served on `dashboard.bind`, not the legacy `dashboard_bind` value.
+
+### Stop-Reason Header
+
+When a request is killed from the dashboard, the gateway sets:
+
+```text
+X-Umans-Stop-Reason: cancelled
+```
+
+The header is sent on the 400 `request_cancelled` response returned to the downstream client.
+
+### Anti-Spam Harness Contract
+
+Downstream clients should treat gateway responses as a contract for retries and backoffs. The gateway itself does not apply global rate limiting; the harness is expected to read status codes and headers.
+
+| Status | Header | Meaning |
+|---|---|---|
+| 503 Service Unavailable | `Retry-After: 30` | Concurrency limit reached; wait for the given number of seconds and retry. |
+| 504 Gateway Timeout | none | A phase or total timeout fired; retry with backoff after confirming transient conditions. |
+| 502 Bad Gateway | none | Upstream error; retry after confirming upstream health. |
+| 429 Too Many Requests | `Retry-After: <seconds>` | Upstream provider rate limited the request; wait for the given duration and retry. |
+| 4xx (other than 429) | none | Client-side error; do not retry without fixing the request. |
+| Dashboard kill | `X-Umans-Stop-Reason: cancelled` | The request was cancelled by an operator; terminal failure, do not retry. |
+
+A compact rule for harness authors: a 4xx response without `Retry-After` should never be retried; 5xx responses, 503, 504, and 429 should be retried with a backoff; dashboard kills are terminal.
+
+### Dashboard Security Warning
+
+The dashboard has no authentication and binds to `0.0.0.0:3001` by default. Do not expose it to untrusted networks. Bind it to a private interface or place it behind an authenticating reverse proxy. Exposing the dashboard publicly creates a denial-of-service risk because unauthenticated callers can view active requests and trigger request kills.
 
 ## Timeout Hierarchy
 
 Each provider can override the AI-tuned defaults.
 
-| Timeout        | Default | Purpose                                                                 |
-|----------------|---------|-------------------------------------------------------------------------|
-| `connect`      | `10s`   | Max time to establish the TCP/TLS connection to the upstream.        |
-| `ttfb`         | `30s`   | Max time from sending the request to receiving the first response byte. |
-| `stream_idle`  | `60s`   | Max silence between two SSE chunks while the stream is open.            |
-| `total`        | `300s`  | Hard ceiling for the entire request/response lifecycle.                 |
+| Timeout        | Default   | Purpose                                                                 |
+|----------------|-----------|-------------------------------------------------------------------------|
+| `connect`      | `null`    | Max time to establish the TCP/TLS connection to the upstream. `null` means infinity. |
+| `ttfb`         | `null`    | Max time from sending the request to receiving the first response byte. `null` means infinity. |
+| `stream_idle`  | `300s`    | Max silence between two SSE chunks while the stream is open.            |
+| `total`        | `null`    | Hard ceiling for the entire request/response lifecycle. `null` means infinity.                 |
 
 Timeouts are nested: `connect` < `ttfb` < `stream_idle` < `total`. A request fails as soon as the tightest applicable timeout fires.
 
@@ -150,7 +228,7 @@ Errors are returned as OpenAI-compatible JSON:
 ```json
 {
   "error": {
-    "message": "concurrency limit exceeded for provider openai",
+    "message": "concurrency limit exceeded for provider umans",
     "type": "gateway_error"
   }
 }

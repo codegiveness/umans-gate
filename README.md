@@ -17,7 +17,7 @@ umans-gate is a Rust API gateway that proxies requests to OpenAI and Anthropic w
 - Zero-race accounting using milliunit weights inside `tokio::sync::Semaphore`.
 - Full SSE streaming passthrough with backpressure and no response buffering.
 - Live dashboard showing per-provider consumed weight, capacity, and active models.
-- YAML configuration with optional file-watch hot-reload.
+- YAML configuration with file-watch hot-reload (enabled by default).
 - Self-updating CLI with shell completion generation.
 - Pure Rust TLS backend via rustls.
 
@@ -69,6 +69,8 @@ In all cases the installed binary name is `umans-gate`.
 
 umans-gate reads a single YAML configuration file. The default path is `config.yaml` in the working directory, or you can pass `--config <path>`.
 
+If no config file exists, umans-gate automatically fetches the model list from `https://api.code.umans.ai/v1/models/info` and creates a default configuration with all models at weight 1.0 and capacity 4.0.
+
 ### Example `config.yaml`
 
 ```yaml
@@ -79,17 +81,17 @@ providers:
     upstream_url: "https://api.code.umans.ai"
     capacity: 4.0
     models:
-      - id: umans-coder
-        weight: 1.0
-      - id: umans-flash
-        weight: 0.5
       - id: umans-kimi-k2.7
         weight: 1.0
-  - id: opencode-go
-    upstream_url: "http://127.0.0.1:0"
-    capacity: 4.0
-    models:
-      - id: opencode-go-default
+      - id: umans-glm-5.2
+        weight: 1.0
+      - id: umans-coder
+        weight: 1.0
+      - id: umans-glm-5.2-nvfp4
+        weight: 1.0
+      - id: umans-flash
+        weight: 1.0
+      - id: umans-qwen3.6-35b-a3b
         weight: 1.0
 ```
 
@@ -106,10 +108,12 @@ providers:
 | `providers[].models` | list | required | Models that belong to this provider. |
 | `providers[].models[].id` | string | required | Model identifier. |
 | `providers[].models[].weight` | float | required | Concurrency weight charged while a request is active. |
-| `providers[].timeouts.connect` | duration | `10s` | TCP connect timeout. |
-| `providers[].timeouts.ttfb` | duration | `30s` | Time to first byte timeout. |
-| `providers[].timeouts.stream_idle` | duration | `60s` | Idle timeout between SSE chunks. |
-| `providers[].timeouts.total` | duration | `300s` | Hard total timeout per request. |
+| `providers[].timeouts.connect` | duration or `null` | `null` (infinity) | TCP connect timeout; `null` disables the limit. |
+| `providers[].timeouts.ttfb` | duration or `null` | `null` (infinity) | Time to first byte timeout; `null` disables the limit. |
+| `providers[].timeouts.stream_idle` | duration or `null` | `300s` | Idle timeout between SSE chunks; `null` disables the limit. |
+| `providers[].timeouts.total` | duration or `null` | `null` (infinity) | Hard total timeout per request; `null` disables the limit. |
+| `dashboard.history.max`<br>`--history-max` | integer | `1000` | Completed requests kept in dashboard history. `0` means unlimited. `--history-max` overrides the config value. |
+| `dashboard.kill_button.min_age_seconds`<br>`--kill-min-age-seconds` | integer | `300` | Minimum age in seconds before the kill button appears. `--kill-min-age-seconds` overrides the config value. |
 
 Model weights must be greater than zero and may not exceed the provider capacity. The loader rejects invalid configs and refuses to start.
 
@@ -127,10 +131,10 @@ Run in the foreground with default `config.yaml`:
 umans-gate
 ```
 
-Watch the config file for changes and hot-reload limits:
+Config file watching is enabled by default and hot-reloads limits on changes. Use `--no-watch` to disable it:
 
 ```bash
-umans-gate serve --config config.yaml --watch
+umans-gate serve --config config.yaml --no-watch
 ```
 
 Check for a newer release without installing:
@@ -168,10 +172,9 @@ The gateway routes by the first path segment. Every provider declared in `config
 |---|---|
 | `/{provider.id}/*` | `providers[].id == {provider.id}` |
 
-With provider IDs `umans` and `opencode-go` from `config.yaml`:
+With the `umans` provider from `config.yaml`:
 
 - `POST /umans/v1/chat/completions` is forwarded to the `umans` provider as `/v1/chat/completions`.
-- `POST /opencode-go/v1/chat/completions` is forwarded to the `opencode-go` provider as `/v1/chat/completions`.
 - `GET /umans/models` is normalized to `/v1/models` and forwarded; `/umans/v1/models` is forwarded as-is without a double `/v1/`.
 
 The provider prefix is stripped and the remaining path is normalized before forwarding. Paths that already contain `v1/` are not double-prefixed, and paths that omit it have `v1/` added automatically. Requests without a recognized provider prefix, such as `/v1/chat/completions`, return `404`.
@@ -180,7 +183,7 @@ The `/health` endpoint on the proxy port remains unchanged and returns `ok`.
 
 ## Dashboard
 
-The dashboard is served on `dashboard_bind` and uses HTMX with Server-Sent Events. It renders the current consumed weight, capacity bar, and active model list for every configured provider.
+The dashboard is served on `dashboard_bind` and uses HTMX with Server-Sent Events. It renders the current consumed weight, capacity bar, and active model list for every configured provider. The request list also shows each request's enqueued-at time and its client/upstream i/o protocol version.
 
 **Security warning:** the dashboard has **no authentication** and binds to `0.0.0.0` by default. Do not expose it to the public internet. Run it behind a reverse proxy or bind it to a private interface unless you are on a trusted network.
 
@@ -192,6 +195,42 @@ The gateway is built as a Rust workspace with two crates:
 - `crates/umans-gate-cli` — the `umans-gate` binary and clap CLI.
 
 For pipeline diagrams and a developer-oriented breakdown, see [docs/architecture.md](docs/architecture.md).
+
+## Request Flow
+
+```mermaid
+flowchart LR
+    subgraph Downstream
+        Client([Downstream client]) -->|POST /umans/v1/chat/completions| Handler[axum handler<br/>src/proxy/handler.rs]
+        Handler --> Normalize{Normalize path<br/>strip provider prefix}
+        Normalize --> Buffer[Buffer request body]
+        Buffer --> Gate{Acquire model weight<br/>ProviderLimiter::acquire}
+    end
+
+    Gate -->|weight available| Build[Build upstream HTTP/1.1 request]
+    Gate -->|queue full| Return503[Return 503]
+    Build --> ClientPool[hyper legacy client pool<br/>HTTP/1.1 only]
+    ClientPool --> UpstreamServer[api.code.umans.ai]
+
+    subgraph Upstream
+        UpstreamServer -->|SSE stream chunks| Stream[Yield frames to client]
+        Other([Other clients on same API key]) --> UpstreamServer
+    end
+
+    Stream --> StillThere{Client still connected?}
+    StillThere -->|yes| Stream
+    StillThere -->|drops early| DropStream[Generator drops permit & upstream body]
+    DropStream --> Race[Race window: upstream still generating until EPIPE]
+    Race --> Next[Next queued request reaches provider]
+    Next --> Counter[Provider counts account-wide<br/>concurrent sessions]
+    Counter -->|over 4 repeatedly| Four29[429 / rate_limited]
+    Four29 --> Boxed[boxed_until 5-hour pause]
+    StillThere -->|no / [DONE]| EOS[Stream ends normally]
+    EOS --> Release[Permit drops on EOS]
+    Release --> Reuse[Connection returns to pool]
+```
+
+The request enters the `umans-gate` handler, the model weight is acquired, and an HTTP/1.1 request is sent to `api.code.umans.ai`. The response is streamed back as SSE. The failure mode described in `.omo/research-umans-429-ban.md` happens when the downstream client disconnects early: the gateway drops its permit synchronously and can admit the next queued request, while the upstream provider continues to count the cancelled stream as live until it hits a write error. Because the provider counts **concurrent sessions across the whole account** (including other clients sharing the same key), that transient overlap can push the account over 4, register as a 429, and eventually trigger a 5-hour `boxed_until` penalty.
 
 ## Weight System
 
