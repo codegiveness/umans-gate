@@ -9,12 +9,12 @@
 
 use std::sync::Arc;
 
-use axum::body::Bytes;
 use axum::extract::{Path, State};
-use axum::http::{HeaderMap, Method};
 use axum::response::Response;
+use http_body_util::BodyExt;
 use serde_json::Value;
 
+use crate::dashboard::tracker::ProtocolVersion;
 use crate::error::{GatewayError, Result};
 use crate::types::{ModelId, Weight};
 
@@ -35,10 +35,18 @@ use super::timeouts::forward_with_timeouts;
 pub async fn proxy_handler(
     Path(path): Path<String>,
     State(state): State<Arc<ProxyState>>,
-    method: Method,
-    headers: HeaderMap,
-    body: Bytes,
+    req: axum::extract::Request,
 ) -> Result<Response> {
+    let client_protocol = ProtocolVersion::from(req.version());
+    let (parts, body) = req.into_parts();
+    let method = parts.method;
+    let headers = parts.headers;
+    let body = body
+        .collect()
+        .await
+        .map_err(|e| GatewayError::Upstream(format!("read body: {e}")))?
+        .to_bytes();
+
     let config = state.config_store.load();
 
     // `axum` captures `/{*path}` without the leading `/`.
@@ -62,8 +70,22 @@ pub async fn proxy_handler(
         .model_weight(&model_id)
         .unwrap_or(Weight::from(1.0));
 
-    let permit =
-        acquire_for_request(&state.limiter, &provider_config.id, &model_id, weight).await?;
+    let normalized_path = if remainder == "v1" || remainder.starts_with("v1/") {
+        remainder.to_string()
+    } else {
+        format!("v1/{remainder}")
+    };
+
+    let permit = acquire_for_request(
+        &state.limiter,
+        &state.tracker,
+        &provider_config.id,
+        &model_id,
+        weight,
+        client_protocol,
+        normalized_path.clone(),
+    )
+    .await?;
 
     let base = provider_config.upstream_url.as_str();
     let base = if base.ends_with('/') {
@@ -72,11 +94,6 @@ pub async fn proxy_handler(
         format!("{base}/")
     };
 
-    let normalized_path = if remainder == "v1" || remainder.starts_with("v1/") {
-        remainder.to_string()
-    } else {
-        format!("v1/{remainder}")
-    };
     let upstream_uri = format!("{base}{normalized_path}");
 
     let body = axum::body::Body::from(body);
@@ -109,6 +126,7 @@ mod tests {
     use super::*;
     use crate::concurrency::{MetricUpdate, ProviderLimiter};
     use crate::config_store::ConfigStore;
+    use crate::dashboard::tracker::RequestTracker;
     use crate::proxy::router::{proxy_router, ProxyState};
     use crate::proxy::upstream::UpstreamClient;
     use crate::types::{
@@ -153,6 +171,7 @@ mod tests {
         Arc::new(ProxyState {
             config_store,
             limiter,
+            tracker: Arc::new(RequestTracker::new()),
             upstream_client,
         })
     }
@@ -179,6 +198,7 @@ mod tests {
         Arc::new(ProxyState {
             config_store,
             limiter,
+            tracker: Arc::new(RequestTracker::new()),
             upstream_client,
         })
     }
@@ -436,12 +456,15 @@ mod tests {
         let state = make_state(upstream_url, TimeoutConfig::default());
 
         let expected_body = "not json";
+        let req = Request::builder()
+            .method("POST")
+            .uri("/openai/v1/chat/completions")
+            .body(Body::from(expected_body))
+            .unwrap();
         let resp = proxy_handler(
             Path("openai/v1/chat/completions".to_string()),
             State(state),
-            Method::POST,
-            HeaderMap::new(),
-            Bytes::from_static(expected_body.as_bytes()),
+            req,
         )
         .await
         .unwrap();
@@ -485,15 +508,17 @@ mod tests {
         let rx = spawn_mock(listener, b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok");
 
         let upstream_url = Url::parse(&format!("http://127.0.0.1:{port}")).unwrap();
-        let state =
-            make_state_with_provider("umans", upstream_url, TimeoutConfig::default());
+        let state = make_state_with_provider("umans", upstream_url, TimeoutConfig::default());
 
+        let req = Request::builder()
+            .method("POST")
+            .uri("/umans/v1/chat/completions")
+            .body(Body::from(r#"{"model":"test-model"}"#))
+            .unwrap();
         let resp = proxy_handler(
             Path("umans/v1/chat/completions".to_string()),
             State(state),
-            Method::POST,
-            HeaderMap::new(),
-            Bytes::from_static(br#"{"model":"test-model"}"#),
+            req,
         )
         .await
         .unwrap();
@@ -518,15 +543,17 @@ mod tests {
         let rx = spawn_mock(listener, b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok");
 
         let upstream_url = Url::parse(&format!("http://127.0.0.1:{port}")).unwrap();
-        let state =
-            make_state_with_provider("umans", upstream_url, TimeoutConfig::default());
+        let state = make_state_with_provider("umans", upstream_url, TimeoutConfig::default());
 
+        let req = Request::builder()
+            .method("POST")
+            .uri("/umans/v1/chat/completions")
+            .body(Body::from(r#"{"model":"test-model"}"#))
+            .unwrap();
         let resp = proxy_handler(
             Path("umans/v1/chat/completions".to_string()),
             State(state),
-            Method::POST,
-            HeaderMap::new(),
-            Bytes::from_static(br#"{"model":"test-model"}"#),
+            req,
         )
         .await
         .unwrap();
@@ -551,15 +578,17 @@ mod tests {
         let rx = spawn_mock(listener, b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok");
 
         let upstream_url = Url::parse(&format!("http://127.0.0.1:{port}")).unwrap();
-        let state =
-            make_state_with_provider("umans", upstream_url, TimeoutConfig::default());
+        let state = make_state_with_provider("umans", upstream_url, TimeoutConfig::default());
 
+        let req = Request::builder()
+            .method("POST")
+            .uri("/umans/chat/completions")
+            .body(Body::from(r#"{"model":"test-model"}"#))
+            .unwrap();
         let resp = proxy_handler(
             Path("umans/chat/completions".to_string()),
             State(state),
-            Method::POST,
-            HeaderMap::new(),
-            Bytes::from_static(br#"{"model":"test-model"}"#),
+            req,
         )
         .await
         .unwrap();
@@ -580,18 +609,16 @@ mod tests {
         let rx = spawn_mock(listener, b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok");
 
         let upstream_url = Url::parse(&format!("http://127.0.0.1:{port}")).unwrap();
-        let state =
-            make_state_with_provider("umans", upstream_url, TimeoutConfig::default());
+        let state = make_state_with_provider("umans", upstream_url, TimeoutConfig::default());
 
-        let resp = proxy_handler(
-            Path("umans/v1".to_string()),
-            State(state),
-            Method::POST,
-            HeaderMap::new(),
-            Bytes::from_static(br#"{"model":"test-model"}"#),
-        )
-        .await
-        .unwrap();
+        let req = Request::builder()
+            .method("POST")
+            .uri("/umans/v1")
+            .body(Body::from(r#"{"model":"test-model"}"#))
+            .unwrap();
+        let resp = proxy_handler(Path("umans/v1".to_string()), State(state), req)
+            .await
+            .unwrap();
 
         assert_eq!(resp.status(), StatusCode::OK);
 
@@ -613,16 +640,18 @@ mod tests {
         let _rx = spawn_mock(listener, b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok");
 
         let upstream_url = Url::parse(&format!("http://127.0.0.1:{port}")).unwrap();
-        let state =
-            make_state_with_provider("umans", upstream_url, TimeoutConfig::default());
+        let state = make_state_with_provider("umans", upstream_url, TimeoutConfig::default());
 
+        let req = Request::builder()
+            .method("GET")
+            .uri("/unknown/v1/models")
+            .body(Body::empty())
+            .unwrap();
         let status = handler_status(
             proxy_handler(
                 Path("unknown/v1/models".to_string()),
                 State(state),
-                Method::GET,
-                HeaderMap::new(),
-                Bytes::new(),
+                req,
             )
             .await,
         );
@@ -641,18 +670,15 @@ mod tests {
         let _rx = spawn_mock(listener, b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok");
 
         let upstream_url = Url::parse(&format!("http://127.0.0.1:{port}")).unwrap();
-        let state =
-            make_state_with_provider("umans", upstream_url, TimeoutConfig::default());
+        let state = make_state_with_provider("umans", upstream_url, TimeoutConfig::default());
 
+        let req = Request::builder()
+            .method("GET")
+            .uri("/v1/models")
+            .body(Body::empty())
+            .unwrap();
         let status = handler_status(
-            proxy_handler(
-                Path("v1/models".to_string()),
-                State(state),
-                Method::GET,
-                HeaderMap::new(),
-                Bytes::new(),
-            )
-            .await,
+            proxy_handler(Path("v1/models".to_string()), State(state), req).await,
         );
 
         assert_eq!(
@@ -669,18 +695,15 @@ mod tests {
         let _rx = spawn_mock(listener, b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok");
 
         let upstream_url = Url::parse(&format!("http://127.0.0.1:{port}")).unwrap();
-        let state =
-            make_state_with_provider("umans", upstream_url, TimeoutConfig::default());
+        let state = make_state_with_provider("umans", upstream_url, TimeoutConfig::default());
 
+        let req = Request::builder()
+            .method("GET")
+            .uri("/")
+            .body(Body::empty())
+            .unwrap();
         let status = handler_status(
-            proxy_handler(
-                Path(String::new()),
-                State(state),
-                Method::GET,
-                HeaderMap::new(),
-                Bytes::new(),
-            )
-            .await,
+            proxy_handler(Path(String::new()), State(state), req).await,
         );
 
         assert_eq!(

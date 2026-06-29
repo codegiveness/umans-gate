@@ -213,6 +213,7 @@ async fn make_live_permit(
         &model_id,
         Weight::from(1.0),
         ProtocolVersion::Http11,
+        "/v1/chat/completions".to_string(),
     );
 
     let permit = limiter

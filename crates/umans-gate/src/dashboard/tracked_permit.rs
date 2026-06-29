@@ -112,6 +112,7 @@ mod tests {
             &ModelId::new("gpt-4"),
             Weight::from(1.0),
             ProtocolVersion::Http11,
+            "/v1/chat/completions".to_string(),
         );
         tracker.mark_running(id, Some(ProtocolVersion::Http11));
 

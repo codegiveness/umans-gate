@@ -107,6 +107,36 @@ impl From<Version> for ProtocolVersion {
     }
 }
 
+/// Identifies the upstream API family for a request.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ApiKind {
+    Anthropic,
+    OpenAI,
+    Unknown,
+}
+
+impl fmt::Display for ApiKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ApiKind::Anthropic => f.write_str("Anthropic"),
+            ApiKind::OpenAI => f.write_str("OpenAI"),
+            ApiKind::Unknown => f.write_str("Unknown"),
+        }
+    }
+}
+
+impl ApiKind {
+    pub fn from_path(path: &str) -> Self {
+        if path.contains("/v1/messages") && !path.contains("/v1/messages/") {
+            ApiKind::Anthropic
+        } else if path.contains("/v1/chat/completions") || path.contains("/v1/completions") {
+            ApiKind::OpenAI
+        } else {
+            ApiKind::Unknown
+        }
+    }
+}
+
 /// A single request's tracking record, cloned out for read-only snapshots.
 #[derive(Debug, Clone)]
 pub struct RequestRecord {
@@ -127,6 +157,10 @@ pub struct RequestRecord {
     /// Whether this record has reached a terminal status. Prevents double
     /// terminal transitions and double weighted-permit release.
     pub is_terminal: bool,
+    /// Normalized upstream path used to identify the API family.
+    pub path: String,
+    /// Derived API family label for the dashboard.
+    pub api_kind: ApiKind,
 }
 
 /// Cached OS timezone offset label for the request-fragment header.
@@ -195,7 +229,9 @@ impl RequestTracker {
         model: &ModelId,
         weight: Weight,
         client_protocol: ProtocolVersion,
+        path: String,
     ) {
+        let api_kind = ApiKind::from_path(&path);
         let record = RequestRecord {
             id,
             provider: provider.clone(),
@@ -209,6 +245,8 @@ impl RequestTracker {
             client_protocol,
             upstream_protocol: None,
             is_terminal: false,
+            path,
+            api_kind,
         };
         self.requests.insert(id, record);
     }
@@ -361,6 +399,8 @@ mod tests {
             client_protocol: sample_protocol(),
             upstream_protocol: None,
             is_terminal: false,
+            path: "/v1/chat/completions".to_string(),
+            api_kind: ApiKind::OpenAI,
         };
         let expected = DateTime::<Local>::from(wall).format("%H:%M:%S").to_string();
         assert_eq!(record.enqueued_at_display(), expected);
@@ -381,6 +421,8 @@ mod tests {
             client_protocol: ProtocolVersion::Http11,
             upstream_protocol: None,
             is_terminal: false,
+            path: "/v1/chat/completions".to_string(),
+            api_kind: ApiKind::OpenAI,
         };
 
         let with_upstream = RequestRecord {
@@ -403,12 +445,12 @@ mod tests {
 
         let id1 = Uuid::new_v4();
         let (id1, provider1, model1, weight1) = sample_record(id1);
-        tracker.register_queued(id1, &provider1, &model1, weight1, ProtocolVersion::Http11);
+        tracker.register_queued(id1, &provider1, &model1, weight1, ProtocolVersion::Http11, "/v1/chat/completions".to_string());
         std::thread::sleep(Duration::from_millis(10));
 
         let id2 = Uuid::new_v4();
         let (id2, provider2, model2, weight2) = sample_record(id2);
-        tracker.register_queued(id2, &provider2, &model2, weight2, ProtocolVersion::Http11);
+        tracker.register_queued(id2, &provider2, &model2, weight2, ProtocolVersion::Http11, "/v1/chat/completions".to_string());
 
         let snap = tracker.snapshot();
         assert_eq!(snap.len(), 2);
@@ -426,7 +468,7 @@ mod tests {
         let id = Uuid::new_v4();
         let (id, provider, model, weight) = sample_record(id);
 
-        tracker.register_queued(id, &provider, &model, weight, sample_protocol());
+        tracker.register_queued(id, &provider, &model, weight, sample_protocol(), "/v1/chat/completions".to_string());
         let snap = tracker.snapshot();
         assert_eq!(snap.len(), 1);
         assert_eq!(snap[0].status, RequestStatus::Queued);
@@ -456,7 +498,7 @@ mod tests {
         let id = Uuid::new_v4();
         let (id, provider, model, weight) = sample_record(id);
 
-        tracker.register_queued(id, &provider, &model, weight, sample_protocol());
+        tracker.register_queued(id, &provider, &model, weight, sample_protocol(), "/v1/chat/completions".to_string());
         tracker.mark_rejected(id);
 
         let snap = tracker.snapshot();
@@ -473,20 +515,20 @@ mod tests {
         // Stale Done entry (completed ~50ms ago).
         let stale_id = Uuid::new_v4();
         let (stale_id, provider, model, weight) = sample_record(stale_id);
-        tracker.register_queued(stale_id, &provider, &model, weight, sample_protocol());
+        tracker.register_queued(stale_id, &provider, &model, weight, sample_protocol(), "/v1/chat/completions".to_string());
         tracker.mark_done(stale_id);
         std::thread::sleep(Duration::from_millis(50));
 
         // Live Running entry — must survive pruning.
         let live_id = Uuid::new_v4();
         let (live_id, provider2, model2, weight2) = sample_record(live_id);
-        tracker.register_queued(live_id, &provider2, &model2, weight2, sample_protocol());
+        tracker.register_queued(live_id, &provider2, &model2, weight2, sample_protocol(), "/v1/chat/completions".to_string());
         tracker.mark_running(live_id, None);
 
         // Recent Done entry — must survive pruning.
         let recent_id = Uuid::new_v4();
         let (recent_id, provider3, model3, weight3) = sample_record(recent_id);
-        tracker.register_queued(recent_id, &provider3, &model3, weight3, sample_protocol());
+        tracker.register_queued(recent_id, &provider3, &model3, weight3, sample_protocol(), "/v1/chat/completions".to_string());
         tracker.mark_done(recent_id);
 
         tracker.prune_stale(Duration::from_millis(25));
@@ -518,7 +560,7 @@ mod tests {
         let tracker = RequestTracker::new();
         let id = Uuid::new_v4();
         let (id, provider, model, weight) = sample_record(id);
-        tracker.register_queued(id, &provider, &model, weight, sample_protocol());
+        tracker.register_queued(id, &provider, &model, weight, sample_protocol(), "/v1/chat/completions".to_string());
 
         let snap1 = tracker.snapshot();
         assert_eq!(snap1.len(), 1);
@@ -558,6 +600,7 @@ mod tests {
                         &model,
                         Weight::from(1.0),
                         sample_protocol(),
+                        "/v1/chat/completions".to_string(),
                     );
                     tracker.mark_running(id, None);
                 });
@@ -647,6 +690,8 @@ fn enqueued_at_display_returns_local_time_format() {
         client_protocol: ProtocolVersion::Http11,
         upstream_protocol: None,
         is_terminal: false,
+        path: "/v1/chat/completions".to_string(),
+        api_kind: ApiKind::OpenAI,
     };
     let display = record.enqueued_at_display();
     assert_eq!(display.len(), 8, "expected HH:MM:SS, got {}", display);
@@ -678,4 +723,56 @@ fn local_offset_label_returns_nonempty() {
     assert_eq!(label.as_bytes()[3], b'.');
     assert!(label[1..3].chars().all(|c| c.is_ascii_digit()));
     assert!(label[4..6].chars().all(|c| c.is_ascii_digit()));
+}
+
+#[cfg(test)]
+#[test]
+fn api_kind_derives_from_path() {
+    let cases = [
+        ("/v1/messages", ApiKind::Anthropic),
+        ("/prefix/v1/messages", ApiKind::Anthropic),
+        ("/v1/messages?stream=true", ApiKind::Anthropic),
+        ("/v1/messages/batch", ApiKind::Unknown),
+        ("/v1/messages/", ApiKind::Unknown),
+        ("/v1/chat/completions", ApiKind::OpenAI),
+        ("/v1/completions", ApiKind::OpenAI),
+        ("/v1/models", ApiKind::Unknown),
+        ("/foo/bar", ApiKind::Unknown),
+    ];
+
+    for (path, expected) in cases {
+        assert_eq!(
+            ApiKind::from_path(path),
+            expected,
+            "path {} should map to {:?}",
+            path,
+            expected
+        );
+    }
+
+    assert_eq!(format!("{}", ApiKind::Anthropic), "Anthropic");
+    assert_eq!(format!("{}", ApiKind::OpenAI), "OpenAI");
+    assert_eq!(format!("{}", ApiKind::Unknown), "Unknown");
+}
+
+#[cfg(test)]
+#[test]
+fn register_queued_stores_path_and_kind() {
+    let tracker = RequestTracker::new();
+    let id = Uuid::new_v4();
+    let path = "/v1/messages".to_string();
+
+    tracker.register_queued(
+        id,
+        &ProviderId::new("anthropic"),
+        &ModelId::new("claude-3"),
+        Weight::from(1.0),
+        ProtocolVersion::Http11,
+        path.clone(),
+    );
+
+    let snap = tracker.snapshot();
+    assert_eq!(snap.len(), 1);
+    assert_eq!(snap[0].path, path);
+    assert_eq!(snap[0].api_kind, ApiKind::Anthropic);
 }

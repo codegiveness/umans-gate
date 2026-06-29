@@ -75,6 +75,7 @@ mod tests {
             &ModelId::new("umans-coder"),
             Weight::from(1.0),
             ProtocolVersion::Http11,
+            "/v1/chat/completions".to_string(),
         );
         tracker.register_queued(
             id2,
@@ -82,6 +83,7 @@ mod tests {
             &ModelId::new("umans-flash"),
             Weight::from(0.5),
             ProtocolVersion::H2,
+            "/v1/messages".to_string(),
         );
         tracker.mark_running(id2, Some(ProtocolVersion::Http11));
 
@@ -112,6 +114,9 @@ mod tests {
         assert!(html.contains("Status"), "status header missing");
         assert!(html.contains("Age"), "age header missing");
         assert!(html.contains("I/O"), "i/o header missing");
+        assert!(html.contains("API"), "api header missing");
+        assert!(html.contains("OpenAI"), "openai api label missing");
+        assert!(html.contains("Anthropic"), "anthropic api label missing");
         assert!(!html.contains("Session ID"), "session id header should be gone");
         assert!(html.contains("tabular-nums"), "tabular nums missing");
         // Enqueued time renders as HH:MM:SS (two colons, eight digits).

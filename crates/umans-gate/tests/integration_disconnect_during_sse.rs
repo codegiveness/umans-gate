@@ -61,6 +61,7 @@ async fn make_permit() -> (Arc<ProviderLimiter>, TrackedPermit) {
         &ModelId::new("gpt-4"),
         Weight::from(1.0),
         ProtocolVersion::Http11,
+        "/v1/chat/completions".to_string(),
     );
     let permit = lim
         .acquire(

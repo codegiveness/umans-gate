@@ -11,6 +11,7 @@
       <th class="py-2 px-3 font-medium">Status</th>
       <th class="py-2 px-3 font-medium">Age</th>
       <th class="py-2 px-3 font-medium">I/O</th>
+      <th class="py-2 px-3 font-medium">API</th>
     </tr>
   </thead>
   <tbody>
@@ -28,6 +29,7 @@
       </td>
       <td class="py-2 px-3 text-slate-400 tabular-nums">{{ r.age_secs() }}s</td>
       <td class="py-2 px-3 text-slate-400 font-mono text-xs">{{ r.io_display() }}</td>
+      <td class="py-2 px-3 text-slate-400 text-xs">{{ r.api_kind }}</td>
     </tr>
     {% endfor %}
   </tbody>
@@ -57,6 +59,10 @@
     <div class="flex items-center justify-between text-sm">
       <span class="text-slate-500">I/O</span>
       <span class="text-slate-400 font-mono text-xs">{{ r.io_display() }}</span>
+    </div>
+    <div class="flex items-center justify-between text-sm">
+      <span class="text-slate-500">API</span>
+      <span class="text-slate-400 text-xs">{{ r.api_kind }}</span>
     </div>
   </div>
   {% endfor %}
