@@ -129,9 +129,22 @@ impl fmt::Display for ApiKind {
 
 impl ApiKind {
     pub fn from_path(path: &str) -> Self {
-        if path.contains("/v1/messages") && !path.contains("/v1/messages/") {
+        // Strip query string and any leading slashes, then split into segments.
+        let path = path.split('?').next().unwrap_or(path);
+        let path = path.trim_start_matches('/');
+        let segments: Vec<&str> = path.split('/').collect();
+        let n = segments.len();
+
+        // Anthropic: path ends with exactly ["v1", "messages"].
+        if n >= 2 && segments[n - 2] == "v1" && segments[n - 1] == "messages" {
             ApiKind::Anthropic
-        } else if path.contains("/v1/chat/completions") || path.contains("/v1/completions") {
+        // OpenAI: path ends with ["v1", "chat", "completions"] or ["v1", "completions"].
+        } else if (n >= 3
+            && segments[n - 3] == "v1"
+            && segments[n - 2] == "chat"
+            && segments[n - 1] == "completions")
+            || (n >= 2 && segments[n - 2] == "v1" && segments[n - 1] == "completions")
+        {
             ApiKind::OpenAI
         } else {
             ApiKind::Unknown
@@ -1121,6 +1134,7 @@ fn local_offset_label_returns_nonempty() {
 #[test]
 fn api_kind_derives_from_path() {
     let cases = [
+        // Leading-slash paths (client-facing).
         ("/v1/messages", ApiKind::Anthropic),
         ("/prefix/v1/messages", ApiKind::Anthropic),
         ("/v1/messages?stream=true", ApiKind::Anthropic),
@@ -1130,6 +1144,14 @@ fn api_kind_derives_from_path() {
         ("/v1/completions", ApiKind::OpenAI),
         ("/v1/models", ApiKind::Unknown),
         ("/foo/bar", ApiKind::Unknown),
+        // Provider-stripped paths (handler-normalized, no leading slash).
+        ("v1/messages", ApiKind::Anthropic),
+        ("v1/chat/completions", ApiKind::OpenAI),
+        ("v1/completions", ApiKind::OpenAI),
+        ("mock/v1/messages", ApiKind::Anthropic),
+        ("mock/v1/chat/completions", ApiKind::OpenAI),
+        ("v1/messages?stream=true", ApiKind::Anthropic),
+        ("v1/messages/", ApiKind::Unknown),
     ];
 
     for (path, expected) in cases {
