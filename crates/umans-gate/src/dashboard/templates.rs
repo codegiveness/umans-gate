@@ -82,7 +82,9 @@ mod tests {
 
     #[test]
     fn history_fragment_renders_rows() {
-        use crate::dashboard::tracker::{local_offset_label, ApiKind, HistoryRecord, RequestStatus};
+        use crate::dashboard::tracker::{
+            local_offset_label, ApiKind, HistoryRecord, RequestStatus,
+        };
         use chrono::Utc;
         use std::time::Duration;
         use uuid::Uuid;
@@ -130,10 +132,7 @@ mod tests {
         );
         assert!(html.contains("Total time"), "total time header missing");
         assert!(html.contains("TTFT"), "ttft header missing");
-        assert!(
-            html.contains("Token in/out"),
-            "token in/out header missing"
-        );
+        assert!(html.contains("Token in/out"), "token in/out header missing");
         assert!(
             html.contains("Token cached %"),
             "token cached % header missing"
@@ -213,11 +212,18 @@ mod tests {
         assert!(html.contains("API"), "api header missing");
         assert!(html.contains("OpenAI"), "openai api label missing");
         assert!(html.contains("Anthropic"), "anthropic api label missing");
-        assert!(!html.contains("Session ID"), "session id header should be gone");
+        assert!(
+            !html.contains("Session ID"),
+            "session id header should be gone"
+        );
         assert!(html.contains("tabular-nums"), "tabular nums missing");
         // Enqueued time renders as HH:MM:SS (two colons, eight digits).
         assert!(enqueued1.len() == 8, "enqueued time should be HH:MM:SS");
-        assert_eq!(enqueued1.matches(':').count(), 2, "enqueued time needs two colons");
+        assert_eq!(
+            enqueued1.matches(':').count(),
+            2,
+            "enqueued time needs two colons"
+        );
         assert!(html.contains(&enqueued1), "enqueued time missing from html");
         // I/O display: queued request shows h1.1/-, running shows h2/h1.1.
         assert_eq!(io1, "h1.1/-", "queued i/o should be h1.1/-");

@@ -15,7 +15,6 @@ use hyper::{HeaderMap, Method, StatusCode};
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 use tokio::net::TcpListener;
 use tokio::sync::broadcast;
-use tokio_util::sync::CancellationToken;
 use tracing_subscriber::fmt::MakeWriter;
 use tracing_subscriber::layer::SubscriberExt as _;
 use uuid::Uuid;
@@ -73,9 +72,7 @@ async fn make_permit() -> (Arc<ProviderLimiter>, TrackedPermit) {
         .await
         .unwrap();
     tracker.mark_running(id, None);
-    let token = tracker
-        .cancellation_token(id)
-        .unwrap_or_else(CancellationToken::new);
+    let token = tracker.cancellation_token(id).unwrap_or_default();
     let tracked = TrackedPermit::new(permit, id, Arc::clone(&tracker), token);
     (lim, tracked)
 }
@@ -184,8 +181,8 @@ async fn permit_held_during_cooldown_after_downstream_disconnect() {
         tokio::time::sleep(Duration::from_secs(10)).await;
     });
 
-        let (lim, permit) = make_permit().await;
-        let token = permit.token();
+    let (lim, permit) = make_permit().await;
+    let token = permit.token();
     let client = UpstreamClient::new();
     let provider = test_provider(TimeoutConfig {
         connect: Some(Duration::from_secs(2)),
@@ -239,8 +236,8 @@ async fn permit_released_immediately_on_normal_completion() {
         tokio::time::sleep(Duration::from_millis(50)).await;
     });
 
-        let (lim, permit) = make_permit().await;
-        let token = permit.token();
+    let (lim, permit) = make_permit().await;
+    let token = permit.token();
     let client = UpstreamClient::new();
     let provider = test_provider(TimeoutConfig {
         connect: Some(Duration::from_secs(2)),
@@ -289,8 +286,8 @@ async fn permit_released_on_upstream_timeout() {
         tokio::time::sleep(Duration::from_secs(10)).await;
     });
 
-        let (lim, permit) = make_permit().await;
-        let token = permit.token();
+    let (lim, permit) = make_permit().await;
+    let token = permit.token();
     let client = UpstreamClient::new();
     let provider = test_provider(TimeoutConfig {
         connect: Some(Duration::from_secs(2)),
@@ -342,8 +339,8 @@ async fn cooldown_cancelled_by_upstream_eos() {
         tokio::time::sleep(Duration::from_secs(5)).await;
     });
 
-        let (lim, permit) = make_permit().await;
-        let token = permit.token();
+    let (lim, permit) = make_permit().await;
+    let token = permit.token();
     let client = UpstreamClient::new();
     let provider = test_provider(TimeoutConfig {
         connect: Some(Duration::from_secs(2)),
@@ -396,8 +393,8 @@ async fn cooldown_cancelled_by_total_deadline() {
         tokio::time::sleep(Duration::from_secs(10)).await;
     });
 
-        let (lim, permit) = make_permit().await;
-        let token = permit.token();
+    let (lim, permit) = make_permit().await;
+    let token = permit.token();
     let client = UpstreamClient::new();
     let provider = test_provider(TimeoutConfig {
         connect: Some(Duration::from_secs(2)),
@@ -450,8 +447,8 @@ async fn permit_cooldown_clamped_to_max() {
         tokio::time::sleep(Duration::from_secs(10)).await;
     });
 
-        let (lim, permit) = make_permit().await;
-        let token = permit.token();
+    let (lim, permit) = make_permit().await;
+    let token = permit.token();
     let client = UpstreamClient::new();
     let provider = test_provider(TimeoutConfig {
         connect: Some(Duration::from_secs(2)),
@@ -504,8 +501,8 @@ async fn permit_cooldown_zero_disables_cooldown() {
         tokio::time::sleep(Duration::from_secs(10)).await;
     });
 
-        let (lim, permit) = make_permit().await;
-        let token = permit.token();
+    let (lim, permit) = make_permit().await;
+    let token = permit.token();
     let client = UpstreamClient::new();
     let provider = test_provider(TimeoutConfig {
         connect: Some(Duration::from_secs(2)),
@@ -558,8 +555,8 @@ async fn diagnostic_logs_present() {
         tokio::time::sleep(Duration::from_secs(10)).await;
     });
 
-        let (lim, permit) = make_permit().await;
-        let token = permit.token();
+    let (lim, permit) = make_permit().await;
+    let token = permit.token();
     let client = UpstreamClient::new();
     let provider = test_provider(TimeoutConfig {
         connect: Some(Duration::from_secs(2)),

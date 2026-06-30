@@ -67,6 +67,7 @@ fn make_state(
         bind: "0.0.0.0:0".parse().unwrap(),
         dashboard_bind: "0.0.0.0:0".parse().unwrap(),
         dashboard: None,
+        models_info_url: String::new(),
     };
     let (tx, _rx) = broadcast::channel::<MetricUpdate>(16);
     let limiter = Arc::new(ProviderLimiter::new(tx));

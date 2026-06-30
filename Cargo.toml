@@ -3,15 +3,21 @@ resolver = "2"
 members = ["crates/umans-gate", "crates/umans-gate-cli"]
 default-members = ["crates/umans-gate-cli"]
 
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.75"
-license = "MIT OR Apache-2.0"
-authors = ["umans-ai"]
-repository = "https://github.com/umans-ai/umans-gate"
-homepage = "https://github.com/umans-ai/umans-gate"
-documentation = "https://github.com/umans-ai/umans-gate"
+license = "MIT"
+authors = ["codegiveness"]
+repository = "https://github.com/codegiveness/umans-gate"
+homepage = "https://github.com/codegiveness/umans-gate"
+documentation = "https://github.com/codegiveness/umans-gate"
+readme = "README.md"
 
 [workspace.dependencies]
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
@@ -50,6 +56,7 @@ bytes = "1"
 sha2 = "0.10"
 uuid = { version = "1", features = ["v4"] }
 tokio-util = { version = "0.7", features = ["rt"] }
+directories = "5"
 
 # Config for 'dist'
 [workspace.metadata.dist]
@@ -58,13 +65,9 @@ cargo-dist-version = "0.32.0"
 # CI backends to support
 ci = "github"
 # The installers to generate for each app
-installers = ["shell", "powershell", "homebrew"]
+installers = ["shell", "powershell"]
 # Target platforms to build apps for (Rust target-triple syntax)
-targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc"]
-# A GitHub repo to push Homebrew formulas to
-tap = "umans-ai/homebrew-tap"
-# Publish jobs to run in CI
-publish-jobs = ["homebrew"]
+targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
 # Path that installers should place binaries in
 install-path = "CARGO_HOME"
 # Whether to install an updater program

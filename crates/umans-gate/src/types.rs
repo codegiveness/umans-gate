@@ -58,7 +58,7 @@ pub struct DashboardConfig {
 }
 
 fn default_dashboard_bind() -> SocketAddr {
-    "0.0.0.0:3001"
+    "127.0.0.1:3001"
         .parse()
         .expect("valid dashboard bind addr literal")
 }
@@ -231,6 +231,11 @@ impl ProviderConfig {
     }
 }
 
+/// Default URL for fetching model info when no config file is present.
+fn default_models_info_url() -> String {
+    "https://api.code.umans.ai/v1/models/info".to_string()
+}
+
 /// Top-level gateway configuration.
 ///
 /// `dashboard` is populated from the `dashboard` YAML key (struct form) or
@@ -243,17 +248,20 @@ pub struct GatewayConfig {
     pub dashboard_bind: SocketAddr,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dashboard: Option<DashboardConfig>,
+    /// URL for fetching model info when auto-configuring (no config file).
+    /// Overridable via `UMANS_GATE_MODELS_INFO_URL` env var.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub models_info_url: String,
 }
 
 impl Default for GatewayConfig {
     fn default() -> Self {
         let dashboard_bind: SocketAddr =
-            "0.0.0.0:9090".parse().expect("valid socket addr literal");
+            "127.0.0.1:9090".parse().expect("valid socket addr literal");
         GatewayConfig {
             providers: vec![ProviderConfig {
                 id: ProviderId::new("umans"),
-                upstream_url: Url::parse("https://api.code.umans.ai")
-                    .expect("valid url literal"),
+                upstream_url: Url::parse("https://api.code.umans.ai").expect("valid url literal"),
                 capacity: Weight::from(4.0),
                 models: vec![
                     ModelConfig {
@@ -286,6 +294,7 @@ impl Default for GatewayConfig {
             bind: "0.0.0.0:8080".parse().expect("valid socket addr literal"),
             dashboard_bind,
             dashboard: None,
+            models_info_url: default_models_info_url(),
         }
     }
 }
@@ -305,18 +314,16 @@ impl<'de> Deserialize<'de> for GatewayConfig {
             dashboard_bind: SocketAddr,
             #[serde(default)]
             dashboard: Option<DashboardConfig>,
+            #[serde(default = "default_models_info_url")]
+            models_info_url: String,
         }
 
         fn default_bind() -> SocketAddr {
-            "0.0.0.0:8080"
-                .parse()
-                .expect("valid socket addr literal")
+            "0.0.0.0:8080".parse().expect("valid socket addr literal")
         }
 
         fn default_dashboard_bind_legacy() -> SocketAddr {
-            "0.0.0.0:9090"
-                .parse()
-                .expect("valid socket addr literal")
+            "127.0.0.1:9090".parse().expect("valid socket addr literal")
         }
 
         let raw = Raw::deserialize(deserializer)?;
@@ -332,6 +339,7 @@ impl<'de> Deserialize<'de> for GatewayConfig {
             bind: raw.bind,
             dashboard_bind: raw.dashboard_bind,
             dashboard,
+            models_info_url: raw.models_info_url,
         })
     }
 }
@@ -480,9 +488,9 @@ providers:
       - id: m1
         weight: 1.0
 bind: "0.0.0.0:8080"
-dashboard_bind: "0.0.0.0:9090"
+dashboard_bind: "127.0.0.1:9090"
 dashboard:
-  bind: "0.0.0.0:3001"
+  bind: "127.0.0.1:3001"
   history:
     max: 500
   kill_button:
@@ -491,7 +499,7 @@ dashboard:
         let config: GatewayConfig =
             serde_yaml::from_str(yaml).expect("deserialize with explicit dashboard");
         let dash = config.dashboard.unwrap();
-        assert_eq!(dash.bind, "0.0.0.0:3001".parse().unwrap());
+        assert_eq!(dash.bind, "127.0.0.1:3001".parse().unwrap());
         assert_eq!(dash.history.max, 500);
         assert_eq!(dash.kill_button.min_age_seconds, 120);
     }
@@ -499,7 +507,7 @@ dashboard:
     #[test]
     fn dashboard_config_default_values() {
         let d = DashboardConfig::default();
-        assert_eq!(d.bind, "0.0.0.0:3001".parse().unwrap());
+        assert_eq!(d.bind, "127.0.0.1:3001".parse().unwrap());
         assert_eq!(d.history.max, 1000);
         assert_eq!(d.kill_button.min_age_seconds, 300);
     }

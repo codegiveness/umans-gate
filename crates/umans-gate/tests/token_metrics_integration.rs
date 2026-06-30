@@ -64,6 +64,7 @@ fn make_state(
         bind: "0.0.0.0:0".parse().unwrap(),
         dashboard_bind: "0.0.0.0:0".parse().unwrap(),
         dashboard: None,
+        models_info_url: String::new(),
     };
     let (tx, _rx) = broadcast::channel::<MetricUpdate>(16);
     let limiter = Arc::new(ProviderLimiter::new(tx));
@@ -203,7 +204,8 @@ async fn integration_openai_token_metrics_populated() {
 
     let client = http1_client();
     let url = format!("http://{proxy_addr}/umans/v1/chat/completions");
-    let body = r#"{"model":"umans-kimi-k2.7","messages":[{"role":"user","content":"hi"}],"stream":true}"#;
+    let body =
+        r#"{"model":"umans-kimi-k2.7","messages":[{"role":"user","content":"hi"}],"stream":true}"#;
 
     let resp = client
         .post(&url)

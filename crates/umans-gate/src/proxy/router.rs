@@ -13,6 +13,7 @@ use axum::Router;
 
 use crate::concurrency::ProviderLimiter;
 use crate::config_store::ConfigStore;
+use crate::dashboard::tracker::RequestTracker;
 use crate::proxy::upstream::UpstreamClient;
 
 use super::handler::proxy_handler;
@@ -20,11 +21,13 @@ use super::handler::proxy_handler;
 /// Shared state threaded through every proxy request.
 ///
 /// `config_store` provides wait-free config reads (load once per request),
-/// `limiter` is the per-provider weighted concurrency engine, and
-/// `upstream_client` is the pooled HTTPS forwarder.
+/// `limiter` is the per-provider weighted concurrency engine,
+/// `tracker` is the per-request lifecycle tracker, and `upstream_client` is
+/// the pooled HTTPS forwarder.
 pub struct ProxyState {
     pub config_store: Arc<ConfigStore>,
     pub limiter: Arc<ProviderLimiter>,
+    pub tracker: Arc<RequestTracker>,
     pub upstream_client: Arc<UpstreamClient>,
 }
 
@@ -59,6 +62,7 @@ mod tests {
     use url::Url;
 
     use crate::concurrency::MetricUpdate;
+    use crate::dashboard::tracker::RequestTracker;
     use crate::types::{
         GatewayConfig, ModelConfig, ModelId, ProviderConfig, ProviderId, TimeoutConfig, Weight,
     };
@@ -87,6 +91,7 @@ mod tests {
         Arc::new(ProxyState {
             config_store,
             limiter,
+            tracker: Arc::new(RequestTracker::new()),
             upstream_client,
         })
     }
@@ -205,10 +210,7 @@ mod tests {
     async fn catchall_routes_unknown_path() {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = listener.local_addr().unwrap().port();
-        let rx = spawn_mock(
-            listener,
-            b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok",
-        );
+        let rx = spawn_mock(listener, b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok");
 
         let upstream_url = Url::parse(&format!("http://127.0.0.1:{port}")).unwrap();
         let app = proxy_router(make_state(upstream_url));

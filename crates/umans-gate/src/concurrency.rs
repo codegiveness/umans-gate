@@ -8,8 +8,9 @@
 //! All CAS / semaphore paths use fixed-point `u32` milliunits (`Weight::SCALE`).
 //! No float arithmetic in any acquire/release path.
 
-use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
+use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering::Relaxed};
 use std::sync::Arc;
+use std::time::Duration;
 
 use dashmap::DashMap;
 use tokio::sync::{broadcast, OwnedSemaphorePermit, Semaphore};
@@ -52,15 +53,26 @@ pub struct ProviderState {
     capacity_milli: u32,
     in_flight_milli: AtomicU32,
     active_models: DashMap<ModelId, u32>,
+    /// Number of requests currently queued waiting to acquire (not yet granted).
+    /// The semaphore is the source of truth for capacity; this counter is a
+    /// depth gauge for the haproxy-style `maxqueue` gate.
+    queue_depth: AtomicUsize,
+    /// Max requests allowed in the queue before immediate 503 (haproxy-style).
+    maxqueue: usize,
+    /// Timeout for waiting in the acquire queue (haproxy-style `queuetimeout`).
+    queuetimeout: Duration,
 }
 
 impl ProviderState {
-    fn new(capacity_milli: u32) -> Self {
+    fn new(capacity_milli: u32, queuetimeout: Duration, maxqueue: usize) -> Self {
         ProviderState {
             sem: Arc::new(Semaphore::new(capacity_milli as usize)),
             capacity_milli,
             in_flight_milli: AtomicU32::new(0),
             active_models: DashMap::new(),
+            queue_depth: AtomicUsize::new(0),
+            maxqueue,
+            queuetimeout,
         }
     }
 }
@@ -170,11 +182,84 @@ impl ProviderLimiter {
         self.metric_tx.clone()
     }
 
-    /// Register (or replace) a provider with a given capacity.
-    pub fn register(&self, provider: &ProviderId, capacity: Weight) {
+    /// Register (or replace) a provider with a given capacity and queue limits.
+    pub fn register(
+        &self,
+        provider: &ProviderId,
+        capacity: Weight,
+        queuetimeout: Duration,
+        maxqueue: usize,
+    ) {
         let capacity_milli = capacity.to_milliunits().max(1);
-        let state = Arc::new(ProviderState::new(capacity_milli));
+        let state = Arc::new(ProviderState::new(capacity_milli, queuetimeout, maxqueue));
         self.providers.insert(provider.clone(), state);
+    }
+
+    /// Remove a provider and close its semaphore so queued waiters fail fast.
+    ///
+    /// Added for hot-reload (Task 11): when a provider is removed from config,
+    /// queued `acquire` waiters get [`AcquireError::Closed`] immediately.
+    /// In-flight permits are unaffected — they hold their own
+    /// `Arc<ProviderState>`, keeping the old semaphore alive until `Drop`.
+    ///
+    /// Returns `true` if the provider was present and removed.
+    pub fn remove_provider(&self, provider: &ProviderId) -> bool {
+        if let Some((_, state)) = self.providers.remove(provider) {
+            state.sem.close();
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Atomically increment the queue depth for `provider` if it is below
+    /// `maxqueue`. Returns `false` if the queue is full (depth >= maxqueue) or
+    /// the provider is unknown — callers should return 503 immediately.
+    pub fn try_increment_queue_depth(&self, provider: &ProviderId) -> bool {
+        let state = match self.providers.get(provider) {
+            Some(r) => Arc::clone(r.value()),
+            None => return false,
+        };
+        loop {
+            let cur = state.queue_depth.load(Relaxed);
+            if cur >= state.maxqueue {
+                return false;
+            }
+            match state
+                .queue_depth
+                .compare_exchange(cur, cur + 1, Relaxed, Relaxed)
+            {
+                Ok(_) => return true,
+                Err(_) => continue,
+            }
+        }
+    }
+
+    /// Decrement the queue depth for `provider`. Called after `acquire`
+    /// resolves (success or failure) — the depth counter tracks only
+    /// waiting requests, not held permits.
+    pub fn decrement_queue_depth(&self, provider: &ProviderId) {
+        if let Some(state) = self.providers.get(provider) {
+            let prev = state.queue_depth.fetch_sub(1, Relaxed);
+            debug_assert!(prev > 0, "queue_depth underflow for provider {}", provider);
+        }
+    }
+
+    /// Current queue depth (number of requests waiting to acquire).
+    pub fn queue_depth(&self, provider: &ProviderId) -> usize {
+        self.providers
+            .get(provider)
+            .map(|s| s.value().queue_depth.load(Relaxed))
+            .unwrap_or(0)
+    }
+
+    /// Queue timeout configured for `provider`. Falls back to 30s default
+    /// for unknown providers (which will fail in `acquire` anyway).
+    pub fn queuetimeout(&self, provider: &ProviderId) -> Duration {
+        self.providers
+            .get(provider)
+            .map(|s| s.value().queuetimeout)
+            .unwrap_or_else(|| Duration::from_secs(30))
     }
 
     /// Acquire `weight` on `provider` for `model`, waiting if necessary.
@@ -305,7 +390,12 @@ mod tests {
     fn make_limiter(capacity: f32) -> (ProviderLimiter, broadcast::Sender<MetricUpdate>) {
         let (tx, _rx) = broadcast::channel::<MetricUpdate>(256);
         let lim = ProviderLimiter::new(tx.clone());
-        lim.register(&ProviderId::new("test"), Weight::from(capacity));
+        lim.register(
+            &ProviderId::new("test"),
+            Weight::from(capacity),
+            Duration::from_secs(30),
+            64,
+        );
         (lim, tx)
     }
 
@@ -369,7 +459,10 @@ mod tests {
                 // CAS-loop to track the running maximum.
                 loop {
                     let prev = max_seen.load(Relaxed);
-                    if cur <= prev || max_seen.compare_exchange(prev, cur, Relaxed, Relaxed).is_ok()
+                    if cur <= prev
+                        || max_seen
+                            .compare_exchange(prev, cur, Relaxed, Relaxed)
+                            .is_ok()
                     {
                         break;
                     }
@@ -433,10 +526,15 @@ mod tests {
         let ghost = ProviderId::new("ghost");
         let mid = ModelId::new("gpt-4");
 
-        let err = lim.acquire(&ghost, &mid, Weight::from(1.0)).await.unwrap_err();
+        let err = lim
+            .acquire(&ghost, &mid, Weight::from(1.0))
+            .await
+            .unwrap_err();
         assert!(matches!(err, AcquireError::UnknownProvider));
 
-        let err = lim.try_acquire(&ghost, &mid, Weight::from(1.0)).unwrap_err();
+        let err = lim
+            .try_acquire(&ghost, &mid, Weight::from(1.0))
+            .unwrap_err();
         assert!(matches!(err, TryAcquireError::UnknownProvider));
     }
 
@@ -467,23 +565,22 @@ mod tests {
     async fn broadcast_receives_acquired_and_released() {
         let (tx, mut rx) = broadcast::channel::<MetricUpdate>(256);
         let lim = ProviderLimiter::new(tx);
-        lim.register(&ProviderId::new("test"), Weight::from(4.0));
+        lim.register(
+            &ProviderId::new("test"),
+            Weight::from(4.0),
+            Duration::from_secs(30),
+            64,
+        );
         let pid = ProviderId::new("test");
         let mid = ModelId::new("gpt-4");
 
         let permit = lim.acquire(&pid, &mid, Weight::from(1.0)).await.unwrap();
         let acquired = rx.recv().await.unwrap();
-        assert!(matches!(
-            acquired,
-            MetricUpdate::Acquired { .. }
-        ));
+        assert!(matches!(acquired, MetricUpdate::Acquired { .. }));
 
         drop(permit);
         let released = rx.recv().await.unwrap();
-        assert!(matches!(
-            released,
-            MetricUpdate::Released { .. }
-        ));
+        assert!(matches!(released, MetricUpdate::Released { .. }));
     }
 
     #[test]
@@ -505,6 +602,7 @@ mod tests {
 /// that spawn many tasks each need an owned handle to the same map. This gives
 /// them one by cloning the `Arc`-internal state. Test-only.
 #[cfg(test)]
+#[allow(clippy::items_after_test_module)]
 impl ProviderLimiter {
     fn clone_shallow(&self) -> ProviderLimiter {
         // Re-wrap: build a new DashMap sharing the same Arc<ProviderState> values

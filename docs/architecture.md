@@ -4,14 +4,29 @@ This document explains how umans-gate is structured, how a request flows through
 
 ## Overview
 
-umans-gate is a small, single-binary API gateway. It sits between an OpenAI-compatible client and one or more upstream AI providers (OpenAI, Anthropic, or any fixed HTTP endpoint). It enforces a strict, weighted per-provider concurrency budget, forwards the `Authorization` header unchanged, streams responses without buffering, and exposes a live dashboard on a second port.
+umans-gate is a small, single-binary API gateway. It sits between an OpenAI-compatible client and one or more upstream AI providers (any OpenAI-compatible or fixed HTTP endpoint). It enforces a strict, weighted per-provider concurrency budget, forwards the `Authorization` header unchanged, streams responses without buffering, and exposes a live dashboard on a second port.
 
 The workspace contains two crates:
 
 - `crates/umans-gate` — the library (types, config, concurrency engine, proxy, dashboard).
 - `crates/umans-gate-cli` — the `umans-gate` binary and clap command tree.
 
-Configuration is a single YAML file loaded at startup and optionally reloaded when the file changes. If no config file is supplied and no file exists at the default path, umans-gate fetches the model list from `https://api.code.umans.ai/v1/models/info` and builds a default config with all models at weight `1.0` and provider capacity `4.0`. There is no external database, no Redis, and no load balancer; the gateway is entirely self-contained.
+The proxy modules are declared in `crates/umans-gate/src/proxy/mod.rs`; the request handler is in `crates/umans-gate/src/proxy/handler.rs`.
+
+Configuration is a single YAML file loaded at startup and optionally reloaded when the file changes. There is no external database, no Redis, and no load balancer; the gateway is entirely self-contained.
+
+## Configuration Discovery
+
+The CLI looks for a config file in this order:
+
+1. `--config <path>` if supplied.
+2. `config.yaml` in the current working directory.
+3. `~/.config/umans-gate/config.yaml` via `directories::ProjectDirs` (XDG on Linux, equivalent paths on macOS and Windows).
+4. Auto-fetch from the default models info endpoint.
+
+If no config file is found, umans-gate fetches the model list from `https://api.code.umans.ai/v1/models/info` and builds a default config with all models at weight `1.0` and provider capacity `4.0`. Fetched responses are cached in `~/.cache/umans-gate/models-info.json` with a 24-hour TTL; stale cache is used as an offline fallback if the network is unreachable. The endpoint can be overridden with the `UMANS_GATE_MODELS_INFO_URL` environment variable.
+
+Key architectural decisions are recorded in ADRs under [docs/decisions/](docs/decisions/).
 
 ## Component Diagram
 
@@ -36,12 +51,12 @@ Configuration is a single YAML file loaded at startup and optionally reloaded wh
                                                                                     ▼
 ┌──────────────────────────────────────────────────────────────────────────────────────────────┐
 │                                     Dashboard Server                                          │
-│                                   bind: 0.0.0.0:9090                                          │
-│  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐   ┌───────────────────────────────┐  │
-│  │ rust-embed   │   │ Askama       │   │   SSE        │   │   DashboardState              │  │
-│  │ static/      │   │ Templates    │◀──│  Endpoint    │──▶│ (limiter snapshot + cache)    │  │
-│  │   htmx, sse  │   │ page.html    │   │ /providers   │   └───────────────────────────────┘  │
-│  └──────────────┘   │ fragment.html│   └──────────────┘                                      │
+│                                  bind: 127.0.0.1:9090                                          │
+│  ┌──────────────┐   ┌──────────────┐   ┌──────────────────┐   ┌───────────────────────────────┐  │
+│  │ rust-embed   │   │ Askama       │   │ Polling Fragment │   │   DashboardState              │  │
+│  │ static/      │──▶│ Templates    │◀──│   /providers     │──▶│ (limiter snapshot + cache)    │  │
+│  │ htmx, app.css│   │ page.html    │   │   every 1s       │   └───────────────────────────────┘  │
+│  └──────────────┘   │ fragment.html│   └──────────────────┘                                      │
 │                     └──────────────┘                                                          │
 └──────────────────────────────────────────────────────────────────────────────────────────────┘
                                     │
@@ -58,7 +73,7 @@ Configuration is a single YAML file loaded at startup and optionally reloaded wh
 ## Request Pipeline (10 Steps)
 
 1. **Accept.** The client opens an HTTP/1.1 or HTTP/2 connection to the proxy bind address.
-2. **Route.** The catch-all route `/{*path}` captures the request. The handler splits the first path segment off as the provider ID, looks up the matching provider config by `provider.id`, and returns 404 `UnknownProvider` if no match exists.
+2. **Route.** The catch-all route in `crates/umans-gate/src/proxy/handler.rs` captures the request. The handler splits the first path segment off as the provider ID, looks up the matching provider config by `provider.id`, and returns 404 `UnknownProvider` if no match exists.
 3. **Load config.** The handler calls `ConfigStore::load()` exactly once, pinning the active configuration version for the entire request lifetime.
 4. **Acquire capacity.** The Tower concurrency layer calls `ProviderLimiter::acquire` using the provider ID and model weight. If the provider is at capacity, the request waits in the tokio semaphore queue.
 5. **Start timers.** The timeout layer initializes the four-level hierarchy: connect, TTFB, stream idle, and total.
@@ -104,11 +119,11 @@ A handler always calls `load()` once per request and keeps the returned guard fo
 
 ## Dashboard Architecture
 
-The dashboard is served on `dashboard_bind` and has three parts:
+The dashboard is served on `dashboard.bind` and has three parts:
 
-- **Static assets.** `rust-embed` embeds `static/htmx.min.js` and `static/sse.js` into the binary. The `static_handler` serves them by path and MIME type.
-- **Templates.** Askama compiles `templates/dashboard.html` and `templates/provider_fragment.html` at build time. The page uses HTMX+SSE attributes to open a server-sent event stream.
-- **Live data.** `DashboardState` holds the `ProviderLimiter` and receives `MetricUpdate` events through a shared `broadcast::channel`. The SSE endpoint (`/providers`) renders an initial snapshot, then listens for updates and re-renders the provider fragment each time a permit is acquired or released.
+- **Static assets.** `rust-embed` embeds `static/htmx.min.js`, `static/app.css`, and `static/gate.svg` into the binary. The `static_handler` serves them by path and MIME type.
+- **Templates.** Askama compiles `templates/dashboard.html` and `templates/provider_fragment.html` at build time. The page uses HTMX `hx-trigger="every 1s"` attributes to poll the server for updated fragments.
+- **Live data.** `DashboardState` holds the `ProviderLimiter` and receives `MetricUpdate` events through a shared `broadcast::channel`. The `/dashboard/providers` endpoint renders the provider fragment on each poll so the dashboard updates roughly once per second.
 
 The dashboard shows, per provider:
 
@@ -123,7 +138,7 @@ The dashboard is configured through the top-level `dashboard` key in `config.yam
 
 ```yaml
 dashboard:
-  bind: "0.0.0.0:3001"
+  bind: "127.0.0.1:9090"
   history:
     max: 1000
   kill_button:
@@ -162,7 +177,7 @@ Set a finite override such as `{ secs: 10, nanos: 0 }`. A `null` value removes t
 The dashboard exposes a CSV export of terminal request history at `/dashboard/history/export.csv`. The file includes headers and one row per completed, rejected, timed-out, or cancelled request.
 
 ```bash
-curl http://localhost:3001/dashboard/history/export.csv
+curl http://localhost:9090/dashboard/history/export.csv
 ```
 
 The export is served on `dashboard.bind`, not the legacy `dashboard_bind` value.
@@ -194,7 +209,7 @@ A compact rule for harness authors: a 4xx response without `Retry-After` should 
 
 ### Dashboard Security Warning
 
-The dashboard has no authentication and binds to `0.0.0.0:3001` by default. Do not expose it to untrusted networks. Bind it to a private interface or place it behind an authenticating reverse proxy. Exposing the dashboard publicly creates a denial-of-service risk because unauthenticated callers can view active requests and trigger request kills.
+The dashboard has no authentication and binds to `127.0.0.1:9090` by default. Even on localhost, do not expose it to untrusted networks; bind it to a private interface or place it behind an authenticating reverse proxy if it faces any untrusted host.
 
 ## Timeout Hierarchy
 
@@ -204,7 +219,7 @@ Each provider can override the AI-tuned defaults.
 |----------------|-----------|-------------------------------------------------------------------------|
 | `connect`      | `null`    | Max time to establish the TCP/TLS connection to the upstream. `null` means infinity. |
 | `ttfb`         | `null`    | Max time from sending the request to receiving the first response byte. `null` means infinity. |
-| `stream_idle`  | `300s`    | Max silence between two SSE chunks while the stream is open.            |
+| `stream_idle`  | `300s`    | Max silence between two response chunks while the stream is open.         |
 | `total`        | `null`    | Hard ceiling for the entire request/response lifecycle. `null` means infinity.                 |
 
 Timeouts are nested: `connect` < `ttfb` < `stream_idle` < `total`. A request fails as soon as the tightest applicable timeout fires.
@@ -285,4 +300,4 @@ To add a new provider:
 2. Add the models the provider serves under `models` with positive weights not exceeding capacity.
 3. Optionally set custom `timeouts` for that provider.
 
-To change routing, edit `crates/umans-gate/src/proxy/router.rs`. To change how capacity is visualized on the dashboard, edit the Askama templates in `templates/` and the fragment renderer in `crates/umans-gate/src/dashboard/sse.rs`.
+To change routing, edit `crates/umans-gate/src/proxy/router.rs`. To change how capacity is visualized on the dashboard, edit the Askama templates in `templates/` and the fragment renderer in `crates/umans-gate/src/dashboard/providers.rs`.

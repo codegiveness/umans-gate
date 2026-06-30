@@ -1,19 +1,32 @@
+# Example configuration for umans-gate. Copy this file to the working directory as `config.yaml`.
 bind: "0.0.0.0:8080"
-dashboard_bind: "0.0.0.0:9090"
+
+# Dashboard configuration. The dashboard has no authentication, so it defaults to localhost only.
+dashboard:
+  bind: "127.0.0.1:9090"
+  history:
+    max: 1000
+  kill_button:
+    min_age_seconds: 300
+
 providers:
   - id: umans
     upstream_url: "https://api.code.umans.ai"
     capacity: 4.0
     timeouts:
+      # TCP connect timeout. null disables the limit (wait indefinitely).
       connect: null
+      # Time-to-first-byte timeout. null disables the limit.
       ttfb: null
+      # Maximum idle time between SSE stream chunks.
       stream_idle: { secs: 300, nanos: 0 }
+      # Hard total timeout per request. null disables the limit.
       total: null
     models:
       - id: umans-coder
         weight: 1.0
       - id: umans-flash
-        weight: 1.0
+        weight: 0.5
       - id: umans-kimi-k2.7
         weight: 1.0
       - id: umans-glm-5.2
@@ -21,4 +34,4 @@ providers:
       - id: umans-glm-5.2-nvfp4
         weight: 1.0
       - id: umans-qwen3.6-35b-a3b
-        weight: 1.0
+        weight: 0.5

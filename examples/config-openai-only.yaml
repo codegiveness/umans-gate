@@ -1,0 +1,29 @@
+# Minimal example configuration with a single OpenAI-compatible provider.
+bind: "0.0.0.0:8080"
+
+# Dashboard configuration. The dashboard has no authentication, so it defaults to localhost only.
+dashboard:
+  bind: "127.0.0.1:9090"
+
+providers:
+  - id: openai
+    upstream_url: "https://api.openai.com"
+    capacity: 4.0
+    timeouts:
+      # TCP connect timeout. null disables the limit (wait indefinitely).
+      connect: null
+      # Time-to-first-byte timeout. null disables the limit.
+      ttfb: null
+      # Maximum idle time between SSE stream chunks. null disables the limit.
+      stream_idle: null
+      # Hard total timeout per request. null disables the limit.
+      total: null
+      # Maximum time a request may wait in the provider queue before being rejected.
+      queuetimeout: { secs: 300, nanos: 0 }
+      # Maximum number of requests that may wait in the provider queue.
+      maxqueue: 64
+      # Cooldown between attempts to acquire a permit from the queue.
+      permit_cooldown: { secs: 1, nanos: 0 }
+    models:
+      - id: gpt-4
+        weight: 1.0

@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+@theme {
+  --color-canvas: #0d1117;
+  --color-panel: #161b22;
+  --color-border: #30363d;
+
+  --color-text-primary: #e2e8f0;
+  --color-text-secondary: #64748b;
+
+  --color-emerald: #10b981;
+  --color-amber: #f59e0b;
+  --color-rose: #f43f5e;
+  --color-slate: #94a3b8;
+}
+
+body {
+  background-color: var(--color-canvas);
+  color: var(--color-text-primary);
+}
+
+button,
+[role="button"],
+a,
+input[type="submit"],
+input[type="button"] {
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+button:disabled,
+input:disabled,
+a[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
+@media (prefers-color-scheme: light) {
+  :root,
+  :host {
+    --color-canvas: #ffffff;
+    --color-panel: #f8fafc;
+    --color-border: #e2e8f0;
+    --color-text-primary: #0f172a;
+    --color-text-secondary: #64748b;
+
+    --color-slate-100: #0f172a;
+    --color-slate-200: #1e293b;
+    --color-slate-300: #334155;
+    --color-slate-400: #475569;
+    --color-slate-500: #64748b;
+    --color-slate-700: #94a3b8;
+    --color-slate-800: #e2e8f0;
+    --color-slate-900: #f1f5f9;
+    --color-slate-950: #f8fafc;
+
+    --color-emerald-400: #059669;
+    --color-emerald-500: #10b981;
+    --color-amber-400: #b45309;
+    --color-amber-500: #d97706;
+    --color-orange-400: #c2410c;
+    --color-orange-500: #ea580c;
+    --color-rose-400: #e11d48;
+    --color-rose-500: #f43f5e;
+  }
+}

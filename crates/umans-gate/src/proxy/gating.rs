@@ -85,17 +85,18 @@ pub async fn acquire_for_request(
             // TrackedPermit::Drop skips mark_done when terminal) and return
             // the 400 kill response.
             if tracker.is_terminal(request_id) {
-                let token = tracker
-                    .cancellation_token(request_id)
-                    .unwrap_or_default();
+                let token = tracker.cancellation_token(request_id).unwrap_or_default();
                 let _ = TrackedPermit::new(permit, request_id, Arc::clone(tracker), token);
                 return Err(GatewayError::Cancelled);
             }
             tracker.mark_running(request_id, None);
-            let token = tracker
-                .cancellation_token(request_id)
-                .unwrap_or_default();
-            Ok(TrackedPermit::new(permit, request_id, Arc::clone(tracker), token))
+            let token = tracker.cancellation_token(request_id).unwrap_or_default();
+            Ok(TrackedPermit::new(
+                permit,
+                request_id,
+                Arc::clone(tracker),
+                token,
+            ))
         }
         Ok(Err(err)) => {
             tracing::debug!(provider = %provider, error = %err, "concurrency acquire failed");
@@ -346,9 +347,17 @@ mod tests {
         let tracker = make_tracker();
         let (pid, mid) = pid_mid();
 
-        let permit = acquire_for_request(&lim, &tracker, &pid, &mid, Weight::from(1.0), ProtocolVersion::Http11, "/v1/chat/completions".to_string())
-            .await
-            .unwrap();
+        let permit = acquire_for_request(
+            &lim,
+            &tracker,
+            &pid,
+            &mid,
+            Weight::from(1.0),
+            ProtocolVersion::Http11,
+            "/v1/chat/completions".to_string(),
+        )
+        .await
+        .unwrap();
         assert_in_flight(&lim, &pid, 1.0);
 
         let stream = permit_guarded_stream(
@@ -367,9 +376,17 @@ mod tests {
         let tracker = make_tracker();
         let (pid, mid) = pid_mid();
 
-        let permit = acquire_for_request(&lim, &tracker, &pid, &mid, Weight::from(1.0), ProtocolVersion::Http11, "/v1/chat/completions".to_string())
-            .await
-            .unwrap();
+        let permit = acquire_for_request(
+            &lim,
+            &tracker,
+            &pid,
+            &mid,
+            Weight::from(1.0),
+            ProtocolVersion::Http11,
+            "/v1/chat/completions".to_string(),
+        )
+        .await
+        .unwrap();
         assert_in_flight(&lim, &pid, 1.0);
 
         let mut stream = permit_guarded_stream(
@@ -391,9 +408,17 @@ mod tests {
         let tracker = make_tracker();
         let (pid, mid) = pid_mid();
 
-        let permit = acquire_for_request(&lim, &tracker, &pid, &mid, Weight::from(1.0), ProtocolVersion::Http11, "/v1/chat/completions".to_string())
-            .await
-            .unwrap();
+        let permit = acquire_for_request(
+            &lim,
+            &tracker,
+            &pid,
+            &mid,
+            Weight::from(1.0),
+            ProtocolVersion::Http11,
+            "/v1/chat/completions".to_string(),
+        )
+        .await
+        .unwrap();
         assert_in_flight(&lim, &pid, 1.0);
 
         let stream = permit_guarded_stream(permit, futures_util::stream::iter([Ok::<(), ()>(())]));
@@ -410,12 +435,28 @@ mod tests {
         let tracker = make_tracker();
         let (pid, mid) = pid_mid();
 
-        let p1 = acquire_for_request(&lim, &tracker, &pid, &mid, Weight::from(1.0), ProtocolVersion::Http11, "/v1/chat/completions".to_string())
-            .await
-            .unwrap();
-        let p2 = acquire_for_request(&lim, &tracker, &pid, &mid, Weight::from(1.0), ProtocolVersion::Http11, "/v1/chat/completions".to_string())
-            .await
-            .unwrap();
+        let p1 = acquire_for_request(
+            &lim,
+            &tracker,
+            &pid,
+            &mid,
+            Weight::from(1.0),
+            ProtocolVersion::Http11,
+            "/v1/chat/completions".to_string(),
+        )
+        .await
+        .unwrap();
+        let p2 = acquire_for_request(
+            &lim,
+            &tracker,
+            &pid,
+            &mid,
+            Weight::from(1.0),
+            ProtocolVersion::Http11,
+            "/v1/chat/completions".to_string(),
+        )
+        .await
+        .unwrap();
         assert_in_flight(&lim, &pid, 2.0);
 
         let mut queued = Box::pin(acquire_for_request(
@@ -504,9 +545,17 @@ mod tests {
         let ghost = ProviderId::new("ghost");
         let mid = ModelId::new("gpt-4");
 
-        let err = acquire_for_request(&lim, &tracker, &ghost, &mid, Weight::from(1.0), ProtocolVersion::Http11, "/v1/chat/completions".to_string())
-            .await
-            .unwrap_err();
+        let err = acquire_for_request(
+            &lim,
+            &tracker,
+            &ghost,
+            &mid,
+            Weight::from(1.0),
+            ProtocolVersion::Http11,
+            "/v1/chat/completions".to_string(),
+        )
+        .await
+        .unwrap_err();
         assert!(matches!(err, GatewayError::ConcurrencyLimit { provider } if provider == "ghost"));
     }
 
@@ -516,9 +565,17 @@ mod tests {
         let tracker = make_tracker();
         let (pid, mid) = pid_mid();
 
-        let permit_a = acquire_for_request(&lim, &tracker, &pid, &mid, Weight::from(1.0), ProtocolVersion::Http11, "/v1/chat/completions".to_string())
-            .await
-            .unwrap();
+        let permit_a = acquire_for_request(
+            &lim,
+            &tracker,
+            &pid,
+            &mid,
+            Weight::from(1.0),
+            ProtocolVersion::Http11,
+            "/v1/chat/completions".to_string(),
+        )
+        .await
+        .unwrap();
         assert_in_flight(&lim, &pid, 1.0);
 
         let lim2 = Arc::clone(&lim);
@@ -526,7 +583,16 @@ mod tests {
         let pid2 = pid.clone();
         let mid2 = mid.clone();
         let start = std::time::Instant::now();
-        let result = acquire_for_request(&lim2, &tracker2, &pid2, &mid2, Weight::from(1.0), ProtocolVersion::Http11, "/v1/chat/completions".to_string()).await;
+        let result = acquire_for_request(
+            &lim2,
+            &tracker2,
+            &pid2,
+            &mid2,
+            Weight::from(1.0),
+            ProtocolVersion::Http11,
+            "/v1/chat/completions".to_string(),
+        )
+        .await;
         let elapsed = start.elapsed();
 
         assert!(result.is_err(), "second request should fail");
@@ -548,23 +614,49 @@ mod tests {
         let tracker = make_tracker();
         let (pid, mid) = pid_mid();
 
-        let _permit_a = acquire_for_request(&lim, &tracker, &pid, &mid, Weight::from(1.0), ProtocolVersion::Http11, "/v1/chat/completions".to_string())
-            .await
-            .unwrap();
+        let _permit_a = acquire_for_request(
+            &lim,
+            &tracker,
+            &pid,
+            &mid,
+            Weight::from(1.0),
+            ProtocolVersion::Http11,
+            "/v1/chat/completions".to_string(),
+        )
+        .await
+        .unwrap();
 
         let lim_b = Arc::clone(&lim);
         let tracker_b = Arc::clone(&tracker);
         let pid_b = pid.clone();
         let mid_b = mid.clone();
         let b_handle = tokio::spawn(async move {
-            acquire_for_request(&lim_b, &tracker_b, &pid_b, &mid_b, Weight::from(1.0), ProtocolVersion::Http11, "/v1/chat/completions".to_string()).await
+            acquire_for_request(
+                &lim_b,
+                &tracker_b,
+                &pid_b,
+                &mid_b,
+                Weight::from(1.0),
+                ProtocolVersion::Http11,
+                "/v1/chat/completions".to_string(),
+            )
+            .await
         });
 
         tokio::time::sleep(Duration::from_millis(50)).await;
         assert_eq!(lim.queue_depth(&pid), 1, "B should be queued");
 
         let start = std::time::Instant::now();
-        let result = acquire_for_request(&lim, &tracker, &pid, &mid, Weight::from(1.0), ProtocolVersion::Http11, "/v1/chat/completions".to_string()).await;
+        let result = acquire_for_request(
+            &lim,
+            &tracker,
+            &pid,
+            &mid,
+            Weight::from(1.0),
+            ProtocolVersion::Http11,
+            "/v1/chat/completions".to_string(),
+        )
+        .await;
         let elapsed = start.elapsed();
 
         assert!(result.is_err(), "C should be immediately rejected");
@@ -588,17 +680,33 @@ mod tests {
         let (pid, mid) = pid_mid();
 
         {
-            let _permit = acquire_for_request(&lim, &tracker, &pid, &mid, Weight::from(1.0), ProtocolVersion::Http11, "/v1/chat/completions".to_string())
-                .await
-                .unwrap();
+            let _permit = acquire_for_request(
+                &lim,
+                &tracker,
+                &pid,
+                &mid,
+                Weight::from(1.0),
+                ProtocolVersion::Http11,
+                "/v1/chat/completions".to_string(),
+            )
+            .await
+            .unwrap();
             assert_in_flight(&lim, &pid, 1.0);
         }
 
         assert_in_flight(&lim, &pid, 0.0);
 
-        let permit2 = acquire_for_request(&lim, &tracker, &pid, &mid, Weight::from(1.0), ProtocolVersion::Http11, "/v1/chat/completions".to_string())
-            .await
-            .expect("second acquire after RAII release should succeed");
+        let permit2 = acquire_for_request(
+            &lim,
+            &tracker,
+            &pid,
+            &mid,
+            Weight::from(1.0),
+            ProtocolVersion::Http11,
+            "/v1/chat/completions".to_string(),
+        )
+        .await
+        .expect("second acquire after RAII release should succeed");
         drop(permit2);
         assert_in_flight(&lim, &pid, 0.0);
     }
@@ -609,16 +717,33 @@ mod tests {
         let tracker = make_tracker();
         let (pid, mid) = pid_mid();
 
-        let _permit_a = acquire_for_request(&lim, &tracker, &pid, &mid, Weight::from(1.0), ProtocolVersion::Http11, "/v1/chat/completions".to_string())
-            .await
-            .unwrap();
+        let _permit_a = acquire_for_request(
+            &lim,
+            &tracker,
+            &pid,
+            &mid,
+            Weight::from(1.0),
+            ProtocolVersion::Http11,
+            "/v1/chat/completions".to_string(),
+        )
+        .await
+        .unwrap();
 
         let lim_b = Arc::clone(&lim);
         let tracker_b = Arc::clone(&tracker);
         let pid_b = pid.clone();
         let mid_b = mid.clone();
         let b_handle = tokio::spawn(async move {
-            acquire_for_request(&lim_b, &tracker_b, &pid_b, &mid_b, Weight::from(1.0), ProtocolVersion::Http11, "/v1/chat/completions".to_string()).await
+            acquire_for_request(
+                &lim_b,
+                &tracker_b,
+                &pid_b,
+                &mid_b,
+                Weight::from(1.0),
+                ProtocolVersion::Http11,
+                "/v1/chat/completions".to_string(),
+            )
+            .await
         });
 
         let _ = tokio::time::timeout(Duration::from_millis(200), b_handle).await;
@@ -629,7 +754,16 @@ mod tests {
         );
 
         let start = std::time::Instant::now();
-        let result = acquire_for_request(&lim, &tracker, &pid, &mid, Weight::from(1.0), ProtocolVersion::Http11, "/v1/chat/completions".to_string()).await;
+        let result = acquire_for_request(
+            &lim,
+            &tracker,
+            &pid,
+            &mid,
+            Weight::from(1.0),
+            ProtocolVersion::Http11,
+            "/v1/chat/completions".to_string(),
+        )
+        .await;
         let elapsed = start.elapsed();
 
         assert!(result.is_err(), "C should fail (A still holds)");
@@ -650,21 +784,47 @@ mod tests {
         let tracker = make_tracker();
         let (pid, mid) = pid_mid();
 
-        let _permit_a = acquire_for_request(&lim, &tracker, &pid, &mid, Weight::from(1.0), ProtocolVersion::Http11, "/v1/chat/completions".to_string())
-            .await
-            .unwrap();
+        let _permit_a = acquire_for_request(
+            &lim,
+            &tracker,
+            &pid,
+            &mid,
+            Weight::from(1.0),
+            ProtocolVersion::Http11,
+            "/v1/chat/completions".to_string(),
+        )
+        .await
+        .unwrap();
 
         let lim_b = Arc::clone(&lim);
         let tracker_b = Arc::clone(&tracker);
         let pid_b = pid.clone();
         let mid_b = mid.clone();
         let b_handle = tokio::spawn(async move {
-            acquire_for_request(&lim_b, &tracker_b, &pid_b, &mid_b, Weight::from(1.0), ProtocolVersion::Http11, "/v1/chat/completions".to_string()).await
+            acquire_for_request(
+                &lim_b,
+                &tracker_b,
+                &pid_b,
+                &mid_b,
+                Weight::from(1.0),
+                ProtocolVersion::Http11,
+                "/v1/chat/completions".to_string(),
+            )
+            .await
         });
 
         tokio::time::sleep(Duration::from_millis(50)).await;
 
-        let result = acquire_for_request(&lim, &tracker, &pid, &mid, Weight::from(1.0), ProtocolVersion::Http11, "/v1/chat/completions".to_string()).await;
+        let result = acquire_for_request(
+            &lim,
+            &tracker,
+            &pid,
+            &mid,
+            Weight::from(1.0),
+            ProtocolVersion::Http11,
+            "/v1/chat/completions".to_string(),
+        )
+        .await;
         assert!(result.is_err());
 
         let snap = tracker.snapshot();
@@ -686,9 +846,17 @@ mod tests {
         let tracker = make_tracker();
         let (pid, mid) = pid_mid();
 
-        let permit = acquire_for_request(&lim, &tracker, &pid, &mid, Weight::from(1.0), ProtocolVersion::Http11, "/v1/chat/completions".to_string())
-            .await
-            .unwrap();
+        let permit = acquire_for_request(
+            &lim,
+            &tracker,
+            &pid,
+            &mid,
+            Weight::from(1.0),
+            ProtocolVersion::Http11,
+            "/v1/chat/completions".to_string(),
+        )
+        .await
+        .unwrap();
 
         let running = tracker
             .snapshot()

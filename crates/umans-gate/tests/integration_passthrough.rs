@@ -12,6 +12,7 @@ use futures_util::StreamExt;
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto::Builder;
 use hyper_util::service::TowerToHyperService;
+use serde_json::{json, Value};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::sync::{broadcast, oneshot};
@@ -25,7 +26,6 @@ use umans_gate::shutdown::{ShutdownSignal, ShutdownToken};
 use umans_gate::types::{
     GatewayConfig, ModelConfig, ModelId, ProviderConfig, ProviderId, TimeoutConfig, Weight,
 };
-use serde_json::{json, Value};
 use url::Url;
 
 // ---------------------------------------------------------------------------
@@ -61,6 +61,7 @@ fn make_state(upstream_url: Url) -> Arc<ProxyState> {
         bind: "0.0.0.0:0".parse().unwrap(),
         dashboard_bind: "0.0.0.0:0".parse().unwrap(),
         dashboard: None,
+        models_info_url: String::new(),
     };
     let (tx, _rx) = broadcast::channel::<MetricUpdate>(16);
     let limiter = Arc::new(ProviderLimiter::new(tx));

@@ -26,11 +26,6 @@ mod tests {
     }
 
     #[test]
-    fn sse_asset_exists() {
-        assert!(Asset::get("sse.js").is_some());
-    }
-
-    #[test]
     fn serve_htmx_returns_content_and_js_mime() {
         let (content, mime) = serve_static("htmx.min.js").expect("htmx");
         assert!(!content.is_empty());
@@ -38,9 +33,8 @@ mod tests {
     }
 
     #[test]
-    fn serve_sse_with_leading_slash() {
-        let (content, _) = serve_static("/sse.js").expect("sse");
-        assert!(!content.is_empty());
+    fn app_css_asset_exists() {
+        assert!(Asset::get("app.css").is_some());
     }
 
     #[test]

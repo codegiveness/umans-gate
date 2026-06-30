@@ -208,6 +208,7 @@ mod tests {
             bind: "0.0.0.0:0".parse().unwrap(),
             dashboard_bind: "0.0.0.0:0".parse().unwrap(),
             dashboard: None,
+            models_info_url: String::new(),
         };
         let (tx, _rx) = broadcast::channel::<MetricUpdate>(64);
         let limiter = Arc::new(ProviderLimiter::new(tx));
@@ -236,6 +237,7 @@ mod tests {
             bind: "0.0.0.0:0".parse().unwrap(),
             dashboard_bind: "0.0.0.0:0".parse().unwrap(),
             dashboard: None,
+            models_info_url: String::new(),
         };
         let (tx, _rx) = broadcast::channel::<MetricUpdate>(64);
         let limiter = Arc::new(ProviderLimiter::new(tx));
@@ -497,7 +499,10 @@ mod tests {
     async fn stream_options_injected_when_stream_true() {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = listener.local_addr().unwrap().port();
-        let rx = spawn_mock(listener, b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello");
+        let rx = spawn_mock(
+            listener,
+            b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello",
+        );
 
         let upstream_url = Url::parse(&format!("http://127.0.0.1:{port}")).unwrap();
         let state = make_state(upstream_url, TimeoutConfig::default());
@@ -532,7 +537,10 @@ mod tests {
     async fn stream_options_not_overwritten_when_present() {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = listener.local_addr().unwrap().port();
-        let rx = spawn_mock(listener, b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello");
+        let rx = spawn_mock(
+            listener,
+            b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello",
+        );
 
         let upstream_url = Url::parse(&format!("http://127.0.0.1:{port}")).unwrap();
         let state = make_state(upstream_url, TimeoutConfig::default());
@@ -566,7 +574,10 @@ mod tests {
     async fn body_unchanged_when_stream_false() {
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let port = listener.local_addr().unwrap().port();
-        let rx = spawn_mock(listener, b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello");
+        let rx = spawn_mock(
+            listener,
+            b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello",
+        );
 
         let upstream_url = Url::parse(&format!("http://127.0.0.1:{port}")).unwrap();
         let state = make_state(upstream_url, TimeoutConfig::default());
@@ -797,12 +808,7 @@ mod tests {
             .body(Body::empty())
             .unwrap();
         let status = handler_status(
-            proxy_handler(
-                Path("unknown/v1/models".to_string()),
-                State(state),
-                req,
-            )
-            .await,
+            proxy_handler(Path("unknown/v1/models".to_string()), State(state), req).await,
         );
 
         assert_eq!(
@@ -826,9 +832,8 @@ mod tests {
             .uri("/v1/models")
             .body(Body::empty())
             .unwrap();
-        let status = handler_status(
-            proxy_handler(Path("v1/models".to_string()), State(state), req).await,
-        );
+        let status =
+            handler_status(proxy_handler(Path("v1/models".to_string()), State(state), req).await);
 
         assert_eq!(
             status,
@@ -851,9 +856,7 @@ mod tests {
             .uri("/")
             .body(Body::empty())
             .unwrap();
-        let status = handler_status(
-            proxy_handler(Path(String::new()), State(state), req).await,
-        );
+        let status = handler_status(proxy_handler(Path(String::new()), State(state), req).await);
 
         assert_eq!(
             status,

@@ -110,8 +110,7 @@ mod tests {
     fn write_config(dir: &tempfile::TempDir, content: &str) -> std::path::PathBuf {
         let path = dir.path().join("config.yaml");
         let mut f = std::fs::File::create(&path).expect("create config file");
-        f.write_all(content.as_bytes())
-            .expect("write config file");
+        f.write_all(content.as_bytes()).expect("write config file");
         path
     }
 
@@ -147,10 +146,7 @@ providers:
         assert_eq!(cfg.providers[0].id.as_ref(), "openai");
         assert_eq!(cfg.providers[0].capacity.to_milliunits(), 4000);
         assert_eq!(cfg.providers[1].id.as_ref(), "anthropic");
-        assert_eq!(
-            cfg.bind,
-            "0.0.0.0:8080".parse::<SocketAddr>().unwrap()
-        );
+        assert_eq!(cfg.bind, "0.0.0.0:8080".parse::<SocketAddr>().unwrap());
     }
 
     #[test]
@@ -316,18 +312,21 @@ providers:
         let path = write_config(&dir, VALID_CONFIG);
         std::env::set_var("UMANS_GATE_BIND", "127.0.0.1:9999");
         let cfg = GatewayConfig::load(&path).expect("env override config loads");
-        assert_eq!(
-            cfg.bind,
-            "127.0.0.1:9999".parse::<SocketAddr>().unwrap()
-        );
+        assert_eq!(cfg.bind, "127.0.0.1:9999".parse::<SocketAddr>().unwrap());
         std::env::remove_var("UMANS_GATE_BIND");
     }
 
     #[test]
-    fn default_has_openai_provider() {
+    fn default_has_umans_provider() {
         let cfg = GatewayConfig::default();
         assert_eq!(cfg.providers.len(), 1);
-        assert_eq!(cfg.providers[0].id.as_ref(), "openai");
+        assert_eq!(cfg.providers[0].id.as_ref(), "umans");
+        assert_eq!(
+            cfg.providers[0].upstream_url.as_ref(),
+            "https://api.code.umans.ai/"
+        );
+        assert_eq!(cfg.providers[0].capacity.to_milliunits(), 4000);
+        assert_eq!(cfg.providers[0].models.len(), 6);
         assert!(cfg.validate().is_ok());
     }
 }

@@ -1,0 +1,42 @@
+# Rust build artifacts
+/target
+**/*.rs.bk
+*.pdb
+
+# Configuration / secrets
+.env
+.env.*
+!.env.example
+config.local.yaml
+
+# OMO internal tooling
+.omo/
+.playwright-mcp/
+opencode.json
+CLAUDE.md
+AGENTS.md
+tests-internal/
+
+# Node.js
+node_modules/
+
+# Logs
+*.log
+GATE_LOG
+
+# Build artifacts / packaging
+dist/
+*.tar.gz
+*.zip
+
+# Tailwind CSS standalone CLI binary and generated stylesheet
+tailwindcss
+tailwindcss.exe
+static/app.css
+
+# Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store

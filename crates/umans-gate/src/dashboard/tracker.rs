@@ -750,8 +750,14 @@ mod tests {
 
     #[test]
     fn protocol_version_from_http_version() {
-        assert_eq!(ProtocolVersion::from(Version::HTTP_10), ProtocolVersion::Http10);
-        assert_eq!(ProtocolVersion::from(Version::HTTP_11), ProtocolVersion::Http11);
+        assert_eq!(
+            ProtocolVersion::from(Version::HTTP_10),
+            ProtocolVersion::Http10
+        );
+        assert_eq!(
+            ProtocolVersion::from(Version::HTTP_11),
+            ProtocolVersion::Http11
+        );
         assert_eq!(ProtocolVersion::from(Version::HTTP_2), ProtocolVersion::H2);
         assert_eq!(ProtocolVersion::from(Version::HTTP_3), ProtocolVersion::H3);
     }
@@ -838,12 +844,26 @@ mod tests {
 
         let id1 = Uuid::new_v4();
         let (id1, provider1, model1, weight1) = sample_record(id1);
-        tracker.register_queued(id1, &provider1, &model1, weight1, ProtocolVersion::Http11, "/v1/chat/completions".to_string());
+        tracker.register_queued(
+            id1,
+            &provider1,
+            &model1,
+            weight1,
+            ProtocolVersion::Http11,
+            "/v1/chat/completions".to_string(),
+        );
         std::thread::sleep(Duration::from_millis(10));
 
         let id2 = Uuid::new_v4();
         let (id2, provider2, model2, weight2) = sample_record(id2);
-        tracker.register_queued(id2, &provider2, &model2, weight2, ProtocolVersion::Http11, "/v1/chat/completions".to_string());
+        tracker.register_queued(
+            id2,
+            &provider2,
+            &model2,
+            weight2,
+            ProtocolVersion::Http11,
+            "/v1/chat/completions".to_string(),
+        );
 
         let snap = tracker.snapshot();
         assert_eq!(snap.len(), 2);
@@ -861,7 +881,14 @@ mod tests {
         let id = Uuid::new_v4();
         let (id, provider, model, weight) = sample_record(id);
 
-        tracker.register_queued(id, &provider, &model, weight, sample_protocol(), "/v1/chat/completions".to_string());
+        tracker.register_queued(
+            id,
+            &provider,
+            &model,
+            weight,
+            sample_protocol(),
+            "/v1/chat/completions".to_string(),
+        );
         let snap = tracker.snapshot();
         assert_eq!(snap.len(), 1);
         assert_eq!(snap[0].status, RequestStatus::Queued);
@@ -891,7 +918,14 @@ mod tests {
         let id = Uuid::new_v4();
         let (id, provider, model, weight) = sample_record(id);
 
-        tracker.register_queued(id, &provider, &model, weight, sample_protocol(), "/v1/chat/completions".to_string());
+        tracker.register_queued(
+            id,
+            &provider,
+            &model,
+            weight,
+            sample_protocol(),
+            "/v1/chat/completions".to_string(),
+        );
         tracker.mark_rejected(id);
 
         let snap = tracker.snapshot();
@@ -908,20 +942,41 @@ mod tests {
         // Stale Done entry (completed ~50ms ago).
         let stale_id = Uuid::new_v4();
         let (stale_id, provider, model, weight) = sample_record(stale_id);
-        tracker.register_queued(stale_id, &provider, &model, weight, sample_protocol(), "/v1/chat/completions".to_string());
+        tracker.register_queued(
+            stale_id,
+            &provider,
+            &model,
+            weight,
+            sample_protocol(),
+            "/v1/chat/completions".to_string(),
+        );
         tracker.mark_done(stale_id);
         std::thread::sleep(Duration::from_millis(50));
 
         // Live Running entry — must survive pruning.
         let live_id = Uuid::new_v4();
         let (live_id, provider2, model2, weight2) = sample_record(live_id);
-        tracker.register_queued(live_id, &provider2, &model2, weight2, sample_protocol(), "/v1/chat/completions".to_string());
+        tracker.register_queued(
+            live_id,
+            &provider2,
+            &model2,
+            weight2,
+            sample_protocol(),
+            "/v1/chat/completions".to_string(),
+        );
         tracker.mark_running(live_id, None);
 
         // Recent Done entry — must survive pruning.
         let recent_id = Uuid::new_v4();
         let (recent_id, provider3, model3, weight3) = sample_record(recent_id);
-        tracker.register_queued(recent_id, &provider3, &model3, weight3, sample_protocol(), "/v1/chat/completions".to_string());
+        tracker.register_queued(
+            recent_id,
+            &provider3,
+            &model3,
+            weight3,
+            sample_protocol(),
+            "/v1/chat/completions".to_string(),
+        );
         tracker.mark_done(recent_id);
 
         tracker.prune_stale(Duration::from_millis(25));
@@ -953,7 +1008,14 @@ mod tests {
         let tracker = RequestTracker::new();
         let id = Uuid::new_v4();
         let (id, provider, model, weight) = sample_record(id);
-        tracker.register_queued(id, &provider, &model, weight, sample_protocol(), "/v1/chat/completions".to_string());
+        tracker.register_queued(
+            id,
+            &provider,
+            &model,
+            weight,
+            sample_protocol(),
+            "/v1/chat/completions".to_string(),
+        );
 
         let snap1 = tracker.snapshot();
         assert_eq!(snap1.len(), 1);
@@ -1034,10 +1096,7 @@ mod tests {
                 && parts[3].len() == 4
                 && parts[4].len() == 12
                 && parts[2].starts_with('4')
-                && parts[3]
-                    .chars()
-                    .next()
-                    .is_some_and(|c| "89ab".contains(c))
+                && parts[3].chars().next().is_some_and(|c| "89ab".contains(c))
                 && parts.iter().all(|p| {
                     p.chars()
                         .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
@@ -1209,7 +1268,10 @@ fn cancel_marks_cancelled_and_returns_true() {
         "/v1/chat/completions".to_string(),
     );
 
-    assert!(tracker.cancel(id), "cancel should return true for live record");
+    assert!(
+        tracker.cancel(id),
+        "cancel should return true for live record"
+    );
 
     let snap = tracker.snapshot();
     assert_eq!(snap.len(), 1);
@@ -1218,7 +1280,10 @@ fn cancel_marks_cancelled_and_returns_true() {
         RequestStatus::Cancelled,
         "record should be Cancelled after cancel()"
     );
-    assert!(snap[0].is_terminal, "record should be terminal after cancel()");
+    assert!(
+        snap[0].is_terminal,
+        "record should be terminal after cancel()"
+    );
 
     assert!(
         !tracker.cancel(id),
@@ -1367,21 +1432,36 @@ fn internal_status_set_on_terminal() {
     tracker.mark_running(id1, None);
     tracker.mark_done(id1);
     assert_eq!(
-        tracker.snapshot().iter().find(|r| r.id == id1).unwrap().internal_status,
+        tracker
+            .snapshot()
+            .iter()
+            .find(|r| r.id == id1)
+            .unwrap()
+            .internal_status,
         Some(200)
     );
 
     let id2 = mk();
     tracker.mark_rejected(id2);
     assert_eq!(
-        tracker.snapshot().iter().find(|r| r.id == id2).unwrap().internal_status,
+        tracker
+            .snapshot()
+            .iter()
+            .find(|r| r.id == id2)
+            .unwrap()
+            .internal_status,
         Some(503)
     );
 
     let id3 = mk();
     tracker.mark_cancelled(id3);
     assert_eq!(
-        tracker.snapshot().iter().find(|r| r.id == id3).unwrap().internal_status,
+        tracker
+            .snapshot()
+            .iter()
+            .find(|r| r.id == id3)
+            .unwrap()
+            .internal_status,
         Some(400)
     );
 
@@ -1389,7 +1469,12 @@ fn internal_status_set_on_terminal() {
     tracker.mark_running(id4, None);
     tracker.mark_timeout(id4);
     assert_eq!(
-        tracker.snapshot().iter().find(|r| r.id == id4).unwrap().internal_status,
+        tracker
+            .snapshot()
+            .iter()
+            .find(|r| r.id == id4)
+            .unwrap()
+            .internal_status,
         Some(504)
     );
 }
@@ -1397,9 +1482,9 @@ fn internal_status_set_on_terminal() {
 #[cfg(test)]
 #[test]
 fn kill_queued_request_returns_400() {
+    use crate::error::GatewayError;
     use axum::http::StatusCode;
     use axum::response::IntoResponse;
-    use crate::error::GatewayError;
 
     let tracker = RequestTracker::new();
     let id = Uuid::new_v4();
@@ -1473,7 +1558,10 @@ async fn kill_releases_permit_exactly_once() {
     let tracked = TrackedPermit::new(permit, id, Arc::clone(&tracker), token);
 
     let snap = lim.snapshot().into_iter().next().unwrap();
-    assert!((snap.in_flight - 1.0).abs() < 1e-6, "in_flight should be 1.0");
+    assert!(
+        (snap.in_flight - 1.0).abs() < 1e-6,
+        "in_flight should be 1.0"
+    );
 
     assert!(tracker.cancel(id), "cancel should return true");
 

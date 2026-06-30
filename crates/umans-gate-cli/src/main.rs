@@ -2,7 +2,6 @@ mod cli;
 mod commands;
 mod logging;
 
-use std::path::Path;
 use std::process::ExitCode;
 
 use clap::Parser;
@@ -13,23 +12,37 @@ async fn main() -> ExitCode {
     logging::init(args.verbose);
 
     let command = args.command;
-    let config_path = args.config.as_deref().unwrap_or(Path::new("config.yaml"));
+    let config_arg = args.config.as_deref();
 
     match command {
-        None => commands::serve::run(config_path, None, true, None, None)
+        None => commands::serve::run(config_arg, None, None, true, None, None)
             .await
             .unwrap_or_else(|err| {
                 eprintln!("{err:#}");
                 ExitCode::FAILURE
             }),
-        Some(cli::Command::Serve { bind, watch, no_watch, history_max, kill_min_age_seconds }) => {
+        Some(cli::Command::Serve {
+            bind,
+            dashboard_bind,
+            watch,
+            no_watch,
+            history_max,
+            kill_min_age_seconds,
+        }) => {
             let watch = watch && !no_watch;
-            commands::serve::run(config_path, bind, watch, history_max, kill_min_age_seconds)
-                .await
-                .unwrap_or_else(|err| {
-                    eprintln!("{err:#}");
-                    ExitCode::FAILURE
-                })
+            commands::serve::run(
+                config_arg,
+                bind,
+                dashboard_bind,
+                watch,
+                history_max,
+                kill_min_age_seconds,
+            )
+            .await
+            .unwrap_or_else(|err| {
+                eprintln!("{err:#}");
+                ExitCode::FAILURE
+            })
         }
         Some(cli::Command::Update { force, dry_run }) => commands::update::run(force, dry_run)
             .map(|_| ExitCode::SUCCESS)

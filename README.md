@@ -1,60 +1,64 @@
 # umans-gate
 
-![GitHub Release](https://img.shields.io/github/v/release/umans-ai/umans-gate)
-![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)
-![Rust Version](https://img.shields.io/badge/rust--version-1.75-orange)
+![CI](https://github.com/codegiveness/umans-gate/actions/workflows/release.yml/badge.svg)
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Rust Version](https://img.shields.io/badge/rust-1.75-orange)
 
-> Weighted concurrency API gateway for AI providers
+> Provider-agnostic OpenAI-compatible weighted concurrency gateway proxy
 
 ## TL;DR
 
-umans-gate is a Rust API gateway that proxies requests to OpenAI and Anthropic while enforcing strict, weighted concurrency limits per provider. It forwards the original `Authorization` header untouched, streams SSE responses chunk by chunk without buffering, and serves a live HTMX+SSE dashboard on a separate port. Configuration is a single YAML file, and the binary can install, update, and uninstall itself.
+umans-gate is a provider-agnostic OpenAI-compatible weighted concurrency gateway proxy written in Rust. It sits between your client and any upstream AI endpoint, enforces weighted per-provider concurrency limits, forwards the original `Authorization` header unchanged, streams responses with backpressure, and serves a live dashboard on a second port. Run it with zero configuration and it auto-fetches provider models so you can start immediately.
+
+## Why?
+
+Most client-side throttling is guesswork. umans-gate turns provider capacity into a strict, observable budget. For the reasoning behind each design choice, see [docs/decisions/](docs/decisions/).
 
 ## Features
 
-- Path-based proxy routing for `/{provider.id}/*`, where each provider declared in `config.yaml` becomes its own route prefix.
+- Path-based proxy routing for `/{provider.id}/*`, where every provider in `config.yaml` becomes its own route prefix.
 - Weighted per-provider concurrency limits backed by a fixed-point semaphore engine.
 - Zero-race accounting using milliunit weights inside `tokio::sync::Semaphore`.
-- Full SSE streaming passthrough with backpressure and no response buffering.
-- Live dashboard showing per-provider consumed weight, capacity, and active models.
-- YAML configuration with file-watch hot-reload (enabled by default).
+- Streaming response passthrough with backpressure and no buffering.
+- Live dashboard with HTMX polling, updated every second.
+- YAML configuration with file-watch hot-reload.
 - Self-updating CLI with shell completion generation.
 - Pure Rust TLS backend via rustls.
 
 ## Quick Start
 
-1. Install the binary.
-2. Copy `examples/config.yaml` to `config.yaml`.
-3. Run `umans-gate serve --config config.yaml`.
-4. Point your client at `http://localhost:8080/{provider.id}` (for example, `/umans/v1/chat/completions`).
-5. Open `http://localhost:9090` for the live dashboard.
+No config file is required.
+
+```bash
+umans-gate
+```
+
+The gateway will:
+
+1. Listen on `0.0.0.0:8080` for proxy traffic.
+2. Serve the dashboard on `127.0.0.1:9090`.
+3. Fetch the default model list from `https://api.code.umans.ai/v1/models/info` and build a working configuration automatically.
+
+Then point your client at `http://localhost:8080/{provider.id}` (for example, `/umans/v1/chat/completions`) and open `http://localhost:9090` for the dashboard.
 
 ## Installation
 
 ### Shell (curl)
 
 ```bash
-curl --proto '=https' --tlsv1.2 -LsSf \
-  https://github.com/umans-ai/umans-gate/releases/latest/download/umans-gate-installer.sh | sh
+curl -fsSL https://raw.githubusercontent.com/codegiveness/umans-gate/main/install.sh | sh
 ```
 
 ### PowerShell
 
 ```powershell
-powershell -c "irm https://github.com/umans-ai/umans-gate/releases/latest/download/umans-gate-installer.ps1 | iex"
-```
-
-### Homebrew
-
-```bash
-brew install umans-ai/tap/umans-gate
+irm https://raw.githubusercontent.com/codegiveness/umans-gate/main/install.ps1 | iex
 ```
 
 ### Cargo
 
 ```bash
-# Install the latest release from git.
-cargo install --locked --git https://github.com/umans-ai/umans-gate umans-gate-cli
+cargo install umans-gate
 ```
 
 Or build from a local checkout:
@@ -67,31 +71,49 @@ In all cases the installed binary name is `umans-gate`.
 
 ## Configuration
 
-umans-gate reads a single YAML configuration file. The default path is `config.yaml` in the working directory, or you can pass `--config <path>`.
+umans-gate discovers configuration in this order:
 
-If no config file exists, umans-gate automatically fetches the model list from `https://api.code.umans.ai/v1/models/info` and creates a default configuration with all models at weight 1.0 and capacity 4.0.
+1. `--config <path>` if you pass one.
+2. `config.yaml` in the current working directory.
+3. `~/.config/umans-gate/config.yaml` (XDG config directory).
+4. If none of the above exist, it fetches a default model list from `https://api.code.umans.ai/v1/models/info` and creates a running configuration with all models at weight `1.0` and provider capacity `4.0`.
+
+You can override the auto-fetch URL with the `models_info_url` config field or the `UMANS_GATE_MODELS_INFO_URL` environment variable.
 
 ### Example `config.yaml`
 
 ```yaml
 bind: "0.0.0.0:8080"
-dashboard_bind: "0.0.0.0:9090"
+dashboard:
+  bind: "127.0.0.1:9090"
+  history:
+    max: 1000
+  kill_button:
+    min_age_seconds: 300
 providers:
   - id: umans
     upstream_url: "https://api.code.umans.ai"
     capacity: 4.0
+    timeouts:
+      connect: null
+      ttfb: null
+      stream_idle: null
+      total: null
+      queuetimeout: { secs: 300, nanos: 0 }
+      maxqueue: 64
+      permit_cooldown: { secs: 1, nanos: 0 }
     models:
+      - id: umans-coder
+        weight: 1.0
+      - id: umans-flash
+        weight: 0.5
       - id: umans-kimi-k2.7
         weight: 1.0
       - id: umans-glm-5.2
         weight: 1.0
-      - id: umans-coder
-        weight: 1.0
-      - id: umans-glm-5.2-nvfp4
-        weight: 1.0
-      - id: umans-flash
-        weight: 1.0
       - id: umans-qwen3.6-35b-a3b
+        weight: 0.5
+      - id: umans-glm-5.2-nvfp4
         weight: 1.0
 ```
 
@@ -100,7 +122,10 @@ providers:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `bind` | string | `0.0.0.0:8080` | Address and port for the proxy server. |
-| `dashboard_bind` | string | `0.0.0.0:9090` | Address and port for the live dashboard. |
+| `dashboard.bind` | string | `127.0.0.1:9090` | Address and port for the live dashboard. |
+| `dashboard.history.max`<br>`--history-max` | integer | `1000` | Completed requests kept in dashboard history. `0` means unlimited. `--history-max` overrides the config value. |
+| `dashboard.kill_button.min_age_seconds`<br>`--kill-min-age-seconds` | integer | `300` | Minimum age in seconds before the kill button appears. `--kill-min-age-seconds` overrides the config value. |
+| `models_info_url` | string | `https://api.code.umans.ai/v1/models/info` | URL used for auto-config when no config file is found. |
 | `providers` | list | required | List of upstream AI providers. |
 | `providers[].id` | string | required | Provider identifier; used for routing. |
 | `providers[].upstream_url` | string | required | Base URL of the upstream API. |
@@ -110,10 +135,11 @@ providers:
 | `providers[].models[].weight` | float | required | Concurrency weight charged while a request is active. |
 | `providers[].timeouts.connect` | duration or `null` | `null` (infinity) | TCP connect timeout; `null` disables the limit. |
 | `providers[].timeouts.ttfb` | duration or `null` | `null` (infinity) | Time to first byte timeout; `null` disables the limit. |
-| `providers[].timeouts.stream_idle` | duration or `null` | `300s` | Idle timeout between SSE chunks; `null` disables the limit. |
+| `providers[].timeouts.stream_idle` | duration or `null` | `300s` | Idle timeout between stream chunks; `null` disables the limit. |
 | `providers[].timeouts.total` | duration or `null` | `null` (infinity) | Hard total timeout per request; `null` disables the limit. |
-| `dashboard.history.max`<br>`--history-max` | integer | `1000` | Completed requests kept in dashboard history. `0` means unlimited. `--history-max` overrides the config value. |
-| `dashboard.kill_button.min_age_seconds`<br>`--kill-min-age-seconds` | integer | `300` | Minimum age in seconds before the kill button appears. `--kill-min-age-seconds` overrides the config value. |
+| `providers[].timeouts.queuetimeout` | duration | `30s` | Maximum time a request may wait in the provider queue before being rejected. |
+| `providers[].timeouts.maxqueue` | integer | `64` | Maximum number of requests that may wait in the provider queue. |
+| `providers[].timeouts.permit_cooldown` | duration | `500ms` | Cooldown between attempts to acquire a permit from the queue. |
 
 Model weights must be greater than zero and may not exceed the provider capacity. The loader rejects invalid configs and refuses to start.
 
@@ -125,7 +151,7 @@ Run the gateway with a config file:
 umans-gate serve --config config.yaml
 ```
 
-Run in the foreground with default `config.yaml`:
+Run in the foreground with zero config:
 
 ```bash
 umans-gate
@@ -183,15 +209,15 @@ The `/health` endpoint on the proxy port remains unchanged and returns `ok`.
 
 ## Dashboard
 
-The dashboard is served on `dashboard_bind` and uses HTMX with Server-Sent Events. It renders the current consumed weight, capacity bar, and active model list for every configured provider. The request list also shows each request's enqueued-at time and its client/upstream i/o protocol version.
+The dashboard is served on `dashboard.bind` and refreshes with HTMX polling (`hx-trigger="every 1s"`). It renders the current consumed weight, capacity bar, and active model list for every configured provider. The request list also shows each request's enqueued-at time and its client/upstream protocol version.
 
-**Security warning:** the dashboard has **no authentication** and binds to `0.0.0.0` by default. Do not expose it to the public internet. Run it behind a reverse proxy or bind it to a private interface unless you are on a trusted network.
+**Security warning:** the dashboard has **no authentication** and binds to `127.0.0.1` by default. Do not expose it to the public internet unless you add a reverse proxy with authentication.
 
 ## Architecture
 
 The gateway is built as a Rust workspace with two crates:
 
-- `crates/umans-gate` — library containing the concurrency engine, config loader, proxy handlers, dashboard state, and SSE endpoints.
+- `crates/umans-gate` — library containing the concurrency engine, config loader, proxy handlers, and dashboard state.
 - `crates/umans-gate-cli` — the `umans-gate` binary and clap CLI.
 
 For pipeline diagrams and a developer-oriented breakdown, see [docs/architecture.md](docs/architecture.md).
@@ -207,30 +233,21 @@ flowchart LR
         Buffer --> Gate{Acquire model weight<br/>ProviderLimiter::acquire}
     end
 
-    Gate -->|weight available| Build[Build upstream HTTP/1.1 request]
+    Gate -->|weight available| Build[Build upstream request]
     Gate -->|queue full| Return503[Return 503]
-    Build --> ClientPool[hyper legacy client pool<br/>HTTP/1.1 only]
-    ClientPool --> UpstreamServer[api.code.umans.ai]
+    Build --> ClientPool[hyper legacy client pool]
+    ClientPool --> UpstreamServer[Upstream provider]
 
     subgraph Upstream
-        UpstreamServer -->|SSE stream chunks| Stream[Yield frames to client]
-        Other([Other clients on same API key]) --> UpstreamServer
+        UpstreamServer -->|Stream chunks| Stream[Yield frames to client]
     end
 
-    Stream --> StillThere{Client still connected?}
-    StillThere -->|yes| Stream
-    StillThere -->|drops early| DropStream[Generator drops permit & upstream body]
-    DropStream --> Race[Race window: upstream still generating until EPIPE]
-    Race --> Next[Next queued request reaches provider]
-    Next --> Counter[Provider counts account-wide<br/>concurrent sessions]
-    Counter -->|over 4 repeatedly| Four29[429 / rate_limited]
-    Four29 --> Boxed[boxed_until 5-hour pause]
-    StillThere -->|no / [DONE]| EOS[Stream ends normally]
-    EOS --> Release[Permit drops on EOS]
+    Stream --> Active{Client connected?}
+    Active -->|no / stream ends| Release[Release permit on completion]
     Release --> Reuse[Connection returns to pool]
 ```
 
-The request enters the `umans-gate` handler, the model weight is acquired, and an HTTP/1.1 request is sent to `api.code.umans.ai`. The response is streamed back as SSE. The failure mode described in `.omo/research-umans-429-ban.md` happens when the downstream client disconnects early: the gateway drops its permit synchronously and can admit the next queued request, while the upstream provider continues to count the cancelled stream as live until it hits a write error. Because the provider counts **concurrent sessions across the whole account** (including other clients sharing the same key), that transient overlap can push the account over 4, register as a 429, and eventually trigger a 5-hour `boxed_until` penalty.
+A request enters the handler, the model weight is acquired from the provider semaphore, and the upstream request is forwarded. The response is streamed back without buffering. If the client disconnects early, the permit is released when the stream drops, so capacity always returns to the pool.
 
 ## Weight System
 
@@ -240,7 +257,7 @@ Each provider owns a `tokio::sync::Semaphore` initialized with `capacity * 1000`
 
 ## Security
 
-- The dashboard has **no auth** and binds to `0.0.0.0:9090` by default. Put it behind a reverse proxy if it faces any untrusted network.
+- The dashboard has **no auth** and binds to `127.0.0.1:9090` by default. Put it behind a reverse proxy if it faces any untrusted network.
 - Gateway authentication is pure pass-through. umans-gate does not read, store, or validate API keys. It forwards the `Authorization` header to the upstream provider exactly as received.
 - Requests are sent over HTTPS using rustls with the system's web PKI roots.
 - The proxy binds to `0.0.0.0:8080` by default. Restrict that interface to trusted clients or place the gateway behind a network firewall.
@@ -265,6 +282,14 @@ Run the strict lint set:
 cargo clippy --workspace -- -D warnings
 ```
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+## Security disclosures
+
+Please report security issues following the process in [SECURITY.md](SECURITY.md).
+
 ## License
 
-umans-gate is licensed under the MIT OR Apache-2.0 license.
+umans-gate is licensed under the MIT license.

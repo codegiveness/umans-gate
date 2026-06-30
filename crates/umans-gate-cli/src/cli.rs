@@ -32,6 +32,9 @@ pub enum Command {
         /// Override bind address
         #[arg(short, long)]
         bind: Option<String>,
+        /// Override dashboard bind address (default: 127.0.0.1:9090)
+        #[arg(long)]
+        dashboard_bind: Option<String>,
         /// Watch config file for changes and hot-reload (enabled by default)
         #[arg(long, default_value_t = true)]
         watch: bool,

@@ -432,9 +432,7 @@ mod tests {
 
     #[tokio::test]
     async fn middleware_maps_io_to_upstream() {
-        let mut svc = ErrorLayer.layer(ErrSvc(|| {
-            GatewayError::Io(io::Error::other("disk full"))
-        }));
+        let mut svc = ErrorLayer.layer(ErrSvc(|| GatewayError::Io(io::Error::other("disk full"))));
         let resp = svc
             .call(Request::new(Body::empty()))
             .await

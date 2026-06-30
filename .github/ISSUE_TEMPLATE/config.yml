@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security issue
+    url: https://github.com/codegiveness/umans-gate/security/advisories/new
+    about: Please report security vulnerabilities privately here instead of opening a public issue.
+  - name: Ask a question
+    url: https://github.com/codegiveness/umans-gate/discussions
+    about: Open a discussion for general questions or help before filing an issue.

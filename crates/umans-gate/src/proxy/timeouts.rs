@@ -197,16 +197,16 @@ impl TokenTap {
             Some("message_start") => {
                 if let Some(usage) = json.get("message").and_then(|m| m.get("usage")) {
                     self.prompt_tokens = opt_u64(usage.get("input_tokens"));
-                    let cache_creation = opt_u64(usage.get("cache_creation_input_tokens"))
-                        .unwrap_or(0);
+                    let cache_creation =
+                        opt_u64(usage.get("cache_creation_input_tokens")).unwrap_or(0);
                     let cache_read = opt_u64(usage.get("cache_read_input_tokens")).unwrap_or(0);
                     self.cached_tokens = Some(cache_creation + cache_read);
                 }
             }
             Some("message_delta") => {
-                if let Some(output) = opt_u64(
-                    json.get("usage").and_then(|u| u.get("output_tokens")),
-                ) {
+                if let Some(output) =
+                    opt_u64(json.get("usage").and_then(|u| u.get("output_tokens")))
+                {
                     self.completion_tokens = Some(output);
                     self.done = true;
                 }
@@ -540,7 +540,6 @@ mod test_helpers {
     use std::sync::Arc;
     use std::time::Duration;
     use tokio::sync::broadcast;
-    use tokio_util::sync::CancellationToken;
     use uuid::Uuid;
 
     /// Build a provider config with the given timeouts.
@@ -589,9 +588,7 @@ mod test_helpers {
             .await
             .unwrap();
         tracker.mark_running(id, None);
-        let token = tracker
-            .cancellation_token(id)
-            .unwrap_or_else(CancellationToken::new);
+        let token = tracker.cancellation_token(id).unwrap_or_default();
         let tracked = TrackedPermit::new(permit, id, Arc::clone(&tracker), token);
         (lim, tracked)
     }
@@ -655,8 +652,8 @@ mod tests {
     //   tracked_permit::drop_during_unwinding_still_marks_done \
     //   handler::permit_acquired_during_request_and_released_after
 
-    use super::*;
     use super::test_helpers::*;
+    use super::*;
     use crate::types::TimeoutConfig;
     use hyper::StatusCode;
     use std::time::Duration;
@@ -1054,8 +1051,8 @@ mod permit_cooldown {
     //! Unit tests for the downstream-disconnect cooldown path in
     //! [`super::forward_with_timeouts`].
 
-    use super::*;
     use super::test_helpers::*;
+    use super::*;
     use crate::types::TimeoutConfig;
     use hyper::{Method, StatusCode};
     use std::time::Duration;
@@ -1074,11 +1071,9 @@ mod permit_cooldown {
             let mut buf = vec![0u8; 1024];
             let _ = sock.read(&mut buf).await;
             // Send headers + one chunk, then stall forever.
-            sock.write_all(
-                b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nhello\r\n",
-            )
-            .await
-            .unwrap();
+            sock.write_all(b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nhello\r\n")
+                .await
+                .unwrap();
             sock.flush().await.unwrap();
             tokio::time::sleep(Duration::from_secs(60)).await;
         });
@@ -1154,8 +1149,8 @@ mod permit_cooldown {
 
 #[cfg(test)]
 mod cancellation {
-    use super::*;
     use super::test_helpers::*;
+    use super::*;
     use crate::dashboard::tracker::RequestStatus;
     use crate::types::TimeoutConfig;
     use hyper::{Method, StatusCode};
@@ -1174,11 +1169,9 @@ mod cancellation {
             let (mut sock, _) = listener.accept().await.unwrap();
             let mut buf = vec![0u8; 1024];
             let _ = sock.read(&mut buf).await;
-            sock.write_all(
-                b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nhello\r\n",
-            )
-            .await
-            .unwrap();
+            sock.write_all(b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nhello\r\n")
+                .await
+                .unwrap();
             sock.flush().await.unwrap();
             for _ in 0..100 {
                 tokio::time::sleep(Duration::from_millis(50)).await;
@@ -1217,7 +1210,10 @@ mod cancellation {
         assert_eq!(resp.status(), StatusCode::OK);
         assert_in_flight(&lim, 1.0);
 
-        assert!(tracker.cancel(id), "cancel should return true for live record");
+        assert!(
+            tracker.cancel(id),
+            "cancel should return true for live record"
+        );
 
         wait_for_in_flight_zero(&lim, 2000).await;
 
@@ -1241,11 +1237,9 @@ mod cancellation {
             let (mut sock, _) = listener.accept().await.unwrap();
             let mut buf = vec![0u8; 1024];
             let _ = sock.read(&mut buf).await;
-            sock.write_all(
-                b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nhello\r\n",
-            )
-            .await
-            .unwrap();
+            sock.write_all(b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n5\r\nhello\r\n")
+                .await
+                .unwrap();
             sock.flush().await.unwrap();
             tokio::time::sleep(Duration::from_secs(60)).await;
         });
@@ -1286,7 +1280,10 @@ mod cancellation {
         tokio::time::sleep(Duration::from_millis(100)).await;
         assert_in_flight(&lim, 1.0);
 
-        assert!(tracker.cancel(id), "cancel should return true for live record");
+        assert!(
+            tracker.cancel(id),
+            "cancel should return true for live record"
+        );
 
         wait_for_in_flight_zero(&lim, 1000).await;
 
@@ -1303,9 +1300,9 @@ mod cancellation {
 #[cfg(test)]
 #[tokio::test]
 async fn ttft_captured_from_first_frame() {
-    use std::sync::Arc;
     use crate::types::TimeoutConfig;
     use hyper::StatusCode;
+    use std::sync::Arc;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::net::TcpListener;
 
@@ -1382,9 +1379,7 @@ mod token_tap {
         tap.feed(&Bytes::from("\n\n"));
 
         // Usage frame split across two chunks (tests line buffer).
-        tap.feed(&Bytes::from(
-            r#"data: {"choices":[],"usage":{"prompt_tok"#,
-        ));
+        tap.feed(&Bytes::from(r#"data: {"choices":[],"usage":{"prompt_tok"#));
         tap.feed(&Bytes::from(
             r#"ens":12,"completion_tokens":3,"prompt_tokens_details":{"cached_tokens":2}}}"#,
         ));
@@ -1541,7 +1536,8 @@ mod token_tap {
         // Anthropic non-SSE.
         {
             let mut tap = TokenTap::new(ApiKind::Anthropic, false);
-            let body = r#"{"usage":{"input_tokens":12,"output_tokens":3,"cache_read_input_tokens":2}}"#;
+            let body =
+                r#"{"usage":{"input_tokens":12,"output_tokens":3,"cache_read_input_tokens":2}}"#;
             tap.feed(&Bytes::from(body));
             tap.finish();
             assert_eq!(tap.prompt(), Some(12));

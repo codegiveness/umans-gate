@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-label="umans-gate" role="img">
+  <style>
+    .gate {
+      fill: #e2e8f0;
+    }
+    @media (prefers-color-scheme: light) {
+      .gate {
+        fill: #0f172a;
+      }
+    }
+  </style>
+  <path class="gate" d="M2 5h20v2H2V5Zm3 17V7h2v15H5Zm12 0V7h2v15h-2ZM8 11h8v2H8v-2Z" opacity="0.9"/>
+</svg>

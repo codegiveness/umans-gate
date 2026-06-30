@@ -5,7 +5,13 @@
 
 pub mod concurrency;
 pub mod config;
+#[cfg(feature = "hot-reload")]
+pub mod config_store;
 pub mod dashboard;
 pub mod error;
+pub mod model_fetch;
 pub mod proxy;
+pub mod shutdown;
 pub mod types;
+
+pub use axum::serve;

@@ -182,9 +182,7 @@ mod tests {
     #[test]
     fn kill_button_not_shown_for_recent_requests() {
         use crate::dashboard::templates::RequestFragment;
-        use crate::dashboard::tracker::{
-            local_offset_label, ProtocolVersion, RequestTracker,
-        };
+        use crate::dashboard::tracker::{local_offset_label, ProtocolVersion, RequestTracker};
         use crate::types::{ModelId, ProviderId, Weight};
         use uuid::Uuid;
 
@@ -221,9 +219,7 @@ mod tests {
     #[test]
     fn kill_button_shown_for_old_requests() {
         use crate::dashboard::templates::RequestFragment;
-        use crate::dashboard::tracker::{
-            local_offset_label, ProtocolVersion, RequestTracker,
-        };
+        use crate::dashboard::tracker::{local_offset_label, ProtocolVersion, RequestTracker};
         use crate::types::{ModelId, ProviderId, Weight};
         use uuid::Uuid;
 

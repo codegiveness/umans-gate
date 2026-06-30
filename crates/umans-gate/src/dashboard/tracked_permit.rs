@@ -102,8 +102,12 @@ mod tests {
     use crate::types::{ModelId, ProviderId, Weight};
     use tokio::sync::broadcast;
 
-    async fn make_permit_and_tracker(
-    ) -> (Arc<ProviderLimiter>, Arc<RequestTracker>, TrackedPermit, Uuid) {
+    async fn make_permit_and_tracker() -> (
+        Arc<ProviderLimiter>,
+        Arc<RequestTracker>,
+        TrackedPermit,
+        Uuid,
+    ) {
         let (tx, _rx) = broadcast::channel::<MetricUpdate>(256);
         let lim = Arc::new(ProviderLimiter::new(tx));
         lim.register(
@@ -133,9 +137,7 @@ mod tests {
         );
         tracker.mark_running(id, Some(ProtocolVersion::Http11));
 
-        let token = tracker
-            .cancellation_token(id)
-            .unwrap_or_else(CancellationToken::new);
+        let token = tracker.cancellation_token(id).unwrap_or_default();
         let tracked = TrackedPermit::new(permit, id, Arc::clone(&tracker), token);
         (lim, tracker, tracked, id)
     }
@@ -144,14 +146,12 @@ mod tests {
     async fn drop_calls_mark_done() {
         let (_lim, tracker, permit, _id) = make_permit_and_tracker().await;
 
-        // While the guard is alive, status is Running.
         assert_eq!(
             tracker.snapshot()[0].status,
             RequestStatus::Running,
             "request should be Running while permit is held"
         );
 
-        // Drop the guard — mark_done must be called.
         drop(permit);
 
         let snap = tracker.snapshot();
@@ -165,6 +165,16 @@ mod tests {
             snap[0].completed_at.is_some(),
             "completed_at should be set on Done"
         );
+        assert_eq!(snap[0].internal_status, Some(200));
+        assert!(snap[0].migrated_to_history);
+
+        let hist = tracker.history();
+        assert_eq!(
+            hist.len(),
+            1,
+            "record should be migrated to history on drop"
+        );
+        assert_eq!(hist[0].status, RequestStatus::Done);
     }
 
     #[tokio::test]
@@ -218,6 +228,11 @@ mod tests {
             tracker.snapshot()[0].completed_at.is_some(),
             "completed_at should be set on Cancelled"
         );
+        assert_eq!(
+            tracker.snapshot()[0].internal_status,
+            Some(400),
+            "internal_status should be 400 on Cancelled"
+        );
 
         // Drop releases the weighted permit once and keeps status Cancelled.
         drop(permit);
@@ -225,7 +240,8 @@ mod tests {
         assert_eq!(snap.len(), 1);
         assert_eq!(snap[0].status, RequestStatus::Cancelled);
         assert_eq!(
-            lim.snapshot()[0].in_flight, 0.0,
+            lim.snapshot()[0].in_flight,
+            0.0,
             "weighted capacity should be released exactly once"
         );
     }
@@ -247,7 +263,8 @@ mod tests {
 
         drop(permit);
         assert_eq!(
-            lim.snapshot()[0].in_flight, 0.0,
+            lim.snapshot()[0].in_flight,
+            0.0,
             "weighted capacity should be released exactly once"
         );
     }
@@ -269,7 +286,8 @@ mod tests {
             "Drop should not transition an already-Cancelled record"
         );
         assert_eq!(
-            lim.snapshot()[0].in_flight, 0.0,
+            lim.snapshot()[0].in_flight,
+            0.0,
             "weighted capacity should be released exactly once"
         );
     }

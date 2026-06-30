@@ -28,7 +28,6 @@ use tokio::net::TcpListener;
 use tokio::sync::broadcast;
 use tokio::task::{JoinHandle, JoinSet};
 use tokio::time::sleep;
-use tokio_util::sync::CancellationToken;
 use umans_gate::concurrency::{MetricUpdate, ProviderLimiter};
 use umans_gate::config_store::ConfigStore;
 use umans_gate::dashboard::tracked_permit::TrackedPermit;
@@ -223,9 +222,7 @@ async fn make_live_permit(
         .expect("acquire live permit");
 
     tracker.mark_running(id, Some(ProtocolVersion::Http11));
-    let token = tracker
-        .cancellation_token(id)
-        .unwrap_or_else(CancellationToken::new);
+    let token = tracker.cancellation_token(id).unwrap_or_default();
     TrackedPermit::new(permit, id, Arc::clone(tracker), token)
 }
 

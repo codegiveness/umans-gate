@@ -1,14 +1,34 @@
+# Example / default configuration for umans-gate.
+# Copy this file to config.yaml and edit providers, models, weights, and bind addresses to taste.
 bind: "0.0.0.0:8080"
-dashboard_bind: "0.0.0.0:9090"
+
+# Dashboard configuration. The dashboard has no authentication, so it defaults to localhost only.
+dashboard:
+  bind: "127.0.0.1:9090"
+  history:
+    max: 1000
+  kill_button:
+    min_age_seconds: 300
+
 providers:
   - id: umans
     upstream_url: "https://api.code.umans.ai"
     capacity: 4.0
     timeouts:
-      connect: { secs: 10, nanos: 0 }
-      ttfb: { secs: 30, nanos: 0 }
-      stream_idle: { secs: 60, nanos: 0 }
-      total: { secs: 300, nanos: 0 }
+      # TCP connect timeout. null disables the limit (wait indefinitely).
+      connect: null
+      # Time-to-first-byte timeout. null disables the limit.
+      ttfb: null
+      # Maximum idle time between SSE stream chunks. null disables the limit.
+      stream_idle: null
+      # Hard total timeout per request. null disables the limit.
+      total: null
+      # Maximum time a request may wait in the provider queue before being rejected.
+      queuetimeout: { secs: 300, nanos: 0 }
+      # Maximum number of requests that may wait in the provider queue.
+      maxqueue: 64
+      # Cooldown between attempts to acquire a permit from the queue.
+      permit_cooldown: { secs: 1, nanos: 0 }
     models:
       - id: umans-coder
         weight: 1.0
@@ -20,14 +40,5 @@ providers:
         weight: 1.0
       - id: umans-qwen3.6-35b-a3b
         weight: 0.5
-  - id: opencode-go
-    upstream_url: "http://127.0.0.1:0"
-    capacity: 4.0
-    timeouts:
-      connect: { secs: 10, nanos: 0 }
-      ttfb: { secs: 30, nanos: 0 }
-      stream_idle: { secs: 60, nanos: 0 }
-      total: { secs: 300, nanos: 0 }
-    models:
-      - id: opencode-go-default
+      - id: umans-glm-5.2-nvfp4
         weight: 1.0

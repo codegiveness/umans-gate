@@ -7,37 +7,60 @@
   <link rel="stylesheet" href="/static/app.css">
   <script src="/static/htmx.min.js"></script>
 </head>
-<body class="bg-slate-950 text-slate-200 min-h-screen">
-  <div class="max-w-7xl mx-auto px-4 py-6">
-    <header class="mb-6">
-      <h1 class="text-2xl md:text-3xl font-semibold tracking-tight text-slate-100">umans-gate</h1>
-      <p class="text-sm text-slate-500">weighted concurrency dashboard</p>
+<body class="bg-canvas text-primary h-screen overflow-hidden">
+  <div class="h-screen flex flex-col max-w-7xl mx-auto px-4 py-6">
+    <header class="flex items-center gap-3 mb-4 shrink-0">
+      <img src="/static/gate.svg" alt="" class="h-8 w-8" width="32" height="32">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-semibold tracking-tight text-slate-100">umans-gate</h1>
+        <p class="text-sm text-slate-500">weighted concurrency dashboard</p>
+      </div>
     </header>
 
     <div id="provider-gauges"
          hx-get="/dashboard/providers"
          hx-trigger="every 1s"
-         hx-swap="innerHTML">
-    <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {% for provider in providers %}
-      <article class="bg-slate-900 rounded-lg p-4">
-        <div class="flex items-baseline justify-between gap-3">
-          <h2 class="text-sm font-medium text-slate-300">{{ provider.provider }}</h2>
-          <span class="text-xs tabular-nums text-slate-500">{{ provider.in_flight }} / {{ provider.capacity }} weight</span>
-        </div>
-        <div class="mt-3 bg-slate-700 h-2 rounded-full overflow-hidden">
-          <div class="bg-emerald-500 h-2 rounded-full" style="width: {{ provider.pct() }}%"></div>
-        </div>
-      </article>
-      {% endfor %}
-    </section>
+         hx-swap="innerHTML"
+         class="shrink-0">
     </div>
 
-    <div id="request-list"
-         hx-get="/dashboard/requests"
-         hx-trigger="every 1s"
-         hx-swap="innerHTML"
-         class="mt-6"></div>
+    <nav class="flex gap-1 mt-4 border-b border-slate-800 shrink-0" role="tablist">
+      <button hx-get="/dashboard/requests" hx-target="#request-list" hx-swap="innerHTML"
+              hx-trigger="click"
+              onclick="activateTab(this, 'request-list')"
+              class="px-4 py-2 text-sm font-medium border-b-2 border-emerald-500 text-emerald-400 cursor-pointer transition-colors duration-150 hover:bg-slate-800/50 hover:text-slate-200 rounded-t">Queue</button>
+      <button hx-get="/dashboard/history" hx-target="#history-list" hx-swap="innerHTML"
+              hx-trigger="click"
+              onclick="activateTab(this, 'history-list')"
+              class="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-slate-500 cursor-pointer transition-colors duration-150 hover:bg-slate-800/50 hover:text-slate-200 rounded-t">History</button>
+    </nav>
+
+    <div class="flex-1 min-h-0 mt-4 relative">
+      <div id="request-list"
+           hx-get="/dashboard/requests"
+           hx-trigger="every 1s"
+           hx-swap="innerHTML"
+           class="absolute inset-0 overflow-y-auto"></div>
+      <div id="history-list"
+           hx-get="/dashboard/history"
+           hx-trigger="every 1s"
+           hx-swap="innerHTML"
+           class="absolute inset-0 overflow-y-auto hidden"></div>
+    </div>
   </div>
+
+  <script>
+    function activateTab(btn, paneId) {
+      const tabs = btn.parentElement.querySelectorAll('button');
+      tabs.forEach(function (b) {
+        b.classList.remove('border-emerald-500', 'text-emerald-400');
+        b.classList.add('border-transparent', 'text-slate-500');
+      });
+      btn.classList.remove('border-transparent', 'text-slate-500');
+      btn.classList.add('border-emerald-500', 'text-emerald-400');
+      document.getElementById('request-list').classList.toggle('hidden', paneId !== 'request-list');
+      document.getElementById('history-list').classList.toggle('hidden', paneId !== 'history-list');
+    }
+  </script>
 </body>
 </html>

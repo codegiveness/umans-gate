@@ -1,0 +1,63 @@
+# Advanced example configuration with OpenAI and Anthropic providers.
+bind: "0.0.0.0:8080"
+
+# Dashboard configuration. The dashboard has no authentication, so it defaults to localhost only.
+dashboard:
+  bind: "127.0.0.1:9090"
+
+providers:
+  - id: openai
+    upstream_url: "https://api.openai.com"
+    capacity: 10.0
+    timeouts:
+      # TCP connect timeout. null disables the limit (wait indefinitely).
+      connect: { secs: 15, nanos: 0 }
+      # Time-to-first-byte timeout.
+      ttfb: { secs: 45, nanos: 0 }
+      # Maximum idle time between SSE stream chunks.
+      stream_idle: { secs: 90, nanos: 0 }
+      # Hard total timeout per request.
+      total: { secs: 600, nanos: 0 }
+      # Maximum time a request may wait in the provider queue before being rejected.
+      queuetimeout: { secs: 300, nanos: 0 }
+      # Maximum number of requests that may wait in the provider queue.
+      maxqueue: 64
+      # Cooldown between attempts to acquire a permit from the queue.
+      permit_cooldown: { secs: 1, nanos: 0 }
+    models:
+      - id: gpt-4o
+        weight: 2.5
+      - id: gpt-4-turbo
+        weight: 2.0
+      - id: gpt-4
+        weight: 1.5
+      - id: gpt-3.5-turbo
+        weight: 0.5
+
+  - id: anthropic
+    upstream_url: "https://api.anthropic.com"
+    capacity: 8.0
+    timeouts:
+      # TCP connect timeout. null disables the limit (wait indefinitely).
+      connect: { secs: 8, nanos: 0 }
+      # Time-to-first-byte timeout.
+      ttfb: { secs: 20, nanos: 0 }
+      # Maximum idle time between SSE stream chunks.
+      stream_idle: { secs: 45, nanos: 0 }
+      # Hard total timeout per request.
+      total: { secs: 400, nanos: 0 }
+      # Maximum time a request may wait in the provider queue before being rejected.
+      queuetimeout: { secs: 300, nanos: 0 }
+      # Maximum number of requests that may wait in the provider queue.
+      maxqueue: 64
+      # Cooldown between attempts to acquire a permit from the queue.
+      permit_cooldown: { secs: 1, nanos: 0 }
+    models:
+      - id: claude-3-opus
+        weight: 2.0
+      - id: claude-3-sonnet
+        weight: 1.25
+      - id: claude-3-haiku
+        weight: 0.5
+      - id: claude-3-5-sonnet
+        weight: 1.5

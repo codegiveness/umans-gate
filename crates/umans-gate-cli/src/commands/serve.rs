@@ -1,12 +1,13 @@
 //! Serve command: start the gateway proxy + dashboard with graceful shutdown.
 
 use std::net::SocketAddr;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Context;
+use directories::ProjectDirs;
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto::Builder;
 use hyper_util::service::TowerToHyperService;
@@ -27,30 +28,31 @@ use umans_gate::types::GatewayConfig;
 
 /// Start the gateway: proxy on `config.bind`, dashboard on `config.dashboard_bind`.
 ///
-/// Loads the config, builds the concurrency limiter + config store, wires up the
-/// proxy and dashboard routers, binds TCP listeners, installs signal handlers,
-/// and runs the proxy server in the foreground with graceful shutdown.
+/// Discovers the config file via XDG search order, loads it, builds the
+/// concurrency limiter + config store, wires up the proxy and dashboard
+/// routers, binds TCP listeners, installs signal handlers, and runs the
+/// proxy server in the foreground with graceful shutdown.
 ///
 /// On a clean shutdown returns `ExitCode::SUCCESS`; on SIGQUIT (zero timeout) or
 /// server error returns a failure `ExitCode`.
 pub async fn run(
-    config_path: &Path,
+    config_arg: Option<&Path>,
     bind: Option<String>,
+    dashboard_bind: Option<String>,
     watch: bool,
     history_max: Option<usize>,
     kill_min_age_seconds: Option<u64>,
 ) -> anyhow::Result<ExitCode> {
-    let mut config = if config_path.is_file() {
-        GatewayConfig::load(config_path)
-            .with_context(|| format!("loading config from {}", config_path.display()))?
-    } else {
-        info!(
-            "No config file found at {}, fetching model list from https://api.code.umans.ai/v1/models/info...",
-            config_path.display()
-        );
-        umans_gate::model_fetch::fetch_default_config()
+    let (config_path, config_source) = discover_config(config_arg);
+
+    info!(source = %config_source, "using config source");
+
+    let mut config = match config_path.as_deref() {
+        Some(path) => GatewayConfig::load(path)
+            .with_context(|| format!("loading config from {}", path.display()))?,
+        None => umans_gate::model_fetch::fetch_default_config()
             .await
-            .with_context(|| "fetching default config from Umans API")?
+            .with_context(|| "fetching default config from Umans API")?,
     };
 
     if let Some(ref mut dash) = config.dashboard {
@@ -68,7 +70,12 @@ pub async fn run(
             .with_context(|| format!("invalid --bind address: {b}"))?,
         None => config.bind,
     };
-    let dashboard_addr = config.dashboard_bind;
+    let dashboard_addr = match &dashboard_bind {
+        Some(b) => b
+            .parse::<SocketAddr>()
+            .with_context(|| format!("invalid --dashboard-bind address: {b}"))?,
+        None => config.dashboard_bind,
+    };
 
     let proxy_listener = TcpListener::bind(bind_addr)
         .await
@@ -81,15 +88,50 @@ pub async fn run(
     let shutdown = Arc::new(sig);
     install(&shutdown);
 
+    let effective_watch = watch && config_path.is_some();
+
     serve_with_listeners(
-        config_path,
+        config_path.as_deref().unwrap_or(Path::new("")),
         proxy_listener,
         dashboard_listener,
         config,
-        watch,
+        effective_watch,
         shutdown,
     )
     .await
+}
+
+/// Discover the config file path following XDG search order.
+///
+/// 1. `--config <path>` if provided (used as-is, even if it doesn't exist —
+///    `GatewayConfig::load` will report the error).
+/// 2. `config.yaml` in the current working directory.
+/// 3. `~/.config/umans-gate/config.yaml` via `directories::ProjectDirs`.
+/// 4. `None` — caller will auto-fetch from the models info URL.
+fn discover_config(config_arg: Option<&Path>) -> (Option<PathBuf>, String) {
+    if let Some(path) = config_arg {
+        return (
+            Some(path.to_path_buf()),
+            format!("--config {}", path.display()),
+        );
+    }
+
+    let cwd_config = PathBuf::from("config.yaml");
+    if cwd_config.is_file() {
+        return (Some(cwd_config), "config.yaml (cwd)".to_string());
+    }
+
+    if let Some(proj) = ProjectDirs::from("", "", "umans-gate") {
+        let xdg_config = proj.config_dir().join("config.yaml");
+        if xdg_config.is_file() {
+            return (
+                Some(xdg_config.clone()),
+                format!("xdg:{}", xdg_config.display()),
+            );
+        }
+    }
+
+    (None, "auto-fetched from models_info_url".to_string())
 }
 
 async fn serve_with_listeners(
