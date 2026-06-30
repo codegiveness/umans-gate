@@ -197,7 +197,10 @@ impl TokenTap {
             Some("message_start") => {
                 if let Some(usage) = json.get("message").and_then(|m| m.get("usage")) {
                     self.prompt_tokens = opt_u64(usage.get("input_tokens"));
-                    self.cached_tokens = opt_u64(usage.get("cache_read_input_tokens"));
+                    let cache_creation = opt_u64(usage.get("cache_creation_input_tokens"))
+                        .unwrap_or(0);
+                    let cache_read = opt_u64(usage.get("cache_read_input_tokens")).unwrap_or(0);
+                    self.cached_tokens = Some(cache_creation + cache_read);
                 }
             }
             Some("message_delta") => {
@@ -1478,6 +1481,49 @@ mod token_tap {
         assert_eq!(tap.prompt(), Some(12));
         assert_eq!(tap.completion(), Some(3));
         assert_eq!(tap.cached(), Some(2));
+    }
+
+    #[test]
+    fn token_tap_anthropic_cache_creation_combined() {
+        let mut tap = TokenTap::new(ApiKind::Anthropic, true);
+
+        tap.feed(&Bytes::from("event: message_start\n"));
+        tap.feed(&Bytes::from(
+            r#"data: {"type":"message_start","message":{"usage":{"input_tokens":12,"cache_creation_input_tokens":100,"cache_read_input_tokens":50,"output_tokens":0}}}"#,
+        ));
+        tap.feed(&Bytes::from("\n\n"));
+
+        tap.feed(&Bytes::from("event: message_delta\n"));
+        tap.feed(&Bytes::from(
+            r#"data: {"type":"message_delta","usage":{"output_tokens":3}}"#,
+        ));
+        tap.feed(&Bytes::from("\n\n"));
+
+        tap.finish();
+        assert_eq!(tap.prompt(), Some(12));
+        assert_eq!(tap.completion(), Some(3));
+        assert_eq!(tap.cached(), Some(150));
+    }
+
+    #[test]
+    fn token_tap_anthropic_message_delta_not_missed() {
+        let mut tap = TokenTap::new(ApiKind::Anthropic, true);
+
+        tap.feed(&Bytes::from("event: message_start\n"));
+        tap.feed(&Bytes::from(
+            r#"data: {"type":"message_start","message":{"usage":{"input_tokens":12,"cache_creation_input_tokens":100,"cache_read_input_tokens":50,"output_tokens":0}}}"#,
+        ));
+        tap.feed(&Bytes::from("\n\n"));
+
+        tap.feed(&Bytes::from("event: message_delta\n"));
+        tap.feed(&Bytes::from(
+            r#"data: {"type":"message_delta","usage":{"output_tokens":3}}"#,
+        ));
+        tap.feed(&Bytes::from("\n\n"));
+
+        tap.finish();
+        assert_eq!(tap.completion(), Some(3));
+        assert_eq!(tap.cached(), Some(150));
     }
 
     #[test]
