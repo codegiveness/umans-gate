@@ -54,5 +54,8 @@ jobs:
       - name: Build workspace
         run: cargo build --workspace --all-targets
 
+      - name: Build static/app.css
+        run: make css
+
       - name: Run tests
         run: cargo test --workspace --all-targets
