@@ -26,7 +26,9 @@ use super::timeouts::forward_with_timeouts;
 ///
 /// Loads config once, resolves the provider from the first path segment,
 /// parses the request body JSON for `"model"` and `"stream"`, acquires a
-/// [`WeightedPermit`], and forwards the buffered body unchanged. The permit is
+/// [`WeightedPermit`], and forwards the buffered body. For OpenAI-format
+/// streaming requests (`"stream": true`), the body is mutated to inject
+/// `"stream_options": {"include_usage": true}` before forwarding. The permit is
 /// moved into the response body stream by [`forward_with_timeouts`]; this
 /// function never holds it after return.
 ///
@@ -40,7 +42,7 @@ pub async fn proxy_handler(
     let client_protocol = ProtocolVersion::from(req.version());
     let (parts, body) = req.into_parts();
     let method = parts.method;
-    let headers = parts.headers;
+    let mut headers = parts.headers;
     let body = body
         .collect()
         .await
@@ -97,6 +99,16 @@ pub async fn proxy_handler(
 
     let upstream_uri = format!("{base}{normalized_path}");
 
+    let body = match inject_stream_options(&body) {
+        Some(new_body) => {
+            headers.insert(
+                hyper::header::CONTENT_LENGTH,
+                new_body.len().to_string().parse().unwrap(),
+            );
+            new_body
+        }
+        None => body.to_vec(),
+    };
     let body = axum::body::Body::from(body);
 
     forward_with_timeouts(
@@ -121,6 +133,36 @@ fn detect_stream(body: &[u8]) -> bool {
         .ok()
         .and_then(|v| v.get("stream")?.as_bool())
         .unwrap_or(false)
+}
+
+/// Inject `"stream_options": {"include_usage": true}` into an OpenAI-format
+/// request body when `"stream": true` is present and `include_usage` is not
+/// already `true`.
+///
+/// Returns `Some(new_body)` when the body was modified, or `None` when the body
+/// should be forwarded unchanged (non-streaming, malformed JSON, or already
+/// requesting usage).
+fn inject_stream_options(body: &[u8]) -> Option<Vec<u8>> {
+    let mut value: Value = serde_json::from_slice(body).ok()?;
+    let stream = value.get("stream")?.as_bool()?;
+    if !stream {
+        return None;
+    }
+    let include_usage = value
+        .get("stream_options")
+        .and_then(|opts| opts.get("include_usage"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    if include_usage {
+        return None;
+    }
+    let stream_options = serde_json::json!({"include_usage": true});
+    if let Value::Object(map) = &mut value {
+        map.insert("stream_options".to_string(), stream_options);
+    } else {
+        return None;
+    }
+    serde_json::to_vec(&value).ok()
 }
 
 #[cfg(test)]
@@ -255,7 +297,8 @@ mod tests {
         let state = make_state(upstream_url, TimeoutConfig::default());
         let app = proxy_router(state.clone());
 
-        let expected_body = r#"{"model":"umans-kimi-k2.7","messages":[],"stream":true}"#;
+        let input_body = r#"{"model":"umans-kimi-k2.7","messages":[],"stream":true}"#;
+        let expected_body = r#"{"messages":[],"model":"umans-kimi-k2.7","stream":true,"stream_options":{"include_usage":true}}"#;
         let resp = app
             .oneshot(
                 Request::builder()
@@ -263,7 +306,7 @@ mod tests {
                     .uri("/openai/v1/chat/completions")
                     .header("authorization", "Bearer sk-test")
                     .header("content-type", "application/json")
-                    .body(Body::from(expected_body))
+                    .body(Body::from(input_body))
                     .unwrap(),
             )
             .await
@@ -448,6 +491,108 @@ mod tests {
         assert!(!detect_stream(br#"{"model":"gpt-4"}"#));
         assert!(!detect_stream(br#"not json at all"#));
         assert!(!detect_stream(br#"{"stream":"yes"}"#));
+    }
+
+    #[tokio::test]
+    async fn stream_options_injected_when_stream_true() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let rx = spawn_mock(listener, b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello");
+
+        let upstream_url = Url::parse(&format!("http://127.0.0.1:{port}")).unwrap();
+        let state = make_state(upstream_url, TimeoutConfig::default());
+        let app = proxy_router(state);
+
+        let input_body = r#"{"model":"gpt-4","stream":true,"messages":[]}"#;
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/openai/v1/chat/completions")
+                    .header("content-type", "application/json")
+                    .body(Body::from(input_body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let upstream_req = rx.await.unwrap();
+        let upstream_body = upstream_req.split("\r\n\r\n").nth(1).unwrap_or("");
+        let value: Value = serde_json::from_str(upstream_body).unwrap();
+        assert_eq!(value["stream"], true);
+        assert_eq!(
+            value["stream_options"],
+            serde_json::json!({"include_usage": true})
+        );
+    }
+
+    #[tokio::test]
+    async fn stream_options_not_overwritten_when_present() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let rx = spawn_mock(listener, b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello");
+
+        let upstream_url = Url::parse(&format!("http://127.0.0.1:{port}")).unwrap();
+        let state = make_state(upstream_url, TimeoutConfig::default());
+        let app = proxy_router(state);
+
+        let input_body =
+            r#"{"model":"gpt-4","stream":true,"stream_options":{"include_usage":true}}"#;
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/openai/v1/chat/completions")
+                    .header("content-type", "application/json")
+                    .body(Body::from(input_body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let upstream_req = rx.await.unwrap();
+        let upstream_body = upstream_req.split("\r\n\r\n").nth(1).unwrap_or("");
+        assert_eq!(
+            upstream_body, input_body,
+            "existing stream_options should be preserved byte-identical: {upstream_req}"
+        );
+    }
+
+    #[tokio::test]
+    async fn body_unchanged_when_stream_false() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let rx = spawn_mock(listener, b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\n\r\nhello");
+
+        let upstream_url = Url::parse(&format!("http://127.0.0.1:{port}")).unwrap();
+        let state = make_state(upstream_url, TimeoutConfig::default());
+        let app = proxy_router(state);
+
+        let input_body = r#"{"model":"gpt-4","stream":false,"messages":[]}"#;
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/openai/v1/chat/completions")
+                    .header("content-type", "application/json")
+                    .body(Body::from(input_body))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::OK);
+
+        let upstream_req = rx.await.unwrap();
+        let upstream_body = upstream_req.split("\r\n\r\n").nth(1).unwrap_or("");
+        assert_eq!(
+            upstream_body, input_body,
+            "non-streaming body should be forwarded byte-identical: {upstream_req}"
+        );
     }
 
     #[tokio::test]

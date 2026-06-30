@@ -25,6 +25,7 @@ use umans_gate::shutdown::{ShutdownSignal, ShutdownToken};
 use umans_gate::types::{
     GatewayConfig, ModelConfig, ModelId, ProviderConfig, ProviderId, TimeoutConfig, Weight,
 };
+use serde_json::{json, Value};
 use url::Url;
 
 // ---------------------------------------------------------------------------
@@ -174,7 +175,7 @@ const HOP_BY_HOP: &[&str] = &[
 // ---------------------------------------------------------------------------
 
 /// 1 + 7. POST /v1/chat/completions: request line, Host, hop-by-hop stripped,
-/// body byte-identical, HTTP/1.1 response version.
+/// JSON body fields preserved with stream_options injected, HTTP/1.1 response version.
 #[tokio::test]
 async fn full_chat_passthrough() {
     let mock_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -230,11 +231,20 @@ async fn full_chat_passthrough() {
         );
     }
 
-    // 4. Body byte-identical.
+    // 4. Body is streaming JSON with injected stream_options; assert fields,
+    // not byte identity, because serde_json::Value reorders keys.
     let upstream_body = upstream_req.split("\r\n\r\n").nth(1).unwrap_or("");
+    let upstream_value: Value =
+        serde_json::from_str(upstream_body).expect("upstream body should be valid JSON");
+    assert_eq!(upstream_value["model"], "umans-kimi-k2.7");
     assert_eq!(
-        upstream_body, body,
-        "upstream body was not byte-identical: {upstream_req}"
+        upstream_value["messages"],
+        json!([{"role": "user", "content": "hi"}])
+    );
+    assert_eq!(upstream_value["stream"], true);
+    assert_eq!(
+        upstream_value["stream_options"],
+        json!({"include_usage": true})
     );
 
     token.signal();
