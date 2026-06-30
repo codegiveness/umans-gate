@@ -514,9 +514,7 @@ impl RequestTracker {
     /// True if the record is currently in a terminal state. Missing records are
     /// treated as terminal so that Drop guards do not attempt transitions.
     pub fn is_terminal(&self, id: Uuid) -> bool {
-        self.requests
-            .get(&id)
-            .is_none_or(|entry| entry.is_terminal)
+        self.requests.get(&id).is_none_or(|entry| entry.is_terminal)
     }
 
     /// Transition a request to Done. Idempotent: no-op if already terminal.
