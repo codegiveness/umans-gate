@@ -177,14 +177,6 @@ impl TokenTap {
     }
 
     fn extract_openai_sse(&mut self, json: &serde_json::Value) {
-        let choices_empty = json
-            .get("choices")
-            .and_then(|c| c.as_array())
-            .map(|a| a.is_empty())
-            .unwrap_or(false);
-        if !choices_empty {
-            return;
-        }
         let usage = match json.get("usage") {
             Some(u) if !u.is_null() => u,
             _ => return,
@@ -1405,6 +1397,44 @@ mod token_tap {
 
     #[test]
     fn token_tap_openai_stream_without_usage() {
+        let mut tap = TokenTap::new(ApiKind::OpenAI, true);
+
+        tap.feed(&Bytes::from(
+            r#"data: {"choices":[{"delta":{"content":"Hello"}}]}"#,
+        ));
+        tap.feed(&Bytes::from("\n\n"));
+        tap.feed(&Bytes::from("data: [DONE]\n\n"));
+
+        tap.finish();
+        assert_eq!(tap.prompt(), None);
+        assert_eq!(tap.completion(), None);
+        assert_eq!(tap.cached(), None);
+    }
+
+    #[test]
+    fn token_tap_openai_stream_with_cached_tokens() {
+        let mut tap = TokenTap::new(ApiKind::OpenAI, true);
+
+        tap.feed(&Bytes::from(
+            r#"data: {"choices":[{"delta":{"content":"Hello"}}]}"#,
+        ));
+        tap.feed(&Bytes::from("\n\n"));
+
+        tap.feed(&Bytes::from(
+            r#"data: {"id":"chatcmpl-test","choices":[{"index":0,"delta":{}}],"usage":{"prompt_tokens":18,"completion_tokens":50,"prompt_tokens_details":{"cached_tokens":7}}}"#,
+        ));
+        tap.feed(&Bytes::from("\n\n"));
+
+        tap.feed(&Bytes::from("data: [DONE]\n\n"));
+
+        tap.finish();
+        assert_eq!(tap.prompt(), Some(18));
+        assert_eq!(tap.completion(), Some(50));
+        assert_eq!(tap.cached(), Some(7));
+    }
+
+    #[test]
+    fn token_tap_openai_stream_no_usage() {
         let mut tap = TokenTap::new(ApiKind::OpenAI, true);
 
         tap.feed(&Bytes::from(
