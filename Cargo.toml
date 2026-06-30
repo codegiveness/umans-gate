@@ -11,7 +11,7 @@ unsafe_code = "forbid"
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.85"
+rust-version = "1.88"
 license = "MIT"
 authors = ["codegiveness"]
 repository = "https://github.com/codegiveness/umans-gate"
