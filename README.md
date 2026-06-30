@@ -2,7 +2,7 @@
 
 ![CI](https://github.com/codegiveness/umans-gate/actions/workflows/release.yml/badge.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue)
-![Rust Version](https://img.shields.io/badge/rust-1.75-orange)
+![Rust Version](https://img.shields.io/badge/rust-1.85-orange)
 
 > Provider-agnostic OpenAI-compatible weighted concurrency gateway proxy
 
