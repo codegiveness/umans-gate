@@ -516,7 +516,7 @@ impl RequestTracker {
     pub fn is_terminal(&self, id: Uuid) -> bool {
         self.requests
             .get(&id)
-            .map_or(true, |entry| entry.is_terminal)
+            .is_none_or(|entry| entry.is_terminal)
     }
 
     /// Transition a request to Done. Idempotent: no-op if already terminal.
@@ -633,7 +633,7 @@ impl RequestTracker {
             if !is_terminal_status {
                 return true;
             }
-            let is_stale = record.completed_at.map_or(true, |t| t <= cutoff);
+            let is_stale = record.completed_at.is_none_or(|t| t <= cutoff);
             if !is_stale {
                 return true;
             }
