@@ -11,7 +11,7 @@ unsafe_code = "forbid"
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.75"
+rust-version = "1.85"
 license = "MIT"
 authors = ["codegiveness"]
 repository = "https://github.com/codegiveness/umans-gate"
@@ -37,9 +37,7 @@ thiserror = "2.0"
 anyhow = "1.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
-# askama 0.16 uses Cargo edition2024, which requires Rust >= 1.85.
-# Pin to 0.13 to keep the advertised MSRV at 1.75.
-askama = "0.13"
+askama = "0.16"
 rust-embed = "8.11"
 self_update = { version = "0.44", default-features = false, features = ["rustls", "reqwest", "archive-tar", "compression-flate2"] }
 self-replace = "1.5"
