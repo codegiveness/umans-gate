@@ -1,0 +1,30 @@
+- generic [ref=f1e3]:
+  - link "Skip to content" [ref=f1e169] [cursor=pointer]:
+    - /url: "#main"
+  - generic [ref=f1e5]:
+    - banner [ref=f1e6]:
+      - heading "umans-gate" [level=1] [ref=f1e170]
+      - tablist [ref=f1e9]:
+        - tab "Captures" [ref=f1e171]
+        - tab "Vision Calls" [ref=f1e172]
+        - tab "Performance" [active] [selected] [ref=f1e173]
+        - tab "Models" [ref=f1e174]
+        - tab "Config" [ref=f1e175]
+      - 'generic "Theme: dark" [ref=f1e176]':
+        - img [ref=f1e51]
+    - main "Inspector" [ref=f1e177]:
+      - tabpanel "Performance" [ref=f1e198]:
+        - generic [ref=f1e199]:
+          - generic [ref=f1e200]:
+            - generic [ref=f1e201]:
+              - heading "Performance" [level=2] [ref=f1e202]
+              - generic [ref=f1e203]: 0 models
+            - button "Refresh" [ref=f1e204]:
+              - img
+              - text: Refresh
+          - generic [ref=f1e207]:
+            - img [ref=f1e208]
+            - paragraph [ref=f1e211]: No performance data yet
+            - paragraph [ref=f1e212]: Send requests through the proxy to see stats.
+  - region "Notifications alt+T"
+  - status [ref=f1e49]: Copy

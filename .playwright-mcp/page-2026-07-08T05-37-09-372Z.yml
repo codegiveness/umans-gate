@@ -1,0 +1,8 @@
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - heading "Umans GLM 5.2 NVFP4 (experimental, short test from Jun 29)" [level=3] [ref=e7]
+      - paragraph [ref=e8]: umans-glm-5.2-nvfp4
+    - generic [ref=e11]: weight=1.0
+  - paragraph [ref=e12]: GLM
+  - paragraph [ref=e13]: Experimental NVFP4-quantized build of GLM 5.2, open for a short test window starting June 29, 2026 — temporary, not a permanent model.

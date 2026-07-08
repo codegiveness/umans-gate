@@ -1,0 +1,197 @@
+- generic [ref=f1e3]:
+  - banner [ref=f1e4]:
+    - heading "umans-gate" [level=1] [ref=f1e5]
+    - button "Toggle theme" [ref=f1e6] [cursor=pointer]:
+      - img
+      - generic [ref=f1e7]: Toggle theme
+  - generic [ref=f1e8]:
+    - tablist [ref=f1e9]:
+      - tab "Captures" [ref=f1e10] [cursor=pointer]
+      - tab "Vision Calls" [ref=f1e11] [cursor=pointer]
+      - tab "Performance" [active] [selected] [ref=f1e12] [cursor=pointer]
+      - tab "Config" [ref=f1e13] [cursor=pointer]
+    - tabpanel "Performance" [ref=f1e653]:
+      - generic [ref=f1e1510]:
+        - banner [ref=f1e1511]:
+          - generic [ref=f1e1512]:
+            - heading "Performance" [level=2] [ref=f1e1513]
+            - generic [ref=f1e1514]: 3 models
+          - button "Refresh" [ref=f1e1515] [cursor=pointer]:
+            - img
+            - text: Refresh
+        - generic [ref=f1e1520]:
+          - generic [ref=f1e1522]:
+            - generic [ref=f1e1523]:
+              - generic [ref=f1e1524]:
+                - heading "claude-opus-4-20250514" [level=3] [ref=f1e1525]
+                - paragraph [ref=f1e1526]: anthropic · 20 streaming
+              - generic [ref=f1e1527]: 20 reqs
+            - generic [ref=f1e1528]:
+              - generic [ref=f1e1529]:
+                - generic [ref=f1e1530]:
+                  - img [ref=f1e1531]
+                  - text: TTFT
+                - generic [ref=f1e1533]: 1.22s
+                - generic [ref=f1e1534]: p10 232ms · p95 1.96s
+              - generic [ref=f1e1535]:
+                - generic [ref=f1e1536]:
+                  - img [ref=f1e1537]
+                  - text: TPS
+                - generic [ref=f1e1540]: "58.8"
+                - generic [ref=f1e1541]: p10 16.5 · p95 98.2
+              - generic [ref=f1e1542]:
+                - generic [ref=f1e1543]:
+                  - img [ref=f1e1544]
+                  - text: Total In
+                - generic [ref=f1e1547]: 88.5K
+                - generic [ref=f1e1548]: incl. cache
+              - generic [ref=f1e1549]:
+                - generic [ref=f1e1550]:
+                  - img [ref=f1e1551]
+                  - text: Total Out
+                - generic [ref=f1e1554]: 15.5K
+                - generic [ref=f1e1555]: cached 25.2K
+              - generic [ref=f1e1556]:
+                - generic [ref=f1e1557]:
+                  - img [ref=f1e1558]
+                  - text: Cached
+                - generic [ref=f1e1560]: 28.5%
+                - generic [ref=f1e1561]: 25.2K tokens
+            - table [ref=f1e1563]:
+              - rowgroup [ref=f1e1564]:
+                - row "Metric p10 p50 p95 Mean" [ref=f1e1565]:
+                  - columnheader "Metric" [ref=f1e1566]
+                  - columnheader "p10" [ref=f1e1567]
+                  - columnheader "p50" [ref=f1e1568]
+                  - columnheader "p95" [ref=f1e1569]
+                  - columnheader "Mean" [ref=f1e1570]
+              - rowgroup [ref=f1e1571]:
+                - row "TTFT 232ms 1.22s 1.96s 1.17s" [ref=f1e1572]:
+                  - cell "TTFT" [ref=f1e1573]
+                  - cell "232ms" [ref=f1e1574]
+                  - cell "1.22s" [ref=f1e1575]
+                  - cell "1.96s" [ref=f1e1576]
+                  - cell "1.17s" [ref=f1e1577]
+                - row "TPS 16.5 58.8 98.2 57.0" [ref=f1e1578]:
+                  - cell "TPS" [ref=f1e1579]
+                  - cell "16.5" [ref=f1e1580]
+                  - cell "58.8" [ref=f1e1581]
+                  - cell "98.2" [ref=f1e1582]
+                  - cell "57.0" [ref=f1e1583]
+          - generic [ref=f1e1585]:
+            - generic [ref=f1e1586]:
+              - generic [ref=f1e1587]:
+                - heading "claude-sonnet-4-20250514" [level=3] [ref=f1e1588]
+                - paragraph [ref=f1e1589]: anthropic · 20 streaming
+              - generic [ref=f1e1590]: 20 reqs
+            - generic [ref=f1e1591]:
+              - generic [ref=f1e1592]:
+                - generic [ref=f1e1593]:
+                  - img [ref=f1e1594]
+                  - text: TTFT
+                - generic [ref=f1e1596]: 1.05s
+                - generic [ref=f1e1597]: p10 559ms · p95 1.79s
+              - generic [ref=f1e1598]:
+                - generic [ref=f1e1599]:
+                  - img [ref=f1e1600]
+                  - text: TPS
+                - generic [ref=f1e1603]: "57.9"
+                - generic [ref=f1e1604]: p10 38.3 · p95 95.4
+              - generic [ref=f1e1605]:
+                - generic [ref=f1e1606]:
+                  - img [ref=f1e1607]
+                  - text: Total In
+                - generic [ref=f1e1610]: 68.7K
+                - generic [ref=f1e1611]: incl. cache
+              - generic [ref=f1e1612]:
+                - generic [ref=f1e1613]:
+                  - img [ref=f1e1614]
+                  - text: Total Out
+                - generic [ref=f1e1617]: 21.6K
+                - generic [ref=f1e1618]: cached 19.1K
+              - generic [ref=f1e1619]:
+                - generic [ref=f1e1620]:
+                  - img [ref=f1e1621]
+                  - text: Cached
+                - generic [ref=f1e1623]: 27.8%
+                - generic [ref=f1e1624]: 19.1K tokens
+            - table [ref=f1e1626]:
+              - rowgroup [ref=f1e1627]:
+                - row "Metric p10 p50 p95 Mean" [ref=f1e1628]:
+                  - columnheader "Metric" [ref=f1e1629]
+                  - columnheader "p10" [ref=f1e1630]
+                  - columnheader "p50" [ref=f1e1631]
+                  - columnheader "p95" [ref=f1e1632]
+                  - columnheader "Mean" [ref=f1e1633]
+              - rowgroup [ref=f1e1634]:
+                - row "TTFT 559ms 1.05s 1.79s 1.16s" [ref=f1e1635]:
+                  - cell "TTFT" [ref=f1e1636]
+                  - cell "559ms" [ref=f1e1637]
+                  - cell "1.05s" [ref=f1e1638]
+                  - cell "1.79s" [ref=f1e1639]
+                  - cell "1.16s" [ref=f1e1640]
+                - row "TPS 38.3 57.9 95.4 65.3" [ref=f1e1641]:
+                  - cell "TPS" [ref=f1e1642]
+                  - cell "38.3" [ref=f1e1643]
+                  - cell "57.9" [ref=f1e1644]
+                  - cell "95.4" [ref=f1e1645]
+                  - cell "65.3" [ref=f1e1646]
+          - generic [ref=f1e1648]:
+            - generic [ref=f1e1649]:
+              - generic [ref=f1e1650]:
+                - heading "gpt-4o" [level=3] [ref=f1e1651]
+                - paragraph [ref=f1e1652]: openai · 20 streaming
+              - generic [ref=f1e1653]: 20 reqs
+            - generic [ref=f1e1654]:
+              - generic [ref=f1e1655]:
+                - generic [ref=f1e1656]:
+                  - img [ref=f1e1657]
+                  - text: TTFT
+                - generic [ref=f1e1659]: 1.30s
+                - generic [ref=f1e1660]: p10 366ms · p95 1.75s
+              - generic [ref=f1e1661]:
+                - generic [ref=f1e1662]:
+                  - img [ref=f1e1663]
+                  - text: TPS
+                - generic [ref=f1e1666]: "48.6"
+                - generic [ref=f1e1667]: p10 20.0 · p95 82.2
+              - generic [ref=f1e1668]:
+                - generic [ref=f1e1669]:
+                  - img [ref=f1e1670]
+                  - text: Total In
+                - generic [ref=f1e1673]: 89.4K
+                - generic [ref=f1e1674]: prompt
+              - generic [ref=f1e1675]:
+                - generic [ref=f1e1676]:
+                  - img [ref=f1e1677]
+                  - text: Total Out
+                - generic [ref=f1e1680]: 21.1K
+                - generic [ref=f1e1681]: cached 24.9K
+              - generic [ref=f1e1682]:
+                - generic [ref=f1e1683]:
+                  - img [ref=f1e1684]
+                  - text: Cached
+                - generic [ref=f1e1686]: 27.9%
+                - generic [ref=f1e1687]: 24.9K tokens
+            - table [ref=f1e1689]:
+              - rowgroup [ref=f1e1690]:
+                - row "Metric p10 p50 p95 Mean" [ref=f1e1691]:
+                  - columnheader "Metric" [ref=f1e1692]
+                  - columnheader "p10" [ref=f1e1693]
+                  - columnheader "p50" [ref=f1e1694]
+                  - columnheader "p95" [ref=f1e1695]
+                  - columnheader "Mean" [ref=f1e1696]
+              - rowgroup [ref=f1e1697]:
+                - row "TTFT 366ms 1.30s 1.75s 1.23s" [ref=f1e1698]:
+                  - cell "TTFT" [ref=f1e1699]
+                  - cell "366ms" [ref=f1e1700]
+                  - cell "1.30s" [ref=f1e1701]
+                  - cell "1.75s" [ref=f1e1702]
+                  - cell "1.23s" [ref=f1e1703]
+                - row "TPS 20.0 48.6 82.2 51.9" [ref=f1e1704]:
+                  - cell "TPS" [ref=f1e1705]
+                  - cell "20.0" [ref=f1e1706]
+                  - cell "48.6" [ref=f1e1707]
+                  - cell "82.2" [ref=f1e1708]
+                  - cell "51.9" [ref=f1e1709]
+  - region "Notifications alt+T"

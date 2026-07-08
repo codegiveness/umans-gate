@@ -1,0 +1,34 @@
+- generic [ref=f4e3]:
+  - link "Skip to content" [ref=f4e4] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=f4e5]:
+    - heading "umans-gate" [level=1] [ref=f4e7]
+  - main "Inspector" [ref=f4e9]:
+    - generic [ref=f4e10]:
+      - tablist [ref=f4e12]:
+        - tab "Captures" [selected] [ref=f4e13] [cursor=pointer]
+        - tab "Vision Calls" [ref=f4e14] [cursor=pointer]
+        - tab "Performance" [ref=f4e15] [cursor=pointer]
+        - tab "Config" [ref=f4e16] [cursor=pointer]
+      - tabpanel "Captures" [ref=f4e17]:
+        - generic [ref=f4e18]:
+          - complementary "Captures list" [ref=f4e19]:
+            - complementary [ref=f4e20]:
+              - generic [ref=f4e21]:
+                - heading "Captures (0)" [level=2] [ref=f4e23]:
+                  - text: Captures
+                  - generic [ref=f4e24]: (0)
+                - button "Clear" [ref=f4e25] [cursor=pointer]:
+                  - img
+                  - text: Clear
+              - 'button "WebSocket: Disconnected" [ref=f4e27] [cursor=pointer]':
+                - img [ref=f4e28]
+                - generic [ref=f4e34]: "WebSocket: Disconnected"
+              - region "Captures" [ref=f4e36]
+          - generic "Capture detail" [ref=f4e118]:
+            - main [ref=f4e119]:
+              - generic [ref=f4e120]:
+                - img [ref=f4e122]
+                - paragraph [ref=f4e129]: Select a capture to inspect
+                - paragraph [ref=f4e130]: Requests appear here automatically as they flow through the proxy.
+  - status [ref=f4e131]: Copy

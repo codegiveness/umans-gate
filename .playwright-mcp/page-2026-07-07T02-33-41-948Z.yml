@@ -1,0 +1,49 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - link "Skip to content" [ref=e4] [cursor=pointer]:
+      - /url: "#main"
+    - banner [ref=e5]:
+      - heading "umans-gate" [level=1] [ref=e7]
+      - button "Toggle theme" [ref=e182] [cursor=pointer]:
+        - img
+        - generic [ref=e183]: Toggle theme
+    - main "Inspector" [ref=e9]:
+      - generic [ref=e10]:
+        - tablist [ref=e12]:
+          - tab "Captures" [selected] [ref=e13] [cursor=pointer]
+          - tab "Vision Calls" [ref=e14] [cursor=pointer]
+          - tab "Performance" [ref=e15] [cursor=pointer]
+          - tab "Config" [ref=e16] [cursor=pointer]
+        - tabpanel "Captures" [ref=e17]:
+          - generic [ref=e18]:
+            - complementary "Captures list" [ref=e19]:
+              - complementary [ref=e20]:
+                - generic [ref=e21]:
+                  - heading "Captures (0)" [level=2] [ref=e23]:
+                    - text: Captures
+                    - generic [ref=e24]: (0)
+                  - generic [ref=e25]:
+                    - 'button "WebSocket: Disconnected" [ref=e26] [cursor=pointer]':
+                      - generic [ref=e27]: Disconnected
+                    - button "Clear" [ref=e29] [cursor=pointer]:
+                      - img
+                      - text: Clear
+                - region "Captures" [ref=e30]
+            - generic "Capture detail" [ref=e168]:
+              - main [ref=e169]:
+                - generic [ref=e170]:
+                  - img [ref=e172]
+                  - paragraph [ref=e179]: Select a capture to inspect
+                  - paragraph [ref=e180]: Requests appear here automatically as they flow through the proxy.
+    - region "Notifications alt+T"
+    - status [ref=e181]: Copy
+  - generic [ref=e185]:
+    - generic [ref=e188]:
+      - button "Copy element" [ref=e190] [cursor=pointer]:
+        - img [ref=e192]
+      - button "Comment on element" [ref=e195] [cursor=pointer]:
+        - img [ref=e196]
+      - button "Style element" [ref=e199] [cursor=pointer]:
+        - img [ref=e200]
+    - button "Collapse toolbar" [expanded] [ref=e202] [cursor=pointer]:
+      - img [ref=e203]

@@ -1,0 +1,31 @@
+---
+name: Bug report
+about: Report a bug or unexpected behavior
+title: "[bug] "
+labels: bug
+---
+
+## Describe the bug
+
+A clear description of what the bug is.
+
+## To reproduce
+
+Steps to reproduce the behavior:
+1. Start the proxy with `...`
+2. Send a request to `...`
+3. See error
+
+## Expected behavior
+
+What you expected to happen.
+
+## Environment
+
+- OS: [e.g. macOS 14, Ubuntu 22.04]
+- Bun version: [e.g. 1.1.0]
+- umans-gate version: [e.g. 0.1.0]
+
+## Additional context
+
+Logs, screenshots, or any other context.

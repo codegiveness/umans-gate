@@ -1,0 +1,46 @@
+- generic:
+  - generic:
+    - generic:
+      - link:
+        - /url: "#main"
+        - text: Skip to content
+      - banner:
+        - generic:
+          - button:
+            - img
+          - heading [level=1]: umans-gate
+        - button:
+          - img
+          - generic: Toggle theme
+      - main:
+        - generic:
+          - tablist:
+            - tab [selected]: Captures
+            - tab: Vision Calls
+            - tab: Performance
+            - tab: Config
+          - tabpanel:
+            - generic:
+              - generic:
+                - region:
+                  - generic:
+                    - generic:
+                      - img
+                    - paragraph: Select a capture to inspect
+                    - paragraph: Requests appear here automatically as they flow through the proxy.
+      - region "Notifications alt+T"
+  - dialog "Captures list" [ref=f2e133]:
+    - complementary [ref=f2e134]:
+      - generic [ref=f2e135]:
+        - heading "Captures (0)" [level=2] [ref=f2e137]:
+          - text: Captures
+          - generic [ref=f2e138]: (0)
+        - button "Clear" [active] [ref=f2e139] [cursor=pointer]:
+          - img
+          - text: Clear
+      - 'button "WebSocket: Reconnecting" [ref=f2e141] [cursor=pointer]':
+        - img [ref=f2e142]
+        - generic [ref=f2e148]: "WebSocket: Reconnecting"
+    - button "Close" [ref=f2e232] [cursor=pointer]:
+      - img [ref=f2e233]
+      - generic [ref=f2e236]: Close

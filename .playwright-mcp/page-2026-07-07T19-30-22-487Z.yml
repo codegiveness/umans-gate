@@ -1,0 +1,83 @@
+- generic [ref=f1e3]:
+  - link "Skip to content" [ref=f1e4] [cursor=pointer]:
+    - /url: "#main"
+  - generic [ref=f1e5]:
+    - banner [ref=f1e6]:
+      - heading "umans-gate" [level=1] [ref=f1e7]
+      - tablist [ref=f1e9]:
+        - tab "Captures" [selected] [ref=f1e11]
+        - tab "Vision Calls" [ref=f1e13]
+        - tab "Performance" [ref=f1e15]
+        - tab "Models" [ref=f1e17]
+        - tab "Config" [ref=f1e19]
+      - 'generic "Theme: dark" [ref=f1e50]':
+        - img [ref=f1e51]
+    - main "Inspector" [ref=f1e20]:
+      - tabpanel "Captures" [ref=f1e21]:
+        - generic [ref=f1e22]:
+          - complementary "Captures list" [ref=f1e23]:
+            - complementary [ref=f1e24]:
+              - generic [ref=f1e25]:
+                - heading "Captures (1)" [level=2] [ref=f1e53]:
+                  - text: Captures
+                  - generic [ref=f1e27]: (1)
+                - generic [ref=f1e28]:
+                  - 'generic "WebSocket: Live" [ref=f1e54]':
+                    - generic [ref=f1e30]: Live
+                  - button "Clear" [ref=f1e32]:
+                    - img
+                    - text: Clear
+              - generic [ref=f1e56]:
+                - generic [ref=f1e58]: Code Max
+                - generic [ref=f1e59]:
+                  - generic [ref=f1e60]: 0/8
+                  - text: hard cap
+                - generic [ref=f1e61]: ·
+                - img [ref=f1e63]
+              - listbox "Captures" [ref=f1e67]:
+                - option "POST 401 http1.1 ↑93 B ↓69 B 02:27:38 /v1/chat/completions · gpt-4o-mini 325 ms ttft — — t/s in 0 out 0 cache —" [active] [selected] [ref=f1e71] [cursor=pointer]:
+                  - generic [ref=f1e72]:
+                    - generic [ref=f1e74]: POST
+                    - generic [ref=f1e76]: "401"
+                    - generic [ref=f1e78]: http1.1
+                    - generic [ref=f1e79]:
+                      - generic [ref=f1e81]: ↑93 B
+                      - generic [ref=f1e83]: ↓69 B
+                      - generic [ref=f1e85]: 02:27:38
+                  - generic [ref=f1e87]:
+                    - text: /v1/chat/completions
+                    - generic [ref=f1e88]: · gpt-4o-mini
+                  - generic [ref=f1e89]:
+                    - generic [ref=f1e91]: 325 ms
+                    - generic [ref=f1e93]: ttft —
+                    - generic [ref=f1e95]: — t/s
+                    - generic [ref=f1e97]: in 0
+                    - generic [ref=f1e99]: out 0
+                    - generic [ref=f1e101]: cache —
+          - generic "Capture detail" [ref=f1e38]:
+            - main [ref=f1e39]:
+              - generic [ref=f1e102]:
+                - generic [ref=f1e103]:
+                  - heading "POST /v1/chat/completions" [level=2] [ref=f1e104]
+                  - button "Copy" [ref=f1e105]:
+                    - img
+                    - text: Copy
+                - generic [ref=f1e106]:
+                  - generic [ref=f1e108]: "401"
+                  - text: "0"
+                  - generic [ref=f1e110]: ↑93 B ↓69 B
+                  - generic [ref=f1e112]: 325 ms
+                  - generic [ref=f1e114]: in http1.1
+                  - generic [ref=f1e116]: out http1.1
+                  - generic [ref=f1e118]: 02:27:38
+                - generic [ref=f1e119]: https://api.code.umans.ai/v1/chat/completions
+              - generic [ref=f1e120]:
+                - tablist [ref=f1e121]:
+                  - tab "Response Body" [selected] [ref=f1e123]
+                  - tab "Request Body" [ref=f1e125]
+                  - tab "Response Headers" [ref=f1e127]
+                  - tab "Request Headers" [ref=f1e129]
+                - tabpanel "Response Body" [ref=f1e132]:
+                  - generic [ref=f1e133]: "{ \"error\": { \"type\": \"authentication_error\", \"message\": \"Missing API key\" } }"
+  - region "Notifications alt+T"
+  - status [ref=f1e49]: Copy

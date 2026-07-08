@@ -1,0 +1,25 @@
+- generic [ref=f1e3]:
+  - link "Skip to content" [ref=f1e4] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=f1e5]:
+    - generic [ref=f1e6]:
+      - button "Open captures" [ref=f1e7] [cursor=pointer]:
+        - img
+      - heading "umans-gate" [level=1] [ref=f1e8]
+    - button "Toggle theme" [ref=f1e9] [cursor=pointer]:
+      - img
+      - generic [ref=f1e10]: Toggle theme
+  - main "Inspector" [ref=f1e11]:
+    - generic [ref=f1e12]:
+      - tablist [ref=f1e13]:
+        - tab "Captures" [selected] [ref=f1e14] [cursor=pointer]
+        - tab "Vision Calls" [ref=f1e15] [cursor=pointer]
+        - tab "Performance" [ref=f1e16] [cursor=pointer]
+        - tab "Config" [ref=f1e17] [cursor=pointer]
+      - tabpanel "Captures" [ref=f1e18]:
+        - region "Capture detail" [ref=f1e21]:
+          - generic [ref=f1e22]:
+            - img [ref=f1e24]
+            - paragraph [ref=f1e31]: Select a capture to inspect
+            - paragraph [ref=f1e32]: Requests appear here automatically as they flow through the proxy.
+  - region "Notifications alt+T"

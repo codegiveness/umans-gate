@@ -1,0 +1,579 @@
+- generic [ref=f1e3]:
+  - link "Skip to content" [ref=f1e169] [cursor=pointer]:
+    - /url: "#main"
+  - generic [ref=f1e5]:
+    - banner [ref=f1e6]:
+      - heading "umans-gate" [level=1] [ref=f1e170]
+      - tablist [ref=f1e9]:
+        - tab "Captures" [ref=f1e171]
+        - tab "Vision Calls" [ref=f1e172]
+        - tab "Performance" [ref=f1e173]
+        - tab "Models" [ref=f1e174]
+        - tab "Config" [active] [selected] [ref=f1e175]
+      - 'generic "Theme: dark" [ref=f1e176]':
+        - img [ref=f1e51]
+    - main "Inspector" [ref=f1e177]:
+      - tabpanel "Config" [ref=f1e213]:
+        - generic [ref=f1e214]:
+          - generic [ref=f1e215]:
+            - heading "Configuration" [level=2] [ref=f1e216]
+            - generic [ref=f1e217]:
+              - button "Save" [disabled]
+              - button "Validate" [ref=f1e218]
+              - button "Reload from Disk" [ref=f1e219]
+              - button "Reload Limits from Source" [ref=f1e220]:
+                - img
+                - text: Reload Limits from Source
+              - button "Reset Draft" [disabled]
+            - generic [ref=f1e221]: All changes saved
+          - generic [ref=f1e223]:
+            - generic [ref=f1e224]:
+              - generic [ref=f1e226]:
+                - heading "Server" [level=3] [ref=f1e227]
+                - paragraph [ref=f1e228]: Network binding and storage.
+              - generic [ref=f1e229]:
+                - generic [ref=f1e230]:
+                  - generic [ref=f1e231]:
+                    - generic [ref=f1e232]: Port
+                    - generic [ref=f1e233]: Required
+                    - generic [ref=f1e234]:
+                      - img
+                      - text: restart
+                  - generic [ref=f1e235]: Port the proxy listens on (1–65535).
+                - generic [ref=f1e237]:
+                  - button "Decrease" [ref=f1e238]:
+                    - img
+                  - spinbutton "Port" [ref=f1e240]: "9000"
+                  - button "Increase" [ref=f1e241]:
+                    - img
+              - generic [ref=f1e242]:
+                - generic [ref=f1e243]:
+                  - generic [ref=f1e244]:
+                    - generic [ref=f1e245]: Host
+                    - generic [ref=f1e246]: Required
+                    - generic [ref=f1e247]:
+                      - img
+                      - text: restart
+                  - generic [ref=f1e248]: Bind address.
+                - textbox "Host" [ref=f1e251]: 0.0.0.0
+              - generic [ref=f1e252]:
+                - generic [ref=f1e253]:
+                  - generic [ref=f1e254]:
+                    - generic [ref=f1e255]: Upstream Target URL
+                    - generic [ref=f1e256]: Required
+                  - generic [ref=f1e257]: Base URL forwarded to the upstream LLM API.
+                - textbox "Upstream Target URL" [ref=f1e260]: https://api.code.umans.ai
+              - generic [ref=f1e261]:
+                - generic [ref=f1e262]:
+                  - generic [ref=f1e263]:
+                    - generic [ref=f1e264]: Max Captures
+                    - generic [ref=f1e265]: Required
+                    - generic [ref=f1e266]:
+                      - img
+                      - text: restart
+                  - generic [ref=f1e267]: Ring buffer size (older captures are evicted).
+                - generic [ref=f1e269]:
+                  - button "Decrease" [ref=f1e270]:
+                    - img
+                  - spinbutton "Max Captures" [ref=f1e272]: "1000"
+                  - button "Increase" [ref=f1e273]:
+                    - img
+              - generic [ref=f1e274]:
+                - generic [ref=f1e275]:
+                  - generic [ref=f1e276]:
+                    - generic [ref=f1e277]: DB Path
+                    - generic [ref=f1e278]: Required
+                    - generic [ref=f1e279]:
+                      - img
+                      - text: restart
+                  - generic [ref=f1e280]: SQLite database file path.
+                - textbox "DB Path" [ref=f1e283]: ./capture.db
+              - generic [ref=f1e284]:
+                - generic [ref=f1e285]:
+                  - generic [ref=f1e286]:
+                    - generic [ref=f1e287]: Idle Timeout
+                    - generic [ref=f1e288]: Required
+                    - generic [ref=f1e289]:
+                      - img
+                      - text: restart
+                  - generic [ref=f1e290]: Connection idle timeout, 1–255 seconds.
+                - generic [ref=f1e292]:
+                  - button "Decrease" [ref=f1e293]:
+                    - img
+                  - generic [ref=f1e294]:
+                    - spinbutton "Idle Timeout" [ref=f1e295]: "255"
+                    - generic: s
+                  - button "Increase" [ref=f1e296]:
+                    - img
+              - generic [ref=f1e297]:
+                - generic [ref=f1e299]:
+                  - generic [ref=f1e300]: Upstream Protocol
+                  - generic [ref=f1e301]: Required
+                  - generic [ref=f1e302]:
+                    - img
+                    - text: restart
+                - generic [ref=f1e303]:
+                  - combobox "Upstream Protocol" [ref=f1e304]:
+                    - generic [ref=f1e305]: http1.1
+                    - img: ▼
+                  - textbox [ref=f1e306]: http1.1
+              - separator [ref=f1e307]
+            - generic [ref=f1e308]:
+              - generic [ref=f1e310]:
+                - heading "Cache Stamp" [level=3] [ref=f1e311]
+                - paragraph [ref=f1e312]: Anthropic ephemeral cache_control TTL stamping.
+              - generic [ref=f1e313]:
+                - generic [ref=f1e314]:
+                  - generic [ref=f1e316]: Cache TTL
+                  - generic [ref=f1e317]: "TTL stamped onto Anthropic ephemeral cache_control blocks. Format: <n><smhd> e.g. 1h. Empty disables."
+                - textbox "Cache TTL" [ref=f1e320]:
+                  - /placeholder: 1h
+                  - text: 1h
+              - generic [ref=f1e321]:
+                - generic [ref=f1e322]:
+                  - generic [ref=f1e324]: Top-K
+                  - generic [ref=f1e325]: Only stamp the top-K ephemeral blocks per request. Empty = all.
+                - textbox "Top-K" [ref=f1e328]:
+                  - /placeholder: "20"
+                  - text: "20"
+              - generic [ref=f1e329]:
+                - generic [ref=f1e330]:
+                  - generic [ref=f1e331]:
+                    - generic [ref=f1e332]: OpenAI Chat Path
+                    - generic [ref=f1e333]: Required
+                  - generic [ref=f1e334]: Path under target used for OpenAI-compatible chat completions.
+                - textbox "OpenAI Chat Path" [ref=f1e337]:
+                  - /placeholder: chat/completions
+                  - text: chat/completions
+              - separator [ref=f1e338]
+            - generic [ref=f1e339]:
+              - generic [ref=f1e341]:
+                - heading "Warmer" [level=3] [ref=f1e342]
+                - paragraph [ref=f1e343]: Keep-alive pings.
+              - generic [ref=f1e344]:
+                - generic [ref=f1e345]:
+                  - generic [ref=f1e346]:
+                    - generic [ref=f1e347]: Enabled
+                    - generic [ref=f1e348]:
+                      - img
+                      - text: restart
+                  - generic [ref=f1e349]: Periodically ping upstream to keep connections warm.
+                - generic [ref=f1e350]:
+                  - switch "Enabled" [checked] [ref=f1e351]
+                  - checkbox [checked] [ref=f1e352]
+              - generic [ref=f1e353]:
+                - generic [ref=f1e355]:
+                  - generic [ref=f1e356]: Interval
+                  - generic [ref=f1e357]: Required
+                  - generic [ref=f1e358]:
+                    - img
+                    - text: restart
+                - generic [ref=f1e360]:
+                  - button "Decrease" [ref=f1e361]:
+                    - img
+                  - generic [ref=f1e362]:
+                    - spinbutton "Interval" [ref=f1e363]: "20000"
+                    - generic: ms
+                  - button "Increase" [ref=f1e364]:
+                    - img
+              - generic [ref=f1e365]:
+                - generic [ref=f1e367]:
+                  - generic [ref=f1e368]: Path
+                  - generic [ref=f1e369]: Required
+                  - generic [ref=f1e370]:
+                    - img
+                    - text: restart
+                - textbox "Path" [ref=f1e373]: /v1/models
+              - separator [ref=f1e374]
+            - generic [ref=f1e375]:
+              - generic [ref=f1e377]:
+                - heading "Concurrency" [level=3] [ref=f1e378]
+                - paragraph [ref=f1e379]: Gate, breaker, and queue.
+              - generic [ref=f1e380]:
+                - generic [ref=f1e381]:
+                  - generic [ref=f1e382]:
+                    - generic [ref=f1e383]: Hard Cap
+                    - generic [ref=f1e384]: Required
+                  - generic [ref=f1e385]: Max concurrent upstream requests. Never exceeded.
+                - generic [ref=f1e387]:
+                  - button "Decrease" [ref=f1e388]:
+                    - img
+                  - spinbutton "Hard Cap" [ref=f1e390]: "8"
+                  - button "Increase" [ref=f1e391]:
+                    - img
+              - generic [ref=f1e392]:
+                - generic [ref=f1e393]:
+                  - generic [ref=f1e395]: Soft Limit
+                  - generic [ref=f1e396]: Soft concurrency limit (read-only from /v1/usage).
+                - generic [ref=f1e398]:
+                  - button "Decrease" [disabled]:
+                    - img
+                  - generic [ref=f1e399]:
+                    - spinbutton "Soft Limit" [disabled]: "4"
+                  - button "Increase" [disabled]:
+                    - img
+              - generic [ref=f1e400]:
+                - generic [ref=f1e401]:
+                  - generic [ref=f1e402]:
+                    - generic [ref=f1e403]: Main Reservation
+                    - generic [ref=f1e404]: Required
+                  - generic [ref=f1e405]: Slots reserved for main (non-vision) requests.
+                - generic [ref=f1e407]:
+                  - button "Decrease" [ref=f1e408]:
+                    - img
+                  - spinbutton "Main Reservation" [ref=f1e410]: "1"
+                  - button "Increase" [ref=f1e411]:
+                    - img
+              - generic [ref=f1e412]:
+                - generic [ref=f1e413]:
+                  - generic [ref=f1e414]:
+                    - generic [ref=f1e415]: Vision Reservation
+                    - generic [ref=f1e416]: Required
+                  - generic [ref=f1e417]: Slots reserved for vision handoff requests.
+                - generic [ref=f1e419]:
+                  - button "Decrease" [ref=f1e420]:
+                    - img
+                  - spinbutton "Vision Reservation" [ref=f1e422]: "1"
+                  - button "Increase" [ref=f1e423]:
+                    - img
+              - generic [ref=f1e424]:
+                - generic [ref=f1e425]:
+                  - generic [ref=f1e426]:
+                    - generic [ref=f1e427]: Release Cooldown
+                    - generic [ref=f1e428]: Required
+                  - generic [ref=f1e429]: Delay before releasing a concurrency slot.
+                - generic [ref=f1e431]:
+                  - button "Decrease" [ref=f1e432]:
+                    - img
+                  - generic [ref=f1e433]:
+                    - spinbutton "Release Cooldown" [ref=f1e434]: "1000"
+                    - generic: ms
+                  - button "Increase" [ref=f1e435]:
+                    - img
+              - generic [ref=f1e436]:
+                - generic [ref=f1e437]:
+                  - generic [ref=f1e438]:
+                    - generic [ref=f1e439]: Breaker Threshold
+                    - generic [ref=f1e440]: Required
+                  - generic [ref=f1e441]: Failures within window before opening the breaker.
+                - generic [ref=f1e443]:
+                  - button "Decrease" [ref=f1e444]:
+                    - img
+                  - spinbutton "Breaker Threshold" [ref=f1e446]: "5"
+                  - button "Increase" [ref=f1e447]:
+                    - img
+              - generic [ref=f1e448]:
+                - generic [ref=f1e450]:
+                  - generic [ref=f1e451]: Breaker Window
+                  - generic [ref=f1e452]: Required
+                - generic [ref=f1e454]:
+                  - button "Decrease" [ref=f1e455]:
+                    - img
+                  - generic [ref=f1e456]:
+                    - spinbutton "Breaker Window" [ref=f1e457]: "300000"
+                    - generic: ms
+                  - button "Increase" [ref=f1e458]:
+                    - img
+              - generic [ref=f1e459]:
+                - generic [ref=f1e461]:
+                  - generic [ref=f1e462]: Breaker Cooldown
+                  - generic [ref=f1e463]: Required
+                - generic [ref=f1e465]:
+                  - button "Decrease" [ref=f1e466]:
+                    - img
+                  - generic [ref=f1e467]:
+                    - spinbutton "Breaker Cooldown" [ref=f1e468]: "60000"
+                    - generic: ms
+                  - button "Increase" [ref=f1e469]:
+                    - img
+              - generic [ref=f1e470]:
+                - generic [ref=f1e471]:
+                  - generic [ref=f1e472]:
+                    - generic [ref=f1e473]: Queue Timeout
+                    - generic [ref=f1e474]: Required
+                  - generic [ref=f1e475]: Max time a request may wait in the queue.
+                - generic [ref=f1e477]:
+                  - button "Decrease" [ref=f1e478]:
+                    - img
+                  - generic [ref=f1e479]:
+                    - spinbutton "Queue Timeout" [ref=f1e480]: "30000"
+                    - generic: ms
+                  - button "Increase" [ref=f1e481]:
+                    - img
+              - generic [ref=f1e482]:
+                - generic [ref=f1e483]:
+                  - generic [ref=f1e484]:
+                    - generic [ref=f1e485]: Max Queue Depth
+                    - generic [ref=f1e486]: Required
+                  - generic [ref=f1e487]: Max queued requests before rejecting.
+                - generic [ref=f1e489]:
+                  - button "Decrease" [ref=f1e490]:
+                    - img
+                  - spinbutton "Max Queue Depth" [ref=f1e492]: "256"
+                  - button "Increase" [ref=f1e493]:
+                    - img
+              - separator [ref=f1e494]
+            - generic [ref=f1e495]:
+              - generic [ref=f1e497]:
+                - heading "Rate Limit" [level=3] [ref=f1e498]
+                - paragraph [ref=f1e499]: Rolling-window limiter.
+              - generic [ref=f1e500]:
+                - generic [ref=f1e501]:
+                  - generic [ref=f1e502]:
+                    - generic [ref=f1e503]: Requests
+                    - generic [ref=f1e504]: Required
+                  - generic [ref=f1e505]: Max requests allowed in the rolling window.
+                - generic [ref=f1e507]:
+                  - button "Decrease" [ref=f1e508]:
+                    - img
+                  - spinbutton "Requests" [ref=f1e510]: "200"
+                  - button "Increase" [ref=f1e511]:
+                    - img
+              - generic [ref=f1e512]:
+                - generic [ref=f1e514]:
+                  - generic [ref=f1e515]: Window
+                  - generic [ref=f1e516]: Required
+                - generic [ref=f1e518]:
+                  - button "Decrease" [ref=f1e519]:
+                    - img
+                  - generic [ref=f1e520]:
+                    - spinbutton "Window" [ref=f1e521]: "18000"
+                    - generic: s
+                  - button "Increase" [ref=f1e522]:
+                    - img
+              - separator [ref=f1e523]
+            - generic [ref=f1e524]:
+              - generic [ref=f1e526]:
+                - heading "Usage" [level=3] [ref=f1e527]
+                - paragraph [ref=f1e528]: Upstream usage stats.
+              - generic [ref=f1e529]:
+                - generic [ref=f1e530]:
+                  - generic [ref=f1e531]:
+                    - generic [ref=f1e532]: Umans API Key
+                    - generic [ref=f1e533]:
+                      - img
+                      - text: restart
+                  - generic [ref=f1e534]: API key used to fetch upstream usage. Leave empty to disable.
+                - generic [ref=f1e536]:
+                  - textbox "Umans API Key" [ref=f1e537]: sk-f1qgIz0XXnCF-YgM4YSP2UQkoQazahioFOjPn0GtmJI
+                  - button "Show password" [ref=f1e538]:
+                    - img
+              - generic [ref=f1e539]:
+                - generic [ref=f1e540]:
+                  - generic [ref=f1e541]:
+                    - generic [ref=f1e542]: Usage Refresh
+                    - generic [ref=f1e543]: Required
+                    - generic [ref=f1e544]:
+                      - img
+                      - text: restart
+                  - generic [ref=f1e545]: Interval between usage stats fetches.
+                - generic [ref=f1e547]:
+                  - button "Decrease" [ref=f1e548]:
+                    - img
+                  - generic [ref=f1e549]:
+                    - spinbutton "Usage Refresh" [ref=f1e550]: "5000"
+                    - generic: ms
+                  - button "Increase" [ref=f1e551]:
+                    - img
+              - generic [ref=f1e552]:
+                - generic [ref=f1e553]:
+                  - generic [ref=f1e554]:
+                    - generic [ref=f1e555]: Stats Latest N
+                    - generic [ref=f1e556]: Required
+                  - generic [ref=f1e557]: Number of recent captures used for stats aggregation.
+                - generic [ref=f1e559]:
+                  - button "Decrease" [ref=f1e560]:
+                    - img
+                  - spinbutton "Stats Latest N" [ref=f1e562]: "100"
+                  - button "Increase" [ref=f1e563]:
+                    - img
+              - separator [ref=f1e564]
+            - generic [ref=f1e565]:
+              - generic [ref=f1e567]:
+                - heading "Models" [level=3] [ref=f1e568]
+                - paragraph [ref=f1e569]: Model list + weight derivation.
+              - generic [ref=f1e570]:
+                - generic [ref=f1e571]:
+                  - generic [ref=f1e572]:
+                    - generic [ref=f1e573]: Models Refresh
+                    - generic [ref=f1e574]: Required
+                    - generic [ref=f1e575]:
+                      - img
+                      - text: restart
+                  - generic [ref=f1e576]: Interval between /v1/models fetches. Models with output pricing < 2 get weight 0.5; others default to 1.
+                - generic [ref=f1e578]:
+                  - button "Decrease" [ref=f1e579]:
+                    - img
+                  - generic [ref=f1e580]:
+                    - spinbutton "Models Refresh" [ref=f1e581]: "3600000"
+                    - generic: ms
+                  - button "Increase" [ref=f1e582]:
+                    - img
+              - separator [ref=f1e583]
+            - generic [ref=f1e584]:
+              - generic [ref=f1e586]:
+                - heading "Vision" [level=3] [ref=f1e587]
+                - paragraph [ref=f1e588]: Vision interception pipeline.
+              - generic [ref=f1e589]:
+                - generic [ref=f1e591]:
+                  - generic [ref=f1e592]: Strategy
+                  - generic [ref=f1e593]: Required
+                  - generic [ref=f1e594]:
+                    - img
+                    - text: restart
+                - generic [ref=f1e595]:
+                  - combobox "Strategy" [ref=f1e596]:
+                    - generic [ref=f1e597]: always
+                    - img: ▼
+                  - textbox [ref=f1e598]: always
+              - generic [ref=f1e599]:
+                - generic [ref=f1e601]:
+                  - generic [ref=f1e602]: Target URL
+                  - generic [ref=f1e603]:
+                    - img
+                    - text: restart
+                - textbox "Target URL" [ref=f1e606]: https://api.code.umans.ai/v1/chat/completions
+              - generic [ref=f1e607]:
+                - generic [ref=f1e609]:
+                  - generic [ref=f1e610]: Model
+                  - generic [ref=f1e611]:
+                    - img
+                    - text: restart
+                - textbox "Model" [ref=f1e614]: umans-flash
+              - generic [ref=f1e615]:
+                - generic [ref=f1e617]:
+                  - generic [ref=f1e618]: Prompt
+                  - generic [ref=f1e619]: Required
+                  - generic [ref=f1e620]:
+                    - img
+                    - text: restart
+                - textbox "Prompt" [ref=f1e622]: Describe this image concisely.
+              - generic [ref=f1e623]:
+                - generic [ref=f1e625]:
+                  - generic [ref=f1e626]: Prompt Version
+                  - generic [ref=f1e627]: Required
+                  - generic [ref=f1e628]:
+                    - img
+                    - text: restart
+                - generic [ref=f1e630]:
+                  - button "Decrease" [ref=f1e631]:
+                    - img
+                  - spinbutton "Prompt Version" [ref=f1e633]: "1"
+                  - button "Increase" [ref=f1e634]:
+                    - img
+              - generic [ref=f1e635]:
+                - generic [ref=f1e637]:
+                  - generic [ref=f1e638]: Max Images
+                  - generic [ref=f1e639]: Required
+                  - generic [ref=f1e640]:
+                    - img
+                    - text: restart
+                - generic [ref=f1e642]:
+                  - button "Decrease" [ref=f1e643]:
+                    - img
+                  - spinbutton "Max Images" [ref=f1e645]: "99"
+                  - button "Increase" [ref=f1e646]:
+                    - img
+              - generic [ref=f1e647]:
+                - generic [ref=f1e649]:
+                  - generic [ref=f1e650]: Max Description Tokens
+                  - generic [ref=f1e651]: Required
+                  - generic [ref=f1e652]:
+                    - img
+                    - text: restart
+                - generic [ref=f1e654]:
+                  - button "Decrease" [ref=f1e655]:
+                    - img
+                  - spinbutton "Max Description Tokens" [ref=f1e657]: "300"
+                  - button "Increase" [ref=f1e658]:
+                    - img
+              - generic [ref=f1e659]:
+                - generic [ref=f1e661]:
+                  - generic [ref=f1e662]: Timeout
+                  - generic [ref=f1e663]: Required
+                  - generic [ref=f1e664]:
+                    - img
+                    - text: restart
+                - generic [ref=f1e666]:
+                  - button "Decrease" [ref=f1e667]:
+                    - img
+                  - generic [ref=f1e668]:
+                    - spinbutton "Timeout" [ref=f1e669]: "30000"
+                    - generic: ms
+                  - button "Increase" [ref=f1e670]:
+                    - img
+              - generic [ref=f1e671]:
+                - generic [ref=f1e673]:
+                  - generic [ref=f1e674]: Cache Size
+                  - generic [ref=f1e675]: Required
+                  - generic [ref=f1e676]:
+                    - img
+                    - text: restart
+                - generic [ref=f1e678]:
+                  - button "Decrease" [ref=f1e679]:
+                    - img
+                  - spinbutton "Cache Size" [ref=f1e681]: "1000"
+                  - button "Increase" [ref=f1e682]:
+                    - img
+              - generic [ref=f1e683]:
+                - generic [ref=f1e685]:
+                  - generic [ref=f1e686]: Concurrency
+                  - generic [ref=f1e687]: Required
+                  - generic [ref=f1e688]:
+                    - img
+                    - text: restart
+                - generic [ref=f1e690]:
+                  - button "Decrease" [ref=f1e691]:
+                    - img
+                  - spinbutton "Concurrency" [ref=f1e693]: "1"
+                  - button "Increase" [ref=f1e694]:
+                    - img
+              - generic [ref=f1e695]:
+                - generic [ref=f1e697]:
+                  - generic [ref=f1e698]: API Key
+                  - generic [ref=f1e699]:
+                    - img
+                    - text: restart
+                - generic [ref=f1e701]:
+                  - textbox "API Key" [ref=f1e702]
+                  - button "Show password" [ref=f1e703]:
+                    - img
+              - generic [ref=f1e704]:
+                - generic [ref=f1e706]:
+                  - generic [ref=f1e707]: Catalog URL
+                  - generic [ref=f1e708]:
+                    - img
+                    - text: restart
+                - textbox "Catalog URL" [ref=f1e711]
+              - generic [ref=f1e712]:
+                - generic [ref=f1e714]:
+                  - generic [ref=f1e715]: Catalog Refresh
+                  - generic [ref=f1e716]: Required
+                  - generic [ref=f1e717]:
+                    - img
+                    - text: restart
+                - generic [ref=f1e719]:
+                  - button "Decrease" [ref=f1e720]:
+                    - img
+                  - generic [ref=f1e721]:
+                    - spinbutton "Catalog Refresh" [ref=f1e722]: "3600000"
+                    - generic: ms
+                  - button "Increase" [ref=f1e723]:
+                    - img
+              - generic [ref=f1e724]:
+                - generic [ref=f1e726]:
+                  - generic [ref=f1e727]: Force Intercept Capable
+                  - generic [ref=f1e728]:
+                    - img
+                    - text: restart
+                - generic [ref=f1e729]:
+                  - switch "Force Intercept Capable" [ref=f1e730]
+                  - checkbox [ref=f1e731]
+            - generic [ref=f1e732]:
+              - text: Fields marked
+              - generic [ref=f1e733]:
+                - img [ref=f1e734]
+                - text: restart
+              - text: require a server restart to take effect. Other fields can be applied live via Reload from Disk after saving.
+  - region "Notifications alt+T"
+  - status [ref=f1e49]: Copy

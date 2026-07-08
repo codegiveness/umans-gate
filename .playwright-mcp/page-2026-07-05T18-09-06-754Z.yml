@@ -1,0 +1,225 @@
+- generic [ref=f1e3]:
+  - banner [ref=f1e4]:
+    - heading "umans-gate" [level=1] [ref=f1e5]
+    - button "Toggle theme" [ref=f1e6] [cursor=pointer]:
+      - img
+      - generic [ref=f1e7]: Toggle theme
+  - generic [ref=f1e8]:
+    - tablist [ref=f1e9]:
+      - tab "Captures" [ref=f1e10] [cursor=pointer]
+      - tab "Vision Calls" [ref=f1e11] [cursor=pointer]
+      - tab "Performance" [ref=f1e12] [cursor=pointer]
+      - tab "Config" [active] [selected] [ref=f1e13] [cursor=pointer]
+    - tabpanel "Config" [ref=f1e378]:
+      - generic [ref=f1e1237]:
+        - generic [ref=f1e1238]:
+          - generic [ref=f1e1239]:
+            - button "Save" [disabled]
+            - button "Validate" [ref=f1e1240] [cursor=pointer]
+            - button "Reload from Disk" [ref=f1e1241] [cursor=pointer]
+            - button "Reset Draft" [disabled]
+          - generic [ref=f1e1242]: All changes saved
+        - generic [ref=f1e1245]:
+          - generic [ref=f1e1246]:
+            - generic [ref=f1e1247]:
+              - generic [ref=f1e1248]:
+                - generic [ref=f1e1249]: Server
+                - generic [ref=f1e1250]: Network binding and storage.
+              - generic [ref=f1e1251]:
+                - generic [ref=f1e1252]:
+                  - generic [ref=f1e1253]:
+                    - generic [ref=f1e1254]: Port⟳ restart
+                    - generic [ref=f1e1255]: Port the proxy listens on (1-65535).
+                  - spinbutton "Port⟳ restart" [ref=f1e1257]: "9000"
+                - generic [ref=f1e1258]:
+                  - generic [ref=f1e1259]:
+                    - generic [ref=f1e1260]: Host⟳ restart
+                    - generic [ref=f1e1261]: Bind address.
+                  - textbox "Host⟳ restart" [ref=f1e1263]: 0.0.0.0
+                - generic [ref=f1e1264]:
+                  - generic [ref=f1e1265]:
+                    - generic [ref=f1e1266]: Upstream Target URL
+                    - generic [ref=f1e1267]: Base URL forwarded to the upstream LLM API.
+                  - textbox "Upstream Target URL" [ref=f1e1269]: https://api.code.umans.ai
+                - generic [ref=f1e1270]:
+                  - generic [ref=f1e1271]:
+                    - generic [ref=f1e1272]: Max Captures⟳ restart
+                    - generic [ref=f1e1273]: Ring buffer size (older captures are evicted).
+                  - spinbutton "Max Captures⟳ restart" [ref=f1e1275]: "1000"
+                - generic [ref=f1e1276]:
+                  - generic [ref=f1e1277]:
+                    - generic [ref=f1e1278]: DB Path⟳ restart
+                    - generic [ref=f1e1279]: SQLite database file path.
+                  - textbox "DB Path⟳ restart" [ref=f1e1281]: ./capture.db
+                - generic [ref=f1e1282]:
+                  - generic [ref=f1e1283]:
+                    - generic [ref=f1e1284]: Idle Timeout (s)⟳ restart
+                    - generic [ref=f1e1285]: Connection idle timeout, 1-255 seconds.
+                  - spinbutton "Idle Timeout (s)⟳ restart" [ref=f1e1287]: "255"
+                - generic [ref=f1e1288]:
+                  - generic [ref=f1e1290]: Upstream Protocol⟳ restart
+                  - combobox "Upstream Protocol⟳ restart" [ref=f1e1292] [cursor=pointer]:
+                    - generic: HTTP/1.1
+                    - img [ref=f1e1293]
+            - generic [ref=f1e1295]:
+              - generic [ref=f1e1296]:
+                - generic [ref=f1e1297]: Cache Stamp
+                - generic [ref=f1e1298]: Anthropic ephemeral cache_control TTL stamping.
+              - generic [ref=f1e1299]:
+                - generic [ref=f1e1300]:
+                  - generic [ref=f1e1301]:
+                    - generic [ref=f1e1302]: Cache TTL
+                    - generic [ref=f1e1303]: "TTL stamped onto Anthropic ephemeral cache_control blocks. Format: <n><smhd> e.g. 1h. Empty disables."
+                  - textbox "Cache TTL" [ref=f1e1305]:
+                    - /placeholder: 1h
+                    - text: 1h
+                - generic [ref=f1e1306]:
+                  - generic [ref=f1e1307]:
+                    - generic [ref=f1e1308]: Top-K
+                    - generic [ref=f1e1309]: Only stamp the top-K ephemeral blocks per request. Empty = all.
+                  - textbox "Top-K" [ref=f1e1311]:
+                    - /placeholder: "20"
+                    - text: "20"
+                - generic [ref=f1e1312]:
+                  - generic [ref=f1e1313]:
+                    - generic [ref=f1e1314]: OpenAI Chat Path
+                    - generic [ref=f1e1315]: Path under target used for OpenAI-compatible chat completions.
+                  - textbox "OpenAI Chat Path" [ref=f1e1317]:
+                    - /placeholder: chat/completions
+                    - text: chat/completions
+            - generic [ref=f1e1318]:
+              - generic [ref=f1e1319]:
+                - generic [ref=f1e1320]: Warmer
+                - generic [ref=f1e1321]: Keep-alive pings.
+              - generic [ref=f1e1322]:
+                - generic [ref=f1e1323]:
+                  - generic [ref=f1e1324]:
+                    - generic [ref=f1e1325]: Enabled⟳ restart
+                    - generic [ref=f1e1326]: Periodically ping upstream to keep connections warm.
+                  - switch "Enabled⟳ restart" [checked] [ref=f1e1328] [cursor=pointer]
+                - generic [ref=f1e1329]:
+                  - generic [ref=f1e1331]: Interval (ms)⟳ restart
+                  - spinbutton "Interval (ms)⟳ restart" [ref=f1e1333]: "20000"
+                - generic [ref=f1e1334]:
+                  - generic [ref=f1e1336]: Path⟳ restart
+                  - textbox "Path⟳ restart" [ref=f1e1338]: /v1/models
+            - generic [ref=f1e1339]:
+              - generic [ref=f1e1340]:
+                - generic [ref=f1e1341]: Concurrency
+                - generic [ref=f1e1342]: Gate, breaker, and queue.
+              - generic [ref=f1e1343]:
+                - generic [ref=f1e1344]:
+                  - generic [ref=f1e1345]:
+                    - generic [ref=f1e1346]: Hard Cap⟳ restart
+                    - generic [ref=f1e1347]: Max concurrent upstream requests (1-100).
+                  - spinbutton "Hard Cap⟳ restart" [ref=f1e1349]: "8"
+                - generic [ref=f1e1350]:
+                  - generic [ref=f1e1351]:
+                    - generic [ref=f1e1352]: Release Cooldown (ms)
+                    - generic [ref=f1e1353]: Delay before releasing a concurrency slot.
+                  - spinbutton "Release Cooldown (ms)" [ref=f1e1355]: "1000"
+                - generic [ref=f1e1356]:
+                  - generic [ref=f1e1357]:
+                    - generic [ref=f1e1358]: Breaker Threshold
+                    - generic [ref=f1e1359]: Failures within window before opening the breaker.
+                  - spinbutton "Breaker Threshold" [ref=f1e1361]: "5"
+                - generic [ref=f1e1362]:
+                  - generic [ref=f1e1364]: Breaker Window (ms)
+                  - spinbutton "Breaker Window (ms)" [ref=f1e1366]: "300000"
+                - generic [ref=f1e1367]:
+                  - generic [ref=f1e1369]: Breaker Cooldown (ms)
+                  - spinbutton "Breaker Cooldown (ms)" [ref=f1e1371]: "60000"
+                - generic [ref=f1e1372]:
+                  - generic [ref=f1e1373]:
+                    - generic [ref=f1e1374]: Queue Timeout (ms)
+                    - generic [ref=f1e1375]: Max time a request may wait in the queue.
+                  - spinbutton "Queue Timeout (ms)" [ref=f1e1377]: "30000"
+                - generic [ref=f1e1378]:
+                  - generic [ref=f1e1379]:
+                    - generic [ref=f1e1380]: Max Queue Depth
+                    - generic [ref=f1e1381]: Max queued requests before rejecting.
+                  - spinbutton "Max Queue Depth" [ref=f1e1383]: "256"
+            - generic [ref=f1e1384]:
+              - generic [ref=f1e1385]:
+                - generic [ref=f1e1386]: Rate Limit
+                - generic [ref=f1e1387]: Rolling-window limiter.
+              - generic [ref=f1e1388]:
+                - generic [ref=f1e1389]:
+                  - generic [ref=f1e1390]:
+                    - generic [ref=f1e1391]: Requests
+                    - generic [ref=f1e1392]: Max requests allowed in the rolling window.
+                  - spinbutton "Requests" [ref=f1e1394]: "200"
+                - generic [ref=f1e1395]:
+                  - generic [ref=f1e1397]: Window (s)
+                  - spinbutton "Window (s)" [ref=f1e1399]: "18000"
+            - generic [ref=f1e1400]:
+              - generic [ref=f1e1401]:
+                - generic [ref=f1e1402]: Usage
+                - generic [ref=f1e1403]: Upstream usage stats.
+              - generic [ref=f1e1404]:
+                - generic [ref=f1e1405]:
+                  - generic [ref=f1e1406]:
+                    - generic [ref=f1e1407]: Umans API Key⟳ restart
+                    - generic [ref=f1e1408]: API key used to fetch upstream usage. Leave empty to disable.
+                  - textbox "Umans API Key⟳ restart" [ref=f1e1410]: sk-f1qgIz0XXnCF-YgM4YSP2UQkoQazahioFOjPn0GtmJI
+                - generic [ref=f1e1411]:
+                  - generic [ref=f1e1412]:
+                    - generic [ref=f1e1413]: Usage Refresh (ms)⟳ restart
+                    - generic [ref=f1e1414]: Interval between usage stats fetches.
+                  - spinbutton "Usage Refresh (ms)⟳ restart" [ref=f1e1416]: "5000"
+                - generic [ref=f1e1417]:
+                  - generic [ref=f1e1418]:
+                    - generic [ref=f1e1419]: Stats Latest N
+                    - generic [ref=f1e1420]: Number of recent captures used for stats aggregation.
+                  - spinbutton "Stats Latest N" [ref=f1e1422]: "100"
+            - generic [ref=f1e1423]:
+              - generic [ref=f1e1424]:
+                - generic [ref=f1e1425]: Vision
+                - generic [ref=f1e1426]: Vision interception pipeline.
+              - generic [ref=f1e1427]:
+                - generic [ref=f1e1428]:
+                  - generic [ref=f1e1430]: Strategy⟳ restart
+                  - combobox "Strategy⟳ restart" [ref=f1e1432] [cursor=pointer]:
+                    - generic: Always
+                    - img [ref=f1e1433]
+                - generic [ref=f1e1435]:
+                  - generic [ref=f1e1437]: Target URL⟳ restart
+                  - textbox "Target URL⟳ restart" [ref=f1e1439]: https://api.code.umans.ai/v1/chat/completions
+                - generic [ref=f1e1440]:
+                  - generic [ref=f1e1442]: Model⟳ restart
+                  - textbox "Model⟳ restart" [ref=f1e1444]: umans-flash
+                - generic [ref=f1e1445]:
+                  - generic [ref=f1e1447]: Prompt⟳ restart
+                  - textbox "Prompt⟳ restart" [ref=f1e1449]: Describe this image concisely.
+                - generic [ref=f1e1450]:
+                  - generic [ref=f1e1452]: Prompt Version⟳ restart
+                  - spinbutton "Prompt Version⟳ restart" [ref=f1e1454]: "1"
+                - generic [ref=f1e1455]:
+                  - generic [ref=f1e1457]: Max Images⟳ restart
+                  - spinbutton "Max Images⟳ restart" [ref=f1e1459]: "99"
+                - generic [ref=f1e1460]:
+                  - generic [ref=f1e1462]: Max Description Tokens⟳ restart
+                  - spinbutton "Max Description Tokens⟳ restart" [ref=f1e1464]: "300"
+                - generic [ref=f1e1465]:
+                  - generic [ref=f1e1467]: Timeout (ms)⟳ restart
+                  - spinbutton "Timeout (ms)⟳ restart" [ref=f1e1469]: "30000"
+                - generic [ref=f1e1470]:
+                  - generic [ref=f1e1472]: Cache Size⟳ restart
+                  - spinbutton "Cache Size⟳ restart" [ref=f1e1474]: "1000"
+                - generic [ref=f1e1475]:
+                  - generic [ref=f1e1477]: Concurrency⟳ restart
+                  - spinbutton "Concurrency⟳ restart" [ref=f1e1479]: "1"
+                - generic [ref=f1e1480]:
+                  - generic [ref=f1e1482]: API Key⟳ restart
+                  - textbox "API Key⟳ restart" [ref=f1e1484]
+                - generic [ref=f1e1485]:
+                  - generic [ref=f1e1487]: Catalog URL⟳ restart
+                  - textbox "Catalog URL⟳ restart" [ref=f1e1489]
+                - generic [ref=f1e1490]:
+                  - generic [ref=f1e1492]: Catalog Refresh (ms)⟳ restart
+                  - spinbutton "Catalog Refresh (ms)⟳ restart" [ref=f1e1494]: "3600000"
+                - generic [ref=f1e1495]:
+                  - generic [ref=f1e1497]: Force Intercept Capable⟳ restart
+                  - switch "Force Intercept Capable⟳ restart" [ref=f1e1499] [cursor=pointer]
+          - generic [ref=f1e1500]: Fields marked ⟳ restart require a server restart to take effect. Other fields can be applied live via Reload from Disk after saving.
+  - region "Notifications alt+T"

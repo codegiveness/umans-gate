@@ -1,0 +1,45 @@
+- generic [ref=f1e3]:
+  - link "Skip to content" [ref=f1e169] [cursor=pointer]:
+    - /url: "#main"
+  - generic [ref=f1e5]:
+    - banner [ref=f1e6]:
+      - heading "umans-gate" [level=1] [ref=f1e170]
+      - tablist [ref=f1e9]:
+        - tab "Captures" [selected] [ref=f1e171]
+        - tab "Vision Calls" [ref=f1e172]
+        - tab "Performance" [ref=f1e173]
+        - tab "Models" [ref=f1e174]
+        - tab "Config" [ref=f1e175]
+      - 'generic "Theme: dark" [ref=f1e176]':
+        - img [ref=f1e51]
+    - main "Inspector" [ref=f1e177]:
+      - tabpanel "Captures" [ref=f1e178]:
+        - generic [ref=f1e22]:
+          - complementary "Captures list" [ref=f1e179]:
+            - complementary [ref=f1e24]:
+              - generic [ref=f1e25]:
+                - heading "Captures (0)" [level=2] [ref=f1e180]:
+                  - text: Captures
+                  - generic [ref=f1e27]: (0)
+                - generic [ref=f1e28]:
+                  - 'generic "WebSocket: Live" [ref=f1e181]':
+                    - generic [ref=f1e30]: Live
+                  - button "Clear" [active] [ref=f1e182]:
+                    - img
+                    - text: Clear
+              - generic [ref=f1e56]:
+                - generic [ref=f1e58]: Code Max
+                - generic [ref=f1e59]:
+                  - generic [ref=f1e60]: 0/8
+                  - text: hard cap
+                - generic [ref=f1e61]: ·
+                - img [ref=f1e63]
+              - region "Captures" [ref=f1e183]:
+                - img "Loading" [ref=f1e185]
+          - generic "Capture detail" [ref=f1e188]:
+            - main [ref=f1e39]:
+              - img [ref=f1e189]
+              - paragraph [ref=f1e196]: Select a capture to inspect
+              - paragraph [ref=f1e197]: Requests appear here automatically as they flow through the proxy.
+  - region "Notifications alt+T"
+  - status [ref=f1e49]: Copy

@@ -1,0 +1,24 @@
+- generic [ref=f2e3]:
+  - banner [ref=f2e4]:
+    - heading "umans-gate" [level=1] [ref=f2e5]
+    - button "Toggle theme" [ref=f2e6] [cursor=pointer]:
+      - img
+      - generic [ref=f2e7]: dark
+  - generic [ref=f2e8]:
+    - tablist [ref=f2e10]:
+      - tab "Captures" [ref=f2e11] [cursor=pointer]
+      - tab "Vision Calls" [active] [selected] [ref=f2e12] [cursor=pointer]
+      - tab "Performance" [ref=f2e13] [cursor=pointer]
+      - tab "Config" [ref=f2e14] [cursor=pointer]
+    - tabpanel "Vision Calls" [ref=f2e440]:
+      - generic [ref=f2e441]:
+        - generic [ref=f2e442]:
+          - generic [ref=f2e443]:
+            - img [ref=f2e444]
+            - generic [ref=f2e447]: Vision Calls
+            - generic [ref=f2e448]: "0"
+          - button "Clear" [disabled]:
+            - img
+            - text: Clear
+        - generic [ref=f2e449]: No vision calls recorded yet. Vision calls appear here when the proxy intercepts image-bearing requests.
+  - region "Notifications alt+T"

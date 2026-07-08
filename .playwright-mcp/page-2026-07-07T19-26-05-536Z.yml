@@ -1,0 +1,42 @@
+- generic [ref=e3]:
+  - link "Skip to content" [ref=e4] [cursor=pointer]:
+    - /url: "#main"
+  - generic [ref=e5]:
+    - banner [ref=e6]:
+      - heading "umans-gate" [level=1] [ref=e7]
+      - tablist [ref=e9]:
+        - tab "Captures" [selected] [ref=e11]
+        - tab "Vision Calls" [ref=e13]
+        - tab "Performance" [ref=e15]
+        - tab "Models" [ref=e17]
+        - tab "Config" [ref=e19]
+    - main "Inspector" [ref=e20]:
+      - tabpanel "Captures" [ref=e21]:
+        - generic [ref=e22]:
+          - complementary "Captures list" [ref=e23]:
+            - complementary [ref=e24]:
+              - generic [ref=e25]:
+                - heading "Captures (0)" [level=2] [ref=e26]:
+                  - text: Captures
+                  - generic [ref=e27]: (0)
+                - generic [ref=e28]:
+                  - 'generic "WebSocket: Disconnected" [ref=e29]':
+                    - generic [ref=e30]: Disconnected
+                  - button "Clear" [ref=e32]:
+                    - img
+                    - text: Clear
+              - generic [ref=e34]:
+                - generic [ref=e36]: Code Max
+                - generic [ref=e37]:
+                  - generic [ref=e38]: 0/8
+                  - text: hard cap
+                - generic [ref=e39]: ·
+                - img [ref=e41]
+              - region "Captures" [ref=e45]:
+                - img "Loading" [ref=e47]
+          - generic "Capture detail" [ref=e50]:
+            - main [ref=e51]:
+              - img [ref=e52]
+              - paragraph [ref=e59]: Select a capture to inspect
+              - paragraph [ref=e60]: Requests appear here automatically as they flow through the proxy.
+  - status [ref=e61]: Copy

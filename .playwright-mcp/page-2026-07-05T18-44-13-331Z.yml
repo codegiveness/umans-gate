@@ -1,0 +1,31 @@
+- generic [ref=f1e3]:
+  - banner [ref=f1e4]:
+    - heading "umans-gate" [level=1] [ref=f1e5]
+    - button "Toggle theme" [ref=f1e6] [cursor=pointer]:
+      - img
+      - generic [ref=f1e7]: System
+  - generic [ref=f1e8]:
+    - tablist [ref=f1e10]:
+      - tab "Captures" [selected] [ref=f1e11] [cursor=pointer]
+      - tab "Vision Calls" [ref=f1e12] [cursor=pointer]
+      - tab "Performance" [ref=f1e13] [cursor=pointer]
+      - tab "Config" [ref=f1e14] [cursor=pointer]
+    - tabpanel "Captures" [ref=f1e15]:
+      - generic [ref=f1e16]:
+        - complementary [ref=f1e17]:
+          - generic [ref=f1e18]:
+            - heading "Captures (0)" [level=1] [ref=f1e19]:
+              - text: Captures
+              - generic [ref=f1e20]: (0)
+            - button "Clear" [ref=f1e21] [cursor=pointer]:
+              - img
+              - text: Clear
+          - 'button "WebSocket: Live" [ref=f1e23] [cursor=pointer]':
+            - img [ref=f1e24]
+            - generic [ref=f1e30]: "WebSocket: Live"
+        - main [ref=f1e114]:
+          - generic [ref=f1e115]:
+            - generic [ref=f1e116]: ⌖
+            - paragraph [ref=f1e117]: Select a capture to inspect
+            - paragraph [ref=f1e118]: Requests appear here automatically as they flow through the proxy.
+  - region "Notifications alt+T"

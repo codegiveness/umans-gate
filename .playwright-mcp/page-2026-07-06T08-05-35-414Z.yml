@@ -1,0 +1,362 @@
+- generic:
+  - generic:
+    - generic:
+      - link:
+        - /url: "#main"
+        - text: Skip to content
+      - banner:
+        - generic:
+          - heading [level=1]: umans-gate
+        - button:
+          - img
+          - generic: Toggle theme
+      - main:
+        - generic:
+          - generic:
+            - tablist:
+              - tab [selected]: Captures
+              - tab: Vision Calls
+              - tab: Performance
+              - tab: Config
+          - tabpanel:
+            - generic:
+              - complementary:
+                - complementary:
+                  - generic:
+                    - generic:
+                      - heading [level=2]:
+                        - text: Captures
+                        - generic: (15)
+                    - button:
+                      - img
+                      - text: Clear
+                  - generic:
+                    - button:
+                      - img
+                      - generic: "WebSocket: Reconnecting"
+                  - generic:
+                    - generic:
+                      - generic: Gate
+                      - generic: Code Pro
+                      - generic:
+                        - generic: 2/4
+                        - text: active
+                      - generic: ·
+                      - generic:
+                        - generic: closed
+                    - generic:
+                      - generic: "requests: 52 / 200"
+                      - generic: (148 remaining)
+                      - generic: · 1h window
+                  - listbox:
+                    - generic:
+                      - generic:
+                        - option [selected]:
+                          - generic:
+                            - generic: POST
+                            - generic: "200"
+                            - generic: SSE
+                            - generic: in http
+                            - generic: out https
+                            - generic: 14:41:48
+                          - generic: /v1/messages
+                          - generic:
+                            - generic: ↑15.0 KB
+                            - generic: ↓30.0 KB
+                            - generic: 300 ms
+                            - generic: ttft 275ms
+                            - generic: 45.5 t/s
+                            - generic: in 650
+                            - generic: out 275
+                            - generic: cache 8%
+                      - generic:
+                        - option:
+                          - generic:
+                            - generic: POST
+                            - generic: "200"
+                            - generic: in http
+                            - generic: out https
+                            - generic: 14:42:48
+                          - generic: /v1/chat/completions
+                          - generic:
+                            - generic: ↑14.0 KB
+                            - generic: ↓28.0 KB
+                            - generic: 290 ms
+                            - generic: ttft 270ms
+                            - generic: 45.5 t/s
+                            - generic: in 640
+                            - generic: out 270
+                            - generic: cache 0%
+                      - generic:
+                        - option:
+                          - generic:
+                            - generic: POST
+                            - generic: "200"
+                            - generic: in http
+                            - generic: out https
+                            - generic: 14:43:48
+                          - generic: /v1/messages
+                          - generic:
+                            - generic: ↑13.0 KB
+                            - generic: ↓26.0 KB
+                            - generic: 280 ms
+                            - generic: ttft 265ms
+                            - generic: 45.5 t/s
+                            - generic: in 630
+                            - generic: out 265
+                            - generic: cache 0%
+                      - generic:
+                        - option:
+                          - generic:
+                            - generic: POST
+                            - generic: "200"
+                            - generic: SSE
+                            - generic: in http
+                            - generic: out https
+                            - generic: 14:44:48
+                          - generic: /v1/chat/completions
+                          - generic:
+                            - generic: ↑12.0 KB
+                            - generic: ↓24.0 KB
+                            - generic: 270 ms
+                            - generic: ttft 260ms
+                            - generic: 45.5 t/s
+                            - generic: in 620
+                            - generic: out 260
+                            - generic: cache 8%
+                      - generic:
+                        - option:
+                          - generic:
+                            - generic: POST
+                            - generic: "200"
+                            - generic: in http
+                            - generic: out https
+                            - generic: 14:45:48
+                          - generic: /v1/messages
+                          - generic:
+                            - generic: ↑11.0 KB
+                            - generic: ↓22.0 KB
+                            - generic: 260 ms
+                            - generic: ttft 255ms
+                            - generic: 45.5 t/s
+                            - generic: in 610
+                            - generic: out 255
+                            - generic: cache 0%
+                      - generic:
+                        - option:
+                          - generic:
+                            - generic: POST
+                            - generic: "200"
+                            - generic: in http
+                            - generic: out https
+                            - generic: 14:46:48
+                          - generic: /v1/chat/completions
+                          - generic:
+                            - generic: ↑10.0 KB
+                            - generic: ↓20.0 KB
+                            - generic: 250 ms
+                            - generic: ttft 250ms
+                            - generic: 45.5 t/s
+                            - generic: in 600
+                            - generic: out 250
+                            - generic: cache 0%
+                      - generic:
+                        - option:
+                          - generic:
+                            - generic: POST
+                            - generic: "200"
+                            - generic: SSE
+                            - generic: in http
+                            - generic: out https
+                            - generic: 14:47:48
+                          - generic: /v1/messages
+                          - generic:
+                            - generic: ↑9.0 KB
+                            - generic: ↓18.0 KB
+                            - generic: 240 ms
+                            - generic: ttft 245ms
+                            - generic: 45.5 t/s
+                            - generic: in 590
+                            - generic: out 245
+                            - generic: cache 8%
+                      - generic:
+                        - option:
+                          - generic:
+                            - generic: POST
+                            - generic: "200"
+                            - generic: in http
+                            - generic: out https
+                            - generic: 14:48:48
+                          - generic: /v1/chat/completions
+                          - generic:
+                            - generic: ↑8.0 KB
+                            - generic: ↓16.0 KB
+                            - generic: 230 ms
+                            - generic: ttft 240ms
+                            - generic: 45.5 t/s
+                            - generic: in 580
+                            - generic: out 240
+                            - generic: cache 0%
+                      - generic:
+                        - option:
+                          - generic:
+                            - generic: POST
+                            - generic: "200"
+                            - generic: in http
+                            - generic: out https
+                            - generic: 14:49:48
+                          - generic: /v1/messages
+                          - generic:
+                            - generic: ↑7.0 KB
+                            - generic: ↓14.0 KB
+                            - generic: 220 ms
+                            - generic: ttft 235ms
+                            - generic: 45.5 t/s
+                            - generic: in 570
+                            - generic: out 235
+                            - generic: cache 0%
+                      - generic:
+                        - option:
+                          - generic:
+                            - generic: POST
+                            - generic: "200"
+                            - generic: SSE
+                            - generic: in http
+                            - generic: out https
+                            - generic: 14:50:48
+                          - generic: /v1/chat/completions
+                          - generic:
+                            - generic: ↑6.0 KB
+                            - generic: ↓12.0 KB
+                            - generic: 210 ms
+                            - generic: ttft 230ms
+                            - generic: 45.5 t/s
+                            - generic: in 560
+                            - generic: out 230
+                            - generic: cache 9%
+                      - generic:
+                        - option:
+                          - generic:
+                            - generic: POST
+                            - generic: "200"
+                            - generic: in http
+                            - generic: out https
+                            - generic: 14:51:48
+                          - generic: /v1/messages
+                          - generic:
+                            - generic: ↑5.0 KB
+                            - generic: ↓10.0 KB
+                            - generic: 200 ms
+                            - generic: ttft 225ms
+                            - generic: 45.5 t/s
+                            - generic: in 550
+                            - generic: out 225
+                            - generic: cache 0%
+                      - generic:
+                        - option:
+                          - generic:
+                            - generic: POST
+                            - generic: "200"
+                            - generic: in http
+                            - generic: out https
+                            - generic: 14:52:48
+                          - generic: /v1/chat/completions
+                          - generic:
+                            - generic: ↑4.0 KB
+                            - generic: ↓8.0 KB
+                            - generic: 190 ms
+                            - generic: ttft 220ms
+                            - generic: 45.5 t/s
+                            - generic: in 540
+                            - generic: out 220
+                            - generic: cache 0%
+                      - generic:
+                        - option:
+                          - generic:
+                            - generic: POST
+                            - generic: "200"
+                            - generic: SSE
+                            - generic: in http
+                            - generic: out https
+                            - generic: 14:53:48
+                          - generic: /v1/messages
+                          - generic:
+                            - generic: ↑3.0 KB
+                            - generic: ↓6.0 KB
+                            - generic: 180 ms
+                            - generic: ttft 215ms
+                            - generic: 45.5 t/s
+                            - generic: in 530
+                            - generic: out 215
+                            - generic: cache 9%
+                      - generic:
+                        - option:
+                          - generic:
+                            - generic: POST
+                            - generic: "200"
+                            - generic: in http
+                            - generic: out https
+                            - generic: 14:54:48
+                          - generic: /v1/chat/completions
+                          - generic:
+                            - generic: ↑2.0 KB
+                            - generic: ↓4.0 KB
+                            - generic: 170 ms
+                            - generic: ttft 210ms
+                            - generic: 45.5 t/s
+                            - generic: in 520
+                            - generic: out 210
+                            - generic: cache 0%
+                      - generic:
+                        - option:
+                          - generic:
+                            - generic: POST
+                            - generic: "200"
+                            - generic: in http
+                            - generic: out https
+                            - generic: 14:55:48
+                          - generic: /v1/messages
+                          - generic:
+                            - generic: ↑1.0 KB
+                            - generic: ↓2.0 KB
+                            - generic: 160 ms
+                            - generic: ttft 205ms
+                            - generic: 45.5 t/s
+                            - generic: in 510
+                            - generic: out 205
+                            - generic: cache 0%
+              - generic:
+                - main:
+                  - generic:
+                    - button:
+                      - img
+                      - text: Copy
+                    - heading [level=2]: POST /v1/messages
+                    - generic:
+                      - generic: "200"
+                      - generic: ↑1.0 KB ↓2.0 KB
+                      - generic: 160 ms
+                      - generic: in http
+                      - generic: out https
+                      - generic: 14:55:48
+                    - generic: https://api.anthropic.com/v1/messages
+                  - generic:
+                    - tablist:
+                      - tab [selected]: Response Body
+                      - tab: Request Body
+                      - tab: Response Headers
+                      - tab: Request Headers
+                    - generic:
+                      - generic:
+                        - generic:
+                          - tabpanel:
+                            - generic: "{ \"id\": \"msg_01\", \"type\": \"message\", \"role\": \"assistant\", \"content\": [ { \"type\": \"text\", \"text\": \"Hi there! How can I help you today?\" } ], \"model\": \"claude-sonnet-4-20250514\", \"stop_reason\": \"end_turn\", \"usage\": { \"input_tokens\": 10, \"output_tokens\": 15 } }"
+      - region "Notifications alt+T"
+      - status: Copy
+  - alertdialog "Clear all captures?" [ref=f1e1010]:
+    - generic [ref=f1e1011]:
+      - heading "Clear all captures?" [level=2] [ref=f1e1012]
+      - paragraph [ref=f1e1013]: Delete 15 captured requests? This cannot be undone.
+    - generic [ref=f1e1014]:
+      - button "Cancel" [active] [ref=f1e1015] [cursor=pointer]
+      - button "Continue" [ref=f1e1016] [cursor=pointer]

@@ -1,0 +1,44 @@
+- generic [ref=f1e3]:
+  - link "Skip to content" [ref=f1e4] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=f1e5]:
+    - generic [ref=f1e6]:
+      - button "Open captures" [ref=f1e367] [cursor=pointer]:
+        - img
+      - heading "umans-gate" [level=1] [ref=f1e7]
+    - button "Toggle theme" [ref=f1e8] [cursor=pointer]:
+      - img
+      - generic [ref=f1e9]: Toggle theme
+  - main "Inspector" [ref=f1e10]:
+    - generic [ref=f1e11]:
+      - tablist [ref=f1e13]:
+        - tab "Captures" [selected] [ref=f1e14] [cursor=pointer]
+        - tab "Vision Calls" [ref=f1e15] [cursor=pointer]
+        - tab "Performance" [ref=f1e16] [cursor=pointer]
+        - tab "Config" [ref=f1e17] [cursor=pointer]
+      - tabpanel "Captures" [ref=f1e18]:
+        - generic "Capture detail" [ref=f1e330]:
+          - main [ref=f1e684]:
+            - generic [ref=f1e685]:
+              - button "Copy" [ref=f1e686] [cursor=pointer]:
+                - img
+                - text: Copy
+              - heading "POST /v1/messages" [level=2] [ref=f1e687]
+              - generic [ref=f1e688]:
+                - generic [ref=f1e689]: "200"
+                - generic [ref=f1e690]: ↑1.0 KB ↓2.0 KB
+                - generic [ref=f1e691]: 160 ms
+                - generic [ref=f1e692]: in http
+                - generic [ref=f1e693]: out https
+                - generic [ref=f1e694]: 14:55:48
+              - generic [ref=f1e695]: https://api.anthropic.com/v1/messages
+            - generic [ref=f1e696]:
+              - tablist [ref=f1e697]:
+                - tab "Response Body" [selected] [ref=f1e698] [cursor=pointer]
+                - tab "Request Body" [ref=f1e699] [cursor=pointer]
+                - tab "Response Headers" [ref=f1e700] [cursor=pointer]
+                - tab "Request Headers" [ref=f1e701] [cursor=pointer]
+              - tabpanel "Response Body" [ref=f1e705]:
+                - generic [ref=f1e706]: "{ \"id\": \"msg_01\", \"type\": \"message\", \"role\": \"assistant\", \"content\": [ { \"type\": \"text\", \"text\": \"Hi there! How can I help you today?\" } ], \"model\": \"claude-sonnet-4-20250514\", \"stop_reason\": \"end_turn\", \"usage\": { \"input_tokens\": 10, \"output_tokens\": 15 } }"
+  - region "Notifications alt+T"
+  - status [ref=f1e343]: Copy

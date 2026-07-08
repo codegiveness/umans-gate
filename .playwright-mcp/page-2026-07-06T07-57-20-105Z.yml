@@ -1,0 +1,329 @@
+- generic [ref=f1e3]:
+  - link "Skip to content" [ref=f1e4] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=f1e5]:
+    - heading "umans-gate" [level=1] [ref=f1e7]
+    - button "Toggle theme" [ref=f1e8] [cursor=pointer]:
+      - img
+      - generic [ref=f1e9]: Toggle theme
+  - main "Inspector" [ref=f1e10]:
+    - generic [ref=f1e11]:
+      - tablist [ref=f1e13]:
+        - tab "Captures" [selected] [ref=f1e14] [cursor=pointer]
+        - tab "Vision Calls" [ref=f1e15] [cursor=pointer]
+        - tab "Performance" [ref=f1e16] [cursor=pointer]
+        - tab "Config" [ref=f1e17] [cursor=pointer]
+      - tabpanel "Captures" [ref=f1e18]:
+        - generic [ref=f1e19]:
+          - complementary "Captures list" [ref=f1e20]:
+            - complementary [ref=f1e21]:
+              - generic [ref=f1e22]:
+                - heading "Captures (15)" [level=2] [ref=f1e24]:
+                  - text: Captures
+                  - generic [ref=f1e25]: (15)
+                - button "Clear" [ref=f1e26] [cursor=pointer]:
+                  - img
+                  - text: Clear
+              - 'button "WebSocket: Reconnecting" [ref=f1e28] [cursor=pointer]':
+                - img [ref=f1e29]
+                - generic [ref=f1e35]: "WebSocket: Reconnecting"
+              - generic [ref=f1e37]:
+                - generic [ref=f1e38]:
+                  - generic [ref=f1e39]: Gate
+                  - generic [ref=f1e40]: Code Pro
+                  - generic [ref=f1e41]:
+                    - generic [ref=f1e42]: 2/4
+                    - text: active
+                  - generic [ref=f1e43]: ·
+                  - generic [ref=f1e46]: closed
+                - generic [ref=f1e49]:
+                  - generic [ref=f1e50]: "requests: 52 / 200"
+                  - generic [ref=f1e51]: (148 remaining)
+                  - generic [ref=f1e52]: · 1h window
+              - listbox "Captures" [ref=f1e53]:
+                - generic [ref=f1e54]:
+                  - option "POST 200 SSE in http out https 14:41:48 /v1/messages ↑15.0 KB ↓30.0 KB 300 ms ttft 275ms 45.5 t/s in 650 out 275 cache 8%" [active] [selected] [ref=f1e56] [cursor=pointer]:
+                    - generic [ref=f1e57]:
+                      - generic [ref=f1e58]: POST
+                      - generic [ref=f1e59]: "200"
+                      - generic [ref=f1e60]: SSE
+                      - generic [ref=f1e61]: in http
+                      - generic [ref=f1e62]: out https
+                      - generic [ref=f1e63]: 14:41:48
+                    - generic "/v1/messages" [ref=f1e64]
+                    - generic [ref=f1e65]:
+                      - generic [ref=f1e66]: ↑15.0 KB
+                      - generic [ref=f1e67]: ↓30.0 KB
+                      - generic [ref=f1e68]: 300 ms
+                      - generic "Time to first token" [ref=f1e69]: ttft 275ms
+                      - generic "Tokens per second" [ref=f1e70]: 45.5 t/s
+                      - generic "Total input tokens" [ref=f1e71]: in 650
+                      - generic "Total output tokens" [ref=f1e72]: out 275
+                      - generic "Cache read % of total input" [ref=f1e73]: cache 8%
+                  - option "POST 200 in http out https 14:42:48 /v1/chat/completions ↑14.0 KB ↓28.0 KB 290 ms ttft 270ms 45.5 t/s in 640 out 270 cache 0%" [ref=f1e75] [cursor=pointer]:
+                    - generic [ref=f1e76]:
+                      - generic [ref=f1e77]: POST
+                      - generic [ref=f1e78]: "200"
+                      - generic [ref=f1e79]: in http
+                      - generic [ref=f1e80]: out https
+                      - generic [ref=f1e81]: 14:42:48
+                    - generic "/v1/chat/completions" [ref=f1e82]
+                    - generic [ref=f1e83]:
+                      - generic [ref=f1e84]: ↑14.0 KB
+                      - generic [ref=f1e85]: ↓28.0 KB
+                      - generic [ref=f1e86]: 290 ms
+                      - generic "Time to first token" [ref=f1e87]: ttft 270ms
+                      - generic "Tokens per second" [ref=f1e88]: 45.5 t/s
+                      - generic "Total input tokens" [ref=f1e89]: in 640
+                      - generic "Total output tokens" [ref=f1e90]: out 270
+                      - generic "Cache read % of total input" [ref=f1e91]: cache 0%
+                  - option "POST 200 in http out https 14:43:48 /v1/messages ↑13.0 KB ↓26.0 KB 280 ms ttft 265ms 45.5 t/s in 630 out 265 cache 0%" [ref=f1e93] [cursor=pointer]:
+                    - generic [ref=f1e94]:
+                      - generic [ref=f1e95]: POST
+                      - generic [ref=f1e96]: "200"
+                      - generic [ref=f1e97]: in http
+                      - generic [ref=f1e98]: out https
+                      - generic [ref=f1e99]: 14:43:48
+                    - generic "/v1/messages" [ref=f1e100]
+                    - generic [ref=f1e101]:
+                      - generic [ref=f1e102]: ↑13.0 KB
+                      - generic [ref=f1e103]: ↓26.0 KB
+                      - generic [ref=f1e104]: 280 ms
+                      - generic "Time to first token" [ref=f1e105]: ttft 265ms
+                      - generic "Tokens per second" [ref=f1e106]: 45.5 t/s
+                      - generic "Total input tokens" [ref=f1e107]: in 630
+                      - generic "Total output tokens" [ref=f1e108]: out 265
+                      - generic "Cache read % of total input" [ref=f1e109]: cache 0%
+                  - option "POST 200 SSE in http out https 14:44:48 /v1/chat/completions ↑12.0 KB ↓24.0 KB 270 ms ttft 260ms 45.5 t/s in 620 out 260 cache 8%" [ref=f1e111] [cursor=pointer]:
+                    - generic [ref=f1e112]:
+                      - generic [ref=f1e113]: POST
+                      - generic [ref=f1e114]: "200"
+                      - generic [ref=f1e115]: SSE
+                      - generic [ref=f1e116]: in http
+                      - generic [ref=f1e117]: out https
+                      - generic [ref=f1e118]: 14:44:48
+                    - generic "/v1/chat/completions" [ref=f1e119]
+                    - generic [ref=f1e120]:
+                      - generic [ref=f1e121]: ↑12.0 KB
+                      - generic [ref=f1e122]: ↓24.0 KB
+                      - generic [ref=f1e123]: 270 ms
+                      - generic "Time to first token" [ref=f1e124]: ttft 260ms
+                      - generic "Tokens per second" [ref=f1e125]: 45.5 t/s
+                      - generic "Total input tokens" [ref=f1e126]: in 620
+                      - generic "Total output tokens" [ref=f1e127]: out 260
+                      - generic "Cache read % of total input" [ref=f1e128]: cache 8%
+                  - option "POST 200 in http out https 14:45:48 /v1/messages ↑11.0 KB ↓22.0 KB 260 ms ttft 255ms 45.5 t/s in 610 out 255 cache 0%" [ref=f1e130] [cursor=pointer]:
+                    - generic [ref=f1e131]:
+                      - generic [ref=f1e132]: POST
+                      - generic [ref=f1e133]: "200"
+                      - generic [ref=f1e134]: in http
+                      - generic [ref=f1e135]: out https
+                      - generic [ref=f1e136]: 14:45:48
+                    - generic "/v1/messages" [ref=f1e137]
+                    - generic [ref=f1e138]:
+                      - generic [ref=f1e139]: ↑11.0 KB
+                      - generic [ref=f1e140]: ↓22.0 KB
+                      - generic [ref=f1e141]: 260 ms
+                      - generic "Time to first token" [ref=f1e142]: ttft 255ms
+                      - generic "Tokens per second" [ref=f1e143]: 45.5 t/s
+                      - generic "Total input tokens" [ref=f1e144]: in 610
+                      - generic "Total output tokens" [ref=f1e145]: out 255
+                      - generic "Cache read % of total input" [ref=f1e146]: cache 0%
+                  - option "POST 200 in http out https 14:46:48 /v1/chat/completions ↑10.0 KB ↓20.0 KB 250 ms ttft 250ms 45.5 t/s in 600 out 250 cache 0%" [ref=f1e148] [cursor=pointer]:
+                    - generic [ref=f1e149]:
+                      - generic [ref=f1e150]: POST
+                      - generic [ref=f1e151]: "200"
+                      - generic [ref=f1e152]: in http
+                      - generic [ref=f1e153]: out https
+                      - generic [ref=f1e154]: 14:46:48
+                    - generic "/v1/chat/completions" [ref=f1e155]
+                    - generic [ref=f1e156]:
+                      - generic [ref=f1e157]: ↑10.0 KB
+                      - generic [ref=f1e158]: ↓20.0 KB
+                      - generic [ref=f1e159]: 250 ms
+                      - generic "Time to first token" [ref=f1e160]: ttft 250ms
+                      - generic "Tokens per second" [ref=f1e161]: 45.5 t/s
+                      - generic "Total input tokens" [ref=f1e162]: in 600
+                      - generic "Total output tokens" [ref=f1e163]: out 250
+                      - generic "Cache read % of total input" [ref=f1e164]: cache 0%
+                  - option "POST 200 SSE in http out https 14:47:48 /v1/messages ↑9.0 KB ↓18.0 KB 240 ms ttft 245ms 45.5 t/s in 590 out 245 cache 8%" [ref=f1e166] [cursor=pointer]:
+                    - generic [ref=f1e167]:
+                      - generic [ref=f1e168]: POST
+                      - generic [ref=f1e169]: "200"
+                      - generic [ref=f1e170]: SSE
+                      - generic [ref=f1e171]: in http
+                      - generic [ref=f1e172]: out https
+                      - generic [ref=f1e173]: 14:47:48
+                    - generic "/v1/messages" [ref=f1e174]
+                    - generic [ref=f1e175]:
+                      - generic [ref=f1e176]: ↑9.0 KB
+                      - generic [ref=f1e177]: ↓18.0 KB
+                      - generic [ref=f1e178]: 240 ms
+                      - generic "Time to first token" [ref=f1e179]: ttft 245ms
+                      - generic "Tokens per second" [ref=f1e180]: 45.5 t/s
+                      - generic "Total input tokens" [ref=f1e181]: in 590
+                      - generic "Total output tokens" [ref=f1e182]: out 245
+                      - generic "Cache read % of total input" [ref=f1e183]: cache 8%
+                  - option "POST 200 in http out https 14:48:48 /v1/chat/completions ↑8.0 KB ↓16.0 KB 230 ms ttft 240ms 45.5 t/s in 580 out 240 cache 0%" [ref=f1e185] [cursor=pointer]:
+                    - generic [ref=f1e186]:
+                      - generic [ref=f1e187]: POST
+                      - generic [ref=f1e188]: "200"
+                      - generic [ref=f1e189]: in http
+                      - generic [ref=f1e190]: out https
+                      - generic [ref=f1e191]: 14:48:48
+                    - generic "/v1/chat/completions" [ref=f1e192]
+                    - generic [ref=f1e193]:
+                      - generic [ref=f1e194]: ↑8.0 KB
+                      - generic [ref=f1e195]: ↓16.0 KB
+                      - generic [ref=f1e196]: 230 ms
+                      - generic "Time to first token" [ref=f1e197]: ttft 240ms
+                      - generic "Tokens per second" [ref=f1e198]: 45.5 t/s
+                      - generic "Total input tokens" [ref=f1e199]: in 580
+                      - generic "Total output tokens" [ref=f1e200]: out 240
+                      - generic "Cache read % of total input" [ref=f1e201]: cache 0%
+                  - option "POST 200 in http out https 14:49:48 /v1/messages ↑7.0 KB ↓14.0 KB 220 ms ttft 235ms 45.5 t/s in 570 out 235 cache 0%" [ref=f1e203] [cursor=pointer]:
+                    - generic [ref=f1e204]:
+                      - generic [ref=f1e205]: POST
+                      - generic [ref=f1e206]: "200"
+                      - generic [ref=f1e207]: in http
+                      - generic [ref=f1e208]: out https
+                      - generic [ref=f1e209]: 14:49:48
+                    - generic "/v1/messages" [ref=f1e210]
+                    - generic [ref=f1e211]:
+                      - generic [ref=f1e212]: ↑7.0 KB
+                      - generic [ref=f1e213]: ↓14.0 KB
+                      - generic [ref=f1e214]: 220 ms
+                      - generic "Time to first token" [ref=f1e215]: ttft 235ms
+                      - generic "Tokens per second" [ref=f1e216]: 45.5 t/s
+                      - generic "Total input tokens" [ref=f1e217]: in 570
+                      - generic "Total output tokens" [ref=f1e218]: out 235
+                      - generic "Cache read % of total input" [ref=f1e219]: cache 0%
+                  - option "POST 200 SSE in http out https 14:50:48 /v1/chat/completions ↑6.0 KB ↓12.0 KB 210 ms ttft 230ms 45.5 t/s in 560 out 230 cache 9%" [ref=f1e221] [cursor=pointer]:
+                    - generic [ref=f1e222]:
+                      - generic [ref=f1e223]: POST
+                      - generic [ref=f1e224]: "200"
+                      - generic [ref=f1e225]: SSE
+                      - generic [ref=f1e226]: in http
+                      - generic [ref=f1e227]: out https
+                      - generic [ref=f1e228]: 14:50:48
+                    - generic "/v1/chat/completions" [ref=f1e229]
+                    - generic [ref=f1e230]:
+                      - generic [ref=f1e231]: ↑6.0 KB
+                      - generic [ref=f1e232]: ↓12.0 KB
+                      - generic [ref=f1e233]: 210 ms
+                      - generic "Time to first token" [ref=f1e234]: ttft 230ms
+                      - generic "Tokens per second" [ref=f1e235]: 45.5 t/s
+                      - generic "Total input tokens" [ref=f1e236]: in 560
+                      - generic "Total output tokens" [ref=f1e237]: out 230
+                      - generic "Cache read % of total input" [ref=f1e238]: cache 9%
+                  - option "POST 200 in http out https 14:51:48 /v1/messages ↑5.0 KB ↓10.0 KB 200 ms ttft 225ms 45.5 t/s in 550 out 225 cache 0%" [ref=f1e240] [cursor=pointer]:
+                    - generic [ref=f1e241]:
+                      - generic [ref=f1e242]: POST
+                      - generic [ref=f1e243]: "200"
+                      - generic [ref=f1e244]: in http
+                      - generic [ref=f1e245]: out https
+                      - generic [ref=f1e246]: 14:51:48
+                    - generic "/v1/messages" [ref=f1e247]
+                    - generic [ref=f1e248]:
+                      - generic [ref=f1e249]: ↑5.0 KB
+                      - generic [ref=f1e250]: ↓10.0 KB
+                      - generic [ref=f1e251]: 200 ms
+                      - generic "Time to first token" [ref=f1e252]: ttft 225ms
+                      - generic "Tokens per second" [ref=f1e253]: 45.5 t/s
+                      - generic "Total input tokens" [ref=f1e254]: in 550
+                      - generic "Total output tokens" [ref=f1e255]: out 225
+                      - generic "Cache read % of total input" [ref=f1e256]: cache 0%
+                  - option "POST 200 in http out https 14:52:48 /v1/chat/completions ↑4.0 KB ↓8.0 KB 190 ms ttft 220ms 45.5 t/s in 540 out 220 cache 0%" [ref=f1e258] [cursor=pointer]:
+                    - generic [ref=f1e259]:
+                      - generic [ref=f1e260]: POST
+                      - generic [ref=f1e261]: "200"
+                      - generic [ref=f1e262]: in http
+                      - generic [ref=f1e263]: out https
+                      - generic [ref=f1e264]: 14:52:48
+                    - generic "/v1/chat/completions" [ref=f1e265]
+                    - generic [ref=f1e266]:
+                      - generic [ref=f1e267]: ↑4.0 KB
+                      - generic [ref=f1e268]: ↓8.0 KB
+                      - generic [ref=f1e269]: 190 ms
+                      - generic "Time to first token" [ref=f1e270]: ttft 220ms
+                      - generic "Tokens per second" [ref=f1e271]: 45.5 t/s
+                      - generic "Total input tokens" [ref=f1e272]: in 540
+                      - generic "Total output tokens" [ref=f1e273]: out 220
+                      - generic "Cache read % of total input" [ref=f1e274]: cache 0%
+                  - option "POST 200 SSE in http out https 14:53:48 /v1/messages ↑3.0 KB ↓6.0 KB 180 ms ttft 215ms 45.5 t/s in 530 out 215 cache 9%" [ref=f1e276] [cursor=pointer]:
+                    - generic [ref=f1e277]:
+                      - generic [ref=f1e278]: POST
+                      - generic [ref=f1e279]: "200"
+                      - generic [ref=f1e280]: SSE
+                      - generic [ref=f1e281]: in http
+                      - generic [ref=f1e282]: out https
+                      - generic [ref=f1e283]: 14:53:48
+                    - generic "/v1/messages" [ref=f1e284]
+                    - generic [ref=f1e285]:
+                      - generic [ref=f1e286]: ↑3.0 KB
+                      - generic [ref=f1e287]: ↓6.0 KB
+                      - generic [ref=f1e288]: 180 ms
+                      - generic "Time to first token" [ref=f1e289]: ttft 215ms
+                      - generic "Tokens per second" [ref=f1e290]: 45.5 t/s
+                      - generic "Total input tokens" [ref=f1e291]: in 530
+                      - generic "Total output tokens" [ref=f1e292]: out 215
+                      - generic "Cache read % of total input" [ref=f1e293]: cache 9%
+                  - option "POST 200 in http out https 14:54:48 /v1/chat/completions ↑2.0 KB ↓4.0 KB 170 ms ttft 210ms 45.5 t/s in 520 out 210 cache 0%" [ref=f1e295] [cursor=pointer]:
+                    - generic [ref=f1e296]:
+                      - generic [ref=f1e297]: POST
+                      - generic [ref=f1e298]: "200"
+                      - generic [ref=f1e299]: in http
+                      - generic [ref=f1e300]: out https
+                      - generic [ref=f1e301]: 14:54:48
+                    - generic "/v1/chat/completions" [ref=f1e302]
+                    - generic [ref=f1e303]:
+                      - generic [ref=f1e304]: ↑2.0 KB
+                      - generic [ref=f1e305]: ↓4.0 KB
+                      - generic [ref=f1e306]: 170 ms
+                      - generic "Time to first token" [ref=f1e307]: ttft 210ms
+                      - generic "Tokens per second" [ref=f1e308]: 45.5 t/s
+                      - generic "Total input tokens" [ref=f1e309]: in 520
+                      - generic "Total output tokens" [ref=f1e310]: out 210
+                      - generic "Cache read % of total input" [ref=f1e311]: cache 0%
+                  - option "POST 200 in http out https 14:55:48 /v1/messages ↑1.0 KB ↓2.0 KB 160 ms ttft 205ms 45.5 t/s in 510 out 205 cache 0%" [ref=f1e313] [cursor=pointer]:
+                    - generic [ref=f1e314]:
+                      - generic [ref=f1e315]: POST
+                      - generic [ref=f1e316]: "200"
+                      - generic [ref=f1e317]: in http
+                      - generic [ref=f1e318]: out https
+                      - generic [ref=f1e319]: 14:55:48
+                    - generic "/v1/messages" [ref=f1e320]
+                    - generic [ref=f1e321]:
+                      - generic [ref=f1e322]: ↑1.0 KB
+                      - generic [ref=f1e323]: ↓2.0 KB
+                      - generic [ref=f1e324]: 160 ms
+                      - generic "Time to first token" [ref=f1e325]: ttft 205ms
+                      - generic "Tokens per second" [ref=f1e326]: 45.5 t/s
+                      - generic "Total input tokens" [ref=f1e327]: in 510
+                      - generic "Total output tokens" [ref=f1e328]: out 205
+                      - generic "Cache read % of total input" [ref=f1e329]: cache 0%
+          - generic "Capture detail" [ref=f1e330]:
+            - main [ref=f1e344]:
+              - generic [ref=f1e345]:
+                - button "Copy" [ref=f1e346] [cursor=pointer]:
+                  - img
+                  - text: Copy
+                - heading "POST /v1/messages" [level=2] [ref=f1e347]
+                - generic [ref=f1e348]:
+                  - generic [ref=f1e349]: "200"
+                  - generic [ref=f1e350]: ↑1.0 KB ↓2.0 KB
+                  - generic [ref=f1e351]: 160 ms
+                  - generic [ref=f1e352]: in http
+                  - generic [ref=f1e353]: out https
+                  - generic [ref=f1e354]: 14:55:48
+                - generic [ref=f1e355]: https://api.anthropic.com/v1/messages
+              - generic [ref=f1e356]:
+                - tablist [ref=f1e357]:
+                  - tab "Response Body" [selected] [ref=f1e358] [cursor=pointer]
+                  - tab "Request Body" [ref=f1e359] [cursor=pointer]
+                  - tab "Response Headers" [ref=f1e360] [cursor=pointer]
+                  - tab "Request Headers" [ref=f1e361] [cursor=pointer]
+                - tabpanel "Response Body" [ref=f1e365]:
+                  - generic [ref=f1e366]: "{ \"id\": \"msg_01\", \"type\": \"message\", \"role\": \"assistant\", \"content\": [ { \"type\": \"text\", \"text\": \"Hi there! How can I help you today?\" } ], \"model\": \"claude-sonnet-4-20250514\", \"stop_reason\": \"end_turn\", \"usage\": { \"input_tokens\": 10, \"output_tokens\": 15 } }"
+  - region "Notifications alt+T"
+  - status [ref=f1e343]: Copy
