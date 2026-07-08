@@ -17,19 +17,19 @@ import {
 import type { GateError } from "./limiter.js";
 import type { ConcurrencyGate } from "./limiter.js";
 import { createLogger } from "./logger.js";
-import { isGlmModel, resolveEffortForModel } from "./model-policy.js";
+
 import { extractModelName } from "./models/name.js";
 import type { WriteQueue } from "./queue.js";
 import type { SlidingWindowRateLimiter } from "./rate.js";
-import { stampReasoning } from "./stamp-reasoning.js";
-import { stampThinking } from "./stamp-thinking.js";
-import { stampTopK } from "./stamp-topk.js";
-import { stampCacheTtl } from "./stamp.js";
+import {
+  CacheTtlStep,
+  STAMP_PIPELINE,
+  type StampContext,
+  parseJsonBody,
+} from "./stamp-pipeline.js";
 import type {
-  AnthropicBody,
   CaptureConfig,
   GateConfig,
-  OpenAiBody,
   ProtocolConfig,
   RequestMeta,
   ResponseMeta,
@@ -44,133 +44,6 @@ import type { VisionHandoff } from "./vision/handoff.js";
 import type { WsBroadcaster } from "./ws.js";
 
 // ─── Stamp pipeline (table-driven dispatch) ────────────────────────────────
-
-interface StampContext {
-  config: StampConfig & CaptureConfig & GateConfig & ProtocolConfig;
-  isOpenAi: boolean;
-  headers: Record<string, string>;
-  url: URL;
-  method: string;
-  modelName: string | undefined;
-}
-
-interface StampStep {
-  readonly label: string;
-  applies(ctx: StampContext): boolean;
-  apply(body: unknown, ctx: StampContext): boolean;
-}
-
-/** Parse a request buffer as JSON using the content-type / first-byte heuristic. */
-function parseJsonBody(
-  reqBuf: Uint8Array,
-  headers: Record<string, string>,
-): { body: unknown; ok: boolean } {
-  const ct = headers["content-type"] ?? "";
-  if (!ct.includes("json") && reqBuf[0] !== 0x7b) return { body: null, ok: false };
-  try {
-    return { body: JSON.parse(textDecoder.decode(reqBuf)), ok: true };
-  } catch {
-    return { body: null, ok: false };
-  }
-}
-
-const CacheTtlStep: StampStep = {
-  label: "ttl",
-  applies(ctx) {
-    return ctx.config.stampTtl !== null && !ctx.isOpenAi;
-  },
-  apply(body, ctx) {
-    if (body === null || typeof body !== "object") return false;
-    const n = stampCacheTtl(body as AnthropicBody, ctx.config.stampTtl as string);
-    if (n > 0) {
-      log.info(`stamped ttl="${ctx.config.stampTtl}" on ${n} block(s)`, {
-        method: ctx.method,
-        path: ctx.url.pathname,
-      });
-      return true;
-    }
-    return false;
-  },
-};
-
-const AnthropicBodyStep: StampStep = {
-  label: "anthropic-body",
-  applies(ctx) {
-    return (
-      !ctx.isOpenAi &&
-      (ctx.config.stampThinking !== null ||
-        ctx.config.stampMaxTokens !== null ||
-        ctx.config.stampOutputConfig !== null)
-    );
-  },
-  apply(body, ctx) {
-    if (body === null || typeof body !== "object") return false;
-    const effort = resolveEffortForModel(ctx.modelName, ctx.config.stampOutputConfig !== null);
-    const outputConfigValue =
-      effort !== undefined ? { effort } : (ctx.config.stampOutputConfig ?? undefined);
-    const changed = stampThinking(body as AnthropicBody, {
-      maxTokens: ctx.config.stampMaxTokens !== null,
-      thinking: ctx.config.stampThinking ?? false,
-      outputConfig: outputConfigValue,
-    });
-    if (changed) {
-      log.info("stamped anthropic body fields", {
-        method: ctx.method,
-        path: ctx.url.pathname,
-      });
-      return true;
-    }
-    return false;
-  },
-};
-
-const OpenAiReasoningStep: StampStep = {
-  label: "openai-reasoning",
-  applies(ctx) {
-    return ctx.isOpenAi && ctx.config.stampReasoningEffort !== null;
-  },
-  apply(body, ctx) {
-    if (body === null || typeof body !== "object") return false;
-    const reasoningEffort =
-      resolveEffortForModel(ctx.modelName, ctx.config.stampReasoningEffort !== null) ??
-      (ctx.config.stampReasoningEffort as "high" | "max");
-    const changed = stampReasoning(body as OpenAiBody, { reasoningEffort });
-    if (changed) {
-      log.info("stamped openai body reasoning_effort", {
-        method: ctx.method,
-        path: ctx.url.pathname,
-      });
-      return true;
-    }
-    return false;
-  },
-};
-
-const TopKStep: StampStep = {
-  label: "top-k",
-  applies(ctx) {
-    return ctx.config.stampTopK !== null && isGlmModel(ctx.modelName);
-  },
-  apply(body, ctx) {
-    if (body === null || typeof body !== "object") return false;
-    const changed = stampTopK(body, ctx.config.stampTopK as number);
-    if (changed) {
-      log.info(`stamped top_k=${ctx.config.stampTopK}`, {
-        method: ctx.method,
-        path: ctx.url.pathname,
-      });
-      return true;
-    }
-    return false;
-  },
-};
-
-const STAMP_PIPELINE: StampStep[] = [
-  CacheTtlStep,
-  AnthropicBodyStep,
-  OpenAiReasoningStep,
-  TopKStep,
-];
 
 /**
  * Re-stamp cache_control TTL on the post-vision body.
