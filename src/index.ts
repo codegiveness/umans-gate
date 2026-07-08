@@ -24,6 +24,7 @@ import { DescriptionCache } from "./vision/cache.js";
 import type { VisionLookup } from "./vision/detect.js";
 import { VisionHandoff } from "./vision/handoff.js";
 import { PersistentDescriptionStore } from "./vision/persistent-cache.js";
+import { CompositeVisionSink, DbVisionSink, WsBroadcastVisionSink } from "./vision/sink.js";
 import { ConnectionWarmer } from "./warmer.js";
 import { type BunServerWebSocket, WsBroadcaster } from "./ws.js";
 
@@ -75,6 +76,53 @@ const GATE_RECONFIG_FIELDS = new Set<keyof ProxyConfig>([
   "concurrencyMainReservation",
   "concurrencyVisionReservation",
 ]);
+
+/** Options for {@link createRequestDispatcher}. */
+interface RequestDispatcherOptions {
+  handleViewer: (url: URL, req: Request) => Promise<Response | null>;
+  handleProxy: (req: Request, url: URL) => Promise<Response>;
+  viewerPrefix: string;
+}
+
+/**
+ * Create the request dispatcher that routes incoming requests to:
+ * 1. WebSocket upgrade (returns 101 on success, 400 on failure)
+ * 2. Viewer routes (dashboard + REST API under the viewer prefix)
+ * 3. LLM proxy routes (whitelisted method+path combinations)
+ * 4. 404 fallback for non-LLM paths
+ */
+function createRequestDispatcher(options: RequestDispatcherOptions) {
+  const { handleViewer, handleProxy, viewerPrefix: VIEWER } = options;
+
+  return async (req: Request, server: Bun.Server<undefined>): Promise<Response> => {
+    const url = new URL(req.url);
+
+    // WebSocket upgrade
+    if (url.pathname === `${VIEWER}/ws`) {
+      if (server.upgrade(req)) return new Response(null, { status: 101 });
+      return new Response("upgrade failed", { status: 400 });
+    }
+
+    // Viewer routes (dashboard + REST API)
+    if (url.pathname === VIEWER || url.pathname.startsWith(`${VIEWER}/`)) {
+      const resp = await handleViewer(url, req);
+      return resp ?? new Response("not found", { status: 404 });
+    }
+
+    // Reject non-LLM paths (favicon, preflight, health checks, etc.)
+    const routeKey = `${req.method} ${url.pathname}`;
+    if (!LLM_ROUTES.has(routeKey)) {
+      return new Response(JSON.stringify({ error: "not_an_llm_endpoint", path: url.pathname }), {
+        status: 404,
+        headers: { "content-type": "application/json" },
+      });
+    }
+
+    // Proxy route — disable idle timeout for long streaming responses
+    server.timeout(req, 0);
+    return handleProxy(req, url);
+  };
+}
 
 /** Options for creating a proxy server. */
 export interface CreateProxyServerOptions {
@@ -214,6 +262,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
         ? models.getWeight(visionModelName)
         : 1;
 
+  const visionSink = new CompositeVisionSink([new DbVisionSink(db), new WsBroadcastVisionSink(ws)]);
   const vision =
     config.visionStrategy !== "never"
       ? new VisionHandoff(
@@ -244,7 +293,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
           catalog,
           gate,
           db,
-          ws,
+          visionSink,
         )
       : null;
 
@@ -327,39 +376,18 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     },
   });
 
+  const fetch = createRequestDispatcher({
+    handleViewer,
+    handleProxy,
+    viewerPrefix: VIEWER,
+  });
+
   const server = Bun.serve({
     port: config.port,
     hostname: config.host,
     reusePort: true,
     idleTimeout: config.idleTimeout,
-    async fetch(req, server): Promise<Response> {
-      const url = new URL(req.url);
-
-      // WebSocket upgrade
-      if (url.pathname === `${VIEWER}/ws`) {
-        if (server.upgrade(req)) return new Response(null, { status: 101 });
-        return new Response("upgrade failed", { status: 400 });
-      }
-
-      // Viewer routes (dashboard + REST API)
-      if (url.pathname === VIEWER || url.pathname.startsWith(`${VIEWER}/`)) {
-        const resp = await handleViewer(url, req);
-        return resp ?? new Response("not found", { status: 404 });
-      }
-
-      // Reject non-LLM paths (favicon, preflight, health checks, etc.)
-      const routeKey = `${req.method} ${url.pathname}`;
-      if (!LLM_ROUTES.has(routeKey)) {
-        return new Response(JSON.stringify({ error: "not_an_llm_endpoint", path: url.pathname }), {
-          status: 404,
-          headers: { "content-type": "application/json" },
-        });
-      }
-
-      // Proxy route — disable idle timeout for long streaming responses
-      server.timeout(req, 0);
-      return handleProxy(req, url);
-    },
+    fetch,
     websocket: {
       open(socket) {
         ws.add(socket as unknown as BunServerWebSocket);

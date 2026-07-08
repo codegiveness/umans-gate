@@ -17,6 +17,7 @@ import {
 import type { GateError } from "./limiter.js";
 import type { ConcurrencyGate } from "./limiter.js";
 import { createLogger } from "./logger.js";
+import { isGlmModel } from "./model-policy.js";
 import type { WriteQueue } from "./queue.js";
 import type { SlidingWindowRateLimiter } from "./rate.js";
 import { stampReasoning } from "./stamp-reasoning.js";
@@ -151,7 +152,7 @@ const OpenAiReasoningStep: StampStep = {
 const TopKStep: StampStep = {
   label: "top-k",
   applies(ctx) {
-    return ctx.config.stampTopK !== null;
+    return ctx.config.stampTopK !== null && isGlmModel(ctx.modelName);
   },
   apply(body, ctx) {
     if (body === null || typeof body !== "object") return false;
@@ -173,6 +174,24 @@ const STAMP_PIPELINE: StampStep[] = [
   OpenAiReasoningStep,
   TopKStep,
 ];
+
+/**
+ * Re-stamp cache_control TTL on the post-vision body.
+ * Only CacheTtlStep runs here — thinking/maxTokens/outputConfig/reasoning
+ * are NOT re-applied after vision injection.
+ */
+function stampPostVision(
+  body: unknown,
+  ctx: StampContext,
+  reqBuf: Uint8Array,
+): { reqBuf: Uint8Array; changed: boolean } {
+  if (!CacheTtlStep.applies(ctx) || body === null || typeof body !== "object") {
+    return { reqBuf, changed: false };
+  }
+  const changed = CacheTtlStep.apply(body, ctx);
+  if (!changed) return { reqBuf, changed: false };
+  return { reqBuf: textEncoder.encode(JSON.stringify(body)), changed: true };
+}
 
 /** Create the proxy request handler. */
 export function createProxyHandler(
@@ -224,25 +243,28 @@ export function createProxyHandler(
     // --- Stamp pipeline (TTL, AnthropicBody, OpenAiReasoning, TopK) ---
     let body: unknown = null;
     if (reqBuf && reqBuf.byteLength > 0) {
+      const parsed = parseJsonBody(reqBuf, reqHeadersRaw);
+      body = parsed.body;
       const stampCtx: StampContext = {
         config,
         isOpenAi,
         headers: reqHeadersRaw,
         url,
         method: req.method,
-        modelName: undefined,
+        modelName:
+          parsed.ok && typeof body === "object" && body !== null
+            ? typeof (body as { model?: unknown }).model === "string"
+              ? ((body as { model?: unknown }).model as string)
+              : undefined
+            : undefined,
       };
       if (STAMP_PIPELINE.some((s) => s.applies(stampCtx))) {
-        const parsed = parseJsonBody(reqBuf, reqHeadersRaw);
-        body = parsed.body;
         if (parsed.ok && typeof body === "object" && body !== null) {
-          const m = (body as { model?: unknown }).model;
-          stampCtx.modelName = typeof m === "string" ? m : undefined;
-        }
-        for (const step of STAMP_PIPELINE) {
-          if (!step.applies(stampCtx) || !body) continue;
-          if (step.apply(body, stampCtx)) {
-            reqBuf = textEncoder.encode(JSON.stringify(body));
+          for (const step of STAMP_PIPELINE) {
+            if (!step.applies(stampCtx) || !body) continue;
+            if (step.apply(body, stampCtx)) {
+              reqBuf = textEncoder.encode(JSON.stringify(body));
+            }
           }
         }
       }
@@ -296,15 +318,24 @@ export function createProxyHandler(
         );
         if (result.changed) {
           reqBuf = textEncoder.encode(JSON.stringify(result.body));
-          if (config.stampTtl && !isOpenAi && result.body && typeof result.body === "object") {
-            const n2 = stampCacheTtl(result.body as AnthropicBody, config.stampTtl);
-            if (n2 > 0) {
-              reqBuf = textEncoder.encode(JSON.stringify(result.body));
-              log.info(`post-handoff stamped ttl="${config.stampTtl}" on ${n2} block(s)`, {
-                method: req.method,
-                path: url.pathname,
-              });
-            }
+          const postVisionCtx: StampContext = {
+            config,
+            isOpenAi,
+            headers: reqHeadersRaw,
+            url,
+            method: req.method,
+            modelName:
+              typeof result.body === "object" && result.body !== null
+                ? ((result.body as { model?: unknown }).model as string | undefined)
+                : undefined,
+          };
+          const stamped = stampPostVision(result.body, postVisionCtx, reqBuf);
+          if (stamped.changed) {
+            reqBuf = stamped.reqBuf;
+            log.info(`post-handoff stamped ttl="${config.stampTtl}"`, {
+              method: req.method,
+              path: url.pathname,
+            });
           }
           db.updateRequestBody(capId, decodeText(reqBuf), reqBuf.byteLength);
           reqMeta.request_size = reqBuf.byteLength;
