@@ -9,7 +9,7 @@
 // to the configured strategy.
 
 import { createLogger } from "../logger.js";
-import { parseModelInfoResponse } from "../model-info-parser.js";
+import { fetchModelsInfo } from "../models/fetch-info.js";
 import type { VisionLookup, VisionTristate } from "./detect.js";
 
 const log = createLogger("catalog");
@@ -118,25 +118,8 @@ export class ModelInfoClient implements VisionLookup {
     const { url, apiKey } = this.config;
     if (!url) return false;
 
-    const headers: Record<string, string> = {};
-    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
-
     try {
-      const resp = await fetch(url, {
-        method: "GET",
-        headers,
-        signal: AbortSignal.timeout(15000),
-      });
-      if (!resp.ok) {
-        log.error(`fetch failed: HTTP ${resp.status} from ${url}`);
-        return false;
-      }
-      const parsed = await resp.json();
-      if (typeof parsed !== "object" || parsed === null) {
-        log.error("fetch failed: response is not a JSON object");
-        return false;
-      }
-      const next = projectCatalogInfo(parseModelInfoResponse(parsed));
+      const next = projectCatalogInfo(await fetchModelsInfo(url, apiKey ?? undefined));
 
       this.cache = next;
       this.fetchedAt = Date.now();
@@ -145,14 +128,19 @@ export class ModelInfoClient implements VisionLookup {
       );
       return true;
     } catch (err) {
-      log.error(`fetch error: ${err instanceof Error ? err.message : String(err)}`);
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.startsWith("HTTP ")) {
+        log.error(`fetch failed: ${msg} from ${url}`);
+      } else {
+        log.error(`fetch error: ${msg}`);
+      }
       return false;
     }
   }
 }
 
 function projectCatalogInfo(
-  parsed: Map<string, import("../model-info-parser.js").ParsedModelInfo>,
+  parsed: Map<string, import("../models/fetch-info.js").ParsedModelInfo>,
 ): Map<string, ModelInfo> {
   const out = new Map<string, ModelInfo>();
   for (const [key, v] of parsed) {

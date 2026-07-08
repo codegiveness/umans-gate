@@ -5,8 +5,8 @@
 // take precedence) before the proxy hands the weight to the gate.
 
 import { createLogger } from "./logger.js";
-import { parseModelInfoResponse } from "./model-info-parser.js";
 import type { VisionSupport } from "./model-info-parser.js";
+import { fetchModelsInfo } from "./models/fetch-info.js";
 import type { VisionLookup, VisionTristate } from "./vision/detect.js";
 
 const log = createLogger("models");
@@ -186,13 +186,20 @@ export class ModelsClient implements VisionLookup {
     const infoUrl = `${this.target}${this.infoPath}`;
     const headers: Record<string, string> = {};
     if (this.apiKey) headers.authorization = `Bearer ${this.apiKey}`;
+    const infoPromise = fetchModelsInfo(infoUrl, this.apiKey ?? undefined).then(
+      (m) => m,
+      (e: unknown) => {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.startsWith("HTTP ")) {
+          log.warn(`info fetch failed: ${msg} from ${infoUrl}`);
+        } else {
+          log.warn(`info fetch parse failed: ${msg}`);
+        }
+        return null;
+      },
+    );
     try {
-      const [resp, infoResp] = await Promise.all([
-        fetch(url, { method: "GET", headers, signal: AbortSignal.timeout(15000) }),
-        fetch(infoUrl, { method: "GET", headers, signal: AbortSignal.timeout(15000) }).catch(
-          () => null,
-        ),
-      ]);
+      const resp = await fetch(url, { method: "GET", headers, signal: AbortSignal.timeout(15000) });
       if (!resp.ok) {
         this.ok = false;
         log.error(`fetch failed: HTTP ${resp.status} from ${url}`);
@@ -209,15 +216,9 @@ export class ModelsClient implements VisionLookup {
       }
 
       let infoMap: Map<string, ModelInfo> | null = null;
-      if (infoResp?.ok) {
-        try {
-          const infoParsed = await infoResp.json();
-          infoMap = projectModelInfo(parseModelInfoResponse(infoParsed));
-        } catch (e) {
-          log.warn(`info fetch parse failed: ${e instanceof Error ? e.message : String(e)}`);
-        }
-      } else if (infoResp) {
-        log.warn(`info fetch failed: HTTP ${infoResp.status} from ${infoUrl}`);
+      const infoResult = await infoPromise;
+      if (infoResult) {
+        infoMap = projectModelInfo(infoResult);
       }
 
       const next = new Map<string, ModelEntry>();
