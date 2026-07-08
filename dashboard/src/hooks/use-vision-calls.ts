@@ -1,0 +1,40 @@
+import { usePollingResource } from "@/hooks/use-polling-resource";
+import type { VisionCallRecord } from "@/types/vision";
+
+const API_BASE = "/dashboard/api";
+const POLL_INTERVAL = 5000;
+
+export interface UseVisionCallsResult {
+  records: VisionCallRecord[];
+  loading: boolean;
+  error: string | null;
+  refresh: () => void;
+  clear: () => void;
+}
+
+export function useVisionCalls(): UseVisionCallsResult {
+  const parse = (value: unknown): VisionCallRecord[] =>
+    value === undefined ? [] : (value as VisionCallRecord[]);
+
+  const {
+    data: records,
+    loading,
+    error,
+    refresh,
+  } = usePollingResource<VisionCallRecord[]>({
+    endpoint: "/vision-calls",
+    pollInterval: POLL_INTERVAL,
+    errorMessage: "Failed to fetch vision calls",
+    parse,
+  });
+
+  const clear = async () => {
+    try {
+      await fetch(`${API_BASE}/vision-calls`, { method: "DELETE" });
+    } catch (err) {
+      // Ignore: the next poll will reconcile the server state anyway.
+    }
+  };
+
+  return { records, loading, error, refresh, clear };
+}
