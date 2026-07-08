@@ -2,11 +2,11 @@
 // Tee's response stream so the client gets data immediately while capture
 // accumulates in the background.
 
-import { STAMP_OUTPUT_CONFIG_GLM_VALUE, STAMP_REASONING_EFFORT_GLM_VALUE } from "./config.js";
 import type { CaptureDB } from "./db.js";
 import {
   HOP,
   classify429,
+  computeRequestWeight,
   decodeText,
   headersToObject,
   newSummary,
@@ -17,7 +17,7 @@ import {
 import type { GateError } from "./limiter.js";
 import type { ConcurrencyGate } from "./limiter.js";
 import { createLogger } from "./logger.js";
-import { isGlmModel } from "./model-policy.js";
+import { isGlmModel, resolveEffortForModel } from "./model-policy.js";
 import type { WriteQueue } from "./queue.js";
 import type { SlidingWindowRateLimiter } from "./rate.js";
 import { stampReasoning } from "./stamp-reasoning.js";
@@ -104,12 +104,9 @@ const AnthropicBodyStep: StampStep = {
   },
   apply(body, ctx) {
     if (body === null || typeof body !== "object") return false;
+    const effort = resolveEffortForModel(ctx.modelName, ctx.config.stampOutputConfig !== null);
     const outputConfigValue =
-      typeof ctx.modelName === "string" &&
-      ctx.modelName.startsWith("umans-glm") &&
-      ctx.config.stampOutputConfig !== null
-        ? STAMP_OUTPUT_CONFIG_GLM_VALUE
-        : (ctx.config.stampOutputConfig ?? undefined);
+      effort !== undefined ? { effort } : (ctx.config.stampOutputConfig ?? undefined);
     const changed = stampThinking(body as AnthropicBody, {
       maxTokens: ctx.config.stampMaxTokens !== null,
       thinking: ctx.config.stampThinking ?? false,
@@ -134,9 +131,8 @@ const OpenAiReasoningStep: StampStep = {
   apply(body, ctx) {
     if (body === null || typeof body !== "object") return false;
     const reasoningEffort =
-      typeof ctx.modelName === "string" && ctx.modelName.startsWith("umans-glm")
-        ? STAMP_REASONING_EFFORT_GLM_VALUE
-        : (ctx.config.stampReasoningEffort as "high" | "max");
+      resolveEffortForModel(ctx.modelName, ctx.config.stampReasoningEffort !== null) ??
+      (ctx.config.stampReasoningEffort as "high" | "max");
     const changed = stampReasoning(body as OpenAiBody, { reasoningEffort });
     if (changed) {
       log.info("stamped openai body reasoning_effort", {
@@ -374,17 +370,12 @@ export function createProxyHandler(
     // --- Concurrency gate: acquire a permit (blocks if at cap) ---
     let permit: { release: () => void } | null = null;
     try {
-      let weight = 1;
-      if (body && typeof body === "object" && body !== null) {
-        const modelName = (body as { model?: unknown }).model;
-        if (typeof modelName === "string") {
-          if (modelName in config.concurrencyWeights) {
-            weight = config.concurrencyWeights[modelName];
-          } else {
-            weight = models.getWeight(modelName);
-          }
-        }
-      }
+      const rawModel =
+        body && typeof body === "object" && body !== null
+          ? (body as { model?: unknown }).model
+          : undefined;
+      const modelName = typeof rawModel === "string" ? rawModel : undefined;
+      const weight = computeRequestWeight(config, modelName, models);
       permit = await gate.acquire({
         weight,
         signal: req.signal,

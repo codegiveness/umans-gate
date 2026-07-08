@@ -12,7 +12,8 @@ import {
   saveConfig,
 } from "./config.js";
 import { CaptureDB } from "./db.js";
-import { ConcurrencyGate, gateOptionsFromConfig } from "./limiter.js";
+import { computeRequestWeight } from "./helpers.js";
+import { ConcurrencyGate, GATE_RECONFIG_FIELDS, gateOptionsFromConfig } from "./limiter.js";
 import { ModelsClient } from "./models.js";
 import { createProxyHandler } from "./proxy.js";
 import { WriteQueue } from "./queue.js";
@@ -63,18 +64,6 @@ const LLM_ROUTES = new Set([
   "GET /v1/models",
   "GET /v1/models/info",
   "POST /v1/chat/completions",
-]);
-
-/** Raw config keys that should trigger a gate reconfigure on reload. */
-const GATE_RECONFIG_FIELDS = new Set<keyof ProxyConfig>([
-  "breakerThreshold",
-  "breakerWindowMs",
-  "breakerCooldownMs",
-  "queueTimeoutMs",
-  "maxQueueDepth",
-  "releaseCooldownMs",
-  "concurrencyMainReservation",
-  "concurrencyVisionReservation",
 ]);
 
 /** Options for {@link createRequestDispatcher}. */
@@ -255,12 +244,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
   const catalog: VisionLookup | null = config.visionStrategy !== "never" ? models : null;
 
   const visionModelName = config.visionModel ?? "";
-  const visionWeight =
-    visionModelName in config.concurrencyWeights
-      ? config.concurrencyWeights[visionModelName]
-      : visionModelName
-        ? models.getWeight(visionModelName)
-        : 1;
+  const visionWeight = computeRequestWeight(config, visionModelName, models);
 
   const visionSink = new CompositeVisionSink([new DbVisionSink(db), new WsBroadcastVisionSink(ws)]);
   const vision =

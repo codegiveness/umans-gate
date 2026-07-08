@@ -6,9 +6,21 @@
 // return decimal values.
 
 import { createLogger } from "./logger.js";
-import type { BreakerState, GateConfig, GateStats, UsageSnapshot } from "./types.js";
+import type { BreakerState, GateConfig, GateStats, ProxyConfig, UsageSnapshot } from "./types.js";
 
 export type { BreakerState };
+
+/** Raw config keys that should trigger a gate reconfigure on reload. */
+export const GATE_RECONFIG_FIELDS = new Set<keyof ProxyConfig>([
+  "breakerThreshold",
+  "breakerWindowMs",
+  "breakerCooldownMs",
+  "queueTimeoutMs",
+  "maxQueueDepth",
+  "releaseCooldownMs",
+  "concurrencyMainReservation",
+  "concurrencyVisionReservation",
+]);
 
 const log = createLogger("limiter");
 
