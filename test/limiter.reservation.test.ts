@@ -241,3 +241,29 @@ test("S5 FIFO-single-intention: fill to limit, queue A then B, release one grant
   (await b).release();
   g.shutdown();
 });
+
+test("S6 over-subscribed reservations fall back to pure capacity: limit=1 mainRes=1 visionRes=1, both intentions can acquire one at a time", async () => {
+  const g = new ConcurrencyGate({
+    ...baseOpts,
+    hardCap: 1,
+    softLimit: 1,
+    intentions: { main: 1, vision: 1 },
+  });
+
+  // With total reservation (2) > limit (1), proportional split would give each
+  // intention ~500, below a single permit's weight of 1000. The fallback must
+  // allow pure capacity granting so neither intention starves.
+  const m1 = await g.acquire({ intention: "main" });
+  expect(g.getStats(dummySnapshot).active).toBe(1);
+  expect(g.getStats(dummySnapshot).activeByIntention).toEqual({ main: 1, vision: 0 });
+
+  m1.release();
+  await sleep(10);
+
+  const v1 = await g.acquire({ intention: "vision" });
+  expect(g.getStats(dummySnapshot).active).toBe(1);
+  expect(g.getStats(dummySnapshot).activeByIntention).toEqual({ main: 0, vision: 1 });
+
+  v1.release();
+  g.shutdown();
+});
