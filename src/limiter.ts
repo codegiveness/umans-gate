@@ -6,7 +6,7 @@
 // return decimal values.
 
 import { createLogger } from "./logger.js";
-import type { BreakerState, GateStats, UsageSnapshot } from "./types.js";
+import type { BreakerState, GateConfig, GateStats, UsageSnapshot } from "./types.js";
 
 export type { BreakerState };
 
@@ -46,6 +46,23 @@ export class GateError extends Error {
     this.name = "GateError";
     this.code = code;
   }
+}
+
+export function gateOptionsFromConfig(config: GateConfig): ConcurrencyGateOptions {
+  return {
+    hardCap: config.concurrencyHardCap,
+    softLimit: config.concurrencySoftLimit,
+    releaseCooldownMs: config.releaseCooldownMs,
+    breakerThreshold: config.breakerThreshold,
+    breakerWindowMs: config.breakerWindowMs,
+    breakerCooldownMs: config.breakerCooldownMs,
+    maxQueueDepth: config.maxQueueDepth,
+    queueTimeoutMs: config.queueTimeoutMs,
+    intentions: {
+      main: config.concurrencyMainReservation,
+      vision: config.concurrencyVisionReservation,
+    },
+  };
 }
 
 export class ConcurrencyGate {

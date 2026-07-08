@@ -12,7 +12,7 @@ import {
   saveConfig,
 } from "./config.js";
 import { CaptureDB } from "./db.js";
-import { ConcurrencyGate } from "./limiter.js";
+import { ConcurrencyGate, gateOptionsFromConfig } from "./limiter.js";
 import { ModelsClient } from "./models.js";
 import { createProxyHandler } from "./proxy.js";
 import { WriteQueue } from "./queue.js";
@@ -128,20 +128,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     refreshMs: config.modelsRefreshMs,
   });
   models.start();
-  const gate = new ConcurrencyGate({
-    hardCap: config.concurrencyHardCap,
-    softLimit: config.concurrencySoftLimit,
-    releaseCooldownMs: config.releaseCooldownMs,
-    breakerThreshold: config.breakerThreshold,
-    breakerWindowMs: config.breakerWindowMs,
-    breakerCooldownMs: config.breakerCooldownMs,
-    maxQueueDepth: config.maxQueueDepth,
-    queueTimeoutMs: config.queueTimeoutMs,
-    intentions: {
-      main: config.concurrencyMainReservation,
-      vision: config.concurrencyVisionReservation,
-    },
-  });
+  const gate = new ConcurrencyGate(gateOptionsFromConfig(config));
   let rate =
     config.rateLimitRequests > 0
       ? new SlidingWindowRateLimiter({
@@ -292,18 +279,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     lastRawConfig = newRaw;
 
     if (applied.some((k) => GATE_RECONFIG_FIELDS.has(k as keyof ProxyConfig))) {
-      gate.reconfigure({
-        releaseCooldownMs: config.releaseCooldownMs,
-        breakerThreshold: config.breakerThreshold,
-        breakerWindowMs: config.breakerWindowMs,
-        breakerCooldownMs: config.breakerCooldownMs,
-        maxQueueDepth: config.maxQueueDepth,
-        queueTimeoutMs: config.queueTimeoutMs,
-        intentions: {
-          main: config.concurrencyMainReservation,
-          vision: config.concurrencyVisionReservation,
-        },
-      });
+      gate.reconfigure(gateOptionsFromConfig(config));
     }
 
     if (applied.includes("concurrency_hard_cap")) {
