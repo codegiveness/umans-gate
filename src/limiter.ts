@@ -281,13 +281,28 @@ class Semaphore {
   }
 
   /** Attempts to acquire a permit. Returns true if granted immediately,
-   *  false if the caller should enqueue (or reject if queue is full). */
+   *  false if the caller should enqueue (or reject if queue is full).
+   *
+   *  When total reservations exceed the limit (over-subscribed), the
+   *  proportional split in effectiveReservations() may reduce each
+   *  intention's reservation below a single permit's weight. In that
+   *  case, fall back to a pure capacity check: any intention may acquire
+   *  if active + weight ≤ limit. Reservations only gate borrowing when
+   *  they are not over-subscribed. */
   canGrant(intention: string, weight: number): boolean {
     const effRes = this.effectiveReservations();
     const reserved = effRes[intention] ?? 0;
     if (this.active + weight > this.limit) return false;
     if ((this.activeByIntention[intention] ?? 0) + weight <= reserved) {
       return true;
+    }
+    // When reservations are over-subscribed (proportional split reduced
+    // them below raw values), allow pure capacity-based granting.
+    const overSubscribed = Object.keys(this.reservations).some(
+      (k) => (this.reservations[k] ?? 0) > (effRes[k] ?? 0),
+    );
+    if (overSubscribed) {
+      return this.active + weight <= this.limit;
     }
     return this.active + weight <= this.capacity(intention, effRes);
   }
