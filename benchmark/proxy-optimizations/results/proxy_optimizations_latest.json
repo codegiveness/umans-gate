@@ -1,0 +1,662 @@
+{
+  "timestamp": "2026-07-05T11:08:07.819942+00:00",
+  "api_base": "https://api.code.umans.ai/v1",
+  "run_id": "20260705T110724Z",
+  "tests": [
+    {
+      "test": "http_protocol",
+      "results": {
+        "http1.1": [
+          {
+            "status": 200,
+            "ttfb_ms": 1121.9,
+            "total_ms": 1121.9,
+            "tokens": 30,
+            "tokens_per_sec": 71258660.3,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 554.0,
+            "total_ms": 554.0,
+            "tokens": 30,
+            "tokens_per_sec": 149260375.2,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 558.9,
+            "total_ms": 558.9,
+            "tokens": 30,
+            "tokens_per_sec": 93750991.5,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 717.9,
+            "total_ms": 717.9,
+            "tokens": 30,
+            "tokens_per_sec": 187501982.9,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 709.6,
+            "total_ms": 709.6,
+            "tokens": 30,
+            "tokens_per_sec": 110700977.4,
+            "error": null
+          }
+        ],
+        "http2": [
+          {
+            "status": 200,
+            "ttfb_ms": 1325.2,
+            "total_ms": 1325.2,
+            "tokens": 30,
+            "tokens_per_sec": 87977822.0,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 557.0,
+            "total_ms": 557.0,
+            "tokens": 30,
+            "tokens_per_sec": 99999238.6,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 570.4,
+            "total_ms": 570.4,
+            "tokens": 30,
+            "tokens_per_sec": 106762522.1,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 563.8,
+            "total_ms": 563.8,
+            "tokens": 30,
+            "tokens_per_sec": 166660008.3,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 553.8,
+            "total_ms": 553.8,
+            "tokens": 30,
+            "tokens_per_sec": 157903209.4,
+            "error": null
+          }
+        ]
+      },
+      "summary": {
+        "http1.1": {
+          "runs": 5,
+          "ttfb": {
+            "min": 554.0,
+            "max": 1121.9,
+            "mean": 732.5,
+            "median": 709.6,
+            "stdev": 231.5
+          },
+          "total": {
+            "min": 554.0,
+            "max": 1121.9,
+            "mean": 732.5,
+            "median": 709.6,
+            "stdev": 231.5
+          },
+          "errors": 0
+        },
+        "http2": {
+          "runs": 5,
+          "ttfb": {
+            "min": 553.8,
+            "max": 1325.2,
+            "mean": 714.0,
+            "median": 563.8,
+            "stdev": 341.7
+          },
+          "total": {
+            "min": 553.8,
+            "max": 1325.2,
+            "mean": 714.0,
+            "median": 563.8,
+            "stdev": 341.7
+          },
+          "errors": 0
+        }
+      }
+    },
+    {
+      "test": "keepalive",
+      "results": {
+        "cold": [
+          {
+            "status": 200,
+            "ttfb_ms": 1122.7,
+            "total_ms": 1122.7,
+            "tokens": 30,
+            "tokens_per_sec": 187501982.9,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 1294.4,
+            "total_ms": 1294.4,
+            "tokens": 30,
+            "tokens_per_sec": 114941140.8,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 1172.2,
+            "total_ms": 1172.2,
+            "tokens": 30,
+            "tokens_per_sec": 85468442.5,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 1326.6,
+            "total_ms": 1326.6,
+            "tokens": 30,
+            "tokens_per_sec": 107139814.1,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 1135.0,
+            "total_ms": 1135.0,
+            "tokens": 30,
+            "tokens_per_sec": 63694018.7,
+            "error": null
+          }
+        ],
+        "warm": [
+          {
+            "status": 200,
+            "ttfb_ms": 1154.6,
+            "total_ms": 1154.6,
+            "tokens": 30,
+            "tokens_per_sec": 124997532.4,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 739.0,
+            "total_ms": 739.1,
+            "tokens": 30,
+            "tokens_per_sec": 176475286.9,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 560.2,
+            "total_ms": 560.2,
+            "tokens": 30,
+            "tokens_per_sec": 103094679.3,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 571.1,
+            "total_ms": 571.1,
+            "tokens": 30,
+            "tokens_per_sec": 96774365.2,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 741.2,
+            "total_ms": 741.2,
+            "tokens": 30,
+            "tokens_per_sec": 176475286.9,
+            "error": null
+          }
+        ]
+      },
+      "summary": {
+        "cold": {
+          "runs": 5,
+          "ttfb": {
+            "min": 1122.7,
+            "max": 1326.6,
+            "mean": 1210.2,
+            "median": 1172.2,
+            "stdev": 94.1
+          },
+          "total": {
+            "min": 1122.7,
+            "max": 1326.6,
+            "mean": 1210.2,
+            "median": 1172.2,
+            "stdev": 94.1
+          }
+        },
+        "warm": {
+          "runs": 5,
+          "ttfb": {
+            "min": 560.2,
+            "max": 1154.6,
+            "mean": 753.2,
+            "median": 739.0,
+            "stdev": 240.8
+          },
+          "total": {
+            "min": 560.2,
+            "max": 1154.6,
+            "mean": 753.2,
+            "median": 739.1,
+            "stdev": 240.8
+          }
+        }
+      }
+    },
+    {
+      "test": "encoding",
+      "results": {
+        "identity": [
+          {
+            "status": 200,
+            "ttfb_ms": 1064.7,
+            "total_ms": 1235.8,
+            "tokens": 0,
+            "tokens_per_sec": 0,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 493.7,
+            "total_ms": 668.7,
+            "tokens": 0,
+            "tokens_per_sec": 0,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 651.5,
+            "total_ms": 827.2,
+            "tokens": 0,
+            "tokens_per_sec": 0,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 662.4,
+            "total_ms": 838.4,
+            "tokens": 0,
+            "tokens_per_sec": 0,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 657.9,
+            "total_ms": 833.8,
+            "tokens": 0,
+            "tokens_per_sec": 0,
+            "error": null
+          }
+        ],
+        "gzip": [
+          {
+            "status": 200,
+            "ttfb_ms": 1099.6,
+            "total_ms": 1292.8,
+            "tokens": 0,
+            "tokens_per_sec": 0,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 501.9,
+            "total_ms": 683.7,
+            "tokens": 0,
+            "tokens_per_sec": 0,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 500.5,
+            "total_ms": 682.7,
+            "tokens": 0,
+            "tokens_per_sec": 0,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 668.8,
+            "total_ms": 849.7,
+            "tokens": 0,
+            "tokens_per_sec": 0,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 674.2,
+            "total_ms": 856.8,
+            "tokens": 0,
+            "tokens_per_sec": 0,
+            "error": null
+          }
+        ]
+      },
+      "summary": {
+        "identity": {
+          "runs": 5,
+          "ttfb": {
+            "min": 493.7,
+            "max": 1064.7,
+            "mean": 706.0,
+            "median": 657.9,
+            "stdev": 212.7
+          },
+          "total": {
+            "min": 668.7,
+            "max": 1235.8,
+            "mean": 880.8,
+            "median": 833.8,
+            "stdev": 210.9
+          },
+          "tps": {
+            "min": 0,
+            "max": 0,
+            "mean": 0,
+            "median": 0,
+            "stdev": 0
+          }
+        },
+        "gzip": {
+          "runs": 5,
+          "ttfb": {
+            "min": 500.5,
+            "max": 1099.6,
+            "mean": 689.0,
+            "median": 668.8,
+            "stdev": 244.8
+          },
+          "total": {
+            "min": 682.7,
+            "max": 1292.8,
+            "mean": 873.1,
+            "median": 849.7,
+            "stdev": 249.5
+          },
+          "tps": {
+            "min": 0,
+            "max": 0,
+            "mean": 0,
+            "median": 0,
+            "stdev": 0
+          }
+        }
+      }
+    },
+    {
+      "test": "api_path",
+      "results": {
+        "openai": [
+          {
+            "status": 200,
+            "ttfb_ms": 1110.6,
+            "total_ms": 1110.6,
+            "tokens": 30,
+            "tokens_per_sec": 186332637.6,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 556.0,
+            "total_ms": 556.0,
+            "tokens": 30,
+            "tokens_per_sec": 135746645.3,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 743.2,
+            "total_ms": 743.2,
+            "tokens": 30,
+            "tokens_per_sec": 119519062.1,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 714.5,
+            "total_ms": 714.5,
+            "tokens": 30,
+            "tokens_per_sec": 111112660.5,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 1125.5,
+            "total_ms": 1125.5,
+            "tokens": 30,
+            "tokens_per_sec": 176475286.9,
+            "error": null
+          }
+        ],
+        "anthropic": [
+          {
+            "status": 200,
+            "ttfb_ms": 556.5,
+            "total_ms": 556.5,
+            "tokens": 30,
+            "tokens_per_sec": 149998857.8,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 874.6,
+            "total_ms": 874.6,
+            "tokens": 30,
+            "tokens_per_sec": 93746728.3,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 564.0,
+            "total_ms": 564.0,
+            "tokens": 30,
+            "tokens_per_sec": 130438741.0,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 723.6,
+            "total_ms": 723.6,
+            "tokens": 30,
+            "tokens_per_sec": 175439052.2,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 556.0,
+            "total_ms": 556.0,
+            "tokens": 30,
+            "tokens_per_sec": 165748858.5,
+            "error": null
+          }
+        ]
+      },
+      "summary": {
+        "openai": {
+          "runs": 5,
+          "ttfb": {
+            "min": 556.0,
+            "max": 1125.5,
+            "mean": 850.0,
+            "median": 743.2,
+            "stdev": 255.0
+          },
+          "total": {
+            "min": 556.0,
+            "max": 1125.5,
+            "mean": 850.0,
+            "median": 743.2,
+            "stdev": 255.0
+          }
+        },
+        "anthropic": {
+          "runs": 5,
+          "ttfb": {
+            "min": 556.0,
+            "max": 874.6,
+            "mean": 654.9,
+            "median": 564.0,
+            "stdev": 142.1
+          },
+          "total": {
+            "min": 556.0,
+            "max": 874.6,
+            "mean": 654.9,
+            "median": 564.0,
+            "stdev": 142.1
+          }
+        }
+      }
+    },
+    {
+      "test": "streaming",
+      "results": {
+        "non_stream": [
+          {
+            "status": 200,
+            "ttfb_ms": 1505.6,
+            "total_ms": 1505.6,
+            "tokens": 50,
+            "tokens_per_sec": 312503304.8,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 653.4,
+            "total_ms": 653.4,
+            "tokens": 50,
+            "tokens_per_sec": 263151860.1,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 612.6,
+            "total_ms": 612.6,
+            "tokens": 50,
+            "tokens_per_sec": 147062739.1,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 1189.7,
+            "total_ms": 1189.7,
+            "tokens": 50,
+            "tokens_per_sec": 294125478.2,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 1346.8,
+            "total_ms": 1346.8,
+            "tokens": 50,
+            "tokens_per_sec": 312503304.8,
+            "error": null
+          }
+        ],
+        "stream": [
+          {
+            "status": 200,
+            "ttfb_ms": 675.1,
+            "total_ms": 854.6,
+            "tokens": 0,
+            "tokens_per_sec": 0,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 1104.0,
+            "total_ms": 1283.4,
+            "tokens": 0,
+            "tokens_per_sec": 0,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 509.5,
+            "total_ms": 694.0,
+            "tokens": 0,
+            "tokens_per_sec": 0,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 834.6,
+            "total_ms": 1016.1,
+            "tokens": 0,
+            "tokens_per_sec": 0,
+            "error": null
+          },
+          {
+            "status": 200,
+            "ttfb_ms": 501.2,
+            "total_ms": 683.2,
+            "tokens": 0,
+            "tokens_per_sec": 0,
+            "error": null
+          }
+        ]
+      },
+      "summary": {
+        "non_stream": {
+          "runs": 5,
+          "ttfb": {
+            "min": 612.6,
+            "max": 1505.6,
+            "mean": 1061.6,
+            "median": 1189.7,
+            "stdev": 407.2
+          },
+          "total": {
+            "min": 612.6,
+            "max": 1505.6,
+            "mean": 1061.6,
+            "median": 1189.7,
+            "stdev": 407.2
+          },
+          "tps": {
+            "min": 147062739.1,
+            "max": 312503304.8,
+            "mean": 265869337.4,
+            "median": 294125478.2,
+            "stdev": 69408673.5
+          }
+        },
+        "stream": {
+          "runs": 5,
+          "ttfb": {
+            "min": 501.2,
+            "max": 1104.0,
+            "mean": 724.9,
+            "median": 675.1,
+            "stdev": 252.3
+          },
+          "total": {
+            "min": 683.2,
+            "max": 1283.4,
+            "mean": 906.3,
+            "median": 854.6,
+            "stdev": 250.9
+          },
+          "tps": {
+            "min": 0,
+            "max": 0,
+            "mean": 0,
+            "median": 0,
+            "stdev": 0
+          }
+        }
+      }
+    }
+  ]
+}

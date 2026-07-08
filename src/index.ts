@@ -155,7 +155,11 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
 
   const db = options.db ?? new CaptureDB(config);
   const ws = options.ws ?? new WsBroadcaster();
-  const queue = new WriteQueue(db, ws, config);
+  const queue = new WriteQueue(db, config, (messages) => {
+    for (const msg of messages) {
+      ws.broadcast(msg);
+    }
+  });
   const warmer = config.warmerEnabled ? new ConnectionWarmer(config) : null;
 
   const usage = new UmansUsageClient(config);

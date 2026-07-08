@@ -1,0 +1,198 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-chart-1: hsl(var(--chart-1));
+  --color-chart-2: hsl(var(--chart-2));
+  --color-chart-3: hsl(var(--chart-3));
+  --color-chart-4: hsl(var(--chart-4));
+  --color-chart-5: hsl(var(--chart-5));
+  --color-sidebar: hsl(var(--sidebar));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans: "Geist Variable", sans-serif;
+  --font-heading: "Geist Variable", sans-serif;
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 14.5%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 14.5%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 14.5%;
+
+    --primary: 0 0% 20.5%;
+    --primary-foreground: 0 0% 98.5%;
+
+    --secondary: 0 0% 97%;
+    --secondary-foreground: 0 0% 20.5%;
+
+    --muted: 0 0% 97%;
+    --muted-foreground: 0 0% 55.6%;
+
+    --accent: 0 0% 97%;
+    --accent-foreground: 0 0% 20.5%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 92.2%;
+    --input: 0 0% 92.2%;
+    --ring: 0 0% 70.8%;
+
+    --radius: 0.625rem;
+
+    --chart-1: 0 0% 87%;
+    --chart-2: 0 0% 55.6%;
+    --chart-3: 0 0% 43.9%;
+    --chart-4: 0 0% 37.1%;
+    --chart-5: 0 0% 26.9%;
+
+    --sidebar: 0 0% 98.5%;
+    --sidebar-foreground: 0 0% 14.5%;
+    --sidebar-primary: 0 0% 20.5%;
+    --sidebar-primary-foreground: 0 0% 98.5%;
+    --sidebar-accent: 0 0% 97%;
+    --sidebar-accent-foreground: 0 0% 20.5%;
+    --sidebar-border: 0 0% 92.2%;
+    --sidebar-ring: 0 0% 70.8%;
+  }
+
+  .dark {
+    --background: 0 0% 14.5%;
+    --foreground: 0 0% 98.5%;
+
+    --card: 0 0% 20.5%;
+    --card-foreground: 0 0% 98.5%;
+
+    --popover: 0 0% 20.5%;
+    --popover-foreground: 0 0% 98.5%;
+
+    --primary: 0 0% 92.2%;
+    --primary-foreground: 0 0% 20.5%;
+
+    --secondary: 0 0% 26.9%;
+    --secondary-foreground: 0 0% 98.5%;
+
+    --muted: 0 0% 26.9%;
+    --muted-foreground: 0 0% 70.8%;
+
+    --accent: 0 0% 26.9%;
+    --accent-foreground: 0 0% 98.5%;
+
+    --destructive: 0 63% 56%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 100% / 10%;
+    --input: 0 0% 100% / 15%;
+    --ring: 0 0% 55.6%;
+    --chart-1: 0 0% 87%;
+    --chart-2: 0 0% 55.6%;
+    --chart-3: 0 0% 43.9%;
+    --chart-4: 0 0% 37.1%;
+    --chart-5: 0 0% 26.9%;
+    --sidebar: 0 0% 20.5%;
+    --sidebar-foreground: 0 0% 98.5%;
+    --sidebar-primary: 263 70% 65%;
+    --sidebar-primary-foreground: 0 0% 98.5%;
+    --sidebar-accent: 0 0% 26.9%;
+    --sidebar-accent-foreground: 0 0% 98.5%;
+    --sidebar-border: 0 0% 100% / 10%;
+    --sidebar-ring: 0 0% 55.6%;
+  }
+
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html,
+  body,
+  #root {
+    @apply h-full;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+    /* Loading spinners are functional — they communicate ongoing work.
+       Keep them animating even under reduced motion. */
+    .animate-spin {
+      animation-duration: 1.5s !important;
+      animation-iteration-count: infinite !important;
+    }
+  }
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility no-spinner {
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+@utility tab-scroll {
+  @media (max-width: 767px) {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      black 0,
+      black calc(100% - 24px),
+      transparent 100%
+    );
+    mask-image: linear-gradient(to right, black 0, black calc(100% - 24px), transparent 100%);
+  }
+}

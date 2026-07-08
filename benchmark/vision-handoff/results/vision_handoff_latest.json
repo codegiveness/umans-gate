@@ -1,0 +1,1139 @@
+[
+  {
+    "session": "1a-flash-seq-images-openai",
+    "model": "umans-flash",
+    "endpoint": "/v1/chat/completions",
+    "strategy": "sequential 1 image/message × 11",
+    "timestamp": "2026-07-05T07:52:04.029370+00:00",
+    "turns": [
+      {
+        "turn": 1,
+        "status": 200,
+        "elapsed_s": 5.45,
+        "prompt_tokens": 2684,
+        "completion_tokens": 512,
+        "cached_tokens": 0,
+        "cache_hit_rate_pct": 0.0
+      },
+      {
+        "turn": 2,
+        "status": 200,
+        "elapsed_s": 5.51,
+        "prompt_tokens": 4066,
+        "completion_tokens": 512,
+        "cached_tokens": 2624,
+        "cache_hit_rate_pct": 64.54
+      },
+      {
+        "turn": 3,
+        "status": 200,
+        "elapsed_s": 4.91,
+        "prompt_tokens": 5434,
+        "completion_tokens": 512,
+        "cached_tokens": 4032,
+        "cache_hit_rate_pct": 74.2
+      },
+      {
+        "turn": 4,
+        "status": 200,
+        "elapsed_s": 4.51,
+        "prompt_tokens": 7880,
+        "completion_tokens": 512,
+        "cached_tokens": 5376,
+        "cache_hit_rate_pct": 68.22
+      },
+      {
+        "turn": 5,
+        "status": 200,
+        "elapsed_s": 4.52,
+        "prompt_tokens": 10326,
+        "completion_tokens": 512,
+        "cached_tokens": 7872,
+        "cache_hit_rate_pct": 76.23
+      },
+      {
+        "turn": 6,
+        "status": 200,
+        "elapsed_s": 4.38,
+        "prompt_tokens": 12772,
+        "completion_tokens": 512,
+        "cached_tokens": 10304,
+        "cache_hit_rate_pct": 80.68
+      },
+      {
+        "turn": 7,
+        "status": 200,
+        "elapsed_s": 5.02,
+        "prompt_tokens": 13401,
+        "completion_tokens": 512,
+        "cached_tokens": 12736,
+        "cache_hit_rate_pct": 95.04
+      },
+      {
+        "turn": 8,
+        "status": 200,
+        "elapsed_s": 4.44,
+        "prompt_tokens": 13651,
+        "completion_tokens": 512,
+        "cached_tokens": 13376,
+        "cache_hit_rate_pct": 97.99
+      },
+      {
+        "turn": 9,
+        "status": 200,
+        "elapsed_s": 4.38,
+        "prompt_tokens": 15212,
+        "completion_tokens": 512,
+        "cached_tokens": 13632,
+        "cache_hit_rate_pct": 89.61
+      },
+      {
+        "turn": 10,
+        "status": 200,
+        "elapsed_s": 5.19,
+        "prompt_tokens": 16432,
+        "completion_tokens": 512,
+        "cached_tokens": 15168,
+        "cache_hit_rate_pct": 92.31
+      },
+      {
+        "turn": 11,
+        "status": 400,
+        "elapsed_s": 1.12,
+        "error": "{\"error\":{\"type\":\"invalid_request\",\"message\":\"Request contains 11 images, exceeding the limit of 10. Reduce the number of images per request.\"}}"
+      }
+    ]
+  },
+  {
+    "session": "1b-flash-seq-images-anthropic",
+    "model": "umans-flash",
+    "endpoint": "/v1/messages",
+    "strategy": "sequential 1 image/message × 11",
+    "timestamp": "2026-07-05T07:52:04.029370+00:00",
+    "turns": [
+      {
+        "turn": 1,
+        "status": 200,
+        "elapsed_s": 4.49,
+        "input_tokens": 60,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 2624,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 2684,
+        "cache_hit_rate_pct": 97.76
+      },
+      {
+        "turn": 2,
+        "status": 200,
+        "elapsed_s": 4.13,
+        "input_tokens": 1575,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 2624,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 4199,
+        "cache_hit_rate_pct": 62.49
+      },
+      {
+        "turn": 3,
+        "status": 200,
+        "elapsed_s": 4.99,
+        "input_tokens": 1407,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 4160,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 5567,
+        "cache_hit_rate_pct": 74.73
+      },
+      {
+        "turn": 4,
+        "status": 200,
+        "elapsed_s": 5.28,
+        "input_tokens": 2509,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 5504,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 8013,
+        "cache_hit_rate_pct": 68.69
+      },
+      {
+        "turn": 5,
+        "status": 200,
+        "elapsed_s": 4.78,
+        "input_tokens": 2459,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 8000,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 10459,
+        "cache_hit_rate_pct": 76.49
+      },
+      {
+        "turn": 6,
+        "status": 200,
+        "elapsed_s": 5.22,
+        "input_tokens": 2473,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 10432,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 12905,
+        "cache_hit_rate_pct": 80.84
+      },
+      {
+        "turn": 7,
+        "status": 200,
+        "elapsed_s": 5.21,
+        "input_tokens": 670,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 12864,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 13534,
+        "cache_hit_rate_pct": 95.05
+      },
+      {
+        "turn": 8,
+        "status": 200,
+        "elapsed_s": 5.1,
+        "input_tokens": 280,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 13504,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 13784,
+        "cache_hit_rate_pct": 97.97
+      },
+      {
+        "turn": 9,
+        "status": 200,
+        "elapsed_s": 4.67,
+        "input_tokens": 1585,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 13760,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 15345,
+        "cache_hit_rate_pct": 89.67
+      },
+      {
+        "turn": 10,
+        "status": 200,
+        "elapsed_s": 5.43,
+        "input_tokens": 1269,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 15296,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 16565,
+        "cache_hit_rate_pct": 92.34
+      },
+      {
+        "turn": 11,
+        "status": 400,
+        "elapsed_s": 1.3,
+        "error": "{\"error\":{\"type\":\"invalid_request\",\"message\":\"Request contains 11 images, exceeding the limit of 10. Reduce the number of images per request.\"}}"
+      }
+    ]
+  },
+  {
+    "session": "2a-flash-seq-text-openai",
+    "model": "umans-flash",
+    "endpoint": "/v1/chat/completions",
+    "strategy": "flash handoff → sequential 1 text/message × 11",
+    "timestamp": "2026-07-05T07:54:09.230545+00:00",
+    "handoff_model": "umans-flash",
+    "handoff_descriptions": [
+      {
+        "filename": "Gemini_Generated_Image_7s2k6a7s2k6a7s2k.png",
+        "description": "A large, highly detailed toad sits prominently on a wet, dark rock in the foreground, facing slightly right with large, reflective eyes. The background features a moody seascape with crashing waves and a distant, glowing lighthouse under a dark, cloudy sky. Warm, golden light from the right illuminates the toad and the rock, contrasting sharply with the cool blue and grey tones of the ocean and horizon.",
+        "elapsed_s": 4.97,
+        "tokens": 2489,
+        "status": 200
+      },
+      {
+        "filename": "Gemini_Generated_Image_u89j9fu89j9fu89j.png",
+        "description": "A green frog sits atop a large lily pad in the center of a calm body of water, with two pink lotus buds visible to its left. The background features a serene sunset or sunrise with a gradient of purple, orange, and blue clouds that reflect onto the water's surface. The image has a soft, painterly texture and includes a small white diamond logo in the bottom right corner.",
+        "elapsed_s": 2.84,
+        "tokens": 1408,
+        "status": 200
+      },
+      {
+        "filename": "compressed_image (2).jpeg",
+        "description": "A serene digital painting depicts a green frog resting on a large lily pad floating in calm water, surrounded by gentle, concentric ripples. The background features a picturesque sunset with a sky filled with soft purple, orange, and blue clouds that reflect beautifully on the water's surface. Two pink lotus buds extend from the left side, and a small white diamond logo is visible in the bottom right corner.",
+        "elapsed_s": 2.47,
+        "tokens": 1395,
+        "status": 200
+      },
+      {
+        "filename": "compressed_image (3).jpeg",
+        "description": "A large, textured toad sits prominently on a wet, dark rock in the foreground, its skin detailed with bumps and wrinkles. Behind it, a turbulent ocean with white-capped waves stretches out under a moody, dark blue sky. In the distance, a lighthouse stands on a rocky outcrop, emitting a warm, bright glow that contrasts with the cool tones of the surrounding water and mist.",
+        "elapsed_s": 2.86,
+        "tokens": 2473,
+        "status": 200
+      },
+      {
+        "filename": "compressed_image (4).jpeg",
+        "description": "The user wants a concise description of the provided image.\nThe image is a photorealistic or AI-generated picture of a large toad on a rock.\nKey elements:\n- Subject: A large toad with textured skin (warts/bumps).\n- Setting: A rocky coast with waves crashing in the background.\n- Lighting/Atmosphere: Dark, moody, possibly twilight or night.\n- Background detail: A lighthouse with a bright light is visible in the distance on the right.\n- Colors: Dark blues, greys, blacks, with warm yellow/gold highlights from the light on the lighthouse and reflecting off the toad.\n\nDrafting the description:\n- Sentence 1: Focus on the main subject and immediate setting. A large, textured toad sits on a wet, dark rock in the foreground.\n- Sentence 2: Describe the background and lighting. Behind the toad, rough ocean waves crash against the shore under a dark, stormy sky.\n- Sentence 3: Mention the specific background detail. A lighthouse beam shines brightly in the upper right distance, casting a warm glow that contrasts with the cool blue tones of the scene.\n\nRefining for conciseness (2-3 sentences):\nA large, detailed toad with bumpy, textured skin sits perched on a wet, dark rock in the immediate foreground. The background features a turbulent seascape with crashing waves under a moody, dark blue sky. In the distance to the right, a lighthouse emits a bright, warm light that illuminates the mist and reflects off the water's surface.\n\nFinal Polish:\nA large, highly detailed toad with textured, warty skin sits perched on a wet, dark rock in the foreground. Behind it, rough ocean waves crash against the shore under a moody, dark blue sky. In the upper right background, a lighthouse shines a bright, warm light through the mist, contrasting with the cool tones of the water and rock.\n\nWait, let me make it even more concise as requested.\n\"A detailed toad sits on a wet rock in the foreground, facing right with its large eye clearly visible. The background shows a dark, stormy seascape with crashing waves. A lighthouse beam glows brightly in the distance on the right, casting a warm light against the cool blue atmosphere.\"\n\nLet's stick to the 2-3 sentence rule and focus on visual elements.\nSentence 1: A",
+        "elapsed_s": 3.09,
+        "tokens": 2473,
+        "status": 200
+      },
+      {
+        "filename": "compressed_image (5).jpeg",
+        "description": "A large, textured toad perches on a dark, wet rock in the foreground, bathed in a warm, dramatic light that highlights its golden eyes. Behind the amphibian, a turbulent ocean with crashing waves stretches towards a lighthouse glowing in the distance. The scene is set under a dark, moody sky, creating a cinematic and atmospheric composition.",
+        "elapsed_s": 2.31,
+        "tokens": 2473,
+        "status": 200
+      },
+      {
+        "filename": "ss.png",
+        "description": "The user wants a description of the provided image.\n1.  **Identify the image type:** It is a screenshot of a text editor or terminal displaying a configuration file.\n2.  **Identify the content:** The text is a configuration file for \"umans-gate\". It has comments explaining settings and key-value pairs.\n3.  **Analyze specific elements:**\n    *   **Header:** \"umans-gate configuration file\" and a GitHub link.\n    *   **Structure:** It uses `#` for comments and `key: value` for settings.\n    *   **Colors:** Cyan text for comments and keys, magenta/red for values (like `9000`, `2050`). Black background.\n    *   **Sections:**\n        *   \"Server\": port `9000`, host `0.0.0.0`.\n        *   \"Upstream\": target URL `https://api.code.umans.ai`, protocol `http1.1`.\n        *   \"Capture Store\": `db_path` is `./capture.db`, `max_captures` is `1000`.\n        *   \"TTL Stamping\": `stamp_cache_ttl` is `1h`, `openai_path` is `chat/completions`.\n        *   \"Connection Warmer\": `warmer_enabled` is `true`, `warmer_interval_ms` is `20500`.\n\n4.  **Draft the description:**\n    *   Start with the main subject: A screenshot of a configuration file for \"umans-gate\".\n    *   Mention the visual style: Cyan text on a black background, typical of a terminal or code editor.\n    *   Highlight key sections/settings: It lists settings for a server (port 9000), upstream target (api.code.umans.ai), capture store path, TTL stamping, and connection warmer parameters.\n    *   Note specific values: Mention magenta values like `9000`, `1000`, `20500`.\n\n5.  **Refine for conciseness (2-3 sentences):**\n    *   \"This image displays a screenshot of a configuration file for 'umans-gate' displayed in a terminal-like interface with cyan text on a black background.\"\n    *   \"The file is organized into sections including Server, Upstream,",
+        "elapsed_s": 2.91,
+        "tokens": 656,
+        "status": 200
+      },
+      {
+        "filename": "ss2.png",
+        "description": "The user wants a concise description of the provided image.\n\n**Image Analysis:**\n1.  **Subject:** It's a screenshot of a software interface, likely a network request inspector or debugging tool (looks like Postman or a similar API testing tool, specifically the \"Mock Server\" or \"Capture\" tab).\n2.  **Header:** \"Captures (27)\" is visible at the top left. There's a \"Clear\" button with a trash icon at the top right.\n3.  **Status Bar:** Below the header, there are indicators: \"live\" (green dot), \"Gate no key\", \"0/4 active\", \"closed\" (green dot).\n4.  **Main Content:** A list of HTTP requests.\n    *   **Entry 1:** POST 200, SSE (purple badge), in http1.1, out http1.1. URL: /v1/messages. Size: 1266.6 KB, 10.6 KB. Time: 5.35 s. Timestamp: 12:34:34.\n    *   **Entry 2:** POST 200, SSE, in http1.1, out http1.1. URL: /v1/messages. Size: 1265.0 KB, 15.3 KB. Time: 3.65 s. Timestamp: 12:34:24.\n    *   **Entry 3:** POST 200, SSE, in http1.1, out http1.1. URL: /v1/messages. Size: 1241.0 KB, 1192.8 KB. Time: 78.94 s. Timestamp: 12:33:04.\n    *   **Entry 4:** POST ... (green \"running\" badge), in http1.1, out http1.1. URL: /v1/messages. Size: 1240.0 KB, 10 B. Time: 0 ms. Timestamp: 12:32:56.\n    *   **Entry 5:** POST 200, SSE, in http1.1, out http1.1. URL: /v1/messages. Size: 1169.4 KB, 18.7 KB.",
+        "elapsed_s": 2.03,
+        "tokens": 277,
+        "status": 200
+      },
+      {
+        "filename": "ss3.png",
+        "description": "The user wants a concise description of the provided image, which is a screenshot of a chat interface.\n\n1.  **Identify the main subject:** It's a conversation log, likely from a coding assistant or AI tool named \"Sisyphus - Ultraworker\" using \"Umans GLM 5.2\".\n2.  **Analyze the text content:**\n    *   Top message: \"please see @.omo/ss.png\" with a timestamp.\n    *   AI response block: Shows a \"Thought\" process. It mentions trying to read the image `.omo/ss.png`.\n    *   Error message: The crucial part is the error. \"I could not analyze the screenshot. The vision model returned an HTTP 401 error...\"\n    *   Final request: The AI asks the user to \"Re-attach the image\" or \"Describe what's shown\".\n3.  **Analyze visual elements:** Dark mode interface, monospaced font for code/logs, light grey text on dark background, some orange highlighting for \"Thought:\".\n4.  **Synthesize into 2-3 sentences:**\n    *   Sentence 1: Describe the interface (dark mode chat log).\n    *   Sentence 2: Describe the core event (AI failing to analyze an image due to an HTTP 401 error).\n    *   Sentence 3: Mention the footer/branding.\n\nDrafting the description:\nThis image displays a dark-themed chat interface where an AI assistant, identified as \"Sisyphus - Ultraworker,\" attempts to analyze an attached image file named `.omo/ss.png`. The conversation logs show the AI failing to process the file, citing an \"HTTP 401 error\" from the vision model, and subsequently requests that the user re-attach the image or describe it in text. The bottom footer indicates the model used is \"Umans GLM 5.2\" along with various performance metrics.\n\nRefining for conciseness:\nThis screenshot shows a dark-themed chat interface where an AI assistant attempts to analyze an image file named `.omo/ss.png` but fails due to an \"HTTP 401 error.\" The assistant's \"Thought\" process and subsequent message explain that the vision model could not extract content, prompting the user to either re-attach the image or describe it manually. The bottom of the screen displays interface details for \"Sisyphus - Ultraworker",
+        "elapsed_s": 2.71,
+        "tokens": 1588,
+        "status": 200
+      },
+      {
+        "filename": "ss4.png",
+        "description": "The user wants a concise description of the provided screenshot.\n\n**1. Identify the main subject:**\nThe image is a screenshot of a software interface, specifically a web-based network debugging or API inspection tool (looks like Postman, Insomnia, or a custom network inspector). It shows a list of captured HTTP requests on the left and the details of a selected request on the right.\n\n**2. Analyze the layout:**\n- **Header:** Tabs \"Captures\" and \"Performance\". \"Captures\" is active.\n- **Left Panel:** A list of network requests.\n    - Column headers: \"Gate\", \"Code\", \"Max\", active status (\"0/4 active\"), \"closed\".\n    - Rows show HTTP methods (POST), status codes (200, 502), response sizes, durations, and timestamps.\n    - One entry is highlighted: \"POST 200 SSE in http1.1 out http1.1 06:49:05\".\n    - The URL path is `/v1/messages`.\n- **Right Panel:** Details of the selected request.\n    - Top bar: Shows \"POST /v1/messages\", status \"200\", tags like \"SSE\", \"in http1.1\", \"out http1.1\", timestamp \"06:49:05\". URL: `https://api.code.umans.ai/v1/messages`.\n    - Tabs: \"Response Body\", \"Request Body\", \"Req Headers\", \"Res Headers\". \"Response Body\" is selected.\n    - Content area: A JSON object containing text data. The text appears to be system instructions or a prompt for an AI model (\"umans-coder\"). It contains a lot of text explaining how to handle files, extract information, etc.\n\n**3. Extract key text/UI elements:**\n- **Tabs:** \"Captures\", \"Performance\".\n- **List items:** \"POST\", \"200\", \"SSE\", \"in http1.1\", \"out http1.1\", \"/v1/messages\".\n- **Selected Request Details:** \"POST /v1/messages\", \"200\", \"SSE\", \"https://api.code.umans.ai/v1/messages\".\n- **JSON Content:** Starts with `{\"model\": \"umans-coder\", \"max_tokens\": 48000, \"thinking\": ...}`. The text inside \"text",
+        "elapsed_s": 2.9,
+        "tokens": 1246,
+        "status": 200
+      },
+      {
+        "filename": "ss5.png",
+        "description": "The user wants a concise description of the provided terminal screenshot.\n\n1.  **Identify the main components:**\n    *   **Top Warning:** A yellow box warning about missing rpiv-pi sibling extensions (`@juicesharp/rpiv-web-tools`).\n    *   **User Input Area:** A grey box containing text \"please see on @omo/ss.png\".\n    *   **System/Model Response Area:**\n        *   Text: \"The user is asking me to look at an image at .omo/ss.png. Let me read it.\"\n        *   Action: A green block \"read .omo/ss.png\".\n        *   Result text: \"I'm unable to view the image – the vision model returned an authentication error (HTTP 401)...\"\n    *   **Bottom Status Bar:** A line showing system stats (memory, CPU, prompt tokens, etc.) ending with `(umans) umans-glm-5.2 • xhigh`.\n\n2.  **Draft the description:**\n    *   Start with the warning at the top.\n    *   Mention the interaction where the user asked to see an image (`@omo/ss.png`).\n    *   Describe the error message (HTTP 401 authentication error).\n    *   Mention the bottom status bar details.\n\n3.  **Refine for conciseness (2-3 sentences):**\n    *   Sentence 1: The image displays a terminal interface with a yellow warning box at the top advising to install missing extensions for `@juicesharp/rpiv-web-tools`.\n    *   Sentence 2: Below, a grey input box shows a request to view `@omo/ss.png`, followed by a green command `read .omo/ss.png` which results in a failure message stating an HTTP 401 authentication error prevented the vision model from viewing the image.\n    *   Sentence 3: The bottom status bar shows system performance metrics like memory usage and token counts, ending with the model identifier `umans-glm-5.2`.\n\n4.  **Final Polish:** Combine and ensure flow.\n    *   \"This terminal screenshot features a yellow warning box at the top indicating missing sibling extensions for `@juicesharp/rpiv-web-tools`. The main conversation shows a user requesting to view an image at `.omo/ss.png`, which triggers a command that fails with an HTTP 401 authentication error because the",
+        "elapsed_s": 2.39,
+        "tokens": 658,
+        "status": 200
+      }
+    ],
+    "turns": [
+      {
+        "turn": 1,
+        "status": 200,
+        "elapsed_s": 2.0,
+        "prompt_tokens": 365,
+        "completion_tokens": 512,
+        "cached_tokens": 0,
+        "cache_hit_rate_pct": 0.0
+      },
+      {
+        "turn": 2,
+        "status": 200,
+        "elapsed_s": 2.35,
+        "prompt_tokens": 502,
+        "completion_tokens": 512,
+        "cached_tokens": 256,
+        "cache_hit_rate_pct": 51.0
+      },
+      {
+        "turn": 3,
+        "status": 200,
+        "elapsed_s": 2.07,
+        "prompt_tokens": 627,
+        "completion_tokens": 512,
+        "cached_tokens": 320,
+        "cache_hit_rate_pct": 51.04
+      },
+      {
+        "turn": 4,
+        "status": 200,
+        "elapsed_s": 2.16,
+        "prompt_tokens": 751,
+        "completion_tokens": 512,
+        "cached_tokens": 448,
+        "cache_hit_rate_pct": 59.65
+      },
+      {
+        "turn": 5,
+        "status": 200,
+        "elapsed_s": 2.27,
+        "prompt_tokens": 1306,
+        "completion_tokens": 512,
+        "cached_tokens": 576,
+        "cache_hit_rate_pct": 44.1
+      },
+      {
+        "turn": 6,
+        "status": 200,
+        "elapsed_s": 2.42,
+        "prompt_tokens": 1421,
+        "completion_tokens": 512,
+        "cached_tokens": 704,
+        "cache_hit_rate_pct": 49.54
+      },
+      {
+        "turn": 7,
+        "status": 200,
+        "elapsed_s": 2.17,
+        "prompt_tokens": 1972,
+        "completion_tokens": 512,
+        "cached_tokens": 1280,
+        "cache_hit_rate_pct": 64.91
+      },
+      {
+        "turn": 8,
+        "status": 200,
+        "elapsed_s": 2.27,
+        "prompt_tokens": 2524,
+        "completion_tokens": 512,
+        "cached_tokens": 1408,
+        "cache_hit_rate_pct": 55.78
+      },
+      {
+        "turn": 9,
+        "status": 200,
+        "elapsed_s": 2.15,
+        "prompt_tokens": 3076,
+        "completion_tokens": 512,
+        "cached_tokens": 1920,
+        "cache_hit_rate_pct": 62.42
+      },
+      {
+        "turn": 10,
+        "status": 200,
+        "elapsed_s": 2.19,
+        "prompt_tokens": 3630,
+        "completion_tokens": 512,
+        "cached_tokens": 2496,
+        "cache_hit_rate_pct": 68.76
+      },
+      {
+        "turn": 11,
+        "status": 200,
+        "elapsed_s": 2.56,
+        "prompt_tokens": 4184,
+        "completion_tokens": 512,
+        "cached_tokens": 3072,
+        "cache_hit_rate_pct": 73.42
+      }
+    ]
+  },
+  {
+    "session": "2b-flash-seq-text-anthropic",
+    "model": "umans-flash",
+    "endpoint": "/v1/messages",
+    "strategy": "flash handoff → sequential 1 text/message × 11",
+    "timestamp": "2026-07-05T07:54:09.230545+00:00",
+    "handoff_model": "umans-flash",
+    "handoff_descriptions": [
+      {
+        "filename": "Gemini_Generated_Image_7s2k6a7s2k6a7s2k.png",
+        "description": "A large, highly detailed toad sits prominently on a wet, dark rock in the foreground, facing slightly right with large, reflective eyes. The background features a moody seascape with crashing waves and a distant, glowing lighthouse under a dark, cloudy sky. Warm, golden light from the right illuminates the toad and the rock, contrasting sharply with the cool blue and grey tones of the ocean and horizon.",
+        "elapsed_s": 4.97,
+        "tokens": 2489,
+        "status": 200
+      },
+      {
+        "filename": "Gemini_Generated_Image_u89j9fu89j9fu89j.png",
+        "description": "A green frog sits atop a large lily pad in the center of a calm body of water, with two pink lotus buds visible to its left. The background features a serene sunset or sunrise with a gradient of purple, orange, and blue clouds that reflect onto the water's surface. The image has a soft, painterly texture and includes a small white diamond logo in the bottom right corner.",
+        "elapsed_s": 2.84,
+        "tokens": 1408,
+        "status": 200
+      },
+      {
+        "filename": "compressed_image (2).jpeg",
+        "description": "A serene digital painting depicts a green frog resting on a large lily pad floating in calm water, surrounded by gentle, concentric ripples. The background features a picturesque sunset with a sky filled with soft purple, orange, and blue clouds that reflect beautifully on the water's surface. Two pink lotus buds extend from the left side, and a small white diamond logo is visible in the bottom right corner.",
+        "elapsed_s": 2.47,
+        "tokens": 1395,
+        "status": 200
+      },
+      {
+        "filename": "compressed_image (3).jpeg",
+        "description": "A large, textured toad sits prominently on a wet, dark rock in the foreground, its skin detailed with bumps and wrinkles. Behind it, a turbulent ocean with white-capped waves stretches out under a moody, dark blue sky. In the distance, a lighthouse stands on a rocky outcrop, emitting a warm, bright glow that contrasts with the cool tones of the surrounding water and mist.",
+        "elapsed_s": 2.86,
+        "tokens": 2473,
+        "status": 200
+      },
+      {
+        "filename": "compressed_image (4).jpeg",
+        "description": "The user wants a concise description of the provided image.\nThe image is a photorealistic or AI-generated picture of a large toad on a rock.\nKey elements:\n- Subject: A large toad with textured skin (warts/bumps).\n- Setting: A rocky coast with waves crashing in the background.\n- Lighting/Atmosphere: Dark, moody, possibly twilight or night.\n- Background detail: A lighthouse with a bright light is visible in the distance on the right.\n- Colors: Dark blues, greys, blacks, with warm yellow/gold highlights from the light on the lighthouse and reflecting off the toad.\n\nDrafting the description:\n- Sentence 1: Focus on the main subject and immediate setting. A large, textured toad sits on a wet, dark rock in the foreground.\n- Sentence 2: Describe the background and lighting. Behind the toad, rough ocean waves crash against the shore under a dark, stormy sky.\n- Sentence 3: Mention the specific background detail. A lighthouse beam shines brightly in the upper right distance, casting a warm glow that contrasts with the cool blue tones of the scene.\n\nRefining for conciseness (2-3 sentences):\nA large, detailed toad with bumpy, textured skin sits perched on a wet, dark rock in the immediate foreground. The background features a turbulent seascape with crashing waves under a moody, dark blue sky. In the distance to the right, a lighthouse emits a bright, warm light that illuminates the mist and reflects off the water's surface.\n\nFinal Polish:\nA large, highly detailed toad with textured, warty skin sits perched on a wet, dark rock in the foreground. Behind it, rough ocean waves crash against the shore under a moody, dark blue sky. In the upper right background, a lighthouse shines a bright, warm light through the mist, contrasting with the cool tones of the water and rock.\n\nWait, let me make it even more concise as requested.\n\"A detailed toad sits on a wet rock in the foreground, facing right with its large eye clearly visible. The background shows a dark, stormy seascape with crashing waves. A lighthouse beam glows brightly in the distance on the right, casting a warm light against the cool blue atmosphere.\"\n\nLet's stick to the 2-3 sentence rule and focus on visual elements.\nSentence 1: A",
+        "elapsed_s": 3.09,
+        "tokens": 2473,
+        "status": 200
+      },
+      {
+        "filename": "compressed_image (5).jpeg",
+        "description": "A large, textured toad perches on a dark, wet rock in the foreground, bathed in a warm, dramatic light that highlights its golden eyes. Behind the amphibian, a turbulent ocean with crashing waves stretches towards a lighthouse glowing in the distance. The scene is set under a dark, moody sky, creating a cinematic and atmospheric composition.",
+        "elapsed_s": 2.31,
+        "tokens": 2473,
+        "status": 200
+      },
+      {
+        "filename": "ss.png",
+        "description": "The user wants a description of the provided image.\n1.  **Identify the image type:** It is a screenshot of a text editor or terminal displaying a configuration file.\n2.  **Identify the content:** The text is a configuration file for \"umans-gate\". It has comments explaining settings and key-value pairs.\n3.  **Analyze specific elements:**\n    *   **Header:** \"umans-gate configuration file\" and a GitHub link.\n    *   **Structure:** It uses `#` for comments and `key: value` for settings.\n    *   **Colors:** Cyan text for comments and keys, magenta/red for values (like `9000`, `2050`). Black background.\n    *   **Sections:**\n        *   \"Server\": port `9000`, host `0.0.0.0`.\n        *   \"Upstream\": target URL `https://api.code.umans.ai`, protocol `http1.1`.\n        *   \"Capture Store\": `db_path` is `./capture.db`, `max_captures` is `1000`.\n        *   \"TTL Stamping\": `stamp_cache_ttl` is `1h`, `openai_path` is `chat/completions`.\n        *   \"Connection Warmer\": `warmer_enabled` is `true`, `warmer_interval_ms` is `20500`.\n\n4.  **Draft the description:**\n    *   Start with the main subject: A screenshot of a configuration file for \"umans-gate\".\n    *   Mention the visual style: Cyan text on a black background, typical of a terminal or code editor.\n    *   Highlight key sections/settings: It lists settings for a server (port 9000), upstream target (api.code.umans.ai), capture store path, TTL stamping, and connection warmer parameters.\n    *   Note specific values: Mention magenta values like `9000`, `1000`, `20500`.\n\n5.  **Refine for conciseness (2-3 sentences):**\n    *   \"This image displays a screenshot of a configuration file for 'umans-gate' displayed in a terminal-like interface with cyan text on a black background.\"\n    *   \"The file is organized into sections including Server, Upstream,",
+        "elapsed_s": 2.91,
+        "tokens": 656,
+        "status": 200
+      },
+      {
+        "filename": "ss2.png",
+        "description": "The user wants a concise description of the provided image.\n\n**Image Analysis:**\n1.  **Subject:** It's a screenshot of a software interface, likely a network request inspector or debugging tool (looks like Postman or a similar API testing tool, specifically the \"Mock Server\" or \"Capture\" tab).\n2.  **Header:** \"Captures (27)\" is visible at the top left. There's a \"Clear\" button with a trash icon at the top right.\n3.  **Status Bar:** Below the header, there are indicators: \"live\" (green dot), \"Gate no key\", \"0/4 active\", \"closed\" (green dot).\n4.  **Main Content:** A list of HTTP requests.\n    *   **Entry 1:** POST 200, SSE (purple badge), in http1.1, out http1.1. URL: /v1/messages. Size: 1266.6 KB, 10.6 KB. Time: 5.35 s. Timestamp: 12:34:34.\n    *   **Entry 2:** POST 200, SSE, in http1.1, out http1.1. URL: /v1/messages. Size: 1265.0 KB, 15.3 KB. Time: 3.65 s. Timestamp: 12:34:24.\n    *   **Entry 3:** POST 200, SSE, in http1.1, out http1.1. URL: /v1/messages. Size: 1241.0 KB, 1192.8 KB. Time: 78.94 s. Timestamp: 12:33:04.\n    *   **Entry 4:** POST ... (green \"running\" badge), in http1.1, out http1.1. URL: /v1/messages. Size: 1240.0 KB, 10 B. Time: 0 ms. Timestamp: 12:32:56.\n    *   **Entry 5:** POST 200, SSE, in http1.1, out http1.1. URL: /v1/messages. Size: 1169.4 KB, 18.7 KB.",
+        "elapsed_s": 2.03,
+        "tokens": 277,
+        "status": 200
+      },
+      {
+        "filename": "ss3.png",
+        "description": "The user wants a concise description of the provided image, which is a screenshot of a chat interface.\n\n1.  **Identify the main subject:** It's a conversation log, likely from a coding assistant or AI tool named \"Sisyphus - Ultraworker\" using \"Umans GLM 5.2\".\n2.  **Analyze the text content:**\n    *   Top message: \"please see @.omo/ss.png\" with a timestamp.\n    *   AI response block: Shows a \"Thought\" process. It mentions trying to read the image `.omo/ss.png`.\n    *   Error message: The crucial part is the error. \"I could not analyze the screenshot. The vision model returned an HTTP 401 error...\"\n    *   Final request: The AI asks the user to \"Re-attach the image\" or \"Describe what's shown\".\n3.  **Analyze visual elements:** Dark mode interface, monospaced font for code/logs, light grey text on dark background, some orange highlighting for \"Thought:\".\n4.  **Synthesize into 2-3 sentences:**\n    *   Sentence 1: Describe the interface (dark mode chat log).\n    *   Sentence 2: Describe the core event (AI failing to analyze an image due to an HTTP 401 error).\n    *   Sentence 3: Mention the footer/branding.\n\nDrafting the description:\nThis image displays a dark-themed chat interface where an AI assistant, identified as \"Sisyphus - Ultraworker,\" attempts to analyze an attached image file named `.omo/ss.png`. The conversation logs show the AI failing to process the file, citing an \"HTTP 401 error\" from the vision model, and subsequently requests that the user re-attach the image or describe it in text. The bottom footer indicates the model used is \"Umans GLM 5.2\" along with various performance metrics.\n\nRefining for conciseness:\nThis screenshot shows a dark-themed chat interface where an AI assistant attempts to analyze an image file named `.omo/ss.png` but fails due to an \"HTTP 401 error.\" The assistant's \"Thought\" process and subsequent message explain that the vision model could not extract content, prompting the user to either re-attach the image or describe it manually. The bottom of the screen displays interface details for \"Sisyphus - Ultraworker",
+        "elapsed_s": 2.71,
+        "tokens": 1588,
+        "status": 200
+      },
+      {
+        "filename": "ss4.png",
+        "description": "The user wants a concise description of the provided screenshot.\n\n**1. Identify the main subject:**\nThe image is a screenshot of a software interface, specifically a web-based network debugging or API inspection tool (looks like Postman, Insomnia, or a custom network inspector). It shows a list of captured HTTP requests on the left and the details of a selected request on the right.\n\n**2. Analyze the layout:**\n- **Header:** Tabs \"Captures\" and \"Performance\". \"Captures\" is active.\n- **Left Panel:** A list of network requests.\n    - Column headers: \"Gate\", \"Code\", \"Max\", active status (\"0/4 active\"), \"closed\".\n    - Rows show HTTP methods (POST), status codes (200, 502), response sizes, durations, and timestamps.\n    - One entry is highlighted: \"POST 200 SSE in http1.1 out http1.1 06:49:05\".\n    - The URL path is `/v1/messages`.\n- **Right Panel:** Details of the selected request.\n    - Top bar: Shows \"POST /v1/messages\", status \"200\", tags like \"SSE\", \"in http1.1\", \"out http1.1\", timestamp \"06:49:05\". URL: `https://api.code.umans.ai/v1/messages`.\n    - Tabs: \"Response Body\", \"Request Body\", \"Req Headers\", \"Res Headers\". \"Response Body\" is selected.\n    - Content area: A JSON object containing text data. The text appears to be system instructions or a prompt for an AI model (\"umans-coder\"). It contains a lot of text explaining how to handle files, extract information, etc.\n\n**3. Extract key text/UI elements:**\n- **Tabs:** \"Captures\", \"Performance\".\n- **List items:** \"POST\", \"200\", \"SSE\", \"in http1.1\", \"out http1.1\", \"/v1/messages\".\n- **Selected Request Details:** \"POST /v1/messages\", \"200\", \"SSE\", \"https://api.code.umans.ai/v1/messages\".\n- **JSON Content:** Starts with `{\"model\": \"umans-coder\", \"max_tokens\": 48000, \"thinking\": ...}`. The text inside \"text",
+        "elapsed_s": 2.9,
+        "tokens": 1246,
+        "status": 200
+      },
+      {
+        "filename": "ss5.png",
+        "description": "The user wants a concise description of the provided terminal screenshot.\n\n1.  **Identify the main components:**\n    *   **Top Warning:** A yellow box warning about missing rpiv-pi sibling extensions (`@juicesharp/rpiv-web-tools`).\n    *   **User Input Area:** A grey box containing text \"please see on @omo/ss.png\".\n    *   **System/Model Response Area:**\n        *   Text: \"The user is asking me to look at an image at .omo/ss.png. Let me read it.\"\n        *   Action: A green block \"read .omo/ss.png\".\n        *   Result text: \"I'm unable to view the image – the vision model returned an authentication error (HTTP 401)...\"\n    *   **Bottom Status Bar:** A line showing system stats (memory, CPU, prompt tokens, etc.) ending with `(umans) umans-glm-5.2 • xhigh`.\n\n2.  **Draft the description:**\n    *   Start with the warning at the top.\n    *   Mention the interaction where the user asked to see an image (`@omo/ss.png`).\n    *   Describe the error message (HTTP 401 authentication error).\n    *   Mention the bottom status bar details.\n\n3.  **Refine for conciseness (2-3 sentences):**\n    *   Sentence 1: The image displays a terminal interface with a yellow warning box at the top advising to install missing extensions for `@juicesharp/rpiv-web-tools`.\n    *   Sentence 2: Below, a grey input box shows a request to view `@omo/ss.png`, followed by a green command `read .omo/ss.png` which results in a failure message stating an HTTP 401 authentication error prevented the vision model from viewing the image.\n    *   Sentence 3: The bottom status bar shows system performance metrics like memory usage and token counts, ending with the model identifier `umans-glm-5.2`.\n\n4.  **Final Polish:** Combine and ensure flow.\n    *   \"This terminal screenshot features a yellow warning box at the top indicating missing sibling extensions for `@juicesharp/rpiv-web-tools`. The main conversation shows a user requesting to view an image at `.omo/ss.png`, which triggers a command that fails with an HTTP 401 authentication error because the",
+        "elapsed_s": 2.39,
+        "tokens": 658,
+        "status": 200
+      }
+    ],
+    "turns": [
+      {
+        "turn": 1,
+        "status": 200,
+        "elapsed_s": 2.3,
+        "input_tokens": 45,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 320,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 365,
+        "cache_hit_rate_pct": 87.67
+      },
+      {
+        "turn": 2,
+        "status": 200,
+        "elapsed_s": 2.63,
+        "input_tokens": 54,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 448,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 502,
+        "cache_hit_rate_pct": 89.24
+      },
+      {
+        "turn": 3,
+        "status": 200,
+        "elapsed_s": 2.32,
+        "input_tokens": 51,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 576,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 627,
+        "cache_hit_rate_pct": 91.87
+      },
+      {
+        "turn": 4,
+        "status": 200,
+        "elapsed_s": 2.72,
+        "input_tokens": 47,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 704,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 751,
+        "cache_hit_rate_pct": 93.74
+      },
+      {
+        "turn": 5,
+        "status": 200,
+        "elapsed_s": 3.62,
+        "input_tokens": 26,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 1280,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 1306,
+        "cache_hit_rate_pct": 98.01
+      },
+      {
+        "turn": 6,
+        "status": 200,
+        "elapsed_s": 2.39,
+        "input_tokens": 13,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 1408,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 1421,
+        "cache_hit_rate_pct": 99.09
+      },
+      {
+        "turn": 7,
+        "status": 200,
+        "elapsed_s": 2.31,
+        "input_tokens": 52,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 1920,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 1972,
+        "cache_hit_rate_pct": 97.36
+      },
+      {
+        "turn": 8,
+        "status": 200,
+        "elapsed_s": 2.58,
+        "input_tokens": 28,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 2496,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 2524,
+        "cache_hit_rate_pct": 98.89
+      },
+      {
+        "turn": 9,
+        "status": 200,
+        "elapsed_s": 2.75,
+        "input_tokens": 4,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 3072,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 3076,
+        "cache_hit_rate_pct": 99.87
+      },
+      {
+        "turn": 10,
+        "status": 200,
+        "elapsed_s": 2.88,
+        "input_tokens": 46,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 3584,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 3630,
+        "cache_hit_rate_pct": 98.73
+      },
+      {
+        "turn": 11,
+        "status": 200,
+        "elapsed_s": 2.21,
+        "input_tokens": 600,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 3584,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 4184,
+        "cache_hit_rate_pct": 85.66
+      }
+    ]
+  },
+  {
+    "session": "3-glm-seq-images-anthropic",
+    "model": "umans-glm-5.2",
+    "endpoint": "/v1/messages",
+    "strategy": "server-side handoff, sequential 1 image/message × 11",
+    "timestamp": "2026-07-05T07:55:56.613410+00:00",
+    "turns": [
+      {
+        "turn": 1,
+        "status": 200,
+        "elapsed_s": 60.58,
+        "input_tokens": 277,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 256,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 533,
+        "cache_hit_rate_pct": 48.03
+      },
+      {
+        "turn": 2,
+        "status": 200,
+        "elapsed_s": 45.6,
+        "input_tokens": 135,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 320,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 455,
+        "cache_hit_rate_pct": 70.33
+      },
+      {
+        "turn": 3,
+        "status": 200,
+        "elapsed_s": 62.51,
+        "input_tokens": 294,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 384,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 678,
+        "cache_hit_rate_pct": 56.64
+      },
+      {
+        "turn": 4,
+        "status": 200,
+        "elapsed_s": 103.25,
+        "input_tokens": 164,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 384,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 548,
+        "cache_hit_rate_pct": 70.07
+      },
+      {
+        "turn": 5,
+        "status": 200,
+        "elapsed_s": 94.93,
+        "input_tokens": 278,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 448,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 726,
+        "cache_hit_rate_pct": 61.71
+      },
+      {
+        "turn": 6,
+        "status": 200,
+        "elapsed_s": 72.08,
+        "input_tokens": 290,
+        "output_tokens": 414,
+        "cache_read_input_tokens": 512,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 802,
+        "cache_hit_rate_pct": 63.84
+      },
+      {
+        "turn": 7,
+        "status": 200,
+        "elapsed_s": 93.81,
+        "input_tokens": 736,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 512,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 1248,
+        "cache_hit_rate_pct": 41.03
+      },
+      {
+        "turn": 8,
+        "status": 200,
+        "elapsed_s": 99.96,
+        "input_tokens": 566,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 704,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 1270,
+        "cache_hit_rate_pct": 55.43
+      },
+      {
+        "turn": 9,
+        "status": 200,
+        "elapsed_s": 146.14,
+        "input_tokens": 541,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 960,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 1501,
+        "cache_hit_rate_pct": 63.96
+      },
+      {
+        "turn": 10,
+        "status": 200,
+        "elapsed_s": 89.66,
+        "input_tokens": 665,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 1152,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 1817,
+        "cache_hit_rate_pct": 63.4
+      },
+      {
+        "turn": 11,
+        "status": 400,
+        "elapsed_s": 1.57,
+        "error": "{\"error\":{\"type\":\"invalid_request\",\"message\":\"Request contains 11 images, exceeding the limit of 10. Reduce the number of images per request.\"}}"
+      }
+    ]
+  },
+  {
+    "session": "4a-glm-seq-text-openai",
+    "model": "umans-glm-5.2",
+    "endpoint": "/v1/chat/completions",
+    "strategy": "flash handoff → sequential 1 text/message × 11",
+    "timestamp": "2026-07-05T08:10:39.283222+00:00",
+    "handoff_model": "umans-flash",
+    "handoff_descriptions": [
+      {
+        "filename": "Gemini_Generated_Image_7s2k6a7s2k6a7s2k.png",
+        "description": "A large, textured toad with bumpy, olive-green skin sits prominently on a wet, dark rock in the foreground. Its large eye is wide open as it faces slightly to the right, set against a blurred, moody backdrop of crashing ocean waves. In the distance, a warm light from a lighthouse pierces the dark, blue-hued twilight sky.",
+        "elapsed_s": 4.7,
+        "tokens": 2489,
+        "status": 200
+      },
+      {
+        "filename": "Gemini_Generated_Image_u89j9fu89j9fu89j.png",
+        "description": "This digital illustration depicts a serene scene with a green frog resting centrally on a large lily pad in calm, rippling water. To the left, two pink lotus buds extend their stems into the frame, while the background features a vibrant sunset or sunrise with purple and orange clouds reflecting on the surface. The image employs a soft, watercolor-like aesthetic with a dreamy, pastel color palette.",
+        "elapsed_s": 3.1,
+        "tokens": 1408,
+        "status": 200
+      },
+      {
+        "filename": "compressed_image (2).jpeg",
+        "description": "The user wants a concise description of the image, specifically focusing on visible text, UI elements, colors, and layout.\n\n1.  **Subject:** A green frog sitting on a large lily pad.\n2.  **Surroundings:** The lily pad is on a calm body of water. There are two pink lotus buds nearby.\n3.  **Background:** A sunset or sunrise sky with clouds, reflecting on the water. The colors are warm oranges, yellows, and cool blues/purples.\n4.  **Style:** It looks like a digital painting or illustration, possibly watercolor-like.\n5.  **UI/Text:** There is a small white diamond-shaped logo in the bottom right corner. No other text is visible.\n6.  **Layout:** Centered composition with the frog/lily pad in the foreground/lower center. The horizon line is near the middle.\n\nDrafting the description:\nThis digital illustration features a green frog resting on a large, round lily pad floating in calm water. To the left of the frog, two pink lotus buds emerge from the water. The background displays a serene sunset or sunrise with soft, pastel clouds in shades of purple, blue, and orange reflecting on the water's surface, creating a peaceful atmosphere. A small white diamond logo is visible in the bottom right corner.\n\nRefining for conciseness (2-3 sentences):\nThis digital illustration depicts a green frog sitting on a large lily pad in calm water, accompanied by two pink lotus buds. The background features a serene sunset sky with soft purple and orange clouds reflecting off the water's surface. A small white diamond-shaped logo is visible in the bottom right corner.\n\nFinal Polish:\nCheck against constraints: \"concise in 2-3 sentences\", \"Focus on visible text, UI elements, colors, and layout\".\n- Sentences: 3. Good.\n- Text/UI: Mentioned the diamond logo. Good.\n- Colors: Mentioned green, pink, purple, orange, blue. Good.\n- Layout: Mentioned the frog on the lily pad, sunset background. Good.\n\nLet's make it slightly tighter.\n\"This digital artwork features a green frog resting on a large lily pad in the center foreground, with two pink lotus buds nearby. The scene is set against a backdrop of a calm body of water reflecting a sunset sky filled with soft purple, blue, and orange clouds.",
+        "elapsed_s": 2.34,
+        "tokens": 1395,
+        "status": 200
+      },
+      {
+        "filename": "compressed_image (3).jpeg",
+        "description": "The user wants a concise description of the provided image.\nThe description needs to focus on visible text, UI elements, code, colors, and layout, but this image is a natural scene, so I should focus on the subject, setting, and lighting.\n\n**Key elements identified:**\n- **Subject:** A large, textured toad/frog sitting on a dark, wet rock. It has prominent warts, large golden eyes, and detailed skin texture.\n- **Setting:** A rocky coastline at dusk or night.\n- **Background:** Rough, crashing waves and a blurred lighthouse with a warm light in the distance.\n- **Lighting/Colors:** Cool blue tones dominate the water and shadows. Warm, golden light illuminates the toad's face and the lighthouse, creating a contrast.\n- **Composition:** The toad is the foreground focal point, positioned slightly left of center. The lighthouse is in the upper right background.\n\n**Drafting the description:**\nA highly detailed, close-up shot features a large, warty toad perched on a dark, wet rock in the foreground. The scene is set against a moody, blue-toned ocean backdrop with crashing waves and a blurred lighthouse glowing with warm light in the distance. The lighting highlights the texture of the toad's skin and its large, reflective eye, contrasting the cool environment with a touch of golden warmth.\n\n**Refining for conciseness (2-3 sentences):**\nA large, highly detailed toad with textured, warty skin sits prominently on a dark, wet rock in the foreground, gazing slightly upward. The background features a moody, blue-hued ocean with crashing waves and a distant, glowing lighthouse that casts a warm, golden light. The scene is lit with dramatic contrast, emphasizing the toad's golden eye and the wet surfaces of the rocks against the dark, stormy sea.\n\n**Final Polish:**\nCheck against constraints: 2-3 sentences? Yes. Focus on visible details? Yes.\n\nLet's try to be even more concise.\n\"A large, detailed toad with bumpy, olive-green skin rests on a dark, wet rock, its large golden eye reflecting the ambient light. In the background, a stormy blue ocean crashes against the shore, leading the eye to a distant, glowing lighthouse. The lighting creates a dramatic contrast between the cool, dark tones of the water and rocks and the warm illumination on the toad's face",
+        "elapsed_s": 2.68,
+        "tokens": 2473,
+        "status": 200
+      },
+      {
+        "filename": "compressed_image (4).jpeg",
+        "description": "A close-up shot features a large, textured frog with bumpy, brownish-green skin perched prominently on a dark, wet rock in the foreground. Behind the amphibian, a turbulent ocean churns with white-capped waves under a dark, moody sky filled with mist. In the distance on the right, a lighthouse emits a warm, glowing light that contrasts with the cool blue tones of the stormy sea.",
+        "elapsed_s": 2.61,
+        "tokens": 2473,
+        "status": 200
+      },
+      {
+        "filename": "compressed_image (5).jpeg",
+        "description": "A large, textured toad with bumpy, greenish-brown skin sits prominently on a wet, dark rock in the foreground, gazing towards the right. Behind it, a turbulent ocean with crashing white waves stretches into the distance under a moody, dark blue sky. A lighthouse with a glowing light is visible on a distant rocky outcrop to the right, providing a warm contrast to the cool, stormy atmosphere.",
+        "elapsed_s": 2.31,
+        "tokens": 2473,
+        "status": 200
+      },
+      {
+        "filename": "ss.png",
+        "description": "The user wants a concise description of the provided image.\n\n1.  **Identify the image type:** It's a screenshot of a text file, specifically a configuration file.\n2.  **Identify the content:** The text starts with `# umans-gate configuration file`.\n3.  **Identify key sections and values:**\n    *   **Server:** `port: 9000`, `host: 0.0.0.0`.\n    *   **Upstream:** `target: https://api.code.umans.ai`, `upstream_protocol: http1.1`.\n    *   **Capture Store:** `db_path: ./capture.db`, `max_captures: 1000`.\n    *   **TTL Stamping:** `stamp_cache_ttl: 1h`, `openai_path: chat/completions`.\n    *   **Connection Warmer:** `warmer_enabled: true`, `warmer_interval_ms: 20000`, `warmer_path: /v1/models`.\n4.  **Describe formatting:** It uses a dark theme with syntax highlighting. Comments are in teal/cyan, keys are in yellow/gold, and values (mostly numbers or paths) are in white.\n5.  **Draft the description:** The image displays a configuration file for \"umans-gate\" with a dark background and syntax highlighting. Key settings include a server port of 9000, an upstream target URL, a SQLite database path, and connection warmer parameters. Text is organized into sections like Server, Upstream, Capture Store, TTL Stamping, and Connection Warmer.\n\nRefining for conciseness (2-3 sentences):\nThe image shows a configuration file named `umans-gate configuration file` with syntax highlighting on a dark background. Visible settings include a server port of 9000, an upstream target URL (`https://api.code.umans.ai`), and connection warmer parameters. The file is structured into sections such as Server, Upstream, Capture Store, TTL Stamping, and Connection Warmer, with comments explaining each option.\n\nFinal Polish:\nThis image displays a configuration file for \"umans-gate\" featuring syntax highlighting with teal comments, gold keys, and white values on a black background. Key visible settings include a server port of 9000, an upstream target URL, and connection warmer parameters like a 20",
+        "elapsed_s": 2.27,
+        "tokens": 656,
+        "status": 200
+      },
+      {
+        "filename": "ss2.png",
+        "description": "The user wants a concise description of the provided image.\nThe image shows a screenshot of a web development tool, likely a network inspector or API testing tool (looks like Hoppscotch or similar).\n\nKey elements to identify:\n1.  **Header:** \"Captures (27)\" and a \"Clear\" button with a trash icon.\n2.  **Status Bar:** Shows \"live\", \"Gate\", \"no key\", \"0/4 active\", and \"closed\".\n3.  **List Items:** There are several list entries representing HTTP requests.\n    *   Each entry has a method (POST), a status code (200), protocol tags (SSE, in http1.1, out http1.1), a timestamp, a path (/v1/messages), data size (e.g., 1266.6 KB), duration (e.g., 5.35 s), and sometimes a status like \"running\".\n    *   The last visible item shows \"running\" in a green pill.\n4.  **Layout:** Dark mode interface, list layout.\n\nDrafting the description:\n- Start with the main header: \"Captures (27)\".\n- Mention the list of network requests.\n- Detail the columns: Method (POST), Status (200), Protocol tags (SSE, http1.1), Path (/v1/messages), Size/Duration, and Timestamp.\n- Note the specific state of the last item (\"running\").\n- Mention the dark theme.\n\nRefining for conciseness (2-3 sentences):\nThe image displays a dark-themed interface titled \"Captures (27)\" listing network requests, primarily POST methods to the path \"/v1/messages\". Each entry shows status codes like \"200\", protocol tags such as \"SSE\" and \"http1.1\", file sizes, durations, and timestamps on the right. The bottom entry is distinctively marked with a green \"running\" pill, indicating an ongoing request, while the header includes status indicators like \"live\" and \"closed\".\n\nFinal Polish:\nThe image shows a dark-mode interface titled \"Captures (27)\" listing a series of network requests, mostly POST methods targeting \"/v1/messages\". Each row displays details including status codes (200), protocol tags like \"SSE\" and \"http1.1\", data size, duration, and timestamps, with the final visible entry",
+        "elapsed_s": 2.27,
+        "tokens": 277,
+        "status": 200
+      },
+      {
+        "filename": "ss3.png",
+        "description": "The user wants a description of the provided screenshot.\n\n1.  **Analyze the image:**\n    *   It's a screenshot of a terminal or CLI interface, likely a coding assistant or agent-based tool.\n    *   The background is dark (black/dark grey).\n    *   There's text in various colors: white, orange/brown, blue.\n    *   The text content is a conversation log.\n    *   Top: \"please see @omo/ss.png\" with timestamp 6:48 AM.\n    *   Middle: \"Thought: 861ms\" -> \"The user wants me to look at an image file at .omo/ss.png. Let me read it.\" -> \"-> Read .omo/ss.png\"\n    *   Next: \"Thought: 563ms\" -> \"The image analysis failed. Let me try the look_at tool which can extract information from images.\"\n    *   Then a block starting with `# look_at [file_path=/home/agungliang168/umans-gate/.omo/ss.png...`\n    *   Error message: \"I could not analyze the screenshot. The vision model returned an HTTP 401 error, so no image content was extracted.\"\n    *   Bottom section: \"I tried to view the screenshot at .omo/ss.png, but the vision model returned an HTTP 401 error, so I can't see the image content.\"\n    *   Options presented to user: \"1. Re-attach the image, or 2. Describe what's shown in the screenshot...\"\n    *   Footer status bar: \"Sisyphus - Ultraworker Umans GLM 5.2 Umans AI max\" and metrics like TPS, AVG, TTFT, TIME.\n\n2.  **Draft the description:**\n    *   Focus on the main content: It's a chat interface showing an AI agent's attempt to analyze an image file named `ss.png`.\n    *   Mention the error: The agent encountered an \"HTTP 401 error\" and couldn't view the image.\n    *   Mention the layout: Dark theme, terminal-like interface with code blocks and status bars.\n    *   Mention specific text: \"look_at\", \"HTTP 401 error\", \"Sisyphus - Ultraworker\".\n\n3.  **Refine into 2-3 sentences:**",
+        "elapsed_s": 2.28,
+        "tokens": 1588,
+        "status": 200
+      },
+      {
+        "filename": "ss4.png",
+        "description": "The user wants a concise description of the provided image.\n\n**1. Identify the main subject:**\nThe image is a screenshot of a software application, likely a network debugging or capture tool.\n\n**2. Analyze the layout:**\n- Top left: Tabs \"Captures\" and \"Performance\".\n- Left panel: A list of captured network requests (HTTP POST requests).\n- Right panel: Detailed view of a selected request.\n\n**3. Extract visible text and UI elements:**\n- **Left Panel:**\n    - Header: \"Captures (56)\"\n    - Filters: \"Gate\", \"Code Max\", \"0/4 active\", \"closed\"\n    - List items: Various rows showing `POST 200 SSE in http1.1 out http1.1` followed by timestamps and sizes (e.g., \"1132.9 KB 18.7 KB 1.81 s\").\n    - URL pattern: `/v1/messages` is visible in many entries.\n\n- **Right Panel:**\n    - Header: `POST /v1/messages` with status `200`, tags `SSE`, sizes `16.7 KB 17.3 KB 2.79 s`, protocols `in http1.1 out http1.1`, timestamp `06:49:05`.\n    - URL: `https://api.code.umans.ai/v1/messages`\n    - Tabs: \"Response Body\", \"Request Body\" (selected), \"Req Headers\", \"Res Headers\".\n    - Content: JSON code block.\n    - JSON content: It looks like a configuration or system prompt for an AI model. Key keys visible: `\"model\": \"umans-coder\"`, `\"max_tokens\": 48000`, `\"thinking\": { \"type\": \"enabled\", \"budget_tokens\": 16000 }`, `\"system\": [ { \"type\": \"text\", \"text\": \"You interpret media files...\" ]`.\n    - The text inside \"text\" is a long system prompt describing instructions for an AI agent.\n\n**4. Synthesize the description:**\n- Start with the overall view: A dark-themed interface of a network capture tool.\n- Mention the left side: List of HTTP POST requests to `/v1/messages`.\n- Mention the right side: Details of a specific request showing a JSON payload with system instructions for",
+        "elapsed_s": 2.93,
+        "tokens": 1246,
+        "status": 200
+      },
+      {
+        "filename": "ss5.png",
+        "description": "The user wants a concise description of the provided image.\n\n1.  **Analyze the image content:**\n    *   It's a screenshot of a terminal window.\n    *   Top section: Yellow warning text about a missing extension `@juicesharp/rpiv-web-tools` and a command `Run /rpiv-setup to install them`.\n    *   Middle section: A grey bar with text \"please see on @omo/ss.png\". Below that, text says \"The user is asking me to look at an image at .omo/ss.png. Let me read it.\"\n    *   Green bar: Text `read .omo/ss.png`.\n    *   White text below: \"I'm unable to view the image – the vision model returned an authentication error (HTTP 401), so I can't actually see the contents of .omo/ss.png. Could you describe what's in the screenshot, or paste the relevant text/error/output as text? That way I can help you with whatever issue or question it shows.\"\n    *   Bottom section: Command prompt `~/umans-oats (master)`.\n    *   Stats bar: `r9.8k`, `i105`, `R9.7k`, `CH99.1%`, `2.4%/406k (auto)`.\n    *   MCP info: `MCP: 0/5 servers GLM cache 40/41`.\n    *   Token info: `1.20M/1.26M tok (95%) TPS`.\n    *   Performance stats: `77 avg`, `mu 77`, `p10 50`, `p95 104`.\n    *   Timing: `TFT mu 1.32s`, `Elapsed 3s`.\n    *   Timestamp: `2026-07-05T00:02:27Z`.\n    *   Model info: `(umans) umans-glm-5.2 • xhigh`.\n\n2.  **Synthesize the description:**\n    *   Focus on the main narrative: A terminal session where a user tries to load an image, but the system fails with an authentication error.\n    *   Mention the top warning about missing extensions.\n    *   Mention the bottom stats bar.\n    *   Keep it",
+        "elapsed_s": 2.21,
+        "tokens": 658,
+        "status": 200
+      }
+    ],
+    "turns": [
+      {
+        "turn": 1,
+        "status": "exception",
+        "elapsed_s": 180.01,
+        "error": "The read operation timed out"
+      },
+      {
+        "turn": 2,
+        "status": 200,
+        "elapsed_s": 169.72,
+        "prompt_tokens": 339,
+        "completion_tokens": 512,
+        "cached_tokens": 0,
+        "cache_hit_rate_pct": 0.0
+      },
+      {
+        "turn": 3,
+        "status": 200,
+        "elapsed_s": 171.95,
+        "prompt_tokens": 869,
+        "completion_tokens": 481,
+        "cached_tokens": 320,
+        "cache_hit_rate_pct": 36.82
+      },
+      {
+        "turn": 4,
+        "status": 200,
+        "elapsed_s": 43.25,
+        "prompt_tokens": 1717,
+        "completion_tokens": 411,
+        "cached_tokens": 832,
+        "cache_hit_rate_pct": 48.46
+      },
+      {
+        "turn": 5,
+        "status": 200,
+        "elapsed_s": 71.28,
+        "prompt_tokens": 2184,
+        "completion_tokens": 352,
+        "cached_tokens": 1664,
+        "cache_hit_rate_pct": 76.19
+      },
+      {
+        "turn": 6,
+        "status": 200,
+        "elapsed_s": 85.17,
+        "prompt_tokens": 2638,
+        "completion_tokens": 512,
+        "cached_tokens": 2176,
+        "cache_hit_rate_pct": 82.49
+      },
+      {
+        "turn": 7,
+        "status": 200,
+        "elapsed_s": 95.88,
+        "prompt_tokens": 3425,
+        "completion_tokens": 512,
+        "cached_tokens": 2624,
+        "cache_hit_rate_pct": 76.61
+      },
+      {
+        "turn": 8,
+        "status": 200,
+        "elapsed_s": 32.94,
+        "prompt_tokens": 3938,
+        "completion_tokens": 512,
+        "cached_tokens": 3392,
+        "cache_hit_rate_pct": 86.14
+      },
+      {
+        "turn": 9,
+        "status": 200,
+        "elapsed_s": 116.5,
+        "prompt_tokens": 4458,
+        "completion_tokens": 512,
+        "cached_tokens": 3904,
+        "cache_hit_rate_pct": 87.57
+      },
+      {
+        "turn": 10,
+        "status": "exception",
+        "elapsed_s": 180.05,
+        "error": "The read operation timed out"
+      },
+      {
+        "turn": 11,
+        "status": "exception",
+        "elapsed_s": 180.47,
+        "error": "The read operation timed out"
+      }
+    ]
+  },
+  {
+    "session": "4b-glm-seq-text-anthropic",
+    "model": "umans-glm-5.2",
+    "endpoint": "/v1/messages",
+    "strategy": "flash handoff → sequential 1 text/message × 11",
+    "timestamp": "2026-07-05T08:10:39.283222+00:00",
+    "handoff_model": "umans-flash",
+    "handoff_descriptions": [
+      {
+        "filename": "Gemini_Generated_Image_7s2k6a7s2k6a7s2k.png",
+        "description": "A large, textured toad with bumpy, olive-green skin sits prominently on a wet, dark rock in the foreground. Its large eye is wide open as it faces slightly to the right, set against a blurred, moody backdrop of crashing ocean waves. In the distance, a warm light from a lighthouse pierces the dark, blue-hued twilight sky.",
+        "elapsed_s": 4.7,
+        "tokens": 2489,
+        "status": 200
+      },
+      {
+        "filename": "Gemini_Generated_Image_u89j9fu89j9fu89j.png",
+        "description": "This digital illustration depicts a serene scene with a green frog resting centrally on a large lily pad in calm, rippling water. To the left, two pink lotus buds extend their stems into the frame, while the background features a vibrant sunset or sunrise with purple and orange clouds reflecting on the surface. The image employs a soft, watercolor-like aesthetic with a dreamy, pastel color palette.",
+        "elapsed_s": 3.1,
+        "tokens": 1408,
+        "status": 200
+      },
+      {
+        "filename": "compressed_image (2).jpeg",
+        "description": "The user wants a concise description of the image, specifically focusing on visible text, UI elements, colors, and layout.\n\n1.  **Subject:** A green frog sitting on a large lily pad.\n2.  **Surroundings:** The lily pad is on a calm body of water. There are two pink lotus buds nearby.\n3.  **Background:** A sunset or sunrise sky with clouds, reflecting on the water. The colors are warm oranges, yellows, and cool blues/purples.\n4.  **Style:** It looks like a digital painting or illustration, possibly watercolor-like.\n5.  **UI/Text:** There is a small white diamond-shaped logo in the bottom right corner. No other text is visible.\n6.  **Layout:** Centered composition with the frog/lily pad in the foreground/lower center. The horizon line is near the middle.\n\nDrafting the description:\nThis digital illustration features a green frog resting on a large, round lily pad floating in calm water. To the left of the frog, two pink lotus buds emerge from the water. The background displays a serene sunset or sunrise with soft, pastel clouds in shades of purple, blue, and orange reflecting on the water's surface, creating a peaceful atmosphere. A small white diamond logo is visible in the bottom right corner.\n\nRefining for conciseness (2-3 sentences):\nThis digital illustration depicts a green frog sitting on a large lily pad in calm water, accompanied by two pink lotus buds. The background features a serene sunset sky with soft purple and orange clouds reflecting off the water's surface. A small white diamond-shaped logo is visible in the bottom right corner.\n\nFinal Polish:\nCheck against constraints: \"concise in 2-3 sentences\", \"Focus on visible text, UI elements, colors, and layout\".\n- Sentences: 3. Good.\n- Text/UI: Mentioned the diamond logo. Good.\n- Colors: Mentioned green, pink, purple, orange, blue. Good.\n- Layout: Mentioned the frog on the lily pad, sunset background. Good.\n\nLet's make it slightly tighter.\n\"This digital artwork features a green frog resting on a large lily pad in the center foreground, with two pink lotus buds nearby. The scene is set against a backdrop of a calm body of water reflecting a sunset sky filled with soft purple, blue, and orange clouds.",
+        "elapsed_s": 2.34,
+        "tokens": 1395,
+        "status": 200
+      },
+      {
+        "filename": "compressed_image (3).jpeg",
+        "description": "The user wants a concise description of the provided image.\nThe description needs to focus on visible text, UI elements, code, colors, and layout, but this image is a natural scene, so I should focus on the subject, setting, and lighting.\n\n**Key elements identified:**\n- **Subject:** A large, textured toad/frog sitting on a dark, wet rock. It has prominent warts, large golden eyes, and detailed skin texture.\n- **Setting:** A rocky coastline at dusk or night.\n- **Background:** Rough, crashing waves and a blurred lighthouse with a warm light in the distance.\n- **Lighting/Colors:** Cool blue tones dominate the water and shadows. Warm, golden light illuminates the toad's face and the lighthouse, creating a contrast.\n- **Composition:** The toad is the foreground focal point, positioned slightly left of center. The lighthouse is in the upper right background.\n\n**Drafting the description:**\nA highly detailed, close-up shot features a large, warty toad perched on a dark, wet rock in the foreground. The scene is set against a moody, blue-toned ocean backdrop with crashing waves and a blurred lighthouse glowing with warm light in the distance. The lighting highlights the texture of the toad's skin and its large, reflective eye, contrasting the cool environment with a touch of golden warmth.\n\n**Refining for conciseness (2-3 sentences):**\nA large, highly detailed toad with textured, warty skin sits prominently on a dark, wet rock in the foreground, gazing slightly upward. The background features a moody, blue-hued ocean with crashing waves and a distant, glowing lighthouse that casts a warm, golden light. The scene is lit with dramatic contrast, emphasizing the toad's golden eye and the wet surfaces of the rocks against the dark, stormy sea.\n\n**Final Polish:**\nCheck against constraints: 2-3 sentences? Yes. Focus on visible details? Yes.\n\nLet's try to be even more concise.\n\"A large, detailed toad with bumpy, olive-green skin rests on a dark, wet rock, its large golden eye reflecting the ambient light. In the background, a stormy blue ocean crashes against the shore, leading the eye to a distant, glowing lighthouse. The lighting creates a dramatic contrast between the cool, dark tones of the water and rocks and the warm illumination on the toad's face",
+        "elapsed_s": 2.68,
+        "tokens": 2473,
+        "status": 200
+      },
+      {
+        "filename": "compressed_image (4).jpeg",
+        "description": "A close-up shot features a large, textured frog with bumpy, brownish-green skin perched prominently on a dark, wet rock in the foreground. Behind the amphibian, a turbulent ocean churns with white-capped waves under a dark, moody sky filled with mist. In the distance on the right, a lighthouse emits a warm, glowing light that contrasts with the cool blue tones of the stormy sea.",
+        "elapsed_s": 2.61,
+        "tokens": 2473,
+        "status": 200
+      },
+      {
+        "filename": "compressed_image (5).jpeg",
+        "description": "A large, textured toad with bumpy, greenish-brown skin sits prominently on a wet, dark rock in the foreground, gazing towards the right. Behind it, a turbulent ocean with crashing white waves stretches into the distance under a moody, dark blue sky. A lighthouse with a glowing light is visible on a distant rocky outcrop to the right, providing a warm contrast to the cool, stormy atmosphere.",
+        "elapsed_s": 2.31,
+        "tokens": 2473,
+        "status": 200
+      },
+      {
+        "filename": "ss.png",
+        "description": "The user wants a concise description of the provided image.\n\n1.  **Identify the image type:** It's a screenshot of a text file, specifically a configuration file.\n2.  **Identify the content:** The text starts with `# umans-gate configuration file`.\n3.  **Identify key sections and values:**\n    *   **Server:** `port: 9000`, `host: 0.0.0.0`.\n    *   **Upstream:** `target: https://api.code.umans.ai`, `upstream_protocol: http1.1`.\n    *   **Capture Store:** `db_path: ./capture.db`, `max_captures: 1000`.\n    *   **TTL Stamping:** `stamp_cache_ttl: 1h`, `openai_path: chat/completions`.\n    *   **Connection Warmer:** `warmer_enabled: true`, `warmer_interval_ms: 20000`, `warmer_path: /v1/models`.\n4.  **Describe formatting:** It uses a dark theme with syntax highlighting. Comments are in teal/cyan, keys are in yellow/gold, and values (mostly numbers or paths) are in white.\n5.  **Draft the description:** The image displays a configuration file for \"umans-gate\" with a dark background and syntax highlighting. Key settings include a server port of 9000, an upstream target URL, a SQLite database path, and connection warmer parameters. Text is organized into sections like Server, Upstream, Capture Store, TTL Stamping, and Connection Warmer.\n\nRefining for conciseness (2-3 sentences):\nThe image shows a configuration file named `umans-gate configuration file` with syntax highlighting on a dark background. Visible settings include a server port of 9000, an upstream target URL (`https://api.code.umans.ai`), and connection warmer parameters. The file is structured into sections such as Server, Upstream, Capture Store, TTL Stamping, and Connection Warmer, with comments explaining each option.\n\nFinal Polish:\nThis image displays a configuration file for \"umans-gate\" featuring syntax highlighting with teal comments, gold keys, and white values on a black background. Key visible settings include a server port of 9000, an upstream target URL, and connection warmer parameters like a 20",
+        "elapsed_s": 2.27,
+        "tokens": 656,
+        "status": 200
+      },
+      {
+        "filename": "ss2.png",
+        "description": "The user wants a concise description of the provided image.\nThe image shows a screenshot of a web development tool, likely a network inspector or API testing tool (looks like Hoppscotch or similar).\n\nKey elements to identify:\n1.  **Header:** \"Captures (27)\" and a \"Clear\" button with a trash icon.\n2.  **Status Bar:** Shows \"live\", \"Gate\", \"no key\", \"0/4 active\", and \"closed\".\n3.  **List Items:** There are several list entries representing HTTP requests.\n    *   Each entry has a method (POST), a status code (200), protocol tags (SSE, in http1.1, out http1.1), a timestamp, a path (/v1/messages), data size (e.g., 1266.6 KB), duration (e.g., 5.35 s), and sometimes a status like \"running\".\n    *   The last visible item shows \"running\" in a green pill.\n4.  **Layout:** Dark mode interface, list layout.\n\nDrafting the description:\n- Start with the main header: \"Captures (27)\".\n- Mention the list of network requests.\n- Detail the columns: Method (POST), Status (200), Protocol tags (SSE, http1.1), Path (/v1/messages), Size/Duration, and Timestamp.\n- Note the specific state of the last item (\"running\").\n- Mention the dark theme.\n\nRefining for conciseness (2-3 sentences):\nThe image displays a dark-themed interface titled \"Captures (27)\" listing network requests, primarily POST methods to the path \"/v1/messages\". Each entry shows status codes like \"200\", protocol tags such as \"SSE\" and \"http1.1\", file sizes, durations, and timestamps on the right. The bottom entry is distinctively marked with a green \"running\" pill, indicating an ongoing request, while the header includes status indicators like \"live\" and \"closed\".\n\nFinal Polish:\nThe image shows a dark-mode interface titled \"Captures (27)\" listing a series of network requests, mostly POST methods targeting \"/v1/messages\". Each row displays details including status codes (200), protocol tags like \"SSE\" and \"http1.1\", data size, duration, and timestamps, with the final visible entry",
+        "elapsed_s": 2.27,
+        "tokens": 277,
+        "status": 200
+      },
+      {
+        "filename": "ss3.png",
+        "description": "The user wants a description of the provided screenshot.\n\n1.  **Analyze the image:**\n    *   It's a screenshot of a terminal or CLI interface, likely a coding assistant or agent-based tool.\n    *   The background is dark (black/dark grey).\n    *   There's text in various colors: white, orange/brown, blue.\n    *   The text content is a conversation log.\n    *   Top: \"please see @omo/ss.png\" with timestamp 6:48 AM.\n    *   Middle: \"Thought: 861ms\" -> \"The user wants me to look at an image file at .omo/ss.png. Let me read it.\" -> \"-> Read .omo/ss.png\"\n    *   Next: \"Thought: 563ms\" -> \"The image analysis failed. Let me try the look_at tool which can extract information from images.\"\n    *   Then a block starting with `# look_at [file_path=/home/agungliang168/umans-gate/.omo/ss.png...`\n    *   Error message: \"I could not analyze the screenshot. The vision model returned an HTTP 401 error, so no image content was extracted.\"\n    *   Bottom section: \"I tried to view the screenshot at .omo/ss.png, but the vision model returned an HTTP 401 error, so I can't see the image content.\"\n    *   Options presented to user: \"1. Re-attach the image, or 2. Describe what's shown in the screenshot...\"\n    *   Footer status bar: \"Sisyphus - Ultraworker Umans GLM 5.2 Umans AI max\" and metrics like TPS, AVG, TTFT, TIME.\n\n2.  **Draft the description:**\n    *   Focus on the main content: It's a chat interface showing an AI agent's attempt to analyze an image file named `ss.png`.\n    *   Mention the error: The agent encountered an \"HTTP 401 error\" and couldn't view the image.\n    *   Mention the layout: Dark theme, terminal-like interface with code blocks and status bars.\n    *   Mention specific text: \"look_at\", \"HTTP 401 error\", \"Sisyphus - Ultraworker\".\n\n3.  **Refine into 2-3 sentences:**",
+        "elapsed_s": 2.28,
+        "tokens": 1588,
+        "status": 200
+      },
+      {
+        "filename": "ss4.png",
+        "description": "The user wants a concise description of the provided image.\n\n**1. Identify the main subject:**\nThe image is a screenshot of a software application, likely a network debugging or capture tool.\n\n**2. Analyze the layout:**\n- Top left: Tabs \"Captures\" and \"Performance\".\n- Left panel: A list of captured network requests (HTTP POST requests).\n- Right panel: Detailed view of a selected request.\n\n**3. Extract visible text and UI elements:**\n- **Left Panel:**\n    - Header: \"Captures (56)\"\n    - Filters: \"Gate\", \"Code Max\", \"0/4 active\", \"closed\"\n    - List items: Various rows showing `POST 200 SSE in http1.1 out http1.1` followed by timestamps and sizes (e.g., \"1132.9 KB 18.7 KB 1.81 s\").\n    - URL pattern: `/v1/messages` is visible in many entries.\n\n- **Right Panel:**\n    - Header: `POST /v1/messages` with status `200`, tags `SSE`, sizes `16.7 KB 17.3 KB 2.79 s`, protocols `in http1.1 out http1.1`, timestamp `06:49:05`.\n    - URL: `https://api.code.umans.ai/v1/messages`\n    - Tabs: \"Response Body\", \"Request Body\" (selected), \"Req Headers\", \"Res Headers\".\n    - Content: JSON code block.\n    - JSON content: It looks like a configuration or system prompt for an AI model. Key keys visible: `\"model\": \"umans-coder\"`, `\"max_tokens\": 48000`, `\"thinking\": { \"type\": \"enabled\", \"budget_tokens\": 16000 }`, `\"system\": [ { \"type\": \"text\", \"text\": \"You interpret media files...\" ]`.\n    - The text inside \"text\" is a long system prompt describing instructions for an AI agent.\n\n**4. Synthesize the description:**\n- Start with the overall view: A dark-themed interface of a network capture tool.\n- Mention the left side: List of HTTP POST requests to `/v1/messages`.\n- Mention the right side: Details of a specific request showing a JSON payload with system instructions for",
+        "elapsed_s": 2.93,
+        "tokens": 1246,
+        "status": 200
+      },
+      {
+        "filename": "ss5.png",
+        "description": "The user wants a concise description of the provided image.\n\n1.  **Analyze the image content:**\n    *   It's a screenshot of a terminal window.\n    *   Top section: Yellow warning text about a missing extension `@juicesharp/rpiv-web-tools` and a command `Run /rpiv-setup to install them`.\n    *   Middle section: A grey bar with text \"please see on @omo/ss.png\". Below that, text says \"The user is asking me to look at an image at .omo/ss.png. Let me read it.\"\n    *   Green bar: Text `read .omo/ss.png`.\n    *   White text below: \"I'm unable to view the image – the vision model returned an authentication error (HTTP 401), so I can't actually see the contents of .omo/ss.png. Could you describe what's in the screenshot, or paste the relevant text/error/output as text? That way I can help you with whatever issue or question it shows.\"\n    *   Bottom section: Command prompt `~/umans-oats (master)`.\n    *   Stats bar: `r9.8k`, `i105`, `R9.7k`, `CH99.1%`, `2.4%/406k (auto)`.\n    *   MCP info: `MCP: 0/5 servers GLM cache 40/41`.\n    *   Token info: `1.20M/1.26M tok (95%) TPS`.\n    *   Performance stats: `77 avg`, `mu 77`, `p10 50`, `p95 104`.\n    *   Timing: `TFT mu 1.32s`, `Elapsed 3s`.\n    *   Timestamp: `2026-07-05T00:02:27Z`.\n    *   Model info: `(umans) umans-glm-5.2 • xhigh`.\n\n2.  **Synthesize the description:**\n    *   Focus on the main narrative: A terminal session where a user tries to load an image, but the system fails with an authentication error.\n    *   Mention the top warning about missing extensions.\n    *   Mention the bottom stats bar.\n    *   Keep it",
+        "elapsed_s": 2.21,
+        "tokens": 658,
+        "status": 200
+      }
+    ],
+    "turns": [
+      {
+        "turn": 1,
+        "status": "exception",
+        "elapsed_s": 180.56,
+        "error": "The read operation timed out"
+      },
+      {
+        "turn": 2,
+        "status": 200,
+        "elapsed_s": 7.76,
+        "input_tokens": 339,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 339,
+        "cache_hit_rate_pct": 0.0
+      },
+      {
+        "turn": 3,
+        "status": 200,
+        "elapsed_s": 6.67,
+        "input_tokens": 804,
+        "output_tokens": 441,
+        "cache_read_input_tokens": 192,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 996,
+        "cache_hit_rate_pct": 19.28
+      },
+      {
+        "turn": 4,
+        "status": 200,
+        "elapsed_s": 5.19,
+        "input_tokens": 696,
+        "output_tokens": 260,
+        "cache_read_input_tokens": 960,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 1656,
+        "cache_hit_rate_pct": 57.97
+      },
+      {
+        "turn": 5,
+        "status": 200,
+        "elapsed_s": 6.72,
+        "input_tokens": 294,
+        "output_tokens": 389,
+        "cache_read_input_tokens": 1600,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 1894,
+        "cache_hit_rate_pct": 84.48
+      },
+      {
+        "turn": 6,
+        "status": 200,
+        "elapsed_s": 12.05,
+        "input_tokens": 275,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 1856,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 2131,
+        "cache_hit_rate_pct": 87.1
+      },
+      {
+        "turn": 7,
+        "status": 200,
+        "elapsed_s": 39.8,
+        "input_tokens": 536,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 2112,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 2648,
+        "cache_hit_rate_pct": 79.76
+      },
+      {
+        "turn": 8,
+        "status": 200,
+        "elapsed_s": 8.58,
+        "input_tokens": 537,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 2624,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 3161,
+        "cache_hit_rate_pct": 83.01
+      },
+      {
+        "turn": 9,
+        "status": 200,
+        "elapsed_s": 7.09,
+        "input_tokens": 545,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 3136,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 3681,
+        "cache_hit_rate_pct": 85.19
+      },
+      {
+        "turn": 10,
+        "status": 200,
+        "elapsed_s": 7.02,
+        "input_tokens": 661,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 3648,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 4309,
+        "cache_hit_rate_pct": 84.66
+      },
+      {
+        "turn": 11,
+        "status": 200,
+        "elapsed_s": 7.83,
+        "input_tokens": 531,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 4288,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 4819,
+        "cache_hit_rate_pct": 88.98
+      }
+    ]
+  }
+]

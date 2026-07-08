@@ -1,0 +1,60 @@
+[
+  {
+    "session": "1a-kimi-seq-images-openai",
+    "model": "umans-kimi-k2.7",
+    "endpoint": "/v1/chat/completions",
+    "strategy": "sequential 1 image/message × 11",
+    "timestamp": "2026-07-05T07:06:51.024301+00:00",
+    "turns": [
+      {
+        "turn": 1,
+        "status": 200,
+        "elapsed_s": 43.0,
+        "prompt_tokens": 3405,
+        "completion_tokens": 512,
+        "cached_tokens": 3392,
+        "cache_hit_rate_pct": 99.62
+      },
+      {
+        "turn": 2,
+        "status": 200,
+        "elapsed_s": 54.04,
+        "prompt_tokens": 5443,
+        "completion_tokens": 490,
+        "cached_tokens": 3392,
+        "cache_hit_rate_pct": 62.32
+      }
+    ]
+  },
+  {
+    "session": "1b-kimi-seq-images-anthropic",
+    "model": "umans-kimi-k2.7",
+    "endpoint": "/v1/messages",
+    "strategy": "sequential 1 image/message × 11",
+    "timestamp": "2026-07-05T07:06:51.024301+00:00",
+    "turns": [
+      {
+        "turn": 1,
+        "status": 200,
+        "elapsed_s": 42.46,
+        "input_tokens": 13,
+        "output_tokens": 512,
+        "cache_read_input_tokens": 3392,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 3405,
+        "cache_hit_rate_pct": 99.62
+      },
+      {
+        "turn": 2,
+        "status": 200,
+        "elapsed_s": 14.35,
+        "input_tokens": 1983,
+        "output_tokens": 357,
+        "cache_read_input_tokens": 3406,
+        "cache_creation_input_tokens": 0,
+        "total_input_tokens": 5389,
+        "cache_hit_rate_pct": 63.2
+      }
+    ]
+  }
+]
