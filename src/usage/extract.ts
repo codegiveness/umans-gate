@@ -4,6 +4,7 @@
 //   Anthropic: https://platform.claude.com/docs/en/build-with-claude/streaming
 //   OpenAI:     https://developers.openai.com/api/docs/api-reference/chat
 
+import { extractModelName } from "../models/name.js";
 import { computeTps, emptyMetrics, num, numOr } from "./helpers.js";
 import { parseAnthropicSse, parseOpenAiSse } from "./sse-parse.js";
 import type {
@@ -271,9 +272,8 @@ export function extractOpenAiStreaming(
 
 /** Extract model name from a request body (both Anthropic and OpenAI shapes). */
 export function extractModel(requestBody: unknown): string {
-  const b = requestBody as { model?: string; messages?: unknown };
-  if (typeof b?.model === "string" && b.model.length > 0) return b.model;
-  return "unknown";
+  const model = extractModelName(requestBody);
+  return model && model.length > 0 ? model : "unknown";
 }
 
 /**

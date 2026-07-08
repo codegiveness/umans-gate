@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useCaptureDoneListener } from "@/hooks/use-capture-done-listener";
+import { API_BASE } from "@/lib/constants";
 
 export interface UsePollingResourceOptions<T> {
   endpoint: string;
@@ -15,8 +16,6 @@ export interface UsePollingResourceResult<T> {
   error: string | null;
   refresh: () => void;
 }
-
-const API_BASE = "/dashboard/api";
 
 export function usePollingResource<T>({
   endpoint,

@@ -18,6 +18,7 @@ import type { GateError } from "./limiter.js";
 import type { ConcurrencyGate } from "./limiter.js";
 import { createLogger } from "./logger.js";
 import { isGlmModel, resolveEffortForModel } from "./model-policy.js";
+import { extractModelName } from "./models/name.js";
 import type { WriteQueue } from "./queue.js";
 import type { SlidingWindowRateLimiter } from "./rate.js";
 import { stampReasoning } from "./stamp-reasoning.js";
@@ -247,12 +248,7 @@ export function createProxyHandler(
         headers: reqHeadersRaw,
         url,
         method: req.method,
-        modelName:
-          parsed.ok && typeof body === "object" && body !== null
-            ? typeof (body as { model?: unknown }).model === "string"
-              ? ((body as { model?: unknown }).model as string)
-              : undefined
-            : undefined,
+        modelName: extractModelName(body),
       };
       if (STAMP_PIPELINE.some((s) => s.applies(stampCtx))) {
         if (parsed.ok && typeof body === "object" && body !== null) {
@@ -301,17 +297,8 @@ export function createProxyHandler(
       }
       if (body) {
         const apiKind = isOpenAi ? "openai" : "anthropic";
-        const modelName =
-          typeof body === "object" && body !== null
-            ? ((body as { model?: unknown }).model ?? undefined)
-            : undefined;
-        const result = await vision.processBody(
-          body,
-          apiKind,
-          typeof modelName === "string" ? modelName : undefined,
-          capId,
-          req.signal,
-        );
+        const modelName = extractModelName(body);
+        const result = await vision.processBody(body, apiKind, modelName, capId, req.signal);
         if (result.changed) {
           reqBuf = textEncoder.encode(JSON.stringify(result.body));
           const postVisionCtx: StampContext = {
@@ -320,10 +307,7 @@ export function createProxyHandler(
             headers: reqHeadersRaw,
             url,
             method: req.method,
-            modelName:
-              typeof result.body === "object" && result.body !== null
-                ? ((result.body as { model?: unknown }).model as string | undefined)
-                : undefined,
+            modelName: extractModelName(result.body),
           };
           const stamped = stampPostVision(result.body, postVisionCtx, reqBuf);
           if (stamped.changed) {
@@ -370,11 +354,7 @@ export function createProxyHandler(
     // --- Concurrency gate: acquire a permit (blocks if at cap) ---
     let permit: { release: () => void } | null = null;
     try {
-      const rawModel =
-        body && typeof body === "object" && body !== null
-          ? (body as { model?: unknown }).model
-          : undefined;
-      const modelName = typeof rawModel === "string" ? rawModel : undefined;
+      const modelName = extractModelName(body);
       const weight = computeRequestWeight(config, modelName, models);
       permit = await gate.acquire({
         weight,

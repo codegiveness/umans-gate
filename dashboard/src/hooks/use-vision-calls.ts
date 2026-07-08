@@ -1,7 +1,6 @@
 import { usePollingResource } from "@/hooks/use-polling-resource";
+import { API_BASE } from "@/lib/constants";
 import type { VisionCallRecord } from "@/types/vision";
-
-const API_BASE = "/dashboard/api";
 const POLL_INTERVAL = 5000;
 
 export interface UseVisionCallsResult {
