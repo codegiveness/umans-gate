@@ -18,9 +18,7 @@ export function computeTps(
 ): number | null {
   if (output == null || output <= 0) return null;
   if (durationMs == null) return null;
-  // For streaming: use (duration - ttft) as generation time
-  // For non-streaming: use full duration as a conservative upper bound
-  const genMs = ttftMs != null ? durationMs - ttftMs : durationMs;
+  const genMs = ttftMs != null && ttftMs > 0 ? durationMs - ttftMs : durationMs;
   if (genMs <= 0) return null;
   return (output / genMs) * 1000;
 }
