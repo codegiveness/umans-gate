@@ -4,8 +4,10 @@
 import { describe, expect, test } from "bun:test";
 import {
   type AnthropicSseEvent,
+  type OpenAIStreamChunk,
   type TimedChunk,
   extractAnthropicStreaming,
+  extractOpenAiStreaming,
   parseAnthropicSse,
   parseOpenAiSse,
 } from "./helpers/usage-extractors";
@@ -198,6 +200,130 @@ describe("TTFT from thinking_delta (Bug #2 fix)", () => {
 
     const m = extractAnthropicStreaming(events, startedAt);
     expect(m.ttft_ms).toBe(500);
+  });
+});
+
+describe("duration_ms wall-clock floor (Bug #4 fix)", () => {
+  test("Anthropic: duration_ms doesn't collapse when all deltas share a chunk", () => {
+    const startedAt = 1000;
+    const chunkTime = 5000;
+    const wallClockDurationMs = 8000;
+    const events: AnthropicSseEvent[] = [
+      {
+        type: "message_start",
+        message: { usage: { input_tokens: 10 } },
+        received_at: chunkTime,
+      },
+      {
+        type: "content_block_delta",
+        delta: { type: "text_delta", text: "Hello" },
+        received_at: chunkTime,
+      },
+      {
+        type: "content_block_delta",
+        delta: { type: "text_delta", text: " world" },
+        received_at: chunkTime,
+      },
+      {
+        type: "message_delta",
+        delta: { stop_reason: "end_turn" },
+        usage: { output_tokens: 50 },
+        received_at: chunkTime,
+      },
+      { type: "message_stop", received_at: chunkTime },
+    ];
+
+    const m = extractAnthropicStreaming(events, startedAt, wallClockDurationMs);
+
+    expect(m.ttft_ms).toBe(chunkTime - startedAt);
+    expect(m.duration_ms).toBe(wallClockDurationMs);
+    expect(m.duration_ms! - m.ttft_ms!).toBe(wallClockDurationMs - (chunkTime - startedAt));
+    expect(m.tps).not.toBeNull();
+    expect(Number.isFinite(m.tps!)).toBe(true);
+  });
+
+  test("Anthropic: backward compat without wallClockDurationMs", () => {
+    const startedAt = 1000;
+    const events: AnthropicSseEvent[] = [
+      {
+        type: "message_start",
+        message: { usage: { input_tokens: 10 } },
+        received_at: 1100,
+      },
+      {
+        type: "content_block_delta",
+        delta: { type: "text_delta", text: "Hello" },
+        received_at: 1500,
+      },
+      {
+        type: "message_delta",
+        delta: { stop_reason: "end_turn" },
+        usage: { output_tokens: 10 },
+        received_at: 2500,
+      },
+    ];
+
+    const m = extractAnthropicStreaming(events, startedAt);
+
+    expect(m.ttft_ms).toBe(500);
+    expect(m.duration_ms).toBe(1500);
+  });
+
+  test("OpenAI: duration_ms doesn't collapse when all deltas share a chunk", () => {
+    const startedAt = 1000;
+    const chunkTime = 5000;
+    const wallClockDurationMs = 8000;
+    const chunks: OpenAIStreamChunk[] = [
+      {
+        choices: [{ delta: {} }],
+        received_at: chunkTime,
+      },
+      {
+        choices: [{ delta: { content: "Hello" } }],
+        received_at: chunkTime,
+      },
+      {
+        choices: [{ delta: { content: " world" } }],
+        received_at: chunkTime,
+      },
+      {
+        choices: [],
+        usage: { completion_tokens: 50 },
+        received_at: chunkTime,
+      },
+    ];
+
+    const m = extractOpenAiStreaming(chunks, startedAt, wallClockDurationMs);
+
+    expect(m.ttft_ms).toBe(chunkTime - startedAt);
+    expect(m.duration_ms).toBe(wallClockDurationMs);
+    expect(m.duration_ms! - m.ttft_ms!).toBe(wallClockDurationMs - (chunkTime - startedAt));
+    expect(m.tps).not.toBeNull();
+    expect(Number.isFinite(m.tps!)).toBe(true);
+  });
+
+  test("OpenAI: backward compat without wallClockDurationMs", () => {
+    const startedAt = 1000;
+    const chunks: OpenAIStreamChunk[] = [
+      {
+        choices: [{ delta: {} }],
+        received_at: 1100,
+      },
+      {
+        choices: [{ delta: { content: "Hello" } }],
+        received_at: 1500,
+      },
+      {
+        choices: [],
+        usage: { completion_tokens: 10 },
+        received_at: 2500,
+      },
+    ];
+
+    const m = extractOpenAiStreaming(chunks, startedAt);
+
+    expect(m.ttft_ms).toBe(500);
+    expect(m.duration_ms).toBe(1500);
   });
 });
 

@@ -36,6 +36,7 @@ const EXTRACTORS: Record<string, ProviderExtractors> = {
       extractAnthropicStreaming(
         parseAnthropicSse(res.responseBody, res.chunkTimes, res.chunks),
         res.requestStartedAt,
+        res.durationMs,
       ),
     batch: (res) => extractAnthropicNonStreaming(JSON.parse(res.responseBody), res.durationMs),
   },
@@ -44,6 +45,7 @@ const EXTRACTORS: Record<string, ProviderExtractors> = {
       extractOpenAiStreaming(
         parseOpenAiSse(res.responseBody, res.chunkTimes, res.chunks),
         res.requestStartedAt,
+        res.durationMs,
       ),
     batch: (res) => extractOpenAiNonStreaming(JSON.parse(res.responseBody), res.durationMs),
   },
@@ -102,6 +104,7 @@ export function extractAnthropicNonStreaming(
 export function extractAnthropicStreaming(
   events: AnthropicSseEvent[],
   requestStartedAt: number,
+  wallClockDurationMs?: number,
 ): UsageMetrics {
   let input: number | null = null;
   let output: number | null = null;
@@ -145,7 +148,14 @@ export function extractAnthropicStreaming(
     }
   }
 
-  const durationMs = lastEventAt ? lastEventAt - requestStartedAt : null;
+  const eventDurationMs = lastEventAt ? lastEventAt - requestStartedAt : null;
+  // Wall-clock floor: proxy flush runs after the last chunk, so wallClockDurationMs
+  // is always >= eventBasedDuration. This prevents collapse when all SSE events
+  // share one HTTP chunk timestamp.
+  const durationMs =
+    wallClockDurationMs != null
+      ? Math.max(eventDurationMs ?? 0, wallClockDurationMs)
+      : eventDurationMs;
   const totalInput = input != null ? input + cacheCreate + cacheRead : null;
 
   return {
@@ -214,6 +224,7 @@ export function extractOpenAiNonStreaming(body: unknown, durationMs: number | nu
 export function extractOpenAiStreaming(
   chunks: OpenAIStreamChunk[],
   requestStartedAt: number,
+  wallClockDurationMs?: number,
 ): UsageMetrics {
   let usage: OpenAIUsage | null = null;
   let ttftMs: number | null = null;
@@ -238,7 +249,14 @@ export function extractOpenAiStreaming(
     }
   }
 
-  const durationMs = lastChunkAt ? lastChunkAt - requestStartedAt : null;
+  const eventDurationMs = lastChunkAt ? lastChunkAt - requestStartedAt : null;
+  // Wall-clock floor: proxy flush runs after the last chunk, so wallClockDurationMs
+  // is always >= eventBasedDuration. This prevents collapse when all SSE events
+  // share one HTTP chunk timestamp.
+  const durationMs =
+    wallClockDurationMs != null
+      ? Math.max(eventDurationMs ?? 0, wallClockDurationMs)
+      : eventDurationMs;
 
   if (!usage) {
     const m = emptyMetrics("openai", true, durationMs);
