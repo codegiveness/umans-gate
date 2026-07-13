@@ -4,6 +4,7 @@ import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { App } from "@/App";
+import { flushEffects } from "@/test/utils";
 
 vi.mock("@/hooks/use-captures", () => ({
   useCaptures: () => ({
@@ -41,7 +42,11 @@ vi.mock("@/hooks/use-vision-calls", () => ({
   }),
 }));
 
-const mockConfig = { port: 9000 };
+vi.mock("@/hooks/use-usage", () => ({
+  useUsage: () => ({ data: null, loading: false, error: null, refresh: vi.fn() }),
+}));
+
+const mockConfig = { port: 1945 };
 
 vi.mock("@/hooks/use-config", () => ({
   useConfig: () => ({
@@ -64,8 +69,9 @@ vi.mock("@/components/ui/sonner", () => ({
 }));
 
 describe("App tabs heading structure", () => {
-  it("renders exactly one h2 in the Captures panel", () => {
+  it("renders exactly one h2 in the Captures panel", async () => {
     render(<App />);
+    await flushEffects();
     const capturesPanel = screen.getByRole("tabpanel", { name: "Captures" });
     const h2s = within(capturesPanel).getAllByRole("heading", { level: 2 });
     expect(h2s).toHaveLength(1);
@@ -75,6 +81,7 @@ describe("App tabs heading structure", () => {
   it("renders exactly one h2 in the Vision Calls panel", async () => {
     const user = userEvent.setup();
     render(<App />);
+    await flushEffects();
     await user.click(screen.getByRole("tab", { name: "Vision Calls" }));
     const visionPanel = screen.getByRole("tabpanel", { name: "Vision Calls" });
     const h2s = await within(visionPanel).findAllByRole("heading", { level: 2 });
@@ -85,6 +92,7 @@ describe("App tabs heading structure", () => {
   it("renders exactly one h2 in the Performance panel", async () => {
     const user = userEvent.setup();
     render(<App />);
+    await flushEffects();
     await user.click(screen.getByRole("tab", { name: "Performance" }));
     const perfPanel = screen.getByRole("tabpanel", { name: "Performance" });
     const h2s = await within(perfPanel).findAllByRole("heading", { level: 2 });
@@ -95,6 +103,7 @@ describe("App tabs heading structure", () => {
   it("renders exactly one h2 in the Config panel", async () => {
     const user = userEvent.setup();
     render(<App />);
+    await flushEffects();
     await user.click(screen.getByRole("tab", { name: "Config" }));
     const configPanel = screen.getByRole("tabpanel", { name: "Config" });
     const h2s = await within(configPanel).findAllByRole("heading", { level: 2 });
@@ -105,6 +114,7 @@ describe("App tabs heading structure", () => {
   it("renders Vision Calls title as an h2", async () => {
     const user = userEvent.setup();
     render(<App />);
+    await flushEffects();
     await user.click(screen.getByRole("tab", { name: "Vision Calls" }));
     const visionPanel = screen.getByRole("tabpanel", { name: "Vision Calls" });
     const h2 = await within(visionPanel).findByRole("heading", { level: 2 });
@@ -114,6 +124,7 @@ describe("App tabs heading structure", () => {
   it("supports keyboard arrow navigation between tab triggers", async () => {
     const user = userEvent.setup();
     render(<App />);
+    await flushEffects();
     const capturesTab = screen.getByRole("tab", { name: "Captures" });
     act(() => {
       capturesTab.focus();

@@ -12,6 +12,8 @@ interface UseCapturesSocketParams {
   onConnected: () => void;
   /** WS `clear` — wipe all captures. */
   onCaptureClear: () => void;
+  /** WS `vision-clear` — remove only vision captures from the list. */
+  onVisionClear: () => void;
   /** WS `state` — patch a single capture's state. */
   onCaptureState: (captureId: number, state: CaptureState) => void;
   /** WS `gate` — replace gate stats. */
@@ -38,6 +40,7 @@ export function useCapturesSocket({
   setWsState,
   onConnected,
   onCaptureClear,
+  onVisionClear,
   onCaptureState,
   onGateStats,
   onCaptureUpsert,
@@ -47,6 +50,8 @@ export function useCapturesSocket({
   onConnectedRef.current = onConnected;
   const onCaptureClearRef = useRef(onCaptureClear);
   onCaptureClearRef.current = onCaptureClear;
+  const onVisionClearRef = useRef(onVisionClear);
+  onVisionClearRef.current = onVisionClear;
   const onCaptureStateRef = useRef(onCaptureState);
   onCaptureStateRef.current = onCaptureState;
   const onGateStatsRef = useRef(onGateStats);
@@ -66,6 +71,7 @@ export function useCapturesSocket({
     // Dispatch registry: one entry per WS message type.
     const handlers: WsHandlerMap = {
       clear: () => onCaptureClearRef.current(),
+      "vision-clear": () => onVisionClearRef.current(),
       state: (msg) => onCaptureStateRef.current(msg.captureId, msg.state),
       gate: (msg) => onGateStatsRef.current(msg.stats),
       new: (msg) => onCaptureUpsertRef.current(msg.capture, true),

@@ -64,6 +64,10 @@ export async function startProxy(options: StartProxyOptions = {}): Promise<Proxy
       USAGE_REFRESH_MS: "100",
       VISION_STRATEGY: "never",
       RELEASE_COOLDOWN_MS: "0",
+      // Disable all stamp features so tests don't mutate request bodies
+      // (the config file at ~/.config/umans-gate/config.json enables them all).
+      STAMP_CLAUDE_CODE_ENABLED: "false",
+      STAMP_REASONING_EFFORT_ENABLED: "false",
       UMANS_API_KEY: umansApiKey ?? "",
       ...extraEnv,
       ...envOverrides,

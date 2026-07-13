@@ -37,6 +37,10 @@ export interface ParsedModelInfo {
     };
   };
   benchmarks: Record<string, unknown>;
+  weights: {
+    precision: string | undefined;
+    hf_url: string | undefined;
+  };
   stage: string | undefined;
   lifecycle: { playground_start_date: string | undefined } | undefined;
 }
@@ -66,6 +70,10 @@ interface RawModelInfo {
     };
   };
   benchmarks?: Record<string, unknown>;
+  weights?: {
+    precision?: unknown;
+    hf_url?: unknown;
+  };
   stage?: unknown;
   lifecycle?: { playground_start_date?: unknown };
 }
@@ -87,6 +95,7 @@ export function parseModelInfoResponse(body: unknown): Map<string, ParsedModelIn
     const v = rawVal as RawModelInfo;
     const caps = v.capabilities ?? {};
     const bm = v.base_model ?? {};
+    const w = v.weights ?? {};
     const sv = caps.supports_vision;
     const supportsVision: VisionSupport =
       sv === true ? true : sv === "via-handoff" ? "via-handoff" : false;
@@ -121,6 +130,10 @@ export function parseModelInfoResponse(body: unknown): Map<string, ParsedModelIn
         },
       },
       benchmarks: typeof v.benchmarks === "object" && v.benchmarks !== null ? v.benchmarks : {},
+      weights: {
+        precision: typeof w.precision === "string" ? w.precision : undefined,
+        hf_url: typeof w.hf_url === "string" ? w.hf_url : undefined,
+      },
       stage: typeof v.stage === "string" ? v.stage : undefined,
       lifecycle: v.lifecycle
         ? {

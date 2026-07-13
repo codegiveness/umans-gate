@@ -12,11 +12,15 @@ import {
   saveConfig,
 } from "./config.js";
 import { CaptureDB } from "./db.js";
+import { syncPricing } from "./economics.js";
 import { computeRequestWeight } from "./helpers.js";
-import { ConcurrencyGate, GATE_RECONFIG_FIELDS, gateOptionsFromConfig } from "./limiter.js";
+import { ConcurrencyGate, GATE_RECONFIG_FIELDS, gateOptionsFromConfig } from "./limiter/index.js";
+import { createLogger } from "./logger.js";
+import { metrics } from "./metrics.js";
 import { ModelsClient } from "./models.js";
-import { createProxyHandler } from "./proxy.js";
+import { type RateLimiterRef, createProxyHandler } from "./proxy.js";
 import { WriteQueue } from "./queue.js";
+import type { CaptureStore } from "./queue.js";
 import { SlidingWindowRateLimiter } from "./rate.js";
 import type { ProxyConfig } from "./types.js";
 import { UmansUsageClient } from "./usage.js";
@@ -27,7 +31,10 @@ import { VisionHandoff } from "./vision/handoff.js";
 import { PersistentDescriptionStore } from "./vision/persistent-cache.js";
 import { CompositeVisionSink, DbVisionSink, WsBroadcastVisionSink } from "./vision/sink.js";
 import { ConnectionWarmer } from "./warmer.js";
+import { WorkerCaptureStore } from "./workers/worker-store.js";
 import { type BunServerWebSocket, WsBroadcaster } from "./ws.js";
+
+const log = createLogger("server");
 
 export { loadConfig, readConfigFile, saveConfig, validateConfig } from "./config.js";
 export { resolveConfigDir, resolveConfigPath, ensureConfigFile } from "./config.js";
@@ -38,7 +45,7 @@ export type { BunServerWebSocket } from "./ws.js";
 export { WriteQueue } from "./queue.js";
 export { stampCacheTtl } from "./stamp.js";
 export { ConnectionWarmer } from "./warmer.js";
-export { ConcurrencyGate } from "./limiter.js";
+export { ConcurrencyGate } from "./limiter/index.js";
 export { SlidingWindowRateLimiter } from "./rate.js";
 export { UmansUsageClient } from "./usage.js";
 export type {
@@ -70,6 +77,8 @@ const LLM_ROUTES = new Set([
 interface RequestDispatcherOptions {
   handleViewer: (url: URL, req: Request) => Promise<Response | null>;
   handleProxy: (req: Request, url: URL) => Promise<Response>;
+  handleHealth: () => Response;
+  handleMetrics: () => Response;
   viewerPrefix: string;
 }
 
@@ -77,11 +86,13 @@ interface RequestDispatcherOptions {
  * Create the request dispatcher that routes incoming requests to:
  * 1. WebSocket upgrade (returns 101 on success, 400 on failure)
  * 2. Viewer routes (dashboard + REST API under the viewer prefix)
- * 3. LLM proxy routes (whitelisted method+path combinations)
- * 4. 404 fallback for non-LLM paths
+ * 3. Health check endpoint (`GET /health`)
+ * 4. Metrics endpoint (`GET /metrics`)
+ * 5. LLM proxy routes (whitelisted method+path combinations)
+ * 6. 404 fallback for non-LLM paths
  */
 function createRequestDispatcher(options: RequestDispatcherOptions) {
-  const { handleViewer, handleProxy, viewerPrefix: VIEWER } = options;
+  const { handleViewer, handleProxy, handleHealth, handleMetrics, viewerPrefix: VIEWER } = options;
 
   return async (req: Request, server: Bun.Server<undefined>): Promise<Response> => {
     const url = new URL(req.url);
@@ -96,6 +107,16 @@ function createRequestDispatcher(options: RequestDispatcherOptions) {
     if (url.pathname === VIEWER || url.pathname.startsWith(`${VIEWER}/`)) {
       const resp = await handleViewer(url, req);
       return resp ?? new Response("not found", { status: 404 });
+    }
+
+    // Health check endpoint
+    if (url.pathname === "/health" && req.method === "GET") {
+      return handleHealth();
+    }
+
+    // Metrics endpoint (Prometheus text format)
+    if (url.pathname === "/metrics" && req.method === "GET") {
+      return handleMetrics();
     }
 
     // Reject non-LLM paths (favicon, preflight, health checks, etc.)
@@ -113,10 +134,30 @@ function createRequestDispatcher(options: RequestDispatcherOptions) {
   };
 }
 
+const DEFAULT_RATE_WINDOW_SECONDS = 18000;
+
+function createRateLimiter(
+  rateLimitRequests: number,
+  snap: { requestsHardCap: number | null; requestsWindowSeconds: number | null } | null,
+): SlidingWindowRateLimiter | null {
+  if (rateLimitRequests === -1) return null;
+  if (rateLimitRequests > 0) {
+    const windowSeconds = snap?.requestsWindowSeconds ?? DEFAULT_RATE_WINDOW_SECONDS;
+    return new SlidingWindowRateLimiter({ limit: rateLimitRequests, windowSeconds });
+  }
+  // rateLimitRequests === 0: auto-derive from usage snapshot
+  if (snap && snap.requestsHardCap !== null && snap.requestsHardCap > 0) {
+    const windowSeconds = snap.requestsWindowSeconds ?? DEFAULT_RATE_WINDOW_SECONDS;
+    return new SlidingWindowRateLimiter({ limit: snap.requestsHardCap, windowSeconds });
+  }
+  return null;
+}
+
 /** Options for creating a proxy server. */
 export interface CreateProxyServerOptions {
-  /** Override env config. Pass a partial config to merge with defaults. */
-  config?: Partial<ProxyConfig>;
+  /** Override env config. Pass a partial config to merge with defaults.
+   *  Note: `host` is hardcoded to `127.0.0.1` and cannot be overridden. */
+  config?: Omit<Partial<ProxyConfig>, "host">;
   /** Use an existing CaptureDB instance instead of creating one. */
   db?: CaptureDB;
   /** Use an existing WsBroadcaster instead of creating one. */
@@ -139,7 +180,7 @@ export interface ProxyServer {
   config: ProxyConfig;
   /** Reload config from disk and apply hot-reloadable fields. */
   reloadConfig(): ReloadResult;
-  shutdown(): void;
+  shutdown(): Promise<void>;
 }
 
 /**
@@ -151,11 +192,14 @@ export interface ProxyServer {
  */
 export function createProxyServer(options: CreateProxyServerOptions = {}): ProxyServer {
   const envConfig = loadConfig();
-  const config: ProxyConfig = { ...envConfig, ...options.config };
+  const config: ProxyConfig = { ...envConfig, ...options.config, host: "127.0.0.1" };
 
   const db = options.db ?? new CaptureDB(config);
   const ws = options.ws ?? new WsBroadcaster();
-  const queue = new WriteQueue(db, config, (messages) => {
+  const writeStore: CaptureStore = config.useWriteWorker
+    ? new WorkerCaptureStore(config.dbPath, config.compressionEnabled)
+    : db;
+  const queue = new WriteQueue(writeStore, config, (messages) => {
     for (const msg of messages) {
       ws.broadcast(msg);
     }
@@ -169,14 +213,20 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     refreshMs: config.modelsRefreshMs,
   });
   models.start();
+  models.onChange(() => {
+    try {
+      syncPricing(db.rawDb, models.list());
+    } catch (err) {
+      log.error("pricing sync failed", { error: err instanceof Error ? err.message : String(err) });
+    }
+  });
+  try {
+    syncPricing(db.rawDb, models.list());
+  } catch {
+    // Models not fetched yet — onChange will sync after first poll.
+  }
   const gate = new ConcurrencyGate(gateOptionsFromConfig(config));
-  let rate =
-    config.rateLimitRequests > 0
-      ? new SlidingWindowRateLimiter({
-          limit: config.rateLimitRequests,
-          windowSeconds: 18000,
-        })
-      : null;
+  const rateRef: RateLimiterRef = { current: createRateLimiter(config.rateLimitRequests, null) };
 
   usage.onChange((snap) => {
     gate.setSoftLimit(snap.concurrencySoftLimit);
@@ -188,13 +238,14 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     } else {
       gate.resize(effective);
     }
-    if (config.rateLimitRequests > 0 && snap.requestsWindowSeconds !== null) {
-      const needRecreate = rate === null || rate.peek().retryAfterSeconds !== null;
-      if (needRecreate) {
-        rate = new SlidingWindowRateLimiter({
-          limit: config.rateLimitRequests,
-          windowSeconds: snap.requestsWindowSeconds,
-        });
+    // Auto-derive rate limiter from usage snapshot when rate_limit_requests=0
+    if (config.rateLimitRequests === 0 && snap.requestsHardCap !== null) {
+      if (rateRef.current === null) {
+        rateRef.current = createRateLimiter(0, snap);
+      }
+    } else if (config.rateLimitRequests > 0 && snap.requestsWindowSeconds !== null) {
+      if (rateRef.current === null) {
+        rateRef.current = createRateLimiter(config.rateLimitRequests, snap);
       }
     }
     ws.broadcast({ type: "gate", stats: gate.getStats(snap) });
@@ -221,16 +272,6 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     ws.broadcast({ type: "gate", stats: gate.getStats(usage.getSnapshot()) });
   }
 
-  // Bootstrap: if persisted hard_cap is still default (1), fetch once from source and persist.
-  if (config.umansApiKey && config.concurrencyHardCap <= 1) {
-    void (async () => {
-      const r = await usage.fetchLimitsFromSource();
-      if (r.ok && r.hardCap > 1) {
-        applyLimitsFromSource({ hardCap: r.hardCap, softLimit: r.softLimit }, true);
-      }
-    })();
-  }
-
   const persistentStore = config.visionPersistentCache
     ? new PersistentDescriptionStore(
         db,
@@ -248,9 +289,12 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
   const catalog: VisionLookup | null = config.visionStrategy !== "never" ? models : null;
 
   const visionModelName = config.visionModel ?? "";
-  const visionWeight = computeRequestWeight(config, visionModelName, models);
+  const visionWeight = computeRequestWeight(visionModelName, models);
 
-  const visionSink = new CompositeVisionSink([new DbVisionSink(db), new WsBroadcastVisionSink(ws)]);
+  const visionSink = new CompositeVisionSink([
+    new DbVisionSink(db, config),
+    new WsBroadcastVisionSink(ws, config),
+  ]);
   const vision =
     config.visionStrategy !== "never"
       ? new VisionHandoff(
@@ -269,19 +313,21 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
             cacheMaxRows: config.visionCacheMaxRows,
             persistentCache: config.visionPersistentCache,
             concurrency: config.visionConcurrency,
-            apiKey: config.visionApiKey || config.umansApiKey || null,
+            apiKey: config.umansApiKey || null,
             forceInterceptCapable: config.visionForceInterceptCapable,
             maxDimension: config.visionMaxDimension,
             jpegQuality: config.visionJpegQuality,
             imageFormat: config.visionImageFormat,
             imageDetail: config.visionImageDetail,
             visionWeight,
+            backgroundVision: config.backgroundVision,
           },
           visionCache,
           catalog,
           gate,
           db,
           visionSink,
+          config,
         )
       : null;
 
@@ -301,7 +347,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     queue,
     config,
     gate,
-    rate,
+    rateRef,
     vision,
     models,
     () => warmer?.notifyTraffic(),
@@ -326,6 +372,14 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
       gate.setSoftLimit(config.concurrencySoftLimit);
     }
 
+    if (applied.includes("compression_enabled")) {
+      db.compressionEnabled = config.compressionEnabled;
+    }
+
+    if (applied.includes("rate_limit_requests")) {
+      rateRef.current = createRateLimiter(config.rateLimitRequests, usage.getSnapshot());
+    }
+
     ws.broadcast({ type: "gate", stats: gate.getStats(usage.getSnapshot()) });
 
     return {
@@ -339,14 +393,64 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
   };
 
   const refreshLimits = async (): Promise<
-    { ok: true; hardCap: number; softLimit: number } | { ok: false; error: string }
+    | {
+        ok: true;
+        hardCap: number;
+        softLimit: number;
+        requestsLimit: number | null;
+        requestsHardCap: number | null;
+        requestsWindowSeconds: number | null;
+      }
+    | { ok: false; error: string }
   > => {
     const r = await usage.fetchLimitsFromSource();
     if (r.ok) {
       applyLimitsFromSource({ hardCap: r.hardCap, softLimit: r.softLimit }, true);
+      const rl = await usage.fetchRequestsLimit();
+      if (rl.ok) {
+        const snap = usage.getSnapshot();
+        if (config.rateLimitRequests === 0 && rl.hardCap !== null && rl.hardCap > 0) {
+          rateRef.current = createRateLimiter(0, {
+            requestsHardCap: rl.hardCap,
+            requestsWindowSeconds: rl.windowSeconds,
+          });
+        } else if (config.rateLimitRequests > 0 && rl.windowSeconds !== null) {
+          rateRef.current = createRateLimiter(config.rateLimitRequests, {
+            requestsHardCap: rl.hardCap,
+            requestsWindowSeconds: rl.windowSeconds,
+          });
+        } else if (config.rateLimitRequests === 0 && rl.hardCap === null) {
+          // Upstream reports unlimited (e.g. Code Max) — persist -1 so the
+          // config UI reflects the effective state instead of staying at 0.
+          saveConfig({ rate_limit_requests: -1 });
+          config.rateLimitRequests = -1;
+          rateRef.current = null;
+        }
+        ws.broadcast({ type: "gate", stats: gate.getStats(snap) });
+        return {
+          ok: true,
+          hardCap: r.hardCap,
+          softLimit: r.softLimit,
+          requestsLimit: rl.limit,
+          requestsHardCap: rl.hardCap,
+          requestsWindowSeconds: rl.windowSeconds,
+        };
+      }
+      return {
+        ok: true,
+        hardCap: r.hardCap,
+        softLimit: r.softLimit,
+        requestsLimit: null,
+        requestsHardCap: null,
+        requestsWindowSeconds: null,
+      };
     }
     return r;
   };
+
+  if (config.umansApiKey && config.concurrencyHardCap <= 1) {
+    void refreshLimits();
+  }
 
   const { handleViewer, VIEWER } = createViewerRouter({
     db,
@@ -359,14 +463,49 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     reloadConfig,
     refreshLimits,
     restart: () => {
-      shutdown();
-      process.exit(0);
+      shutdown().finally(() => process.exit(0));
     },
   });
+
+  const handleHealth = (): Response => {
+    const stats = gate.getStats(usage.getSnapshot());
+    return new Response(
+      JSON.stringify({
+        status: "ok",
+        uptime: process.uptime(),
+        pendingRequests: server.pendingRequests,
+        pendingWebSockets: server.pendingWebSockets,
+        gateActive: stats.active,
+        gateLimit: stats.softLimit,
+        queueDepth: queue.length,
+      }),
+      { status: 200, headers: { "content-type": "application/json" } },
+    );
+  };
+
+  const handleMetrics = (): Response => {
+    const stats = gate.getStats(usage.getSnapshot());
+    metrics.set("umans_gate_uptime_seconds", process.uptime(), "Process uptime in seconds");
+    metrics.set("umans_gate_pending_requests", server.pendingRequests, "In-flight HTTP requests");
+    metrics.set(
+      "umans_gate_pending_websockets",
+      server.pendingWebSockets,
+      "Connected WebSocket clients",
+    );
+    metrics.set("umans_gate_gate_active", stats.active, "Active concurrency permits");
+    metrics.set("umans_gate_gate_limit", stats.softLimit, "Concurrency soft limit");
+    metrics.set("umans_gate_queue_depth", queue.length, "Write queue depth");
+    return new Response(metrics.format(), {
+      status: 200,
+      headers: { "content-type": "text/plain; version=0.0.4; charset=utf-8" },
+    });
+  };
 
   const fetch = createRequestDispatcher({
     handleViewer,
     handleProxy,
+    handleHealth,
+    handleMetrics,
     viewerPrefix: VIEWER,
   });
 
@@ -376,6 +515,16 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     reusePort: true,
     idleTimeout: config.idleTimeout,
     fetch,
+    error(err): Response {
+      log.error("uncaught server error", {
+        message: err.message,
+        stack: err.stack,
+      });
+      return new Response(
+        JSON.stringify({ error: "internal_error", message: "Internal proxy error" }),
+        { status: 500, headers: { "content-type": "application/json" } },
+      );
+    },
     websocket: {
       open(socket) {
         ws.add(socket as unknown as BunServerWebSocket);
@@ -395,25 +544,51 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
 
   warmer?.start();
 
-  const shutdown = () => {
+  let shuttingDown = false;
+  const shutdown = async (): Promise<void> => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+
+    log.info("graceful shutdown: draining in-flight requests...");
+
     warmer?.stop();
     models.stop();
     usage.stop();
+
+    server.stop(false);
+
+    const drainDeadline = Date.now() + 5000;
+    while (server.pendingRequests > 0 && Date.now() < drainDeadline) {
+      await Bun.sleep(100);
+    }
+    if (server.pendingRequests > 0) {
+      log.warn(`drain timeout: ${server.pendingRequests} requests still in-flight`);
+    }
+
     gate.shutdown();
-    queue.flushNow();
+    await queue.flushNow();
+    if (writeStore instanceof WorkerCaptureStore) {
+      await writeStore.close();
+    }
     db.close();
-    server.stop();
+
     process.removeListener("SIGINT", sigHandler);
     process.removeListener("SIGTERM", sigHandler);
   };
 
   const sigHandler = () => {
-    shutdown();
-    process.exit(0);
+    shutdown().finally(() => process.exit(0));
   };
 
   process.once("SIGINT", sigHandler);
   process.once("SIGTERM", sigHandler);
+
+  process.on("unhandledRejection", (reason) => {
+    log.error("unhandledRejection", { reason: String(reason) });
+  });
+  process.on("uncaughtException", (err) => {
+    log.error("uncaughtException", { message: err.message, stack: err.stack });
+  });
 
   return {
     server,
@@ -424,7 +599,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     gate,
     usage,
     models,
-    rate,
+    rate: rateRef.current,
     config,
     reloadConfig,
     shutdown,

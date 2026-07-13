@@ -11,9 +11,7 @@ beforeAll(async () => {
   raw = await startRawUpstream();
   proxy = await startProxy({
     TARGET: `http://127.0.0.1:${raw.port}`,
-    STAMP_MAX_TOKENS_ENABLED: "true",
-    STAMP_THINKING_ENABLED: "true",
-    STAMP_OUTPUT_CONFIG_ENABLED: "true",
+    STAMP_CLAUDE_CODE_ENABLED: "true",
   });
 });
 
@@ -41,7 +39,7 @@ test("umans-coder gets all three fields stamped", async () => {
   const r = await send(body);
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
-  expect(parsed.max_tokens).toBe(32000);
+  expect(parsed.max_tokens).toBe(32767);
   expect(parsed.thinking).toEqual({ type: "adaptive" });
   expect(parsed.output_config).toEqual({ effort: "high" });
 });
@@ -54,7 +52,7 @@ test("umans-flash gets thinking + max_tokens + output_config stamped", async () 
   const r = await send(body);
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
-  expect(parsed.max_tokens).toBe(32000);
+  expect(parsed.max_tokens).toBe(32767);
   expect(parsed.thinking).toEqual({ type: "adaptive" });
   expect(parsed.output_config).toEqual({ effort: "high" });
 });
@@ -67,7 +65,7 @@ test("umans-glm model gets output_config effort=max", async () => {
   const r = await send(body);
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
-  expect(parsed.max_tokens).toBe(32000);
+  expect(parsed.max_tokens).toBe(131071);
   expect(parsed.thinking).toBeUndefined();
   expect(parsed.output_config).toEqual({ effort: "max" });
 });
@@ -80,7 +78,7 @@ test("non-glm non-thinking model gets max_tokens + output_config high", async ()
   const r = await send(body);
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
-  expect(parsed.max_tokens).toBe(32000);
+  expect(parsed.max_tokens).toBe(32767);
   expect(parsed.thinking).toBeUndefined();
   expect(parsed.output_config).toEqual({ effort: "high" });
 });
@@ -96,7 +94,7 @@ test("existing fields are overwritten", async () => {
   const r = await send(body);
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
-  expect(parsed.max_tokens).toBe(32000);
+  expect(parsed.max_tokens).toBe(32767);
   expect(parsed.thinking).toEqual({ type: "adaptive" });
   expect(parsed.output_config).toEqual({ effort: "high" });
 });
@@ -121,9 +119,7 @@ test("disabling all stamp toggles disables injection", async () => {
   const raw2 = await startRawUpstream();
   const proxy2 = await startProxy({
     TARGET: `http://127.0.0.1:${raw2.port}`,
-    STAMP_MAX_TOKENS_ENABLED: "false",
-    STAMP_THINKING_ENABLED: "false",
-    STAMP_OUTPUT_CONFIG_ENABLED: "false",
+    STAMP_CLAUDE_CODE_ENABLED: "false",
   });
   try {
     raw2.getLastRequest();
@@ -145,13 +141,11 @@ test("disabling all stamp toggles disables injection", async () => {
   }
 });
 
-test("only max_tokens toggle enabled", async () => {
+test("claude code toggle stamps all fields together", async () => {
   const raw3 = await startRawUpstream();
   const proxy3 = await startProxy({
     TARGET: `http://127.0.0.1:${raw3.port}`,
-    STAMP_MAX_TOKENS_ENABLED: "true",
-    STAMP_THINKING_ENABLED: "false",
-    STAMP_OUTPUT_CONFIG_ENABLED: "false",
+    STAMP_CLAUDE_CODE_ENABLED: "true",
   });
   try {
     raw3.getLastRequest();
@@ -164,9 +158,9 @@ test("only max_tokens toggle enabled", async () => {
     const r = raw3.getLastRequest();
     expect(r).not.toBeNull();
     const parsed = JSON.parse(r!.body);
-    expect(parsed.max_tokens).toBe(32000);
-    expect(parsed.thinking).toBeUndefined();
-    expect(parsed.output_config).toBeUndefined();
+    expect(parsed.max_tokens).toBe(32767);
+    expect(parsed.thinking).toEqual({ type: "adaptive" });
+    expect(parsed.output_config).toEqual({ effort: "high" });
   } finally {
     await proxy3.kill();
     await raw3.close();

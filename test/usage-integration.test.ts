@@ -1,14 +1,13 @@
 // Integration test: end-to-end usage extraction pipeline.
 // Verifies: proxy → extraction → DB → REST endpoint.
 //
-// Complements usage-dashboard.test.ts (which tests summarizeByModel + db.getModelStats
+// Complements usage-dashboard.test.ts (which tests SQL DDL + performance stats
 // in-process) by testing the FULL pipeline through HTTP + the real proxy.
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import type { CaptureRow } from "../src/types.js";
 import { type MockUpstreamHandle, startMockLlmUpstream } from "./helpers/mock-llm-upstream";
 import { type ProxyHandle, startProxy } from "./helpers/proxy";
-import type { ModelSummary } from "./helpers/usage-extractors";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -43,16 +42,7 @@ describe("Integration: usage extraction pipeline (happy paths)", () => {
     await upstream.close();
   });
 
-  // Test 1: empty DB
-  test("model-stats returns empty array when no captures exist", async () => {
-    const res = await fetch(`${proxy.baseUrl}/dashboard/api/model-stats`);
-    expect(res.status).toBe(200);
-    const stats = await res.json();
-    expect(Array.isArray(stats)).toBe(true);
-    expect(stats).toEqual([]);
-  });
-
-  // Test 2: Anthropic non-streaming
+  // Test 1: Anthropic non-streaming
   test("Anthropic non-streaming request populates usage columns in DB", async () => {
     const res = await fetch(`${proxy.baseUrl}/v1/messages`, {
       method: "POST",
@@ -125,47 +115,6 @@ describe("Integration: usage extraction pipeline (happy paths)", () => {
     expect(cap!.output_tokens).not.toBeNull();
     expect(cap!.input_tokens! > 0).toBe(true);
     expect(cap!.output_tokens! > 0).toBe(true);
-  });
-
-  // Test 5: model-stats endpoint — relies on captures from Tests 2-4 (same describe block).
-  test("model-stats endpoint returns ModelSummary with percentile stats", async () => {
-    await sleep(200);
-    const res = await fetch(`${proxy.baseUrl}/dashboard/api/model-stats`);
-    expect(res.status).toBe(200);
-    const stats = (await res.json()) as ModelSummary[];
-    expect(Array.isArray(stats)).toBe(true);
-    expect(stats.length).toBeGreaterThan(0);
-
-    const claudeStat = stats.find((s) => s.model.includes("claude"));
-    expect(claudeStat).toBeDefined();
-    expect(claudeStat!.provider).toBe("anthropic");
-    expect(claudeStat!.request_count).toBeGreaterThanOrEqual(2);
-    expect(claudeStat!.streaming_count).toBeGreaterThan(0);
-
-    const ttft = claudeStat!.ttft_ms;
-    expect(ttft).not.toBeNull();
-    expect(ttft!.count).toBeGreaterThan(0);
-    expect(ttft!.min).toBeGreaterThan(0);
-    expect(ttft!.max).toBeGreaterThanOrEqual(ttft!.min);
-    expect(ttft!.p10).toBeGreaterThanOrEqual(ttft!.min);
-    expect(ttft!.p50).toBeGreaterThanOrEqual(ttft!.p10);
-    expect(ttft!.p95).toBeGreaterThanOrEqual(ttft!.p50);
-    expect(ttft!.max).toBeGreaterThanOrEqual(ttft!.p95);
-    expect(ttft!.mean).toBeGreaterThan(0);
-
-    const inputStats = claudeStat!.input_tokens;
-    expect(inputStats).not.toBeNull();
-    expect(inputStats!.count).toBeGreaterThan(0);
-    expect(inputStats!.min).toBeGreaterThan(0);
-
-    const outputStats = claudeStat!.output_tokens;
-    expect(outputStats).not.toBeNull();
-    expect(outputStats!.count).toBeGreaterThan(0);
-
-    const openaiStat = stats.find((s) => s.model === "gpt-4o");
-    expect(openaiStat).toBeDefined();
-    expect(openaiStat!.provider).toBe("openai");
-    expect(openaiStat!.request_count).toBeGreaterThanOrEqual(1);
   });
 });
 

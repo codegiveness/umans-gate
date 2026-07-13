@@ -6,6 +6,11 @@ export interface FieldValidation {
   warning?: string;
 }
 
+export interface ConfigDraftValidation {
+  errors: Record<string, string>;
+  warnings: Record<string, string>;
+}
+
 type FieldValidator = (def: FieldDef, value: unknown) => FieldValidation;
 
 type FieldKind = FieldDef["kind"];
@@ -71,19 +76,22 @@ function validateJsonField(def: FieldDef, value: unknown): FieldValidation {
   return {};
 }
 
-/**
- * Validate a single field value client-side, mirroring server rules from src/config.ts validateConfig().
- * Returns an error string if invalid, undefined if valid.
- */
-export function validateField(def: FieldDef, value: unknown): FieldValidation {
+const FIELD_WARNINGS: Partial<Record<keyof RawConfig, (value: unknown) => string | null>> = {
+  rate_limit_requests: (v) => {
+    const n = Number(v);
+    return n === -1
+      ? "Unlimited — no request cap is enforced. The upstream may still reject excessive traffic."
+      : null;
+  },
+};
+
+function validateField(def: FieldDef, value: unknown): FieldValidation {
   const strVal = value === null || value === undefined ? "" : String(value);
 
-  // Required check
   if (def.required && !def.nullable && strVal.length === 0) {
     return { error: `${def.label} is required` };
   }
 
-  // Nullable + empty = valid
   if (def.nullable && strVal.length === 0) return {};
 
   const validator = KIND_VALIDATORS[def.kind];
@@ -94,22 +102,25 @@ export function validateField(def: FieldDef, value: unknown): FieldValidation {
   return {};
 }
 
-/**
- * Validate all fields in a config draft.
- * Returns a map of field key → error string (only invalid fields).
- */
 export function validateConfigDraft(
   draft: RawConfig,
   sections: { fields: FieldDef[] }[],
-): Record<string, string> {
+): ConfigDraftValidation {
   const errors: Record<string, string> = {};
+  const warnings: Record<string, string> = {};
   for (const section of sections) {
     for (const field of section.fields) {
+      if (field.disabled) continue;
       const result = validateField(field, draft[field.key]);
       if (result.error) {
         errors[field.key as string] = result.error;
       }
+      const warningFn = FIELD_WARNINGS[field.key];
+      if (warningFn) {
+        const w = warningFn(draft[field.key]);
+        if (w) warnings[field.key as string] = w;
+      }
     }
   }
-  return errors;
+  return { errors, warnings };
 }

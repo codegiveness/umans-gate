@@ -1,0 +1,11 @@
+# Issue template configuration
+# https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository#configuring-the-template-chooser
+
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Ask a question
+    url: https://github.com/umans-ai/umans-gate/discussions
+    about: Ask questions and discuss with the community in GitHub Discussions.
+  - name: 🔒 Report a security vulnerability
+    url: https://github.com/umans-ai/umans-gate/security/advisories/new
+    about: Please report security vulnerabilities privately via GitHub Security Advisories.

@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog";
-import type * as React from "react";
+import * as React from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -125,38 +125,36 @@ function AlertDialogDescription({
   );
 }
 
-function AlertDialogAction({
-  className,
-  variant = "default",
-  size = "default",
-  ...props
-}: Omit<AlertDialogPrimitive.Close.Props, "render"> &
-  Pick<React.ComponentProps<typeof Button>, "variant" | "size">) {
+const AlertDialogAction = React.forwardRef<
+  HTMLButtonElement,
+  Omit<AlertDialogPrimitive.Close.Props, "render"> &
+    Pick<React.ComponentProps<typeof Button>, "variant" | "size">
+>(function AlertDialogAction({ className, variant = "default", size = "default", ...props }, ref) {
   return (
     <AlertDialogPrimitive.Close
+      ref={ref}
       data-slot="alert-dialog-action"
+      className={cn(className)}
       render={<Button variant={variant} size={size} />}
       {...props}
     />
   );
-}
+});
 
-function AlertDialogCancel({
-  className,
-  variant = "outline",
-  size = "default",
-  ...props
-}: AlertDialogPrimitive.Close.Props &
-  Pick<React.ComponentProps<typeof Button>, "variant" | "size">) {
+const AlertDialogCancel = React.forwardRef<
+  HTMLButtonElement,
+  AlertDialogPrimitive.Close.Props & Pick<React.ComponentProps<typeof Button>, "variant" | "size">
+>(function AlertDialogCancel({ className, variant = "outline", size = "default", ...props }, ref) {
   return (
     <AlertDialogPrimitive.Close
+      ref={ref}
       data-slot="alert-dialog-cancel"
       className={cn(className)}
       render={<Button variant={variant} size={size} />}
       {...props}
     />
   );
-}
+});
 
 export {
   AlertDialog,

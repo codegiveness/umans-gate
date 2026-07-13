@@ -10,6 +10,7 @@ import { Loader } from "@/components/ui/loader";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { badgeSuccess } from "@/lib/badge-colors";
 import { extractCacheTtl, fmtDate, fmtSize, fmtTime } from "@/lib/format";
 import type { CaptureDetail } from "@/types";
 
@@ -156,7 +157,12 @@ export function CaptureDetailPanel({
           </Tooltip>
         </div>
         <div className="mt-2 flex w-full flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <StatusBadge status={capture.response_status} size="sm" />
+          <StatusBadge
+            status={capture.response_status}
+            statusSource={capture.status_source}
+            gateReason={capture.gate_reason}
+            size="sm"
+          />
           {cacheTtl && (
             <Tooltip>
               <TooltipTrigger render={<span className="inline-flex" />}>
@@ -230,7 +236,7 @@ export function CaptureDetailPanel({
           {capture.state === "streaming" && (
             <Tooltip>
               <TooltipTrigger render={<span className="inline-flex" />}>
-                <Badge variant="secondary" size="sm">
+                <Badge variant="secondary" size="sm" className={badgeSuccess}>
                   live
                 </Badge>
               </TooltipTrigger>

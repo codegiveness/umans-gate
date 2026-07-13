@@ -1,9 +1,11 @@
-import { Beaker, RotateCw } from "lucide-react";
+import { Beaker, Cloud, Download, RotateCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import type { FieldDef } from "@/components/config-sections";
+import type { GroupDef } from "@/components/config-sections";
 import type { SectionDef } from "@/components/config-sections";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NumberInput } from "@/components/ui/number-input";
@@ -18,7 +20,9 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { RawConfig } from "@/hooks/use-config";
+import { badgeInfo, badgeWarning } from "@/lib/badge-colors";
 import { cn } from "@/lib/utils";
 
 /** Convert a RawConfig value into a string suitable for an input field. */
@@ -236,12 +240,18 @@ export function FieldRow({
   onChange,
   dirty,
   error,
+  warning,
+  onRefreshSource,
+  refreshing,
 }: {
   def: FieldDef;
   value: unknown;
   onChange: (v: unknown) => void;
   dirty: boolean;
   error?: string;
+  warning?: string;
+  onRefreshSource?: () => void;
+  refreshing?: boolean;
 }) {
   const id = `cfg-${def.key}`;
   const hasError = Boolean(error);
@@ -259,7 +269,7 @@ export function FieldRow({
             {def.label}
           </Label>
           {def.required ? (
-            <Badge variant="outline" size="sm" className="border-destructive/30 text-destructive">
+            <Badge variant="destructive" size="sm">
               Required
             </Badge>
           ) : null}
@@ -270,9 +280,15 @@ export function FieldRow({
             </Badge>
           ) : null}
           {def.experimental ? (
-            <Badge variant="outline" size="sm" className="border-amber-500/40 text-amber-600">
+            <Badge variant="secondary" size="sm" className={badgeWarning}>
               <Beaker className="h-2.5 w-2.5" />
               experimental
+            </Badge>
+          ) : null}
+          {def.umansSourced ? (
+            <Badge variant="secondary" size="sm" className={badgeInfo}>
+              <Cloud className="h-2.5 w-2.5" />
+              Umans API
             </Badge>
           ) : null}
         </div>
@@ -281,18 +297,43 @@ export function FieldRow({
         ) : null}
       </div>
       <div className="flex flex-col gap-1">
-        {FIELD_RENDERERS[def.kind]({
-          def,
-          value,
-          onChange,
-          id,
-          isInvalid,
-          placeholder,
-        })}
+        <div className="flex items-center gap-1.5">
+          <div className="flex-1">
+            {FIELD_RENDERERS[def.kind]({
+              def,
+              value,
+              onChange,
+              id,
+              isInvalid,
+              placeholder,
+            })}
+          </div>
+          {def.refreshSource && onRefreshSource ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  disabled={refreshing}
+                  onClick={onRefreshSource}
+                  aria-label={`Refresh ${def.label} from source`}
+                >
+                  <Download className={cn("h-3.5 w-3.5", refreshing && "animate-pulse")} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">Re-fetch from upstream rate-limit headers</TooltipContent>
+            </Tooltip>
+          ) : null}
+        </div>
         {hasError ? (
           <p className="text-xs font-medium text-destructive" role="alert">
             {error}
           </p>
+        ) : null}
+        {warning && !hasError ? (
+          <p className="text-xs font-medium text-amber-600 dark:text-amber-400">{warning}</p>
         ) : null}
       </div>
     </div>
@@ -305,20 +346,26 @@ export function SectionBlock({
   originals,
   onField,
   errors,
+  warnings,
   isLast,
+  onRefreshSource,
+  refreshingSource,
 }: {
   section: SectionDef;
   values: RawConfig;
   originals: RawConfig;
   onField: (key: keyof RawConfig, v: unknown) => void;
   errors: Record<string, string>;
+  warnings: Record<string, string>;
   isLast: boolean;
+  onRefreshSource?: () => void;
+  refreshingSource?: boolean;
 }) {
   return (
     <section className="space-y-0.5">
       <div className="flex items-baseline justify-between gap-3 pb-1">
         <div>
-          <h3 className="text-sm font-semibold tracking-tight">{section.title}</h3>
+          <h4 className="text-sm font-semibold tracking-tight">{section.title}</h4>
           <p className="text-xs text-muted-foreground">{section.description}</p>
         </div>
       </div>
@@ -330,9 +377,58 @@ export function SectionBlock({
           onChange={(v) => onField(f.key, v)}
           dirty={JSON.stringify(values[f.key] ?? null) !== JSON.stringify(originals[f.key] ?? null)}
           error={errors[f.key as string]}
+          warning={warnings[f.key as string]}
+          onRefreshSource={f.refreshSource ? onRefreshSource : undefined}
+          refreshing={refreshingSource}
         />
       ))}
       {!isLast ? <Separator className="my-2" /> : null}
     </section>
+  );
+}
+
+export function GroupBlock({
+  group,
+  values,
+  originals,
+  onField,
+  errors,
+  warnings,
+  isLast,
+  onRefreshSource,
+  refreshingSource,
+}: {
+  group: GroupDef;
+  values: RawConfig;
+  originals: RawConfig;
+  onField: (key: keyof RawConfig, v: unknown) => void;
+  errors: Record<string, string>;
+  warnings: Record<string, string>;
+  isLast: boolean;
+  onRefreshSource?: () => void;
+  refreshingSource?: boolean;
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="pb-1">
+        <h3 className="text-base font-semibold tracking-tight">{group.title}</h3>
+        <p className="text-xs text-muted-foreground">{group.description}</p>
+      </div>
+      {group.sections.map((s, i) => (
+        <SectionBlock
+          key={s.title}
+          section={s}
+          values={values}
+          originals={originals}
+          onField={onField}
+          errors={errors}
+          warnings={warnings}
+          isLast={isLast && i === group.sections.length - 1}
+          onRefreshSource={onRefreshSource}
+          refreshingSource={refreshingSource}
+        />
+      ))}
+      {!isLast ? <Separator className="my-3" /> : null}
+    </div>
   );
 }

@@ -61,76 +61,61 @@ Each entry lists: **what** it does, **where** in the code, **when** it applies
 
 ## Layer 2: Request Body
 
-### 2.1 TTL stamping on `cache_control`
+### 2.1 Stamp pipeline (Claude Code bundle)
 
-- **What**: Adds `"ttl": "<value>"` to every `cache_control` ephemeral block
-  in the request body.
-- **Where**: `src/stamp.ts:13-33`, called at `src/proxy.ts:84`.
-- **When**: Anthropic route only (`/v1/messages`), gated by `config.stampTtl`.
+- **What**: Applies the full Claude Code stamp bundle to Anthropic requests
+  in a defined order: TTL, `top_k`, `temperature`, `max_tokens`, `thinking`,
+  `output_config`, and `context_management`.
+- **Where**: `src/stamp-pipeline.ts` (orchestrator), called from `src/proxy.ts`.
+  Individual stamp modules:
+  - `src/stamp.ts` — TTL stamping on `cache_control` ephemeral blocks
+  - `src/stamp-topk.ts` — `top_k` injection after `model` field
+  - `src/stamp-temperature.ts` — forces `temperature: 1.0`
+  - `src/stamp-thinking.ts` — `max_tokens`, `thinking`, `output_config`
+  - `src/config.ts` — stamp value constants (`STAMP_CACHE_TTL_VALUE`,
+    `STAMP_TOP_K_VALUE`, `STAMP_TEMPERATURE_VALUE`, `STAMP_THINKING_VALUE`,
+    `STAMP_MAX_TOKENS_VALUE`, `STAMP_MAX_TOKENS_GLM_VALUE`,
+    `STAMP_OUTPUT_CONFIG_VALUE`, `STAMP_OUTPUT_CONFIG_GLM_VALUE`,
+    `STAMP_CONTEXT_MANAGEMENT_VALUE`)
+- **When**: Anthropic route only (`/v1/messages`), gated by
+  `config.stampClaudeCodeEnabled`.
 - **Config**:
-  - `stamp_cache_ttl` YAML (default: `1h`)
-  - `STAMP_CACHE_TTL` env
-  - Set to `"0"`, `"false"`, or `"null"` to disable.
-- **Rationale**: The upstream UMANS API accepts `ttl` on `cache_control` but
-  clients don't set it. Stamping a 1h TTL extends the KV cache window so
-  multi-turn conversations benefit from prefix caching across turns.
-
-### 2.2 `top_k` injection
-
-- **What**: Injects `"top_k": <value>` into the request body immediately
-  after the `model` field (preserves JSON key ordering).
-- **Where**: `src/stamp-topk.ts:26-41`, called at `src/proxy.ts:111`.
-- **When**: Both routes (OpenAI + Anthropic), gated by
-  `config.stampTopK !== null`.
-- **Config**:
-  - `stamp_top_k_enabled` YAML (default: `false`)
-  - `STAMP_TOP_K_ENABLED` env
+  - `stamp_claude_code_enabled` JSON (default: `false`)
+  - `STAMP_CLAUDE_CODE_ENABLED` env
   - Set to `"false"` or `"0"` to disable.
-- **Rationale**: `umans-glm-5.2` requires `top_k` on every request body.
-  Injecting it at the proxy layer means clients don't need to know
-  model-specific requirements. Positioned after `model` for consistency.
+- **Stamp values** (all applied when enabled):
+  - TTL: `"1h"` on every `cache_control: {type:"ephemeral"}` block
+  - `top_k`: `20`
+  - `temperature`: `1.0`
+  - `max_tokens`: `131071` for `umans-glm*` models, `32767` for others
+  - `thinking`: `{ "type": "adaptive" }` for `umans-coder`, `umans-flash`,
+    `umans-kimi*`, `umans-qwen*`
+  - `output_config`: `{ "effort": "high" }` for most models; `{ "effort": "max" }`
+    for `umans-glm*`
+  - `context_management`: `{ "edits": [{ "type": "clear_thinking_20251015", "keep": "all" }] }`
+- **Rationale**: The upstream UMANS API accepts these body fields but clients
+  don't always set them. The bundle extends the KV cache window (TTL), satisfies
+  model-specific requirements (`top_k`, `max_tokens`), and enables adaptive
+  reasoning (`thinking`, `output_config`). Consolidating into a single toggle
+  ensures stamps are applied in the correct order with consistent values.
 
-### 2.3 `max_tokens`, `thinking`, and `output_config` injection
-
-- **What**: Injects three independent Anthropic body fields:
-  - `"max_tokens": 32000` (all models)
-  - `"thinking": { "type": "adaptive" }`
-    (models `"umans-coder"`, `"umans-flash"`, or starting with `"umans-kimi"` / `"umans-qwen"`)
-  - `"output_config": { "effort": "high" }` (all models; `"umans-glm*"` gets `"effort": "max"`)
-- **Where**: `src/stamp-thinking.ts`, called at `src/proxy.ts` after body parsing.
-- **When**: Anthropic route only (`/v1/messages`). Each field is gated by its own
-  toggle. Any existing values are overwritten when the corresponding toggle is on.
-- **Config**:
-  - `stamp_max_tokens_enabled` YAML (default: `false`)
-  - `STAMP_MAX_TOKENS_ENABLED` env
-  - `stamp_thinking_enabled` YAML (default: `false`)
-  - `STAMP_THINKING_ENABLED` env
-  - `stamp_output_config_enabled` YAML (default: `false`)
-  - `STAMP_OUTPUT_CONFIG_ENABLED` env
-  - Set any to `"false"` or `"0"` to disable that field.
-- **Rationale**: Umans models require/expect explicit Anthropic-style body
-  shaping. Splitting into three toggles lets operators enable `max_tokens` and
-  `output_config` globally while keeping the `thinking` block limited to the
-  model families that support it. `umans-glm*` models need `effort: "max"`
-  instead of the default `"high"`.
-
-### 2.4 OpenAI-compatible `reasoning_effort` injection
+### 2.2 OpenAI-compatible `reasoning_effort` injection
 
 - **What**: Removes `max_tokens` and `thinking` from the request body, then
   injects `"reasoning_effort": "high"` (or `"max"` for `umans-glm*` models).
-- **Where**: `src/stamp-reasoning.ts`, called at `src/proxy.ts` after body parsing.
+- **Where**: `src/stamp-reasoning.ts`, called from `src/proxy.ts` after body parsing.
 - **When**: OpenAI-compatible route only (`/v1/chat/completions`), gated by
   `config.stampReasoningEffort !== null`.
 - **Config**:
-  - `stamp_reasoning_effort_enabled` YAML (default: `false`)
+  - `stamp_reasoning_effort_enabled` JSON (default: `false`)
   - `STAMP_REASONING_EFFORT_ENABLED` env
   - Set to `"false"` or `"0"` to disable.
 - **Rationale**: The upstream OpenAI-compatible endpoint only recognizes
   `reasoning_effort`; forwarding `max_tokens` or `thinking` can cause errors.
 
-### 2.5 Body re-serialization
+### 2.3 Body re-serialization
 
-- **What**: When any body modification (2.1, 2.2, 2.3, 2.4) changes the body,
+- **What**: When any body modification (2.1, 2.2) changes the body,
   `reqBuf` is re-encoded via `JSON.stringify`.
 - **Where**: `src/proxy.ts` after each modifier.
 - **When**: Only when a modification actually changed the body.
@@ -138,7 +123,7 @@ Each entry lists: **what** it does, **where** in the code, **when** it applies
   is re-serialized, so the forwarded request has a correct body without a
   stale length header.
 
-### 2.6 Vision handoff (image → text)
+### 2.4 Vision handoff (image → text)
 
 - **What**: Replaces image blocks in the request body with text descriptions
   generated by a separate vision model (default: `umans-flash`). Each image
@@ -152,17 +137,17 @@ Each entry lists: **what** it does, **where** in the code, **when** it applies
   - `catalog`: intercept only if model is known to not support vision
   - `never`: disabled
 - **Config**:
-  - `vision_strategy` YAML (default: `always`)
+  - `vision_strategy` JSON (default: `catalog`)
   - `vision_model` (default: `umans-flash`)
   - `vision_concurrency` (default: `1` — serializes vision calls)
   - `vision_max_images`, `vision_timeout_ms`, `vision_cache_size`, etc.
-- **Rationale**: `umans-glm-5.2` does not support vision directly. Converting
-  images to text descriptions enables glm-5.2 to "see" images via a vision
-  proxy model. Text is also KV-cacheable (image bytes are not), improving
-  cache hit rates for multi-turn image conversations.
+- **Rationale**: Some models (e.g. `umans-glm-5.2`) do not support vision
+  directly. Converting images to text descriptions enables them to "see" images
+  via a vision proxy model. Text is also KV-cacheable (image bytes are not),
+  improving cache hit rates for multi-turn image conversations.
 - **Serialization**: Vision calls are serialized by a `ConcurrencyGate`
   (default concurrency=1) because the upstream has limited vision slots.
-  See `src/limiter.ts`.
+  See `src/limiter/`.
 
 ---
 
@@ -283,8 +268,8 @@ Benchmarked on 2026-07-05 against `https://api.code.umans.ai/v1` with
 | HTTP/2 upstream option | ✅ Available (opt-in) | Configurable via `upstream_protocol: http2`; no measurable win at current concurrency |
 | `accept-encoding: identity` | ✅ Kept | identity 852.3ms vs gzip 851.9ms on SSE — statistically tied; identity is correct for capture safety |
 | Hop-by-hop stripping | ✅ Kept | RFC 7230 compliance |
-| TTL stamping (1h) | ✅ Kept | Improves multi-turn KV cache hit rates |
-| `top_k` injection (20) | ✅ Kept | Required by glm-5.2 |
+| TTL stamping (1h) | ✅ Kept | Improves multi-turn KV cache hit rates (part of stamp bundle) |
+| `top_k` injection (20) | ✅ Kept | Required by glm-5.2 (part of stamp bundle) |
 | Vision handoff | ✅ Kept | Enables glm-5.2 vision; improves cacheability |
 | Vision concurrency gate (concurrency=1) | ✅ Kept | Prevents racing for upstream vision slot |
 | Keep-alive connection reuse | ✅ Already works (Bun internal) | warm 713.4ms vs cold 1192.3ms — 478.9ms (40%) saved via connection reuse |

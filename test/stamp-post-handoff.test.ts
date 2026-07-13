@@ -84,12 +84,13 @@ beforeAll(async () => {
   vision = startMockVisionUpstream("A red pixel.");
   proxy = await startProxy({
     TARGET: `http://127.0.0.1:${upstream.port}`,
-    STAMP_CACHE_TTL_ENABLED: "true",
+    STAMP_CLAUDE_CODE_ENABLED: "true",
     WARMER_ENABLED: "false",
+    USAGE_REFRESH_MS: "999999",
     VISION_STRATEGY: "always",
     VISION_TARGET: `http://127.0.0.1:${vision.port}/v1/chat/completions`,
     VISION_MODEL: "gpt-4o",
-    VISION_API_KEY: "test-key",
+    UMANS_API_KEY: "test-key",
   });
 });
 

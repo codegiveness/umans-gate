@@ -1,33 +1,44 @@
-import { Moon, Sun } from "lucide-react";
+import { Monitor, Moon, Sun } from "lucide-react";
 
-import { useTheme } from "./theme-provider";
+import { type Theme, useTheme } from "./theme-provider";
+import { Button } from "./ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
-/**
- * Non-interactive theme indicator. Displays an icon based on the resolved
- * theme (light → Sun, dark → Moon) and follows the system preference.
- * Not clickable — no hover state, no dropdown.
- */
+const THEME_ORDER: Theme[] = ["system", "light", "dark"];
+
+const THEME_LABELS: Record<Theme, string> = {
+  system: "Auto",
+  light: "Light",
+  dark: "Dark",
+};
+
 export function ModeToggle() {
-  const { resolvedTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
+
+  const currentIndex = THEME_ORDER.indexOf(theme);
+  const next = THEME_ORDER[(currentIndex + 1) % THEME_ORDER.length];
 
   return (
     <Tooltip>
-      <TooltipTrigger
-        render={
-          <span
-            className="inline-flex size-8 items-center justify-center text-muted-foreground"
-            aria-label={`Theme: ${resolvedTheme}`}
-          />
-        }
-      >
-        {resolvedTheme === "dark" ? (
-          <Moon className="h-[1.2rem] w-[1.2rem]" aria-hidden="true" />
-        ) : (
-          <Sun className="h-[1.2rem] w-[1.2rem]" aria-hidden="true" />
-        )}
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setTheme(next)}
+          aria-label={`Theme: ${THEME_LABELS[theme]}`}
+        >
+          {theme === "dark" ? (
+            <Moon className="h-[1.2rem] w-[1.2rem]" aria-hidden="true" />
+          ) : theme === "light" ? (
+            <Sun className="h-[1.2rem] w-[1.2rem]" aria-hidden="true" />
+          ) : (
+            <Monitor className="h-[1.2rem] w-[1.2rem]" aria-hidden="true" />
+          )}
+        </Button>
       </TooltipTrigger>
-      <TooltipContent side="bottom">Follows system theme</TooltipContent>
+      <TooltipContent side="bottom">
+        {THEME_LABELS[theme]} — click for {THEME_LABELS[next].toLowerCase()}
+      </TooltipContent>
     </Tooltip>
   );
 }

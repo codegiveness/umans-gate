@@ -3,11 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { API_BASE, CONFIG_API_BASE } from "@/lib/constants";
 
 export interface StampRawConfig {
-  stamp_cache_ttl_enabled?: boolean;
-  stamp_top_k_enabled?: boolean;
-  stamp_max_tokens_enabled?: boolean;
-  stamp_thinking_enabled?: boolean;
-  stamp_output_config_enabled?: boolean;
+  stamp_claude_code_enabled?: boolean;
   stamp_reasoning_effort_enabled?: boolean;
 }
 
@@ -16,7 +12,6 @@ export interface GateRawConfig {
   concurrency_soft_limit?: number;
   concurrency_main_reservation?: number;
   concurrency_vision_reservation?: number;
-  concurrency_weights?: Record<string, number>;
   rate_limit_requests?: number;
   queue_timeout_ms?: number;
   max_queue_depth?: number;
@@ -44,14 +39,11 @@ export interface VisionRawConfig {
   vision_jpeg_quality?: number;
   vision_image_format?: "jpeg" | "png";
   vision_image_detail?: "auto" | "low" | "high";
-  vision_api_key?: string;
-  vision_force_intercept_capable?: boolean;
   vision_pending_max_batch?: number;
 }
 
 export interface ServerRawConfig {
   port?: number;
-  host?: string;
   max_captures?: number;
   db_path?: string;
   idle_timeout?: number;
@@ -61,11 +53,13 @@ export interface ServerRawConfig {
   umans_api_key?: string;
   usage_refresh_ms?: number;
   models_refresh_ms?: number;
-  usage_stats_latest_n?: number;
   capture_body_max_bytes?: number;
   queue_max_depth?: number;
   ws_backpressure_limit?: number;
   ws_close_on_backpressure_limit?: boolean;
+  compression_enabled?: boolean;
+  /** Runtime flag: true when the resolved config has an API key (env or file). Read-only — not saved. */
+  has_api_key?: boolean;
 }
 
 export type RawConfig = StampRawConfig & GateRawConfig & VisionRawConfig & ServerRawConfig;
@@ -90,6 +84,9 @@ export interface RefreshSourceResult {
   ok: boolean;
   hardCap?: number;
   softLimit?: number;
+  requestsLimit?: number | null;
+  requestsHardCap?: number | null;
+  requestsWindowSeconds?: number | null;
   error?: string;
 }
 
@@ -122,6 +119,7 @@ export interface ConfigOps {
   reloadFromDisk: () => Promise<ReloadResult | null>;
   refreshFromSource: () => Promise<RefreshSourceResult | null>;
   restart: () => Promise<RestartResult | null>;
+  resetToDefault: () => Promise<SaveResult | null>;
 }
 
 export type UseConfigResult = ConfigReader & ConfigWriter & ConfigOps;
@@ -241,6 +239,24 @@ export function useConfig(): UseConfigResult {
     }
   }, []);
 
+  const resetToDefault = useCallback(async (): Promise<SaveResult | null> => {
+    try {
+      const r = await fetch(`${CONFIG_API_BASE}/reset`, { method: "POST" });
+      const data = (await r.json()) as SaveResult;
+      if (data.ok) {
+        await reload();
+      }
+      return data;
+    } catch (e) {
+      return {
+        ok: false,
+        errors: [e instanceof Error ? e.message : String(e)],
+        warnings: [],
+        written: null as unknown as RawConfig,
+      };
+    }
+  }, [reload]);
+
   return {
     config,
     loading,
@@ -251,5 +267,6 @@ export function useConfig(): UseConfigResult {
     reloadFromDisk,
     refreshFromSource,
     restart,
+    resetToDefault,
   };
 }

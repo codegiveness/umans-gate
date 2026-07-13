@@ -5,8 +5,8 @@ import type { ProxyConfig, RequestMeta, ResponseMeta } from "../src/types.js";
 import type { WsBroadcaster } from "../src/ws.js";
 
 const baseConfig: ProxyConfig = {
-  port: 9000,
-  host: "0.0.0.0",
+  port: 1945,
+  host: "127.0.0.1",
   target: "https://api.code.umans.ai",
   maxCaptures: 200,
   dbPath: "./test.db",
@@ -17,11 +17,7 @@ const baseConfig: ProxyConfig = {
   idleTimeout: 255,
   upstreamProtocol: "http1.1",
   incomingProtocol: "http1.1",
-  stampTtl: null,
-  stampTopK: null,
-  stampMaxTokens: null,
-  stampThinking: null,
-  stampOutputConfig: null,
+  stampClaudeCode: false,
   stampReasoningEffort: null,
   openaiPath: "chat/completions",
   warmerEnabled: false,
@@ -32,7 +28,6 @@ const baseConfig: ProxyConfig = {
   modelsRefreshMs: 3600000,
   concurrencyHardCap: 1,
   concurrencySoftLimit: 1,
-  concurrencyWeights: {},
   rateLimitRequests: 0,
   queueTimeoutMs: 30000,
   maxQueueDepth: 256,
@@ -40,7 +35,6 @@ const baseConfig: ProxyConfig = {
   breakerThreshold: 5,
   breakerWindowMs: 300000,
   breakerCooldownMs: 60000,
-  usageStatsLatestN: 200,
   visionStrategy: "never",
   visionTarget: null,
   visionModel: null,
@@ -55,7 +49,6 @@ const baseConfig: ProxyConfig = {
   visionCacheMaxRows: 10000,
   visionPersistentCache: true,
   visionConcurrency: 1,
-  visionApiKey: null,
   visionForceInterceptCapable: false,
   visionMaxDimension: 2048,
   visionJpegQuality: 92,
@@ -67,6 +60,10 @@ const baseConfig: ProxyConfig = {
   wsBackpressureLimit: 1_048_576,
   wsCloseOnBackpressureLimit: true,
   visionPendingMaxBatch: 50,
+  compressionEnabled: false,
+  useWriteWorker: false,
+  backgroundVision: false,
+  upstreamTimeoutMs: 300000,
 } as const;
 
 const reqMeta: RequestMeta = {
@@ -86,6 +83,8 @@ function makeRes(id: number): ResponseMeta {
     $sse: 0,
     $dur: 10,
     $fin: Date.now(),
+    $status_source: "upstream",
+    $gate_reason: null,
     $model: "test-model",
   };
 }
@@ -99,7 +98,7 @@ function makeStubs({ stuck = false }: { stuck?: boolean } = {}): {
   const flushed: { id: number; res: ResponseMeta }[] = [];
   const broadcasts: { type: "update"; capture: Record<string, unknown> }[] = [];
   const db = {
-    batchUpdate: (batch: { id: number; res: ResponseMeta }[]) => {
+    batchUpdate: async (batch: { id: number; res: ResponseMeta }[]) => {
       if (stuck) return;
       flushed.push(...batch);
     },
@@ -128,7 +127,7 @@ test("queue depth never exceeds queueMaxDepth and oldest entries drop when DB is
   expect(flushed.length).toBe(0);
 });
 
-test("flush clears the queue normally when flushBatch is reached", () => {
+test("flush clears the queue normally when flushBatch is reached", async () => {
   const config = { ...baseConfig, queueMaxDepth: 10, flushBatch: 3 };
   const { flushed, broadcasts, db, ws } = makeStubs();
   const queue = new WriteQueue(db, config, (messages) => {
@@ -138,6 +137,8 @@ test("flush clears the queue normally when flushBatch is reached", () => {
   queue.queueUpdate(1, reqMeta, makeRes(1));
   queue.queueUpdate(2, reqMeta, makeRes(2));
   queue.queueUpdate(3, reqMeta, makeRes(3));
+
+  await queue.flushNow();
 
   expect(queue.length).toBe(0);
   expect(flushed.map((it) => it.id)).toEqual([1, 2, 3]);
@@ -171,4 +172,48 @@ test("queueUpdate below cap schedules a timer and does not flush immediately", (
   expect(queue.length).toBe(1);
   expect(flushed.length).toBe(0);
   expect(queue.hasTimer).toBe(true);
+});
+
+test("flushNow re-queues batch at front when batchUpdate throws", () => {
+  const flushed: { id: number; res: ResponseMeta }[] = [];
+  const db = {
+    batchUpdate: () => {
+      throw new Error("SQLite BUSY");
+    },
+  } as unknown as CaptureDB;
+  const ws = { broadcast: () => {} } as unknown as WsBroadcaster;
+
+  const config = { ...baseConfig, queueMaxDepth: 100, flushBatch: 2 };
+  const queue = new WriteQueue(db, config, (messages) => {
+    for (const msg of messages) ws.broadcast(msg);
+  });
+
+  queue.queueUpdate(1, reqMeta, makeRes(1));
+  queue.queueUpdate(2, reqMeta, makeRes(2));
+
+  expect(queue.length).toBe(2);
+  expect(flushed.length).toBe(0);
+});
+
+test("drop path activates when queue overflows after failed flush", () => {
+  const db = {
+    batchUpdate: () => {
+      throw new Error("disk full");
+    },
+  } as unknown as CaptureDB;
+  const ws = { broadcast: () => {} } as unknown as WsBroadcaster;
+
+  const config = { ...baseConfig, queueMaxDepth: 3, flushBatch: 25 };
+  const queue = new WriteQueue(db, config, (messages) => {
+    for (const msg of messages) ws.broadcast(msg);
+  });
+
+  queue.queueUpdate(1, reqMeta, makeRes(1));
+  queue.queueUpdate(2, reqMeta, makeRes(2));
+  queue.queueUpdate(3, reqMeta, makeRes(3));
+  queue.queueUpdate(4, reqMeta, makeRes(4));
+  queue.queueUpdate(5, reqMeta, makeRes(5));
+
+  expect(queue.length).toBeLessThanOrEqual(config.queueMaxDepth);
+  expect(queue.droppedCount).toBeGreaterThan(0);
 });

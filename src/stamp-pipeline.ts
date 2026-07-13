@@ -6,10 +6,19 @@
 // Dependency direction: stamp-pipeline → stamp* / types / config / helpers.
 // Never imports proxy.ts (no cycles).
 
+import {
+  STAMP_CACHE_TTL_VALUE,
+  STAMP_CONTEXT_MANAGEMENT_VALUE,
+  STAMP_OUTPUT_CONFIG_VALUE,
+  STAMP_TEMPERATURE_VALUE,
+  STAMP_THINKING_VALUE,
+  STAMP_TOP_K_VALUE,
+} from "./config.js";
 import { textDecoder } from "./helpers.js";
 import { createLogger } from "./logger.js";
 import { isGlmModel, resolveEffortForModel } from "./model-policy.js";
 import { stampReasoning } from "./stamp-reasoning.js";
+import { stampTemperature } from "./stamp-temperature.js";
 import { stampThinking } from "./stamp-thinking.js";
 import { stampTopK } from "./stamp-topk.js";
 import { stampCacheTtl } from "./stamp.js";
@@ -27,7 +36,7 @@ const log = createLogger("stamp-pipeline");
 // ─── Pipeline types ───────────────────────────────────────────────────────
 
 /** Resolved config subset available to every stamp step. */
-export type StampPipelineConfig = StampConfig & CaptureConfig & GateConfig & ProtocolConfig;
+type StampPipelineConfig = StampConfig & CaptureConfig & GateConfig & ProtocolConfig;
 
 /** Everything a stamp step needs to decide applicability and mutate the body. */
 export interface StampContext {
@@ -67,13 +76,13 @@ export function parseJsonBody(
 export const CacheTtlStep: StampStep = {
   label: "ttl",
   applies(ctx) {
-    return ctx.config.stampTtl !== null && !ctx.isOpenAi;
+    return ctx.config.stampClaudeCode && !ctx.isOpenAi;
   },
   apply(body, ctx) {
     if (body === null || typeof body !== "object") return false;
-    const n = stampCacheTtl(body as AnthropicBody, ctx.config.stampTtl as string);
+    const n = stampCacheTtl(body as AnthropicBody, STAMP_CACHE_TTL_VALUE);
     if (n > 0) {
-      log.info(`stamped ttl="${ctx.config.stampTtl}" on ${n} block(s)`, {
+      log.info(`stamped ttl="${STAMP_CACHE_TTL_VALUE}" on ${n} block(s)`, {
         method: ctx.method,
         path: ctx.url.pathname,
       });
@@ -86,21 +95,15 @@ export const CacheTtlStep: StampStep = {
 export const AnthropicBodyStep: StampStep = {
   label: "anthropic-body",
   applies(ctx) {
-    return (
-      !ctx.isOpenAi &&
-      (ctx.config.stampThinking !== null ||
-        ctx.config.stampMaxTokens !== null ||
-        ctx.config.stampOutputConfig !== null)
-    );
+    return ctx.config.stampClaudeCode && !ctx.isOpenAi;
   },
   apply(body, ctx) {
     if (body === null || typeof body !== "object") return false;
-    const effort = resolveEffortForModel(ctx.modelName, ctx.config.stampOutputConfig !== null);
-    const outputConfigValue =
-      effort !== undefined ? { effort } : (ctx.config.stampOutputConfig ?? undefined);
+    const effort = resolveEffortForModel(ctx.modelName, true);
+    const outputConfigValue = effort !== undefined ? { effort } : STAMP_OUTPUT_CONFIG_VALUE;
     const changed = stampThinking(body as AnthropicBody, {
-      maxTokens: ctx.config.stampMaxTokens !== null,
-      thinking: ctx.config.stampThinking ?? false,
+      maxTokens: true,
+      thinking: STAMP_THINKING_VALUE,
       outputConfig: outputConfigValue,
     });
     if (changed) {
@@ -111,6 +114,26 @@ export const AnthropicBodyStep: StampStep = {
       return true;
     }
     return false;
+  },
+};
+
+export const ContextManagementStep: StampStep = {
+  label: "context-management",
+  applies(ctx) {
+    return (
+      ctx.config.stampClaudeCode &&
+      !ctx.isOpenAi &&
+      ctx.headers["anthropic-version"] === "2023-06-01"
+    );
+  },
+  apply(body) {
+    if (body === null || typeof body !== "object") return false;
+    const b = body as AnthropicBody;
+    b.context_management = {
+      edits: STAMP_CONTEXT_MANAGEMENT_VALUE.edits.map((e) => ({ ...e })),
+    };
+    log.info("stamped context_management");
+    return true;
   },
 };
 
@@ -139,13 +162,32 @@ export const OpenAiReasoningStep: StampStep = {
 export const TopKStep: StampStep = {
   label: "top-k",
   applies(ctx) {
-    return ctx.config.stampTopK !== null && isGlmModel(ctx.modelName);
+    return ctx.config.stampClaudeCode && isGlmModel(ctx.modelName);
   },
   apply(body, ctx) {
     if (body === null || typeof body !== "object") return false;
-    const changed = stampTopK(body, ctx.config.stampTopK as number);
+    const changed = stampTopK(body, STAMP_TOP_K_VALUE);
     if (changed) {
-      log.info(`stamped top_k=${ctx.config.stampTopK}`, {
+      log.info(`stamped top_k=${STAMP_TOP_K_VALUE}`, {
+        method: ctx.method,
+        path: ctx.url.pathname,
+      });
+      return true;
+    }
+    return false;
+  },
+};
+
+export const TemperatureStep: StampStep = {
+  label: "temperature",
+  applies(ctx) {
+    return ctx.config.stampClaudeCode;
+  },
+  apply(body, ctx) {
+    if (body === null || typeof body !== "object") return false;
+    const changed = stampTemperature(body, STAMP_TEMPERATURE_VALUE);
+    if (changed) {
+      log.info(`stamped temperature=${STAMP_TEMPERATURE_VALUE}`, {
         method: ctx.method,
         path: ctx.url.pathname,
       });
@@ -161,6 +203,8 @@ export const TopKStep: StampStep = {
 export const STAMP_PIPELINE: StampStep[] = [
   CacheTtlStep,
   AnthropicBodyStep,
+  ContextManagementStep,
   OpenAiReasoningStep,
   TopKStep,
+  TemperatureStep,
 ];

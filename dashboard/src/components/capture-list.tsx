@@ -12,7 +12,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useCaptureListbox } from "@/hooks/use-capture-listbox";
 import { cn } from "@/lib/utils";
 import type { CaptureSummary, GateStats } from "@/types";
-import { WsStatusBadge } from "./ws-status-badge";
 
 const ClearConfirmDialog = lazy(() =>
   import("@/components/clear-confirm-dialog").then((m) => ({
@@ -88,7 +87,6 @@ export function CaptureList({
           Captures <span className="text-muted-foreground">({captures.length})</span>
         </h2>
         <div className="flex items-center gap-2">
-          <WsStatusBadge wsState={wsState} />
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="outline" size="sm" onClick={() => setConfirmOpen(true)}>

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { ConcurrencyGate, GateError } from "../src/limiter.js";
+import { ConcurrencyGate, GateError } from "../src/limiter/index.js";
 import type { UsageSnapshot } from "../src/types.js";
 
 const opts = {
@@ -28,6 +28,8 @@ const failSnap: UsageSnapshot = {
   priorityLow: true,
   boxedUntil: null,
   boxedReason: null,
+  unitsDemoted: false,
+  demotedUntil: null,
 };
 
 test("acquire up to limit resolves immediately", async () => {

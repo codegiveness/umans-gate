@@ -16,14 +16,20 @@ export interface RawUsage {
     concurrent_sessions?: number;
     tokens_in?: number;
     tokens_out?: number;
-    priority?: { low?: boolean; boxed_until?: number | null; reason?: string | null };
+    priority?: {
+      low?: boolean;
+      boxed_until?: number | null;
+      reason?: string | null;
+      units_demoted?: boolean;
+      demoted_until?: number | null;
+    };
   };
 }
 
 /** Classify a plan display name into one of the known tiers.
  *  Uses substring matching so variants like "Code Max (Founding Seat)"
  *  still resolve to "Code Max". */
-export function classifyPlan(name: string | undefined): "Code Pro" | "Code Max" | "unknown" {
+function classifyPlan(name: string | undefined): "Code Pro" | "Code Max" | "unknown" {
   if (!name) return "unknown";
   const lower = name.toLowerCase();
   if (lower.includes("code max")) return "Code Max";
@@ -56,6 +62,8 @@ export function buildSnapshot(
     priorityLow: raw.usage?.priority?.low ?? false,
     boxedUntil: raw.usage?.priority?.boxed_until ?? null,
     boxedReason: raw.usage?.priority?.reason ?? null,
+    unitsDemoted: raw.usage?.priority?.units_demoted ?? false,
+    demotedUntil: raw.usage?.priority?.demoted_until ?? null,
   };
 }
 
@@ -77,5 +85,7 @@ export function failSafeSnapshot(): UsageSnapshot {
     priorityLow: true,
     boxedUntil: null,
     boxedReason: null,
+    unitsDemoted: false,
+    demotedUntil: null,
   };
 }

@@ -28,9 +28,7 @@ export function imageCacheKey(
 
 /**
  * Description-cache key over (image_hash, prompt_version, model_id).
- * The optional `_descriptionText` is intentionally NOT part of the key:
- * it exists for backward-compat with callers that pass 6 args; description
- * text is a VALUE, not part of the KEY.
+ * Description text is a VALUE, not part of the KEY.
  */
 export function descriptionCacheKey(
   bytes: Buffer | Uint8Array,
@@ -38,7 +36,6 @@ export function descriptionCacheKey(
   encoderVersion: string,
   modelId: string,
   promptVersion: number,
-  _descriptionText?: string,
 ): string {
   const base = imageCacheKey(bytes, recipe, encoderVersion);
   const h = new Bun.CryptoHasher("sha256");

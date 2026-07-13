@@ -2,6 +2,7 @@ import { Menu } from "lucide-react";
 import { Suspense, lazy, useState } from "react";
 import type { ReactNode } from "react";
 
+import { ApiKeyGate } from "@/components/api-key-gate";
 import { CaptureDetailPanel } from "@/components/capture-detail";
 import { CaptureList } from "@/components/capture-list";
 import {
@@ -13,8 +14,10 @@ import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { WsStatusBadge } from "@/components/ws-status-badge";
 import { useCaptures } from "@/hooks/use-captures";
 import { useClipboard } from "@/hooks/use-clipboard";
+import { ConfigProvider } from "@/hooks/use-config-context";
 
 const ConfigTab = lazy(() =>
   import("@/components/config-tab").then((m) => ({ default: m.ConfigTab })),
@@ -24,6 +27,9 @@ const ModelsTab = lazy(() =>
 );
 const PerformanceMeter = lazy(() =>
   import("@/components/performance-meter").then((m) => ({ default: m.PerformanceMeter })),
+);
+const EconomicsTab = lazy(() =>
+  import("@/components/economics-tab").then((m) => ({ default: m.EconomicsTab })),
 );
 const VisionCalls = lazy(() =>
   import("@/components/vision-calls").then((m) => ({ default: m.VisionCalls })),
@@ -76,117 +82,139 @@ export function App() {
   const [copyStatus, setCopyStatus] = useState("Copy");
 
   return (
-    <TooltipProvider delay={300}>
-      <MasterDetailProvider>
-        <div className="h-screen flex flex-col overflow-hidden bg-background text-foreground">
-          <a
-            href="#main"
-            className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:shadow-lg focus:border focus:border-border"
-          >
-            Skip to content
-          </a>
-          <Tabs defaultValue="captures" className="flex flex-1 flex-col overflow-hidden">
-            <header className="flex items-center gap-2 px-4 py-2 border-b bg-background">
-              <MobileDrawerTrigger />
-              <h1 className="text-base font-semibold shrink-0">umans-gate</h1>
-              <div className="tab-scroll flex-1 min-w-0 overflow-x-auto overflow-y-hidden scrollbar-none">
-                <TabsList className="flex w-max md:mx-auto md:w-fit">
-                  <TabTriggerWithTip
-                    value="captures"
-                    label="Captures"
-                    tip="Live log of every intercepted API call"
-                  />
-                  <TabTriggerWithTip
-                    value="vision"
-                    label="Vision Calls"
-                    tip="Image-bearing requests with model responses"
-                  />
-                  <TabTriggerWithTip
-                    value="performance"
-                    label="Performance"
-                    tip="Per-model TTFT, TPS, and token throughput"
-                  />
-                  <TabTriggerWithTip
-                    value="models"
-                    label="Models"
-                    tip="Upstream model catalog with pricing"
-                  />
-                  <TabTriggerWithTip
-                    value="config"
-                    label="Config"
-                    tip="Edit proxy settings and reload live"
-                  />
-                </TabsList>
-              </div>
-              <Suspense fallback={null}>
-                <ModeToggle />
-              </Suspense>
-            </header>
-            <main id="main" aria-label="Inspector" className="flex-1 flex flex-col overflow-hidden">
-              <TabsContent value="captures" className="flex-1 overflow-hidden" keepMounted>
-                <MasterDetailLayout
-                  master={
-                    <CaptureList
-                      captures={captures}
-                      selectedId={selectedId}
-                      wsState={wsState}
-                      gateStats={gateStats}
-                      listError={listError}
-                      isLoading={isLoadingList}
-                      onSelect={selectCapture}
-                      onClear={clearCaptures}
-                      onRetry={retryList}
+    <ConfigProvider>
+      <TooltipProvider delay={300}>
+        <MasterDetailProvider>
+          <ApiKeyGate />
+          <div className="h-screen flex flex-col overflow-hidden bg-background text-foreground">
+            <a
+              href="#main"
+              className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 focus:rounded-md focus:bg-background focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:shadow-lg focus:border focus:border-border"
+            >
+              Skip to content
+            </a>
+            <h1 className="sr-only">umans-gate</h1>
+            <Tabs defaultValue="captures" className="flex flex-1 flex-col overflow-hidden">
+              <header className="flex items-center gap-2 px-4 py-2 border-b bg-background">
+                <MobileDrawerTrigger />
+                <WsStatusBadge wsState={wsState} />
+                <div className="tab-scroll flex-1 min-w-0 overflow-x-auto overflow-y-hidden scrollbar-none">
+                  <TabsList className="flex w-max md:mx-auto md:w-fit">
+                    <TabTriggerWithTip
+                      value="captures"
+                      label="Captures"
+                      tip="Live log of every intercepted API call"
                     />
-                  }
-                  detail={
-                    <CaptureDetailPanel
-                      capture={selectedCapture}
-                      isLoading={isLoadingDetail}
-                      detailError={detailError}
-                      onCopy={copyText}
-                      onCopyStatus={setCopyStatus}
-                      onRetry={retryDetail}
+                    <TabTriggerWithTip
+                      value="vision"
+                      label="Vision Calls"
+                      tip="Image-bearing requests with model responses"
                     />
-                  }
-                  masterAriaLabel="Captures list"
-                  detailAriaLabel="Capture detail"
-                />
-              </TabsContent>
-              <TabsContent value="vision" className="min-h-0 flex-1 overflow-hidden" keepMounted>
-                <Suspense fallback={<TabPanelFallback />}>
-                  <VisionCalls />
+                    <TabTriggerWithTip
+                      value="performance"
+                      label="Performance"
+                      tip="Per-model TTFT, TPS, and token throughput"
+                    />
+                    <TabTriggerWithTip
+                      value="economics"
+                      label="Economics"
+                      tip="Daily usage accumulation and cost tracking"
+                    />
+                    <TabTriggerWithTip
+                      value="models"
+                      label="Models"
+                      tip="Upstream model catalog with pricing"
+                    />
+                    <TabTriggerWithTip
+                      value="config"
+                      label="Config"
+                      tip="Edit proxy settings and reload live"
+                    />
+                  </TabsList>
+                </div>
+                <Suspense fallback={null}>
+                  <ModeToggle />
                 </Suspense>
-              </TabsContent>
-              <TabsContent
-                value="performance"
-                className="min-h-0 flex-1 overflow-hidden"
-                keepMounted
+              </header>
+              <main
+                id="main"
+                aria-label="Inspector"
+                className="flex-1 flex flex-col overflow-hidden"
               >
-                <Suspense fallback={<TabPanelFallback />}>
-                  <PerformanceMeter />
-                </Suspense>
-              </TabsContent>
-              <TabsContent value="models" className="min-h-0 flex-1 overflow-hidden" keepMounted>
-                <Suspense fallback={<TabPanelFallback />}>
-                  <ModelsTab />
-                </Suspense>
-              </TabsContent>
-              <TabsContent value="config" className="min-h-0 flex-1 overflow-hidden" keepMounted>
-                <Suspense fallback={<TabPanelFallback />}>
-                  <ConfigTab />
-                </Suspense>
-              </TabsContent>
-            </main>
-          </Tabs>
-          <Suspense fallback={null}>
-            <Toaster />
-          </Suspense>
-          <output aria-live="polite" className="sr-only">
-            {copyStatus}
-          </output>
-        </div>
-      </MasterDetailProvider>
-    </TooltipProvider>
+                <TabsContent value="captures" className="flex-1 overflow-hidden" keepMounted>
+                  <MasterDetailLayout
+                    master={
+                      <CaptureList
+                        captures={captures}
+                        selectedId={selectedId}
+                        wsState={wsState}
+                        gateStats={gateStats}
+                        listError={listError}
+                        isLoading={isLoadingList}
+                        onSelect={selectCapture}
+                        onClear={clearCaptures}
+                        onRetry={retryList}
+                      />
+                    }
+                    detail={
+                      <CaptureDetailPanel
+                        capture={selectedCapture}
+                        isLoading={isLoadingDetail}
+                        detailError={detailError}
+                        onCopy={copyText}
+                        onCopyStatus={setCopyStatus}
+                        onRetry={retryDetail}
+                      />
+                    }
+                    masterAriaLabel="Captures list"
+                    detailAriaLabel="Capture detail"
+                  />
+                </TabsContent>
+                <TabsContent value="vision" className="min-h-0 flex-1 overflow-hidden" keepMounted>
+                  <Suspense fallback={<TabPanelFallback />}>
+                    <VisionCalls />
+                  </Suspense>
+                </TabsContent>
+                <TabsContent
+                  value="performance"
+                  className="min-h-0 flex-1 overflow-hidden"
+                  keepMounted
+                >
+                  <Suspense fallback={<TabPanelFallback />}>
+                    <PerformanceMeter />
+                  </Suspense>
+                </TabsContent>
+                <TabsContent value="models" className="min-h-0 flex-1 overflow-hidden" keepMounted>
+                  <Suspense fallback={<TabPanelFallback />}>
+                    <ModelsTab />
+                  </Suspense>
+                </TabsContent>
+                <TabsContent
+                  value="economics"
+                  className="min-h-0 flex-1 overflow-hidden"
+                  keepMounted
+                >
+                  <Suspense fallback={<TabPanelFallback />}>
+                    <EconomicsTab />
+                  </Suspense>
+                </TabsContent>
+                <TabsContent value="config" className="min-h-0 flex-1 overflow-hidden" keepMounted>
+                  <Suspense fallback={<TabPanelFallback />}>
+                    <ConfigTab />
+                  </Suspense>
+                </TabsContent>
+              </main>
+            </Tabs>
+            <Suspense fallback={null}>
+              <Toaster />
+            </Suspense>
+            <output aria-live="polite" className="sr-only">
+              {copyStatus}
+            </output>
+          </div>
+        </MasterDetailProvider>
+      </TooltipProvider>
+    </ConfigProvider>
   );
 }
 

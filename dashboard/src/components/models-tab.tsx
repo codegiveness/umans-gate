@@ -1,4 +1,4 @@
-import { AlertCircle, Boxes, Brain, Eye, RefreshCw, Wrench } from "lucide-react";
+import { AlertCircle, Boxes, Brain, ExternalLink, Eye, RefreshCw, Wrench } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -141,11 +141,14 @@ function ModelCard({ entry, fetchedAt }: { entry: ModelEntry; fetchedAt: number 
         </div>
 
         {/* Provider / family line */}
-        {info?.base_model && (info.base_model.provider || info.base_model.family) && (
-          <p className="text-[11px] text-muted-foreground">
-            {[info.base_model.provider, info.base_model.family].filter(Boolean).join(" · ")}
-          </p>
-        )}
+        {info?.base_model &&
+          (info.base_model.provider || info.base_model.family || info.base_model.oss_base) && (
+            <p className="text-[11px] text-muted-foreground">
+              {[info.base_model.provider, info.base_model.family, info.base_model.oss_base]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          )}
 
         {/* Description */}
         {info?.description && (
@@ -157,27 +160,66 @@ function ModelCard({ entry, fetchedAt }: { entry: ModelEntry; fetchedAt: number 
         {/* Capabilities badges */}
         {caps && (
           <div className="flex flex-wrap gap-1">
-            <CapabilityBadge icon={<Boxes className="h-3 w-3" />}>
+            <CapabilityBadge
+              icon={<Boxes className="h-3 w-3" />}
+              tooltip="Maximum number of tokens (input + output) the model can process in a single request."
+            >
               {formatTokens(caps.context_window)} ctx
             </CapabilityBadge>
             {caps.max_completion_tokens > 0 && (
-              <CapabilityBadge>{formatTokens(caps.max_completion_tokens)} max out</CapabilityBadge>
+              <CapabilityBadge tooltip="Hard ceiling on output tokens per response. Requests asking for more will be capped or rejected.">
+                {formatTokens(caps.max_completion_tokens)} max out
+              </CapabilityBadge>
             )}
+            {caps.recommended_max_tokens > 0 &&
+              caps.recommended_max_tokens !== caps.max_completion_tokens && (
+                <CapabilityBadge tooltip="Suggested output token limit for best quality. Exceeding this may degrade responses.">
+                  {formatTokens(caps.recommended_max_tokens)} rec out
+                </CapabilityBadge>
+              )}
             {caps.supports_vision === true && (
-              <CapabilityBadge icon={<Eye className="h-3 w-3" />}>vision</CapabilityBadge>
+              <CapabilityBadge
+                icon={<Eye className="h-3 w-3" />}
+                tooltip="Accepts image inputs directly — the model processes images natively."
+              >
+                vision
+              </CapabilityBadge>
             )}
             {caps.supports_vision === "via-handoff" && (
-              <CapabilityBadge icon={<Eye className="h-3 w-3" />} variant="outline">
+              <CapabilityBadge
+                icon={<Eye className="h-3 w-3" />}
+                variant="outline"
+                tooltip="Image inputs are forwarded to a secondary model for preprocessing, then handed back. Less efficient than native vision; may be retired."
+              >
                 vision handoff
               </CapabilityBadge>
             )}
             {caps.supports_tools && (
-              <CapabilityBadge icon={<Wrench className="h-3 w-3" />}>tools</CapabilityBadge>
+              <CapabilityBadge
+                icon={<Wrench className="h-3 w-3" />}
+                tooltip="Supports function/tool calling — the model can emit structured tool-use requests that clients execute."
+              >
+                tools
+              </CapabilityBadge>
             )}
             {reasoning?.supported && (
-              <CapabilityBadge icon={<Brain className="h-3 w-3" />}>
+              <CapabilityBadge
+                icon={<Brain className="h-3 w-3" />}
+                tooltip={
+                  reasoning.can_disable
+                    ? `Extended thinking is supported and can be toggled. Default level: ${reasoning.default_level ?? "on"}. Available levels: ${reasoning.levels.length > 0 ? reasoning.levels.join(", ") : "default"}.`
+                    : `Extended thinking is always on and cannot be disabled. Default level: ${reasoning.default_level ?? "on"}.`
+                }
+              >
                 {reasoning.default_level ?? "on"}
                 {!reasoning.can_disable && " · locked"}
+              </CapabilityBadge>
+            )}
+            {info?.weights?.precision && (
+              <CapabilityBadge
+                tooltip={`Weight precision: ${info.weights.precision}. "full" means unquantized (higher quality, more VRAM). "fp8" is 8-bit quantized (lower memory, faster, minor quality loss).`}
+              >
+                {info.weights.precision}
               </CapabilityBadge>
             )}
           </div>
@@ -199,6 +241,19 @@ function ModelCard({ entry, fetchedAt }: { entry: ModelEntry; fetchedAt: number 
           <p className="mt-auto text-xs italic text-muted-foreground">no pricing</p>
         )}
 
+        {/* Weights / model source link */}
+        {info?.weights?.hf_url && (
+          <a
+            href={info.weights.hf_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ExternalLink className="h-3 w-3" />
+            HuggingFace weights
+          </a>
+        )}
+
         {fetchedAt === 0 && (
           <p className="text-[11px] text-muted-foreground">catalog not yet fetched</p>
         )}
@@ -212,17 +267,27 @@ function CapabilityBadge({
   icon,
   variant,
   className,
+  tooltip,
 }: {
   children: ReactNode;
   icon?: ReactNode;
   variant?: "default" | "secondary" | "outline" | "destructive";
   className?: string;
+  tooltip: string;
 }) {
-  return (
+  const badge = (
     <Badge variant={variant ?? "outline"} size="sm" className={cn("gap-1", className)}>
       {icon}
       {children}
     </Badge>
+  );
+  return (
+    <Tooltip>
+      <TooltipTrigger render={<span className="inline-flex" />}>{badge}</TooltipTrigger>
+      <TooltipContent side="top" className="max-w-[260px]">
+        {tooltip}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 

@@ -7,7 +7,7 @@
 // broadcast (and vice versa).
 
 import { type CaptureDB, flattenUsage } from "../db.js";
-import type { CaptureSummary, WsMessage } from "../types.js";
+import type { CaptureSummary, ProtocolConfig, WsMessage } from "../types.js";
 import type { UsageMetrics } from "../usage/types.js";
 import type { WsBroadcaster } from "../ws.js";
 import type { VisionCallRecord } from "./handoff.js";
@@ -101,6 +101,8 @@ export interface VisionRecord {
   httpExchange?: VisionHttpExchange;
   /** Parsed usage metrics for token accounting (null if absent). */
   usage: UsageMetrics | null;
+  /** CaptureDB row id when the row has already been inserted (lifecycle path). */
+  dbId?: number;
 }
 
 /**
@@ -148,13 +150,17 @@ export class CompositeVisionSink implements VisionRecordSink {
  * previously built inline.
  */
 export class DbVisionSink implements VisionRecordSink {
-  constructor(private readonly db: CaptureDB) {}
+  constructor(
+    private readonly db: CaptureDB,
+    private readonly protocolConfig: ProtocolConfig,
+  ) {}
 
   record(record: VisionRecord): void {
+    if (record.dbId !== undefined) return;
     const { rec, usage } = record;
     const parts = buildSinkRecord(record, { includeUrl: true });
 
-    this.db.insertVisionCapture({
+    record.dbId = this.db.insertVisionCapture({
       $method: "POST",
       $path: parts.path,
       $url: parts.url,
@@ -167,10 +173,11 @@ export class DbVisionSink implements VisionRecordSink {
       $rs2: parts.resBody.length,
       $ct: "application/json",
       $dur: rec.latencyMs,
+      $state: rec.state,
       $started_at: parts.startedAt,
       $finished_at: rec.timestamp,
-      $inp: "",
-      $outp: "",
+      $inp: this.protocolConfig.incomingProtocol,
+      $outp: this.protocolConfig.upstreamProtocol,
       $model: rec.model,
       $parent_capture_id: rec.captureId ?? null,
       $vision_meta: parts.metaJson,
@@ -185,15 +192,18 @@ export class DbVisionSink implements VisionRecordSink {
  * previously built inline.
  */
 export class WsBroadcastVisionSink implements VisionRecordSink {
-  constructor(private readonly ws: WsBroadcaster) {}
+  constructor(
+    private readonly ws: WsBroadcaster,
+    private readonly protocolConfig: ProtocolConfig,
+  ) {}
 
   record(record: VisionRecord): void {
     const { rec, usage } = record;
     const parts = buildSinkRecord(record);
     const msg: WsMessage = {
-      type: "new",
+      type: record.dbId ? "update" : "new",
       capture: {
-        id: rec.id,
+        id: record.dbId ?? rec.id,
         method: "POST",
         path: parts.path,
         response_status: parts.status,
@@ -202,11 +212,11 @@ export class WsBroadcastVisionSink implements VisionRecordSink {
         request_size: parts.reqBody.length,
         response_size: parts.resBody.length,
         duration_ms: rec.latencyMs,
-        state: "done",
+        state: rec.state,
         started_at: parts.startedAt,
         finished_at: rec.timestamp,
-        incoming_protocol: "",
-        upstream_protocol: "",
+        incoming_protocol: this.protocolConfig.incomingProtocol,
+        upstream_protocol: this.protocolConfig.upstreamProtocol,
         model: rec.model,
         usage_missing: usage ? usage.usage_missing : null,
         ttft_ms: usage?.ttft_ms ?? null,
@@ -217,6 +227,8 @@ export class WsBroadcastVisionSink implements VisionRecordSink {
         output_tokens: usage?.output_tokens ?? null,
         total_output_tokens: usage?.total_output_tokens ?? null,
         is_vision: true,
+        status_source: "upstream",
+        gate_reason: null,
       } satisfies CaptureSummary,
     };
     this.ws.broadcast(msg);

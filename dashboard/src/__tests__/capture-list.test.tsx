@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { CaptureList } from "@/components/capture-list";
+import { flushEffects } from "@/test/utils";
 import type { CaptureSummary } from "@/types";
 
 const ROW_HEIGHT = 76;
@@ -59,6 +60,8 @@ function makeCapture(overrides: Partial<CaptureSummary> = {}): CaptureSummary {
     output_tokens: 200,
     total_output_tokens: 200,
     is_vision: false,
+    status_source: null,
+    gate_reason: null,
     ...overrides,
   };
 }
@@ -73,7 +76,7 @@ const baseProps = {
 };
 
 describe("CaptureList listbox keyboard navigation", () => {
-  it("renders a listbox with aria-label and options", () => {
+  it("renders a listbox with aria-label and options", async () => {
     const captures = [
       makeCapture({ id: 1, path: "/v1/messages" }),
       makeCapture({ id: 2, path: "/v1/chat/completions" }),
@@ -81,6 +84,7 @@ describe("CaptureList listbox keyboard navigation", () => {
     ];
 
     render(<CaptureList captures={captures} selectedId={null} onSelect={vi.fn()} {...baseProps} />);
+    await flushEffects();
 
     const listbox = screen.getByRole("listbox", { name: "Captures" });
     expect(listbox).toBeInTheDocument();
@@ -101,6 +105,7 @@ describe("CaptureList listbox keyboard navigation", () => {
     ];
 
     render(<CaptureList captures={captures} selectedId={null} onSelect={vi.fn()} {...baseProps} />);
+    await flushEffects();
 
     const listbox = screen.getByRole("listbox");
     listbox.focus();
@@ -137,6 +142,7 @@ describe("CaptureList listbox keyboard navigation", () => {
     ];
 
     render(<CaptureList captures={captures} selectedId={null} onSelect={vi.fn()} {...baseProps} />);
+    await flushEffects();
 
     const listbox = screen.getByRole("listbox");
     listbox.focus();
@@ -160,6 +166,7 @@ describe("CaptureList listbox keyboard navigation", () => {
     render(
       <CaptureList captures={captures} selectedId={null} onSelect={onSelect} {...baseProps} />,
     );
+    await flushEffects();
 
     const listbox = screen.getByRole("listbox");
     listbox.focus();
@@ -181,6 +188,7 @@ describe("CaptureList listbox keyboard navigation", () => {
     render(
       <CaptureList captures={captures} selectedId={null} onSelect={onSelect} {...baseProps} />,
     );
+    await flushEffects();
 
     const listbox = screen.getByRole("listbox");
     listbox.focus();
@@ -203,6 +211,7 @@ describe("CaptureList listbox keyboard navigation", () => {
     render(
       <CaptureList captures={captures} selectedId={null} onSelect={onSelect} {...baseProps} />,
     );
+    await flushEffects();
 
     const listbox = screen.getByRole("listbox");
     const options = within(listbox).getAllByRole("option");
@@ -220,7 +229,7 @@ describe("CaptureList listbox keyboard navigation", () => {
     expect(listbox).toHaveAttribute("aria-activedescendant", "capture-opt-3");
   });
 
-  it("syncs activeIndex when selectedId prop changes", () => {
+  it("syncs activeIndex when selectedId prop changes", async () => {
     const captures = [
       makeCapture({ id: 1, path: "/v1/messages" }),
       makeCapture({ id: 2, path: "/v1/chat" }),
@@ -230,6 +239,7 @@ describe("CaptureList listbox keyboard navigation", () => {
     const { rerender } = render(
       <CaptureList captures={captures} selectedId={null} onSelect={vi.fn()} {...baseProps} />,
     );
+    await flushEffects();
 
     const listbox = screen.getByRole("listbox");
     expect(listbox).toHaveAttribute("aria-activedescendant", "capture-opt-1");
@@ -244,6 +254,7 @@ describe("CaptureList listbox keyboard navigation", () => {
     const onSelect = vi.fn();
 
     render(<CaptureList captures={[]} selectedId={null} onSelect={onSelect} {...baseProps} />);
+    await flushEffects();
 
     // When the list is empty, the container has no listbox role (no options
     // to select), but is still focusable and handles keyboard events.
@@ -271,6 +282,7 @@ describe("CaptureList listbox keyboard navigation", () => {
     ];
 
     render(<CaptureList captures={captures} selectedId={null} onSelect={vi.fn()} {...baseProps} />);
+    await flushEffects();
 
     const listbox = screen.getByRole("listbox");
     listbox.focus();
@@ -283,5 +295,33 @@ describe("CaptureList listbox keyboard navigation", () => {
     await user.keyboard("e");
 
     expect(listbox).toHaveAttribute("aria-activedescendant", "capture-opt-3");
+  });
+
+  it("hides TTFT placeholder while running until first token is recorded", async () => {
+    const captures = [makeCapture({ id: 1, state: "streaming", model: "claude-3", ttft_ms: null })];
+
+    render(<CaptureList captures={captures} selectedId={null} onSelect={vi.fn()} {...baseProps} />);
+    await flushEffects();
+
+    const option = screen.getByRole("option");
+    const pathRow = option.querySelector(".truncate.font-mono");
+    expect(screen.getByText("running")).toBeInTheDocument();
+    expect(pathRow).toHaveTextContent(/claude-3/);
+    expect(within(option).queryByText(/ttft/)).not.toBeInTheDocument();
+  });
+
+  it("shows model and TTFT in their own rows while streaming once available", async () => {
+    const captures = [
+      makeCapture({ id: 1, state: "streaming", model: "claude-sonnet-4", ttft_ms: 245 }),
+    ];
+
+    render(<CaptureList captures={captures} selectedId={null} onSelect={vi.fn()} {...baseProps} />);
+    await flushEffects();
+
+    const option = screen.getByRole("option");
+    const pathRow = option.querySelector(".truncate.font-mono");
+    expect(screen.getByText("running")).toBeInTheDocument();
+    expect(pathRow).toHaveTextContent(/claude-sonnet-4/);
+    expect(within(option).getByText(/ttft 245ms/)).toBeInTheDocument();
   });
 });

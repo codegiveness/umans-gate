@@ -62,20 +62,31 @@ export function useCaptures(): UseCapturesResult {
     onCaptureClear: () => {
       setCaptures([]);
     },
+    onVisionClear: () => {
+      setCaptures((prev) => prev.filter((c) => !c.is_vision));
+    },
     onCaptureState: (captureId, state) => {
-      setCaptures((prev) => prev.map((c) => (c.id === captureId ? { ...c, state } : c)));
+      setCaptures((prev) => {
+        const i = prev.findIndex((c) => c.id === captureId);
+        if (i < 0) return prev;
+        const next = prev.slice();
+        next[i] = { ...next[i], state };
+        return next;
+      });
     },
     onGateStats: (stats) => {
       setGateStats(stats);
     },
     onCaptureUpsert: (capture, isNew) => {
       setCaptures((prev) => {
-        const next = [...prev];
-        const i = next.findIndex((x) => x.id === capture.id);
-        if (i >= 0) next[i] = capture;
-        else next.unshift(capture);
-        next.sort((a, b) => b.id - a.id);
-        return next;
+        const i = prev.findIndex((x) => x.id === capture.id);
+        if (i >= 0) {
+          const next = prev.slice();
+          next[i] = capture;
+          return next;
+        }
+        // New capture: prepend (newest id goes to front since ids are monotonic)
+        return [capture, ...prev];
       });
 
       if (!isNew && capture.state === "done") {

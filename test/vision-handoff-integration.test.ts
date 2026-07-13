@@ -119,12 +119,13 @@ describe("Vision handoff integration", () => {
     const vision = startMockVisionUpstream();
     const proxy = await startProxy({
       TARGET: `http://127.0.0.1:${upstream.port}`,
-      STAMP_CACHE_TTL_ENABLED: "false",
+      STAMP_CLAUDE_CODE_ENABLED: "false",
       WARMER_ENABLED: "false",
+      USAGE_REFRESH_MS: "999999",
       VISION_STRATEGY: "catalog",
       VISION_TARGET: `http://127.0.0.1:${vision.port}/v1/chat/completions`,
       VISION_MODEL: "gpt-4o",
-      VISION_API_KEY: "test-key",
+      UMANS_API_KEY: "test-key",
     });
 
     try {
@@ -165,12 +166,13 @@ describe("Vision handoff integration", () => {
     const vision = startMockVisionUpstream();
     const proxy = await startProxy({
       TARGET: `http://127.0.0.1:${upstream.port}`,
-      STAMP_CACHE_TTL_ENABLED: "false",
+      STAMP_CLAUDE_CODE_ENABLED: "false",
       WARMER_ENABLED: "false",
+      USAGE_REFRESH_MS: "999999",
       VISION_STRATEGY: "always",
       VISION_TARGET: `http://127.0.0.1:${vision.port}/v1/chat/completions`,
       VISION_MODEL: "gpt-4o",
-      VISION_API_KEY: "test-key",
+      UMANS_API_KEY: "test-key",
     });
 
     try {
@@ -233,12 +235,13 @@ describe("Vision handoff integration", () => {
     const vision = startMockVisionUpstream();
     const proxy = await startProxy({
       TARGET: `http://127.0.0.1:${upstream.port}`,
-      STAMP_CACHE_TTL_ENABLED: "false",
+      STAMP_CLAUDE_CODE_ENABLED: "false",
       WARMER_ENABLED: "false",
+      USAGE_REFRESH_MS: "999999",
       VISION_STRATEGY: "always",
       VISION_TARGET: `http://127.0.0.1:${vision.port}/v1/chat/completions`,
       VISION_MODEL: "gpt-4o",
-      VISION_API_KEY: "test-key",
+      UMANS_API_KEY: "test-key",
     });
 
     try {
@@ -312,12 +315,13 @@ describe("Vision handoff integration", () => {
     const vision = startMockVisionUpstream({ status: 500 });
     const proxy = await startProxy({
       TARGET: `http://127.0.0.1:${upstream.port}`,
-      STAMP_CACHE_TTL_ENABLED: "false",
+      STAMP_CLAUDE_CODE_ENABLED: "false",
       WARMER_ENABLED: "false",
+      USAGE_REFRESH_MS: "999999",
       VISION_STRATEGY: "always",
       VISION_TARGET: `http://127.0.0.1:${vision.port}/v1/chat/completions`,
       VISION_MODEL: "gpt-4o",
-      VISION_API_KEY: "test-key",
+      UMANS_API_KEY: "test-key",
     });
 
     try {
@@ -377,12 +381,13 @@ describe("Vision handoff integration", () => {
     const vision = startMockVisionUpstream();
     const proxy = await startProxy({
       TARGET: `http://127.0.0.1:${upstream.port}`,
-      STAMP_CACHE_TTL_ENABLED: "false",
+      STAMP_CLAUDE_CODE_ENABLED: "false",
       WARMER_ENABLED: "false",
+      USAGE_REFRESH_MS: "999999",
       VISION_STRATEGY: "always",
       VISION_TARGET: `http://127.0.0.1:${vision.port}/v1/chat/completions`,
       VISION_MODEL: "gpt-4o",
-      VISION_API_KEY: "test-key",
+      UMANS_API_KEY: "test-key",
     });
 
     try {
@@ -447,12 +452,13 @@ describe("Vision handoff integration", () => {
     });
     const proxy = await startProxy({
       TARGET: `http://127.0.0.1:${upstream.port}`,
-      STAMP_CACHE_TTL_ENABLED: "false",
+      STAMP_CLAUDE_CODE_ENABLED: "false",
       WARMER_ENABLED: "false",
+      USAGE_REFRESH_MS: "999999",
       VISION_STRATEGY: "always",
       VISION_TARGET: `http://127.0.0.1:${vision.port}/v1/chat/completions`,
       VISION_MODEL: "gpt-4o",
-      VISION_API_KEY: "test-key",
+      UMANS_API_KEY: "test-key",
     });
 
     try {
@@ -508,12 +514,13 @@ describe("Vision handoff integration", () => {
     const vision = startMockVisionUpstream({ delayMs: 300 });
     const proxy = await startProxy({
       TARGET: `http://127.0.0.1:${upstream.port}`,
-      STAMP_CACHE_TTL_ENABLED: "false",
+      STAMP_CLAUDE_CODE_ENABLED: "false",
       WARMER_ENABLED: "false",
+      USAGE_REFRESH_MS: "999999",
       VISION_STRATEGY: "always",
       VISION_TARGET: `http://127.0.0.1:${vision.port}/v1/chat/completions`,
       VISION_MODEL: "gpt-4o",
-      VISION_API_KEY: "test-key",
+      UMANS_API_KEY: "test-key",
       VISION_CONCURRENCY: "1",
     });
 
@@ -594,9 +601,9 @@ describe("Vision handoff integration", () => {
 
     const proxy = await startProxy({
       TARGET: `http://127.0.0.1:${upstream.port}`,
-      STAMP_CACHE_TTL_ENABLED: "false",
+      STAMP_CLAUDE_CODE_ENABLED: "false",
       WARMER_ENABLED: "false",
-      STAMP_TOP_K_ENABLED: "false",
+      USAGE_REFRESH_MS: "999999",
       VISION_STRATEGY: "always",
       VISION_TARGET: `http://127.0.0.1:${visionServer.port}/v1/chat/completions`,
       VISION_MODEL: "gpt-4o",
@@ -688,9 +695,9 @@ describe("Vision handoff integration", () => {
 
     const proxy = await startProxy({
       TARGET: `http://127.0.0.1:${upstream.port}`,
-      STAMP_CACHE_TTL_ENABLED: "false",
+      STAMP_CLAUDE_CODE_ENABLED: "false",
       WARMER_ENABLED: "false",
-      STAMP_TOP_K_ENABLED: "false",
+      USAGE_REFRESH_MS: "999999",
       VISION_STRATEGY: "always",
       VISION_TARGET: `http://127.0.0.1:${visionServer.port}/v1/chat/completions`,
       VISION_MODEL: "gpt-4o",
@@ -811,12 +818,13 @@ describe("Vision handoff integration", () => {
 
     const proxy = await startProxy({
       TARGET: `http://127.0.0.1:${upstream.port}`,
-      STAMP_CACHE_TTL_ENABLED: "false",
+      STAMP_CLAUDE_CODE_ENABLED: "false",
       WARMER_ENABLED: "false",
+      USAGE_REFRESH_MS: "999999",
       VISION_STRATEGY: "always",
       VISION_TARGET: `http://127.0.0.1:${visionPort}/v1/chat/completions`,
       VISION_MODEL: "gpt-4o",
-      VISION_API_KEY: "test-key",
+      UMANS_API_KEY: "test-key",
       VISION_REASONING_EFFORT: "high",
     });
 
@@ -877,12 +885,13 @@ describe("Vision handoff integration", () => {
     const vision = startMockVisionUpstream({ description: "A red pixel." });
     const proxy = await startProxy({
       TARGET: `http://127.0.0.1:${upstream.port}`,
-      STAMP_CACHE_TTL_ENABLED: "true",
+      STAMP_CLAUDE_CODE_ENABLED: "true",
       WARMER_ENABLED: "false",
+      USAGE_REFRESH_MS: "999999",
       VISION_STRATEGY: "always",
       VISION_TARGET: `http://127.0.0.1:${vision.port}/v1/chat/completions`,
       VISION_MODEL: "gpt-4o",
-      VISION_API_KEY: "test-key",
+      UMANS_API_KEY: "test-key",
     });
 
     try {

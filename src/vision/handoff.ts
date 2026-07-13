@@ -8,10 +8,12 @@
 // All I/O here is async; the synchronous `DescriptionCache` is consulted
 // before any network call so cache hits never touch the network.
 
+import { flattenUsage } from "../db.js";
 import type { CaptureDB } from "../db.js";
 import { headersToObject, redactHeaders } from "../helpers.js";
-import { ConcurrencyGate } from "../limiter.js";
+import { ConcurrencyGate } from "../limiter/index.js";
 import { createLogger } from "../logger.js";
+import type { CaptureState, ProtocolConfig } from "../types.js";
 import { extractOpenAiNonStreaming } from "../usage/extract.js";
 import type { UsageMetrics } from "../usage/types.js";
 import type { CompressionRecipe, DescriptionCache } from "./cache.js";
@@ -30,7 +32,7 @@ import { applyMaxImagesPolicy, failurePlaceholder, wrapDescription } from "./wra
 const log = createLogger("vision");
 
 /** Strategy for when to rewrite image-bearing requests. */
-export type VisionStrategy = "never" | "catalog" | "always";
+type VisionStrategy = "never" | "catalog" | "always";
 
 const DEFAULT_VISION_BREAKER_THRESHOLD = 100;
 const DEFAULT_VISION_BREAKER_WINDOW_MS = 5000;
@@ -76,10 +78,12 @@ export interface VisionConfig {
   maxQueueDepth?: number;
   /** Timeout for queued permits waiting for a free slot. */
   queueTimeoutMs?: number;
+  /** When true, cache misses forward the original body immediately and process vision in the background. */
+  backgroundVision: boolean;
 }
 
 /** Per-call statistics surfaced back to the caller. */
-export interface VisionStats {
+interface VisionStats {
   handoffCount: number;
   cacheHits: number;
   cacheMisses: number;
@@ -110,6 +114,9 @@ export interface VisionCallRecord {
   latencyMs: number;
   description: string;
   error: string | null;
+  incomingProtocol: string;
+  upstreamProtocol: string;
+  state: CaptureState;
 }
 
 /** Result of {@link processBody}. */
@@ -144,13 +151,6 @@ const ENCODER_VERSION = "bun-image-v2";
  */
 const CACHE_MISS = Symbol("cache-miss");
 
-/**
- * Typed union for a cache lookup that may return a cached value or the cache-miss
- * sentinel. This is the canonical type for the lookup result and can be adopted
- * incrementally by future call sites without breaking existing code.
- */
-export type CacheLookupResult<T> = T | typeof CACHE_MISS;
-
 function recipeFromConfig(cfg: VisionConfig): CompressionRecipe {
   return {
     format: cfg.imageFormat,
@@ -180,6 +180,11 @@ export class VisionHandoff {
     gate?: ConcurrencyGate,
     private readonly db?: CaptureDB,
     private readonly sink?: VisionRecordSink,
+    private readonly protocolConfig: ProtocolConfig = {
+      incomingProtocol: "http1.1",
+      upstreamProtocol: "http1.1",
+      upstreamTimeoutMs: 300000,
+    },
   ) {
     this.maxRecords = Math.max(config.cacheSize, 200);
     this.gate =
@@ -228,22 +233,29 @@ export class VisionHandoff {
   }
 
   private addRecord(
-    rec: Omit<VisionCallRecord, "id" | "timestamp">,
+    rec: Omit<
+      VisionCallRecord,
+      "id" | "timestamp" | "incomingProtocol" | "upstreamProtocol" | "state"
+    >,
     httpExchange?: VisionHttpExchange,
     usage: UsageMetrics | null = null,
+    dbId?: number,
   ): void {
     const now = Date.now();
     const full: VisionCallRecord = {
       ...rec,
       id: this.nextRecordId++,
       timestamp: now,
+      incomingProtocol: this.protocolConfig.incomingProtocol,
+      upstreamProtocol: this.protocolConfig.upstreamProtocol,
+      state: "done",
     };
     this.records.push(full);
     if (this.records.length > this.maxRecords) {
       this.records.splice(0, this.records.length - this.maxRecords);
     }
 
-    this.sink?.record({ rec: full, httpExchange, usage });
+    this.sink?.record({ rec: full, httpExchange, usage, dbId });
   }
 
   /**
@@ -339,6 +351,128 @@ export class VisionHandoff {
       changed: true,
       stats,
     };
+  }
+
+  /**
+   * Cache-only version of {@link processBody}. Checks the LRU + persistent
+   * cache for every image part. On any cache miss, the original body is
+   * forwarded unchanged and a background `processBody` call is enqueued to
+   * populate the cache for future requests.
+   *
+   * Returns `{ changed: true }` only when every image was a cache hit.
+   */
+  async processBodyCacheOnly(
+    body: unknown,
+    apiKind: ApiKind,
+    modelName?: string,
+    captureId?: number,
+    signal?: AbortSignal,
+  ): Promise<ProcessBodyResult> {
+    const stats: VisionStats = {
+      handoffCount: 0,
+      cacheHits: 0,
+      cacheMisses: 0,
+      visionCalls: 0,
+      latencyMs: [],
+    };
+
+    if (this.config.strategy === "catalog" && modelName && this.catalog) {
+      const supports: VisionTristate | null = this.catalog.getVisionSupport(modelName);
+      if (
+        !shouldRewrite(this.config.strategy, supports, apiKind, this.config.forceInterceptCapable)
+      ) {
+        return { body, changed: false, stats };
+      }
+    }
+
+    const bodyStr = typeof body === "string" ? body : JSON.stringify(body);
+    if (!cheapImageSignal(bodyStr)) {
+      return { body, changed: false, stats };
+    }
+
+    const parts =
+      apiKind === "anthropic" ? findAnthropicImageParts(body) : findOpenAIImageParts(body);
+    if (parts.length === 0) {
+      return { body, changed: false, stats };
+    }
+
+    const { kept } = applyMaxImagesPolicy(parts, this.config.maxImages);
+    stats.handoffCount = kept.length;
+
+    const recipe = recipeFromConfig(this.config);
+    const descriptions: string[] = [];
+    let allHit = true;
+
+    for (const part of kept) {
+      if (part.encoding === "url") {
+        allHit = false;
+        break;
+      }
+      const decoded = decodeBase64(part.data);
+      if (decoded === null) {
+        allHit = false;
+        break;
+      }
+      let cacheBytes: Uint8Array;
+      try {
+        const result = await transcodeImage(decoded, {
+          maxDimension: recipe.max_dimension,
+          quality: recipe.quality,
+          format: this.config.imageFormat,
+        });
+        cacheBytes = result.bytes;
+      } catch {
+        allHit = false;
+        break;
+      }
+      let cached = "";
+      try {
+        cached = this.cache.getOrCompute(
+          cacheBytes,
+          recipe,
+          ENCODER_VERSION,
+          this.config.model ?? "",
+          this.config.promptVersion,
+          () => {
+            throw CACHE_MISS;
+          },
+        );
+      } catch (err) {
+        if (err !== CACHE_MISS) throw err;
+      }
+      if (cached !== "") {
+        descriptions.push(wrapDescription(cached));
+        stats.cacheHits++;
+      } else {
+        allHit = false;
+        break;
+      }
+    }
+
+    if (!allHit) {
+      this.enqueueBackgroundVision(body, apiKind, modelName, captureId, signal);
+      return { body, changed: false, stats };
+    }
+
+    const mutated = cloneBody(body);
+    replaceImageBlocks(mutated, apiKind, descriptions, []);
+    return { body: mutated, changed: true, stats };
+  }
+
+  private enqueueBackgroundVision(
+    body: unknown,
+    apiKind: ApiKind,
+    modelName: string | undefined,
+    captureId: number | undefined,
+    signal: AbortSignal | undefined,
+  ): void {
+    const bgSignal = signal ? AbortSignal.any([signal]) : undefined;
+    this.processBody(body, apiKind, modelName, captureId, bgSignal).catch((err) => {
+      log.warn("background vision processing failed", {
+        error: (err as Error).message,
+        captureId,
+      });
+    });
   }
 
   /**
@@ -500,6 +634,32 @@ export class VisionHandoff {
       };
     }
 
+    const startedAt = Date.now();
+    const visionDbId = this.db?.insertVisionCapture({
+      $method: "POST",
+      $path: "/v1/chat/completions",
+      $url: this.config.target ?? "",
+      $rh: "{}",
+      $rb: "{}",
+      $rs: 0,
+      $status: null,
+      $rh2: "{}",
+      $rb2: "",
+      $rs2: 0,
+      $ct: "application/json",
+      $dur: 0,
+      $state: "enqueued",
+      $started_at: startedAt,
+      $finished_at: 0,
+      $inp: this.protocolConfig.incomingProtocol,
+      $outp: this.protocolConfig.upstreamProtocol,
+      $model: this.config.model ?? "",
+      $parent_capture_id: captureId ?? null,
+      $vision_meta: null,
+      ...flattenUsage(null),
+    });
+    if (visionDbId) this.db?.setState(visionDbId, "streaming");
+
     const start = Date.now();
     const visionPromise = (async () => {
       const result = await this.callVisionRecorded(cacheBytes, signal);
@@ -529,6 +689,40 @@ export class VisionHandoff {
     }
     const elapsed = Date.now() - start;
 
+    if (visionDbId) {
+      const finishedAt = Date.now();
+      const metaJson = JSON.stringify({
+        status: visionResult.status,
+        httpStatus: visionResult.httpStatus,
+        latencyMs: elapsed,
+        description: visionResult.description,
+        error: visionResult.error,
+        imageHash,
+        imageSize: cacheBytes.byteLength,
+        model: this.config.model ?? "",
+        target: this.config.target ?? "",
+      });
+      this.db?.updateVisionCapture({
+        $id: visionDbId,
+        $status:
+          visionResult.status === "ok" || visionResult.status === "cache_hit"
+            ? 200
+            : (visionResult.httpStatus ?? null),
+        $rh: visionResult.responseHeaders,
+        $rb: visionResult.responseBody,
+        $rs: Buffer.byteLength(visionResult.responseBody),
+        $ct: "application/json",
+        $sse: 0,
+        $dur: elapsed,
+        $fin: finishedAt,
+        $status_source: "upstream",
+        $gate_reason: null,
+        $vision_meta: metaJson,
+        $model: this.config.model ?? null,
+        ...flattenUsage(visionResult.usage),
+      });
+    }
+
     this.addRecord(
       {
         captureId: captureId ?? null,
@@ -549,6 +743,7 @@ export class VisionHandoff {
         responseHeaders: visionResult.responseHeaders,
       },
       visionResult.usage,
+      visionDbId,
     );
 
     return {

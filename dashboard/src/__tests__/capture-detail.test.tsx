@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { CaptureDetailPanel } from "@/components/capture-detail";
+import { flushEffects } from "@/test/utils";
 import type { CaptureDetail } from "@/types";
 
 // Mock heavy child viewers to keep the test focused on panel transitions.
@@ -53,6 +54,8 @@ function makeCapture(overrides: Partial<CaptureDetail> = {}): CaptureDetail {
     output_tokens: 200,
     total_output_tokens: 200,
     is_vision: false,
+    status_source: null,
+    gate_reason: null,
     request_headers: '{"content-type":"application/json"}',
     request_body: '{"model":"claude-3","messages":[]}',
     response_headers: '{"content-type":"application/json"}',
@@ -124,12 +127,13 @@ describe("CaptureDetailPanel transitions", () => {
     expect(onRetry).toHaveBeenCalledOnce();
   });
 
-  it("renders detail content when capture is loaded", () => {
+  it("renders detail content when capture is loaded", async () => {
     const capture = makeCapture();
 
     render(
       <CaptureDetailPanel capture={capture} isLoading={false} detailError={null} {...baseProps} />,
     );
+    await flushEffects();
 
     // Method and path are shown in the header as "POST /v1/messages"
     const heading = screen.getByRole("heading", { level: 2 });
@@ -219,12 +223,13 @@ describe("CaptureDetailPanel transitions", () => {
     expect(onCopyStatus).toHaveBeenCalledWith("Copied!");
   });
 
-  it("shows SSE badge when capture is_sse is true", () => {
+  it("shows SSE badge when capture is_sse is true", async () => {
     const capture = makeCapture({ is_sse: true });
 
     render(
       <CaptureDetailPanel capture={capture} isLoading={false} detailError={null} {...baseProps} />,
     );
+    await flushEffects();
 
     expect(screen.getByText("SSE")).toBeInTheDocument();
   });

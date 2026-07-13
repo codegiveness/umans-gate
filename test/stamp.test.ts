@@ -15,8 +15,7 @@ beforeAll(async () => {
   raw = await startRawUpstream();
   proxy = await startProxy({
     TARGET: `http://127.0.0.1:${raw.port}`,
-    STAMP_CACHE_TTL_ENABLED: "true",
-    STAMP_TOP_K_ENABLED: "true",
+    STAMP_CLAUDE_CODE_ENABLED: "true",
   });
 });
 
