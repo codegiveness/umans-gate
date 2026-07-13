@@ -49,9 +49,10 @@
   },
   "scripts": {
     "dev": "bun src/cli.ts",
-    "build": "bun run build:server && bun run build:dashboard",
-    "build:server": "tsup",
+    "build": "bun run build:dashboard && bun run build:embed-assets && bun run build:server",
+    "build:server": "bash scripts/build-server.sh",
     "build:dashboard": "cd dashboard && bun run build",
+    "build:embed-assets": "bun scripts/embed-assets.ts",
     "test": "bun test",
     "test:dashboard": "cd dashboard && bun run test",
     "test:dashboard:watch": "cd dashboard && bun run test:watch",

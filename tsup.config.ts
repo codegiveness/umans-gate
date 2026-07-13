@@ -12,8 +12,6 @@ export default defineConfig({
   splitting: false,
   sourcemap: true,
   clean: true,
-  // Don't bundle bun:sqlite — it's a built-in Bun module
   noExternal: [],
-  // Keep native modules external
-  external: ["bun:sqlite"],
+  external: ["bun:sqlite", "bun"],
 });
