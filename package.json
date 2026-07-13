@@ -30,7 +30,7 @@
     "websocket"
   ],
   "bin": {
-    "umans-gate": "./dist/cli.js"
+    "umans-gate": "dist/cli.js"
   },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -43,7 +43,13 @@
     },
     "./package.json": "./package.json"
   },
-  "files": ["dist", "dashboard/dist", "README.md", "LICENSE", "CHANGELOG.md"],
+  "files": [
+    "dist",
+    "dashboard/dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
   "engines": {
     "bun": ">=1.1.0"
   },
