@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-07-14
+
+### Fixed
+
+- Fix `repository.url` in `package.json` to point to `codegiveness/umans-gate`
+  (was `umans-ai/umans-gate` — npm page linked to wrong repo).
+
 ## [0.1.0] - 2026-07-10
 
 ### Added
