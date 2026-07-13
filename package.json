@@ -12,7 +12,7 @@
   "homepage": "https://github.com/umans-ai/umans-gate",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/umans-ai/umans-gate.git"
+    "url": "git+https://github.com/codegiveness/umans-gate.git"
   },
   "bugs": {
     "url": "https://github.com/umans-ai/umans-gate/issues"
