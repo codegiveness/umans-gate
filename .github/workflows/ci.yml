@@ -41,6 +41,9 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      - name: Install dashboard dependencies
+        run: cd dashboard && bun install
+
       - name: Typecheck
         run: bun run typecheck
 
