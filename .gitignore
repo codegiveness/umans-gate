@@ -5,16 +5,15 @@ dashboard/node_modules/
 # Build artifacts
 dist/
 dashboard/dist/
+*.tsbuildinfo
 
 # Runtime data
-capture.db
-capture.db-shm
-capture.db-wal
 *.db
 *.db-shm
 *.db-wal
+umans-gate.db*
 
-# Environment
+# Environment / secrets
 .env
 .env.local
 .env.*.local
@@ -24,7 +23,7 @@ capture.db-wal
 .DS_Store
 Thumbs.db
 
-# IDE
+# IDE / editor
 .vscode/
 .idea/
 *.swp
@@ -32,17 +31,33 @@ Thumbs.db
 *~
 
 # Test artifacts
-/tmp/
 test-internal/
+benchmark/**/results/
+benchmark/**/__pycache__/
 
-# OpenCode internal state
+# Temp images (moved to .omo/images/)
+images/
+images-test/
+
+# Agent / tooling state (local only)
 .omo/
+.opencode/
+.codegraph/
+.claude/
+.impeccable/
+.playwright-mcp/
 opencode.json
 AGENTS.md
 CLAUDE.md
 codegraph.md
-.codegraph/
-.claude/
+
+# Stray build output at repo root (sourcemaps, fonts, html, bins)
+/*.js
+/*.js.map
+/*.mjs.map
+/*.html
+/*.woff2
+/test-cli-bin
 
 # Misc
 *.log

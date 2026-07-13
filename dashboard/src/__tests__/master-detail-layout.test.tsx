@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { App } from "@/App";
+import { flushEffects } from "@/test/utils";
 
 const ROW_HEIGHT = 76;
 
@@ -79,22 +80,25 @@ vi.mock("@/components/ui/sonner", () => ({
 }));
 
 describe("MasterDetailLayout responsive shell", () => {
-  it("renders the hamburger button with md:hidden and aria-label", () => {
+  it("renders the hamburger button with md:hidden and aria-label", async () => {
     render(<App />);
+    await flushEffects();
     const hamburger = screen.getByRole("button", { name: "Open captures" });
     expect(hamburger).toBeInTheDocument();
     expect(hamburger).toHaveClass("md:hidden");
   });
 
-  it("renders the master sidebar at desktop width (aside with aria-label)", () => {
+  it("renders the master sidebar at desktop width (aside with aria-label)", async () => {
     render(<App />);
+    await flushEffects();
     const master = screen.getByLabelText("Captures list");
     expect(master.tagName).toBe("ASIDE");
     expect(master).toHaveClass("hidden", "md:flex");
   });
 
-  it("renders the detail panel with aria-label", () => {
+  it("renders the detail panel with aria-label", async () => {
     render(<App />);
+    await flushEffects();
     const detail = screen.getByLabelText("Capture detail");
     expect(detail).toBeInTheDocument();
   });
@@ -103,6 +107,7 @@ describe("MasterDetailLayout responsive shell", () => {
     const user = userEvent.setup();
 
     render(<App />);
+    await flushEffects();
 
     const hamburger = screen.getByRole("button", { name: "Open captures" });
     await user.click(hamburger);

@@ -29,7 +29,7 @@ test("char: port — valid values pass", () => {
   expectNoErrors(validateConfig({ port: 1 }));
   expectNoErrors(validateConfig({ port: 80 }));
   expectNoErrors(validateConfig({ port: 65535 }));
-  expectNoErrors(validateConfig({ port: 9000 }));
+  expectNoErrors(validateConfig({ port: 1945 }));
 });
 
 test("char: port — 0 fails", () => {
@@ -64,30 +64,6 @@ test("char: port — non-numeric string fails coercion then validation", () => {
   // "abc" is not in INT_FIELDS coercion path that produces a number, so it stays as string
   // and Number.isInteger fails
   expect(r.errors.length).toBeGreaterThan(0);
-});
-
-// ============================================================================
-// host: must be a non-empty string
-// ============================================================================
-
-test("char: host — valid string passes", () => {
-  expectNoErrors(validateConfig({ host: "0.0.0.0" }));
-  expectNoErrors(validateConfig({ host: "localhost" }));
-});
-
-test("char: host — empty string fails", () => {
-  expectSingleError(validateConfig({ host: "" }), "host must be a non-empty string");
-});
-
-test("char: host — non-string fails", () => {
-  expectSingleError(
-    validateConfig({ host: 123 as unknown as string }),
-    "host must be a non-empty string",
-  );
-});
-
-test("char: host — undefined passes", () => {
-  expectNoErrors(validateConfig({ host: undefined }));
 });
 
 // ============================================================================
@@ -217,128 +193,32 @@ test("char: upstream_protocol — empty string fails", () => {
 });
 
 // ============================================================================
-// stamp_cache_ttl_enabled: must be a boolean
+// stamp_claude_code_enabled: must be a boolean
 // ============================================================================
 
-test("char: stamp_cache_ttl_enabled — boolean true passes", () => {
-  expectNoErrors(validateConfig({ stamp_cache_ttl_enabled: true }));
+test("char: stamp_claude_code_enabled — boolean true passes", () => {
+  expectNoErrors(validateConfig({ stamp_claude_code_enabled: true }));
 });
 
-test("char: stamp_cache_ttl_enabled — boolean false passes", () => {
-  expectNoErrors(validateConfig({ stamp_cache_ttl_enabled: false }));
+test("char: stamp_claude_code_enabled — boolean false passes", () => {
+  expectNoErrors(validateConfig({ stamp_claude_code_enabled: false }));
 });
 
-test("char: stamp_cache_ttl_enabled — undefined passes", () => {
-  expectNoErrors(validateConfig({ stamp_cache_ttl_enabled: undefined }));
+test("char: stamp_claude_code_enabled — undefined passes", () => {
+  expectNoErrors(validateConfig({ stamp_claude_code_enabled: undefined }));
 });
 
-test("char: stamp_cache_ttl_enabled — string fails", () => {
+test("char: stamp_claude_code_enabled — string fails", () => {
   expectSingleError(
-    validateConfig({ stamp_cache_ttl_enabled: "yes" as unknown as boolean }),
-    "stamp_cache_ttl_enabled must be a boolean",
+    validateConfig({ stamp_claude_code_enabled: "yes" as unknown as boolean }),
+    "stamp_claude_code_enabled must be a boolean",
   );
 });
 
-test("char: stamp_cache_ttl_enabled — number fails", () => {
+test("char: stamp_claude_code_enabled — number fails", () => {
   expectSingleError(
-    validateConfig({ stamp_cache_ttl_enabled: 1 as unknown as boolean }),
-    "stamp_cache_ttl_enabled must be a boolean",
-  );
-});
-
-// ============================================================================
-// stamp_top_k_enabled: must be a boolean
-// ============================================================================
-
-test("char: stamp_top_k_enabled — boolean passes", () => {
-  expectNoErrors(validateConfig({ stamp_top_k_enabled: true }));
-  expectNoErrors(validateConfig({ stamp_top_k_enabled: false }));
-  expectNoErrors(validateConfig({ stamp_top_k_enabled: undefined }));
-});
-
-test("char: stamp_top_k_enabled — string fails", () => {
-  expectSingleError(
-    validateConfig({ stamp_top_k_enabled: "yes" as unknown as boolean }),
-    "stamp_top_k_enabled must be a boolean",
-  );
-});
-
-test("char: stamp_top_k_enabled — number fails", () => {
-  expectSingleError(
-    validateConfig({ stamp_top_k_enabled: 1 as unknown as boolean }),
-    "stamp_top_k_enabled must be a boolean",
-  );
-});
-
-// ============================================================================
-// stamp_thinking_enabled: must be a boolean
-// ============================================================================
-
-test("char: stamp_thinking_enabled — boolean passes", () => {
-  expectNoErrors(validateConfig({ stamp_thinking_enabled: true }));
-  expectNoErrors(validateConfig({ stamp_thinking_enabled: false }));
-  expectNoErrors(validateConfig({ stamp_thinking_enabled: undefined }));
-});
-
-test("char: stamp_thinking_enabled — string fails", () => {
-  expectSingleError(
-    validateConfig({ stamp_thinking_enabled: "yes" as unknown as boolean }),
-    "stamp_thinking_enabled must be a boolean",
-  );
-});
-
-test("char: stamp_thinking_enabled — number fails", () => {
-  expectSingleError(
-    validateConfig({ stamp_thinking_enabled: 1 as unknown as boolean }),
-    "stamp_thinking_enabled must be a boolean",
-  );
-});
-
-// ============================================================================
-// stamp_max_tokens_enabled: must be a boolean
-// ============================================================================
-
-test("char: stamp_max_tokens_enabled — boolean passes", () => {
-  expectNoErrors(validateConfig({ stamp_max_tokens_enabled: true }));
-  expectNoErrors(validateConfig({ stamp_max_tokens_enabled: false }));
-  expectNoErrors(validateConfig({ stamp_max_tokens_enabled: undefined }));
-});
-
-test("char: stamp_max_tokens_enabled — string fails", () => {
-  expectSingleError(
-    validateConfig({ stamp_max_tokens_enabled: "yes" as unknown as boolean }),
-    "stamp_max_tokens_enabled must be a boolean",
-  );
-});
-
-test("char: stamp_max_tokens_enabled — number fails", () => {
-  expectSingleError(
-    validateConfig({ stamp_max_tokens_enabled: 1 as unknown as boolean }),
-    "stamp_max_tokens_enabled must be a boolean",
-  );
-});
-
-// ============================================================================
-// stamp_output_config_enabled: must be a boolean
-// ============================================================================
-
-test("char: stamp_output_config_enabled — boolean passes", () => {
-  expectNoErrors(validateConfig({ stamp_output_config_enabled: true }));
-  expectNoErrors(validateConfig({ stamp_output_config_enabled: false }));
-  expectNoErrors(validateConfig({ stamp_output_config_enabled: undefined }));
-});
-
-test("char: stamp_output_config_enabled — string fails", () => {
-  expectSingleError(
-    validateConfig({ stamp_output_config_enabled: "yes" as unknown as boolean }),
-    "stamp_output_config_enabled must be a boolean",
-  );
-});
-
-test("char: stamp_output_config_enabled — number fails", () => {
-  expectSingleError(
-    validateConfig({ stamp_output_config_enabled: 1 as unknown as boolean }),
-    "stamp_output_config_enabled must be a boolean",
+    validateConfig({ stamp_claude_code_enabled: 1 as unknown as boolean }),
+    "stamp_claude_code_enabled must be a boolean",
   );
 });
 
@@ -559,12 +439,12 @@ test("char: concurrency_soft_limit — float fails", () => {
 
 // ============================================================================
 // concurrency_main_reservation: cross-field dependency on concurrency_hard_cap
-// Must be a positive integer and <= hard_cap - 1 (only checked when hard_cap >= 2)
+// Must be a positive integer and <= hard_cap - 2 (only checked when hard_cap >= 3)
 // ============================================================================
 
 test("char: concurrency_main_reservation — valid with hard_cap=5 passes", () => {
   expectNoErrors(validateConfig({ concurrency_hard_cap: 5, concurrency_main_reservation: 1 }));
-  expectNoErrors(validateConfig({ concurrency_hard_cap: 5, concurrency_main_reservation: 4 }));
+  expectNoErrors(validateConfig({ concurrency_hard_cap: 5, concurrency_main_reservation: 3 }));
 });
 
 test("char: concurrency_main_reservation — 0 fails with hard_cap=5", () => {
@@ -582,23 +462,28 @@ test("char: concurrency_main_reservation — float fails with hard_cap=5", () =>
   expect(r.errors).toContain("concurrency_main_reservation must be a positive integer (min 1)");
 });
 
-test("char: concurrency_main_reservation — exceeds hard_cap-1 fails", () => {
+test("char: concurrency_main_reservation — exceeds hard_cap-2 fails", () => {
   const r = validateConfig({ concurrency_hard_cap: 5, concurrency_main_reservation: 5 });
-  expect(r.errors).toContain("concurrency_main_reservation must be <= hard_cap - 1 (=4)");
+  expect(r.errors).toContain("concurrency_main_reservation must be <= hard_cap - 2 (=3)");
 });
 
 test("char: concurrency_main_reservation — equals hard_cap fails (exceeds resMax)", () => {
   const r = validateConfig({ concurrency_hard_cap: 5, concurrency_main_reservation: 5 });
-  expect(r.errors).toContain("concurrency_main_reservation must be <= hard_cap - 1 (=4)");
+  expect(r.errors).toContain("concurrency_main_reservation must be <= hard_cap - 2 (=3)");
 });
 
 test("char: concurrency_main_reservation — skipped when hard_cap=1 (bootstrap)", () => {
-  // hard_cap=1 → resMax=0 → reservation validation skipped
+  // hard_cap=1 → resMax=-1 → reservation validation skipped
   expectNoErrors(validateConfig({ concurrency_hard_cap: 1, concurrency_main_reservation: 999 }));
 });
 
+test("char: concurrency_main_reservation — skipped when hard_cap=2 (resMax=0)", () => {
+  // hard_cap=2 → resMax=0 → reservation validation skipped
+  expectNoErrors(validateConfig({ concurrency_hard_cap: 2, concurrency_main_reservation: 999 }));
+});
+
 test("char: concurrency_main_reservation — skipped when hard_cap undefined", () => {
-  // hard_cap defaults to 1, so resMax=0, reservation not checked
+  // hard_cap defaults to 1, so resMax=-1, reservation not checked
   expectNoErrors(validateConfig({ concurrency_main_reservation: 999 }));
 });
 
@@ -607,7 +492,7 @@ test("char: concurrency_main_reservation — skipped when hard_cap not integer",
   // (hard_cap itself fails, but no reservation error is produced)
   const r = validateConfig({ concurrency_hard_cap: 1.5, concurrency_main_reservation: 999 });
   expect(r.errors).not.toContain("concurrency_main_reservation must be a positive integer (min 1)");
-  expect(r.errors).not.toContain("concurrency_main_reservation must be <= hard_cap - 1 (=0)");
+  expect(r.errors).not.toContain("concurrency_main_reservation must be <= hard_cap - 2 (=0)");
 });
 
 // ============================================================================
@@ -617,7 +502,7 @@ test("char: concurrency_main_reservation — skipped when hard_cap not integer",
 
 test("char: concurrency_vision_reservation — valid with hard_cap=5 passes", () => {
   expectNoErrors(validateConfig({ concurrency_hard_cap: 5, concurrency_vision_reservation: 1 }));
-  expectNoErrors(validateConfig({ concurrency_hard_cap: 5, concurrency_vision_reservation: 4 }));
+  expectNoErrors(validateConfig({ concurrency_hard_cap: 5, concurrency_vision_reservation: 3 }));
 });
 
 test("char: concurrency_vision_reservation — 0 fails with hard_cap=5", () => {
@@ -625,9 +510,9 @@ test("char: concurrency_vision_reservation — 0 fails with hard_cap=5", () => {
   expect(r.errors).toContain("concurrency_vision_reservation must be a positive integer (min 1)");
 });
 
-test("char: concurrency_vision_reservation — exceeds hard_cap-1 fails", () => {
+test("char: concurrency_vision_reservation — exceeds hard_cap-2 fails", () => {
   const r = validateConfig({ concurrency_hard_cap: 5, concurrency_vision_reservation: 5 });
-  expect(r.errors).toContain("concurrency_vision_reservation must be <= hard_cap - 1 (=4)");
+  expect(r.errors).toContain("concurrency_vision_reservation must be <= hard_cap - 2 (=3)");
 });
 
 test("char: concurrency_vision_reservation — skipped when hard_cap=1 (bootstrap)", () => {
@@ -639,58 +524,10 @@ test("char: concurrency_vision_reservation — skipped when hard_cap undefined",
 });
 
 // ============================================================================
-// concurrency_weights: must be an object with positive number values
+// rate_limit_requests: -1 = unlimited, 0 = auto-derive from /v1/usage, >0 = explicit
 // ============================================================================
 
-test("char: concurrency_weights — valid object passes", () => {
-  expectNoErrors(validateConfig({ concurrency_weights: { Qwen: 0.5 } }));
-  expectNoErrors(validateConfig({ concurrency_weights: { Qwen: 1, Claude: 2 } }));
-});
-
-test("char: concurrency_weights — null fails", () => {
-  expectSingleError(
-    validateConfig({ concurrency_weights: null as unknown as Record<string, number> }),
-    "concurrency_weights must be an object",
-  );
-});
-
-test("char: concurrency_weights — non-object fails", () => {
-  expectSingleError(
-    validateConfig({ concurrency_weights: "string" as unknown as Record<string, number> }),
-    "concurrency_weights must be an object",
-  );
-});
-
-test("char: concurrency_weights — zero value fails", () => {
-  expectSingleError(
-    validateConfig({ concurrency_weights: { Qwen: 0 } }),
-    "concurrency_weights.Qwen must be a positive number",
-  );
-});
-
-test("char: concurrency_weights — negative value fails", () => {
-  expectSingleError(
-    validateConfig({ concurrency_weights: { Claude: -1 } }),
-    "concurrency_weights.Claude must be a positive number",
-  );
-});
-
-test("char: concurrency_weights — non-number value fails", () => {
-  expectSingleError(
-    validateConfig({ concurrency_weights: { Qwen: "fast" as unknown as number } }),
-    "concurrency_weights.Qwen must be a positive number",
-  );
-});
-
-test("char: concurrency_weights — empty object passes", () => {
-  expectNoErrors(validateConfig({ concurrency_weights: {} }));
-});
-
-// ============================================================================
-// rate_limit_requests: must be non-negative integer, null allowed
-// ============================================================================
-
-test("char: rate_limit_requests — 0 passes (disabled)", () => {
+test("char: rate_limit_requests — 0 passes (auto-derive)", () => {
   expectNoErrors(validateConfig({ rate_limit_requests: 0 }));
 });
 
@@ -702,17 +539,14 @@ test("char: rate_limit_requests — positive integer passes", () => {
   expectNoErrors(validateConfig({ rate_limit_requests: 100 }));
 });
 
-test("char: rate_limit_requests — negative fails", () => {
-  expectSingleError(
-    validateConfig({ rate_limit_requests: -1 }),
-    "rate_limit_requests must be a non-negative integer (0 = disabled, null = derive from /v1/usage)",
-  );
+test("char: rate_limit_requests — -1 passes (unlimited)", () => {
+  expectNoErrors(validateConfig({ rate_limit_requests: -1 }));
 });
 
 test("char: rate_limit_requests — float fails", () => {
   expectSingleError(
     validateConfig({ rate_limit_requests: 1.5 }),
-    "rate_limit_requests must be a non-negative integer (0 = disabled, null = derive from /v1/usage)",
+    "rate_limit_requests must be -1 (unlimited), 0 (auto-derive from /v1/usage), or a positive integer",
   );
 });
 
@@ -846,22 +680,6 @@ test("char: breaker_cooldown_ms — 999 fails", () => {
   expectSingleError(
     validateConfig({ breaker_cooldown_ms: 999 }),
     "breaker_cooldown_ms must be an integer >= 1000",
-  );
-});
-
-// ============================================================================
-// usage_stats_latest_n: must be a positive integer
-// ============================================================================
-
-test("char: usage_stats_latest_n — valid values pass", () => {
-  expectNoErrors(validateConfig({ usage_stats_latest_n: 1 }));
-  expectNoErrors(validateConfig({ usage_stats_latest_n: 200 }));
-});
-
-test("char: usage_stats_latest_n — 0 fails", () => {
-  expectSingleError(
-    validateConfig({ usage_stats_latest_n: 0 }),
-    "usage_stats_latest_n must be a positive integer",
   );
 });
 
@@ -1047,38 +865,6 @@ test("char: vision_concurrency — 21 fails", () => {
   expectSingleError(
     validateConfig({ vision_concurrency: 21 }),
     "vision_concurrency must be an integer between 1 and 20",
-  );
-});
-
-// ============================================================================
-// vision_api_key: must be a string
-// ============================================================================
-
-test("char: vision_api_key — string passes", () => {
-  expectNoErrors(validateConfig({ vision_api_key: "sk-abc" }));
-  expectNoErrors(validateConfig({ vision_api_key: "" }));
-});
-
-test("char: vision_api_key — non-string fails", () => {
-  expectSingleError(
-    validateConfig({ vision_api_key: 123 as unknown as string }),
-    "vision_api_key must be a string",
-  );
-});
-
-// ============================================================================
-// vision_force_intercept_capable: must be a boolean
-// ============================================================================
-
-test("char: vision_force_intercept_capable — boolean passes", () => {
-  expectNoErrors(validateConfig({ vision_force_intercept_capable: true }));
-  expectNoErrors(validateConfig({ vision_force_intercept_capable: false }));
-});
-
-test("char: vision_force_intercept_capable — non-boolean fails", () => {
-  expectSingleError(
-    validateConfig({ vision_force_intercept_capable: "yes" as unknown as boolean }),
-    "vision_force_intercept_capable must be a boolean",
   );
 });
 
@@ -1344,49 +1130,60 @@ test("char: warning — warmer_enabled=true does NOT produce warmer warning", ()
   );
 });
 
-test("char: warning — rate_limit_requests=0 produces warning", () => {
+test("char: warning — rate_limit_requests=-1 produces unlimited warning", () => {
+  const r = validateConfig({ rate_limit_requests: -1 });
+  expect(r.warnings).toContain(
+    "Rate limiting is unlimited (rate_limit_requests=-1). No request cap is enforced.",
+  );
+});
+
+test("char: warning — rate_limit_requests=0 does NOT produce rate-limit warning", () => {
   const r = validateConfig({ rate_limit_requests: 0 });
-  expect(r.warnings).toContain("Rate limiting is disabled (rate_limit_requests=0)");
+  expect(r.warnings).not.toContain(
+    "Rate limiting is unlimited (rate_limit_requests=-1). No request cap is enforced.",
+  );
 });
 
 test("char: warning — rate_limit_requests=100 does NOT produce rate-limit warning", () => {
   const r = validateConfig({ rate_limit_requests: 100 });
-  expect(r.warnings).not.toContain("Rate limiting is disabled (rate_limit_requests=0)");
+  expect(r.warnings).not.toContain(
+    "Rate limiting is unlimited (rate_limit_requests=-1). No request cap is enforced.",
+  );
 });
 
-test("char: warning — stamp_cache_ttl_enabled !== true produces warning", () => {
-  const r = validateConfig({ stamp_cache_ttl_enabled: false });
+test("char: warning — stamp_claude_code_enabled !== true produces warning", () => {
+  const r = validateConfig({ stamp_claude_code_enabled: false });
   expect(r.warnings).toContain(
-    "Cache TTL stamping is off (experimental) — ephemeral cache entries will have no default TTL",
+    "Claude Code stamping is off — ephemeral cache entries will have no default TTL, no top_k/max_tokens/thinking/output_config/context_management injection",
   );
   expect(r.errors).toEqual([]);
 });
 
-test("char: warning — stamp_cache_ttl_enabled=true does NOT produce cache-ttl warning", () => {
-  const r = validateConfig({ stamp_cache_ttl_enabled: true });
+test("char: warning — stamp_claude_code_enabled=true does NOT produce Claude Code warning", () => {
+  const r = validateConfig({ stamp_claude_code_enabled: true });
   expect(r.warnings).not.toContain(
-    "Cache TTL stamping is off (experimental) — ephemeral cache entries will have no default TTL",
+    "Claude Code stamping is off — ephemeral cache entries will have no default TTL, no top_k/max_tokens/thinking/output_config/context_management injection",
   );
 });
 
 test("char: warning — umans_api_key empty produces warning", () => {
   const r = validateConfig({ umans_api_key: "" });
   expect(r.warnings).toContain(
-    "umans_api_key is empty — proxy runs in fail-safe mode (worst-case limits, priority_low=true)",
+    "umans_api_key is empty — proxy runs in fail-safe mode (worst-case limits, priority_low=true). Set umans_api_key in the Server section to enable usage-based limits.",
   );
 });
 
 test("char: warning — umans_api_key undefined produces warning", () => {
   const r = validateConfig({ umans_api_key: undefined });
   expect(r.warnings).toContain(
-    "umans_api_key is empty — proxy runs in fail-safe mode (worst-case limits, priority_low=true)",
+    "umans_api_key is empty — proxy runs in fail-safe mode (worst-case limits, priority_low=true). Set umans_api_key in the Server section to enable usage-based limits.",
   );
 });
 
 test("char: warning — umans_api_key set does NOT produce empty-key warning", () => {
   const r = validateConfig({ umans_api_key: "sk-test123" });
   expect(r.warnings).not.toContain(
-    "umans_api_key is empty — proxy runs in fail-safe mode (worst-case limits, priority_low=true)",
+    "umans_api_key is empty — proxy runs in fail-safe mode (worst-case limits, priority_low=true). Set umans_api_key in the Server section to enable usage-based limits.",
   );
 });
 
@@ -1394,16 +1191,15 @@ test("char: warning — umans_api_key set does NOT produce empty-key warning", (
 // Default config produces all 4 warnings
 // ============================================================================
 
-test("char: default config (empty input) produces exactly the 4 default warnings", () => {
+test("char: default config (empty input) produces exactly the 2 default warnings", () => {
   const r = validateConfig({});
   expect(r.ok).toBe(true);
   expect(r.errors).toEqual([]);
-  // Default config has: warmer_enabled=true (no warning), rate_limit_requests=0 (warning),
-  // stamp_cache_ttl_enabled=false (warning), umans_api_key="" (warning)
+  // Default config has: warmer_enabled=true (no warning), rate_limit_requests=0 (no warning, auto-derive),
+  // stamp_claude_code_enabled=false (warning), umans_api_key="" (warning)
   expect(r.warnings).toEqual([
-    "Rate limiting is disabled (rate_limit_requests=0)",
-    "Cache TTL stamping is off (experimental) — ephemeral cache entries will have no default TTL",
-    "umans_api_key is empty — proxy runs in fail-safe mode (worst-case limits, priority_low=true)",
+    "Claude Code stamping is off — ephemeral cache entries will have no default TTL, no top_k/max_tokens/thinking/output_config/context_management injection",
+    "umans_api_key is empty — proxy runs in fail-safe mode (worst-case limits, priority_low=true). Set umans_api_key in the Server section to enable usage-based limits.",
   ]);
 });
 
@@ -1413,22 +1209,20 @@ test("char: default config (empty input) produces exactly the 4 default warnings
 
 test("char: normalized — omitted fields get DEFAULT_CONFIG values", () => {
   const r = validateConfig({});
-  expect(r.normalized.port).toBe(9000);
-  expect(r.normalized.host).toBe("0.0.0.0");
+  expect(r.normalized.port).toBe(1945);
   expect(r.normalized.max_captures).toBe(200);
   expect(r.normalized.db_path).toBe("./umans-gate.db");
   expect(r.normalized.idle_timeout).toBe(255);
   expect(r.normalized.upstream_protocol).toBe("http1.1");
   expect(r.normalized.concurrency_hard_cap).toBe(1);
   expect(r.normalized.concurrency_soft_limit).toBe(1);
-  expect(r.normalized.vision_strategy).toBe("always");
+  expect(r.normalized.vision_strategy).toBe("catalog");
   expect(r.normalized.vision_model).toBe("umans-flash");
 });
 
 test("char: normalized — provided values override defaults", () => {
-  const r = validateConfig({ port: 8080, host: "127.0.0.1" });
+  const r = validateConfig({ port: 8080 });
   expect(r.normalized.port).toBe(8080);
-  expect(r.normalized.host).toBe("127.0.0.1");
   // Other fields still default
   expect(r.normalized.max_captures).toBe(200);
 });
@@ -1449,11 +1243,10 @@ test("char: ok — false when errors exist", () => {
 // Multiple errors accumulate
 // ============================================================================
 
-test("char: multiple errors — port + host + max_captures all fail simultaneously", () => {
-  const r = validateConfig({ port: 0, host: "", max_captures: -1 });
+test("char: multiple errors — port + max_captures fail simultaneously", () => {
+  const r = validateConfig({ port: 0, max_captures: -1 });
   expect(r.errors).toEqual([
     "port must be an integer between 1 and 65535",
-    "host must be a non-empty string",
     "max_captures must be a positive integer",
   ]);
   expect(r.ok).toBe(false);
@@ -1463,27 +1256,12 @@ test("char: multiple errors — port + host + max_captures all fail simultaneous
 // Cross-field: both reservations can fail simultaneously
 // ============================================================================
 
-test("char: cross-field — both reservations exceed hard_cap-1 simultaneously", () => {
+test("char: cross-field — both reservations exceed hard_cap-2 simultaneously", () => {
   const r = validateConfig({
     concurrency_hard_cap: 5,
     concurrency_main_reservation: 5,
     concurrency_vision_reservation: 5,
   });
-  expect(r.errors).toContain("concurrency_main_reservation must be <= hard_cap - 1 (=4)");
-  expect(r.errors).toContain("concurrency_vision_reservation must be <= hard_cap - 1 (=4)");
-});
-
-// ============================================================================
-// concurrency_weights: multiple invalid entries each produce an error
-// ============================================================================
-
-test("char: concurrency_weights — multiple invalid entries produce multiple errors", () => {
-  const r = validateConfig({
-    concurrency_weights: { Qwen: 0, Claude: -1, GPT: "fast" as unknown as number },
-  });
-  expect(r.errors).toEqual([
-    "concurrency_weights.Qwen must be a positive number",
-    "concurrency_weights.Claude must be a positive number",
-    "concurrency_weights.GPT must be a positive number",
-  ]);
+  expect(r.errors).toContain("concurrency_main_reservation must be <= hard_cap - 2 (=3)");
+  expect(r.errors).toContain("concurrency_vision_reservation must be <= hard_cap - 2 (=3)");
 });

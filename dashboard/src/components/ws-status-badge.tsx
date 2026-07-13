@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { badgeSuccess, badgeWarning, dotSuccess, dotWarning } from "@/lib/badge-colors";
 import { cn } from "@/lib/utils";
 
 interface WsStatusBadgeProps {
@@ -10,20 +11,23 @@ const CONFIG = {
   live: {
     label: "Live",
     variant: "secondary" as const,
-    dotClass: "bg-primary",
+    className: badgeSuccess,
+    dotClass: dotSuccess,
     pulse: false,
     tip: "Real-time updates active",
   },
   down: {
     label: "Reconnecting",
-    variant: "outline" as const,
-    dotClass: "bg-muted-foreground",
+    variant: "secondary" as const,
+    className: badgeWarning,
+    dotClass: dotWarning,
     pulse: true,
     tip: "Connection lost — auto-retrying",
   },
   unavailable: {
     label: "Disconnected",
     variant: "destructive" as const,
+    className: undefined,
     dotClass: "bg-destructive",
     pulse: false,
     tip: "WebSocket unavailable — refresh page",
@@ -43,7 +47,7 @@ export function WsStatusBadge({ wsState }: WsStatusBadgeProps) {
           />
         }
       >
-        <Badge variant={config.variant} size="sm" className="gap-1">
+        <Badge variant={config.variant} size="sm" className={cn("gap-1", config.className)}>
           <span
             aria-hidden
             className={cn(

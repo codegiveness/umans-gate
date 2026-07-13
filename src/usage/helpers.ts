@@ -19,7 +19,9 @@ export function computeTps(
   if (output == null || output <= 0) return null;
   if (durationMs == null) return null;
   const genMs = ttftMs != null && ttftMs > 0 ? durationMs - ttftMs : durationMs;
-  if (genMs <= 0) return null;
+  // Require at least 1 second of generation time — below this the rate is
+  // dominated by timing noise and produces nonsensical values (e.g. 44k t/s).
+  if (genMs < 1000) return null;
   return (output / genMs) * 1000;
 }
 

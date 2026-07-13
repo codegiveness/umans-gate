@@ -8,6 +8,7 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import {
   AnthropicBodyStep,
   CacheTtlStep,
+  ContextManagementStep,
   OpenAiReasoningStep,
   STAMP_PIPELINE,
   type StampContext,
@@ -26,20 +27,16 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 function makeCtx(overrides: Partial<StampContext> = {}): StampContext {
   return {
     config: {
-      stampTtl: "1h",
-      stampTopK: 20,
-      stampMaxTokens: 32000,
-      stampThinking: null,
-      stampOutputConfig: { effort: "high" },
+      stampClaudeCode: true,
       stampReasoningEffort: null,
       openaiPath: "chat/completions",
       target: "https://api.code.umans.ai",
       captureBodyMaxBytes: 0,
       maxCaptures: 200,
       dbPath: "./umans-gate.db",
+      backgroundVision: false,
       concurrencyHardCap: 10,
       concurrencySoftLimit: 5,
-      concurrencyWeights: {},
       rateLimitRequests: 0,
       queueTimeoutMs: 30000,
       maxQueueDepth: 100,
@@ -51,6 +48,7 @@ function makeCtx(overrides: Partial<StampContext> = {}): StampContext {
       concurrencyVisionReservation: 1,
       incomingProtocol: "http1.1",
       upstreamProtocol: "http1.1",
+      upstreamTimeoutMs: 300000,
     },
     isOpenAi: false,
     headers: { "content-type": "application/json" },
@@ -61,18 +59,19 @@ function makeCtx(overrides: Partial<StampContext> = {}): StampContext {
   };
 }
 
-test("STAMP_PIPELINE has at least 4 steps", () => {
-  expect(STAMP_PIPELINE.length).toBeGreaterThanOrEqual(4);
+test("STAMP_PIPELINE has at least 5 steps", () => {
+  expect(STAMP_PIPELINE.length).toBeGreaterThanOrEqual(5);
 });
 
-test("STAMP_PIPELINE order is CacheTtl, AnthropicBody, OpenAiReasoning, TopK", () => {
+test("STAMP_PIPELINE order is CacheTtl, AnthropicBody, ContextManagement, OpenAiReasoning, TopK", () => {
   expect(STAMP_PIPELINE[0]).toBe(CacheTtlStep);
   expect(STAMP_PIPELINE[1]).toBe(AnthropicBodyStep);
-  expect(STAMP_PIPELINE[2]).toBe(OpenAiReasoningStep);
-  expect(STAMP_PIPELINE[3]).toBe(TopKStep);
+  expect(STAMP_PIPELINE[2]).toBe(ContextManagementStep);
+  expect(STAMP_PIPELINE[3]).toBe(OpenAiReasoningStep);
+  expect(STAMP_PIPELINE[4]).toBe(TopKStep);
 });
 
-test("CacheTtlStep.applies is true for Anthropic requests with stampTtl enabled", () => {
+test("CacheTtlStep.applies is true for Anthropic requests with stampClaudeCode enabled", () => {
   const ctx = makeCtx({ isOpenAi: false });
   expect(CacheTtlStep.applies(ctx)).toBe(true);
 });
@@ -82,20 +81,20 @@ test("CacheTtlStep.applies is false for OpenAI requests", () => {
   expect(CacheTtlStep.applies(ctx)).toBe(false);
 });
 
-test("CacheTtlStep.applies is false when stampTtl is null (disabled)", () => {
-  const ctx = makeCtx({ config: { ...makeCtx().config, stampTtl: null } });
+test("CacheTtlStep.applies is false when stampClaudeCode is false (disabled)", () => {
+  const ctx = makeCtx({ config: { ...makeCtx().config, stampClaudeCode: false } });
   expect(CacheTtlStep.applies(ctx)).toBe(false);
 });
 
-test("TopKStep.applies is true when stampTopK enabled and model is GLM", () => {
+test("TopKStep.applies is true when stampClaudeCode enabled and model is GLM", () => {
   const ctx = makeCtx({ modelName: "umans-glm-5.2" });
   expect(TopKStep.applies(ctx)).toBe(true);
 });
 
-test("TopKStep.applies is false when stampTopK is null (disabled)", () => {
+test("TopKStep.applies is false when stampClaudeCode is false (disabled)", () => {
   const ctx = makeCtx({
     modelName: "umans-glm-5.2",
-    config: { ...makeCtx().config, stampTopK: null },
+    config: { ...makeCtx().config, stampClaudeCode: false },
   });
   expect(TopKStep.applies(ctx)).toBe(false);
 });
@@ -113,9 +112,29 @@ test("OpenAiReasoningStep.applies is true for OpenAI requests with reasoning ena
   expect(OpenAiReasoningStep.applies(ctx)).toBe(true);
 });
 
-test("AnthropicBodyStep.applies is true when any body stamp is enabled", () => {
+test("AnthropicBodyStep.applies is true when stampClaudeCode is enabled", () => {
   const ctx = makeCtx({ isOpenAi: false });
   expect(AnthropicBodyStep.applies(ctx)).toBe(true);
+});
+
+test("ContextManagementStep.applies is true when stampClaudeCode enabled and anthropic-version is 2023-06-01", () => {
+  const ctx = makeCtx({
+    headers: { "content-type": "application/json", "anthropic-version": "2023-06-01" },
+  });
+  expect(ContextManagementStep.applies(ctx)).toBe(true);
+});
+
+test("ContextManagementStep.applies is false without anthropic-version header", () => {
+  const ctx = makeCtx({ headers: { "content-type": "application/json" } });
+  expect(ContextManagementStep.applies(ctx)).toBe(false);
+});
+
+test("ContextManagementStep.applies is false for OpenAI requests", () => {
+  const ctx = makeCtx({
+    isOpenAi: true,
+    headers: { "content-type": "application/json", "anthropic-version": "2023-06-01" },
+  });
+  expect(ContextManagementStep.applies(ctx)).toBe(false);
 });
 
 // ─── Integration test: end-to-end pipeline on a real proxy ─────────────────
@@ -127,11 +146,7 @@ beforeAll(async () => {
   raw = await startRawUpstream();
   proxy = await startProxy({
     TARGET: `http://127.0.0.1:${raw.port}`,
-    STAMP_CACHE_TTL_ENABLED: "true",
-    STAMP_MAX_TOKENS_ENABLED: "true",
-    STAMP_THINKING_ENABLED: "true",
-    STAMP_OUTPUT_CONFIG_ENABLED: "true",
-    STAMP_TOP_K_ENABLED: "true",
+    STAMP_CLAUDE_CODE_ENABLED: "true",
   });
 });
 
@@ -156,7 +171,7 @@ test("all stamp steps fire in order on a single GLM Anthropic request", async ()
   raw.getLastRequest(); // clear any previous
   await fetch(`${proxy.baseUrl}/v1/messages`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "anthropic-version": "2023-06-01" },
     body,
   }).catch(() => {});
   await sleep(150);
@@ -173,9 +188,14 @@ test("all stamp steps fire in order on a single GLM Anthropic request", async ()
 
   // --- AnthropicBody (runs second: max_tokens + output_config) ---
   // thinking is NOT stamped for umans-glm models (only umans-coder/flash/kimi*/qwen*)
-  expect(parsed.max_tokens).toBe(32000);
+  expect(parsed.max_tokens).toBe(131071);
   expect(parsed.output_config).toEqual({ effort: "max" });
   expect(parsed.thinking).toBeUndefined();
+
+  // --- ContextManagement (runs third: injects context_management) ---
+  expect(parsed.context_management).toEqual({
+    edits: [{ type: "clear_thinking_20251015", keep: "all" }],
+  });
 
   // --- TTL (runs first: stamps cache_control ephemeral blocks with ttl) ---
   expect(parsed.system[0].cache_control).toEqual({ type: "ephemeral", ttl: "1h" });

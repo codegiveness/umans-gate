@@ -5,7 +5,6 @@
 //   helpers.ts    — internal numeric helpers (not re-exported)
 //   sse-parse.ts  — SSE parsing for Anthropic + OpenAI streaming
 //   extract.ts    — extractors + extractUsage wrapper
-//   stats.ts      — percentile + per-model summary
 //   ddl.ts         — SQL DDL constants
 //
 // This barrel preserves the original public API: every symbol that was
@@ -15,5 +14,4 @@
 export * from "./usage/types.js";
 export * from "./usage/sse-parse.js";
 export * from "./usage/extract.js";
-export * from "./usage/stats.js";
 export * from "./usage/ddl.js";

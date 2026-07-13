@@ -1,17 +1,30 @@
-import { AlertCircle, Download, Power, RotateCcw, RotateCw } from "lucide-react";
-import { useMemo } from "react";
+import { AlertCircle, Power, RotateCcw, RotateCw } from "lucide-react";
+import { useMemo, useState } from "react";
 
-import { SectionBlock } from "@/components/config-fields";
-import { SECTIONS } from "@/components/config-sections";
-import type { SectionDef } from "@/components/config-sections";
+import { GroupBlock } from "@/components/config-fields";
+import { GROUPS } from "@/components/config-sections";
+import type { GroupDef } from "@/components/config-sections";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { type RawConfig, useConfig } from "@/hooks/use-config";
+import type { RawConfig } from "@/hooks/use-config";
+import { useConfigContext } from "@/hooks/use-config-context";
 import { useConfigDraft } from "@/hooks/use-config-draft";
 import { useConfigMutation } from "@/hooks/use-config-mutation";
 import { useModels } from "@/hooks/use-models";
+import { useUsage } from "@/hooks/use-usage";
 import { validateConfigDraft } from "@/lib/config-validation";
 
 export function ConfigTab() {
@@ -21,21 +34,21 @@ export function ConfigTab() {
     error,
     reload,
     save,
-    validate,
     reloadFromDisk,
     refreshFromSource,
     restart,
-  } = useConfig();
+    resetToDefault,
+  } = useConfigContext();
   const { data: modelsData } = useModels();
+  const { data: usage } = useUsage();
 
   const { draft, updateField, resetDraft, isDirty, dirtyKeys } = useConfigDraft(config);
   const {
     save: handleSave,
-    validate: handleValidate,
-    reloadFromDisk: handleReload,
     refreshFromSource: handleRefreshSource,
     restart: handleRestart,
     reset: handleReset,
+    resetToDefault: handleResetToDefault,
     loading: mutationLoading,
     validationErrors,
     setValidationErrors,
@@ -45,36 +58,60 @@ export function ConfigTab() {
     isDirty,
     resetDraft,
     save,
-    validate,
     reloadFromDisk,
     refreshFromSource,
     restart,
+    resetToDefault,
   });
 
-  const sectionsWithVisionModels = useMemo<SectionDef[]>(() => {
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+
+  const groupsWithOverrides = useMemo<GroupDef[]>(() => {
     const visionModels = (modelsData?.models ?? [])
       .filter((m) => m.info?.capabilities.supports_vision === true)
       .map((m) => ({ value: m.id, label: m.id }))
       .sort((a, b) => a.label.localeCompare(b.label));
-    return SECTIONS.map((s) =>
-      s.title === "Vision"
-        ? {
-            ...s,
-            fields: s.fields.map((f) =>
-              f.key === "vision_model" ? { ...f, options: visionModels } : f,
-            ),
-          }
-        : s,
-    );
-  }, [modelsData]);
 
-  const clientErrors = useMemo<Record<string, string>>(() => {
-    if (!draft) return {};
-    return validateConfigDraft(draft, sectionsWithVisionModels);
-  }, [draft, sectionsWithVisionModels]);
+    const hardCap = usage?.concurrencyHardCap ?? undefined;
+    const resMax = hardCap !== undefined ? hardCap - 2 : undefined;
+    const rateMax = usage?.requestsHardCap ?? undefined;
+
+    const fieldMaxOverride: Partial<Record<string, number | undefined>> = {};
+    if (hardCap !== undefined) {
+      fieldMaxOverride.concurrency_hard_cap = hardCap;
+      fieldMaxOverride.concurrency_soft_limit = hardCap;
+      fieldMaxOverride.concurrency_main_reservation = resMax;
+      fieldMaxOverride.concurrency_vision_reservation = resMax;
+    }
+    if (rateMax !== undefined) {
+      fieldMaxOverride.rate_limit_requests = rateMax;
+    }
+
+    return GROUPS.map((g) => ({
+      ...g,
+      sections: g.sections.map((s) => ({
+        ...s,
+        fields: s.fields.map((f) => {
+          let patched = f;
+          if (f.key === "vision_model") {
+            patched = { ...patched, options: visionModels };
+          }
+          if (f.key in fieldMaxOverride) {
+            patched = { ...patched, max: fieldMaxOverride[f.key] };
+          }
+          return patched;
+        }),
+      })),
+    }));
+  }, [modelsData, usage]);
+
+  const { errors: clientErrors, warnings: clientWarnings } = useMemo(() => {
+    if (!draft) return { errors: {}, warnings: {} };
+    const allSections = groupsWithOverrides.flatMap((g) => g.sections);
+    return validateConfigDraft(draft, allSections);
+  }, [draft, groupsWithOverrides]);
   const hasClientErrors = Object.keys(clientErrors).length > 0;
 
-  // Clear validation errors when the user edits a field.
   function onField(key: keyof RawConfig, v: unknown) {
     if (draft) updateField(key, v);
     if (validationErrors.length > 0) setValidationErrors([]);
@@ -125,48 +162,8 @@ export function ConfigTab() {
                 {mutationLoading.saving ? "Saving…" : "Save"}
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="bottom">Write changed fields to disk</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={mutationLoading.validating}
-                onClick={handleValidate}
-              >
-                {mutationLoading.validating ? "Validating…" : "Validate"}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">Check draft for errors without saving</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={mutationLoading.reloading}
-                onClick={handleReload}
-              >
-                {mutationLoading.reloading ? "Reloading…" : "Reload from Disk"}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">Re-read config.json and apply live</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={mutationLoading.refreshingSource}
-                onClick={handleRefreshSource}
-              >
-                <Download className="mr-1.5 h-3.5 w-3.5" />
-                {mutationLoading.refreshingSource ? "Fetching…" : "Reload Limits from Source"}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="max-w-[260px]">
-              Re-fetch hard cap and soft limit from upstream rate-limit headers
+            <TooltipContent side="bottom">
+              Save changes to disk and apply live fields automatically
             </TooltipContent>
           </Tooltip>
           <Tooltip>
@@ -177,6 +174,44 @@ export function ConfigTab() {
             </TooltipTrigger>
             <TooltipContent side="bottom">Discard unsaved changes</TooltipContent>
           </Tooltip>
+          <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <AlertDialogTrigger
+                  render={
+                    <Button size="sm" variant="outline" disabled={mutationLoading.resetting}>
+                      <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                      {mutationLoading.resetting ? "Resetting…" : "Reset to Default"}
+                    </Button>
+                  }
+                />
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                Reset all config fields to defaults (API key is preserved)
+              </TooltipContent>
+            </Tooltip>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Reset all config to defaults?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This writes the default configuration to disk, replacing all current values. Your
+                  API key is preserved. A restart will be needed for some fields to take effect.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  variant="destructive"
+                  onClick={async () => {
+                    setResetDialogOpen(false);
+                    await handleResetToDefault();
+                  }}
+                >
+                  Reset to Default
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -222,15 +257,18 @@ export function ConfigTab() {
       )}
       <ScrollArea className="min-h-0 flex-1">
         <div className="mx-auto w-full max-w-3xl px-6 py-6">
-          {sectionsWithVisionModels.map((s, i) => (
-            <SectionBlock
-              key={s.title}
-              section={s}
+          {groupsWithOverrides.map((g, gi) => (
+            <GroupBlock
+              key={g.title}
+              group={g}
               values={draft}
               originals={config ?? {}}
               onField={onField}
               errors={clientErrors}
-              isLast={i === sectionsWithVisionModels.length - 1}
+              warnings={clientWarnings}
+              isLast={gi === groupsWithOverrides.length - 1}
+              onRefreshSource={handleRefreshSource}
+              refreshingSource={mutationLoading.refreshingSource}
             />
           ))}
           <div className="pt-6 text-xs text-muted-foreground">
@@ -239,8 +277,7 @@ export function ConfigTab() {
               <RotateCw className="inline h-3 w-3 mr-1" aria-hidden />
               restart
             </span>{" "}
-            require a server restart to take effect. Other fields can be applied live via{" "}
-            <span className="font-mono">Reload from Disk</span> after saving.
+            require a server restart to take effect. Other fields are applied live when you save.
           </div>
         </div>
       </ScrollArea>

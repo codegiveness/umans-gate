@@ -15,8 +15,7 @@ beforeAll(async () => {
   raw = await startRawUpstream();
   proxy = await startProxy({
     TARGET: `http://127.0.0.1:${raw.port}`,
-    STAMP_CACHE_TTL_ENABLED: "true",
-    STAMP_TOP_K_ENABLED: "true",
+    STAMP_CLAUDE_CODE_ENABLED: "true",
   });
 });
 
@@ -91,11 +90,10 @@ test("existing top_k is preserved (not overwritten)", async () => {
   expect(parsed.top_k).toBe(40);
 });
 
-test("STAMP_TOP_K_ENABLED=false disables injection", async () => {
+test("STAMP_CLAUDE_CODE_ENABLED=false disables injection", async () => {
   const raw2 = await startRawUpstream();
   const proxy2 = await startProxy({
     TARGET: `http://127.0.0.1:${raw2.port}`,
-    STAMP_TOP_K_ENABLED: "false",
   });
   try {
     raw2.getLastRequest();
@@ -115,11 +113,11 @@ test("STAMP_TOP_K_ENABLED=false disables injection", async () => {
   }
 });
 
-test("STAMP_TOP_K_ENABLED=true uses hardcoded value 20", async () => {
+test("STAMP_CLAUDE_CODE_ENABLED=true uses hardcoded value 20", async () => {
   const raw3 = await startRawUpstream();
   const proxy3 = await startProxy({
     TARGET: `http://127.0.0.1:${raw3.port}`,
-    STAMP_TOP_K_ENABLED: "true",
+    STAMP_CLAUDE_CODE_ENABLED: "true",
   });
   try {
     raw3.getLastRequest();

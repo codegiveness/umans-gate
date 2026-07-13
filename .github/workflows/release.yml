@@ -1,0 +1,89 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (without v prefix)"
+        required: true
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org/"
+
+      - run: bun install
+
+      - name: Install dashboard dependencies
+        run: cd dashboard && bun install
+
+      - name: Extract version
+        id: ver
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Build dashboard
+        run: bun run build:dashboard
+
+      - name: Generate embedded-assets.ts from dashboard build
+        run: bun run scripts/embed-assets.ts
+
+      - name: Build standalone executables (all 6 platforms)
+        run: |
+          mkdir -p release
+          for target in darwin-arm64 darwin-x64 linux-x64 linux-arm64 win32-x64 win32-arm64; do
+            ext=""
+            [[ "$target" == win32-* ]] && ext=".exe"
+            bun build --compile --target=bun-${target} ./src/cli.ts --outfile release/umans-gate-${target}${ext}
+          done
+
+      - name: Generate SHA256SUMS
+        run: cd release && sha256sum umans-gate-* > SHA256SUMS
+
+      - name: Build npm packages
+        run: bash scripts/pack-npm.sh ${{ steps.ver.outputs.version }}
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          gh release create "$TAG" \
+            release/umans-gate-darwin-* release/umans-gate-linux-* release/umans-gate-win32-* \
+            release/SHA256SUMS \
+            --title "$TAG" --notes-file CHANGELOG.md
+
+      - name: Publish platform packages to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          for dir in release/npm/umans-gate-*/; do
+            (cd "$dir" && npm publish --provenance --access public)
+          done
+
+      - name: Publish main shim package to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          cd release/npm/main
+          npm publish --provenance --access public

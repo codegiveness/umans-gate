@@ -42,7 +42,7 @@ describe("vision capture merge", () => {
         VISION_STRATEGY: "always",
         VISION_TARGET: `http://127.0.0.1:${visionServer.port}/v1/chat/completions`,
         VISION_MODEL: "gpt-4o",
-        VISION_API_KEY: "test-key",
+        UMANS_API_KEY: "test-key",
       },
     });
 
@@ -77,10 +77,20 @@ describe("vision capture merge", () => {
 
       const capsRes = await fetch(`${proxy.baseUrl}/dashboard/api/captures?limit=100`);
       expect(capsRes.status).toBe(200);
-      const caps = (await capsRes.json()) as Array<{ is_vision: boolean; model: string | null }>;
+      const caps = (await capsRes.json()) as Array<{
+        is_vision: boolean;
+        model: string | null;
+        state: string;
+        incoming_protocol: string;
+        upstream_protocol: string;
+      }>;
       const visionCaps = caps.filter((c) => c.is_vision);
       expect(visionCaps.length).toBeGreaterThanOrEqual(1);
-      expect(visionCaps[0].model).toBe("gpt-4o");
+      const vc = visionCaps[0];
+      expect(vc.model).toBe("gpt-4o");
+      expect(vc.state).toBe("done");
+      expect(vc.incoming_protocol).toBe("http1.1");
+      expect(vc.upstream_protocol).toBe("http1.1");
     } finally {
       await proxy.kill();
       await upstream.close();
@@ -119,7 +129,7 @@ describe("vision capture merge", () => {
         VISION_STRATEGY: "always",
         VISION_TARGET: `http://127.0.0.1:${visionServer.port}/v1/chat/completions`,
         VISION_MODEL: "gpt-4o",
-        VISION_API_KEY: "test-key",
+        UMANS_API_KEY: "test-key",
       },
     });
 
@@ -167,6 +177,9 @@ describe("vision capture merge", () => {
         latencyMs: number;
         description: string;
         error: string | null;
+        incomingProtocol: string;
+        upstreamProtocol: string;
+        state: string;
       }>;
       expect(records.length).toBeGreaterThanOrEqual(1);
 
@@ -181,6 +194,9 @@ describe("vision capture merge", () => {
       expect(typeof r.latencyMs).toBe("number");
       expect(r.description).toBe("A red pixel.");
       expect(r.error).toBeNull();
+      expect(r.state).toBe("done");
+      expect(r.incomingProtocol).toBe("http1.1");
+      expect(r.upstreamProtocol).toBe("http1.1");
     } finally {
       await proxy.kill();
       await upstream.close();

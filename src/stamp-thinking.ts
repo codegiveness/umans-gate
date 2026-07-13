@@ -1,4 +1,9 @@
-import { STAMP_OUTPUT_CONFIG_GLM_VALUE, STAMP_OUTPUT_CONFIG_VALUE } from "./config.js";
+import {
+  STAMP_MAX_TOKENS_GLM_VALUE,
+  STAMP_MAX_TOKENS_VALUE,
+  STAMP_OUTPUT_CONFIG_GLM_VALUE,
+  STAMP_OUTPUT_CONFIG_VALUE,
+} from "./config.js";
 import { isGlmModel } from "./model-policy.js";
 import { extractModelName } from "./models/name.js";
 import type { AnthropicBody, OutputConfig, ThinkingConfig } from "./types.js";
@@ -7,10 +12,8 @@ const DEFAULT_THINKING: ThinkingConfig = {
   type: "adaptive",
 };
 
-const DEFAULT_MAX_TOKENS = 32000;
-
 export interface StampOptions {
-  /** Inject `max_tokens: 32000` when true. */
+  /** Inject `max_tokens` resolved from model (131071 for GLM, 32767 for others) when true. */
   maxTokens?: boolean;
   /** Inject `thinking` block when true. */
   thinking?: ThinkingConfig | boolean;
@@ -30,6 +33,11 @@ function resolveOutputConfig(model: unknown, outputConfig: OutputConfig | boolea
   return STAMP_OUTPUT_CONFIG_VALUE;
 }
 
+function resolveMaxTokens(model: unknown): number {
+  if (typeof model === "string" && isGlmModel(model)) return STAMP_MAX_TOKENS_GLM_VALUE;
+  return STAMP_MAX_TOKENS_VALUE;
+}
+
 /**
  * Stamp Anthropic request body fields based on enabled toggles. Overwrites any
  * existing values. Mutates the body in place. Returns true if the body was changed.
@@ -39,7 +47,7 @@ export function stampThinking(body: AnthropicBody, options: StampOptions): boole
   let changed = false;
 
   if (options.maxTokens) {
-    body.max_tokens = DEFAULT_MAX_TOKENS;
+    body.max_tokens = resolveMaxTokens(model);
     changed = true;
   }
 

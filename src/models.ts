@@ -1,11 +1,9 @@
 // Upstream /v1/models client — fetches the model list and derives per-model
 // concurrency weights. Models with output pricing below the cheap-threshold
 // (default 2.0) get a reduced weight (default 0.5); all others default to 1.0.
-// The derived map is merged with any user-supplied concurrency_weights (which
-// take precedence) before the proxy hands the weight to the gate.
 
 import { createLogger } from "./logger.js";
-import type { VisionSupport } from "./model-info-parser.js";
+import type { ParsedModelInfo, VisionSupport } from "./model-info-parser.js";
 import { fetchModelsInfo } from "./models/fetch-info.js";
 import type { VisionLookup, VisionTristate } from "./vision/detect.js";
 
@@ -14,16 +12,14 @@ const log = createLogger("models");
 const DEFAULT_MODELS_PATH = "/v1/models";
 const DEFAULT_MODELS_INFO_PATH = "/v1/models/info";
 /** Pricing output threshold below which a model is considered "cheap". */
-export const CHEAP_OUTPUT_THRESHOLD = 2;
+const CHEAP_OUTPUT_THRESHOLD = 2;
 /** Weight assigned to cheap models (output pricing < threshold). */
-export const CHEAP_MODEL_WEIGHT = 0.5;
+const CHEAP_MODEL_WEIGHT = 0.5;
 /** Default weight for models without cheap pricing. */
-export const DEFAULT_MODEL_WEIGHT = 1;
-
-export type { VisionSupport };
+const DEFAULT_MODEL_WEIGHT = 1;
 
 /** Rich model info from /v1/models/info — faithfully typed from the upstream API. */
-export interface ModelInfo {
+interface ModelInfo {
   name: string;
   display_name: string;
   description: string;
@@ -47,6 +43,10 @@ export interface ModelInfo {
     };
   };
   benchmarks: Record<string, unknown>;
+  weights: {
+    precision: string | undefined;
+    hf_url: string | undefined;
+  };
   stage?: string;
   lifecycle?: {
     playground_start_date?: string;
@@ -215,10 +215,10 @@ export class ModelsClient implements VisionLookup {
         return false;
       }
 
-      let infoMap: Map<string, ModelInfo> | null = null;
+      let infoMap: Map<string, ParsedModelInfo> | null = null;
       const infoResult = await infoPromise;
       if (infoResult) {
-        infoMap = projectModelInfo(infoResult);
+        infoMap = infoResult;
       }
 
       const next = new Map<string, ModelEntry>();
@@ -262,14 +262,4 @@ export class ModelsClient implements VisionLookup {
       return false;
     }
   }
-}
-
-function projectModelInfo(
-  parsed: Map<string, import("./model-info-parser.js").ParsedModelInfo>,
-): Map<string, ModelInfo> {
-  const out = new Map<string, ModelInfo>();
-  for (const [key, v] of parsed) {
-    out.set(key, v);
-  }
-  return out;
 }

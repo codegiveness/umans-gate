@@ -117,7 +117,7 @@ describe("E2E: Anthropic streaming usage extraction from proxy capture", () => {
     // Parse the captured SSE body and extract usage
     // For TTFT we need timestamps — in this e2e test we approximate by
     // using duration_ms / event_count as per-event spacing
-    const events = parseAnthropicSse(cap!.body);
+    const events = parseAnthropicSse([{ text: cap!.body, time: 0 }]);
     expect(events.length).toBeGreaterThan(0);
 
     // Since we don't have real per-event timestamps from the capture,
@@ -192,7 +192,7 @@ describe("E2E: OpenAI streaming usage extraction from proxy capture", () => {
     expect(cap).not.toBeNull();
     expect(cap!.isSse).toBe(true);
 
-    const chunks = parseOpenAiSse(cap!.body);
+    const chunks = parseOpenAiSse([{ text: cap!.body, time: 0 }]);
     expect(chunks.length).toBeGreaterThan(0);
 
     // Synthesize timestamps for TTFT
@@ -228,7 +228,7 @@ describe("E2E: OpenAI streaming usage extraction from proxy capture", () => {
     const cap = await getCaptureBody(path);
     expect(cap).not.toBeNull();
 
-    const chunks = parseOpenAiSse(cap!.body);
+    const chunks = parseOpenAiSse([{ text: cap!.body, time: 0 }]);
     const m = extractOpenAiStreaming(chunks, 0);
     expect(m.usage_missing).toBe(true);
     expect(m.output_tokens).toBeNull();

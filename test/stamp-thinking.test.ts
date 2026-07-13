@@ -3,14 +3,23 @@ import { stampThinking } from "../src/stamp-thinking.js";
 import type { AnthropicBody } from "../src/types.js";
 
 const DEFAULT_THINKING = { type: "adaptive" } as const;
-const DEFAULT_MAX_TOKENS = 32000;
+const GLM_MAX_TOKENS = 131071;
+const NON_GLM_MAX_TOKENS = 32767;
 const DEFAULT_OUTPUT_CONFIG = { effort: "high" } as const;
 const GLM_OUTPUT_CONFIG = { effort: "max" } as const;
 
-test("stamps max_tokens for all models when enabled", () => {
+test("stamps max_tokens for GLM models when enabled", () => {
   const body: AnthropicBody = { model: "umans-glm-5.2", messages: [] };
   expect(stampThinking(body, { maxTokens: true })).toBe(true);
-  expect(body.max_tokens).toBe(DEFAULT_MAX_TOKENS);
+  expect(body.max_tokens).toBe(GLM_MAX_TOKENS);
+  expect(body.thinking).toBeUndefined();
+  expect(body.output_config).toBeUndefined();
+});
+
+test("stamps max_tokens for non-GLM models when enabled", () => {
+  const body: AnthropicBody = { model: "umans-coder", messages: [] };
+  expect(stampThinking(body, { maxTokens: true })).toBe(true);
+  expect(body.max_tokens).toBe(NON_GLM_MAX_TOKENS);
   expect(body.thinking).toBeUndefined();
   expect(body.output_config).toBeUndefined();
 });
@@ -55,7 +64,7 @@ test("overwrites existing max_tokens, thinking, and output_config", () => {
   };
   expect(stampThinking(body, { maxTokens: true, thinking: true, outputConfig: true })).toBe(true);
   expect(body.thinking).toEqual(DEFAULT_THINKING);
-  expect(body.max_tokens).toBe(DEFAULT_MAX_TOKENS);
+  expect(body.max_tokens).toBe(NON_GLM_MAX_TOKENS);
   expect(body.output_config).toEqual(DEFAULT_OUTPUT_CONFIG);
 });
 

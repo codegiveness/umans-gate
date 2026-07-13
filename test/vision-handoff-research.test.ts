@@ -212,8 +212,8 @@ describe("content-hash cache key", () => {
     const recipe = { format: "jpeg", quality: 75, max_dimension: 1024, subsampling: "4:2:0" };
     const desc1 = "a red cat on a mat";
     const desc2 = "a blue dog on a rug";
-    const k1 = descriptionCacheKey(bytes, recipe, "v1", "umans-flash", 1, desc1);
-    const k2 = descriptionCacheKey(bytes, recipe, "v1", "umans-flash", 1, desc2);
+    const k1 = descriptionCacheKey(bytes, recipe, "v1", "umans-flash", 1);
+    const k2 = descriptionCacheKey(bytes, recipe, "v1", "umans-flash", 1);
     // description text is a VALUE, not part of the KEY
     expect(k1).toBe(k2);
   });

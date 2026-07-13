@@ -3,20 +3,67 @@
 //
 // Asset resolution order:
 // 1. dashboard/dist/ (production build from Vite)
-// 2. public/ (legacy vanilla JS dashboard, for dev fallback)
-// 3. 404
+// 2. 404
 
-import { type ReloadResult, readConfigFile, saveConfig, validateConfig } from "./config.js";
+import {
+  type ReloadResult,
+  readConfigFile,
+  resetConfig,
+  saveConfig,
+  validateConfig,
+} from "./config.js";
 import type { RawConfigInput } from "./config.js";
 import type { CaptureDB } from "./db.js";
+import {
+  getAvailableMonths,
+  getDailyUsage,
+  getMonthSummary,
+  getPricingTable,
+} from "./economics.js";
 import { summary } from "./helpers.js";
-import type { ConcurrencyGate } from "./limiter.js";
+import type { ConcurrencyGate } from "./limiter/index.js";
 import type { ModelsClient } from "./models.js";
 import type { ProxyConfig } from "./types.js";
-import { summarizeByModel } from "./usage-extract.js";
 import type { UmansUsageClient } from "./usage.js";
 import type { VisionHandoff } from "./vision/handoff.js";
 import type { WsBroadcaster } from "./ws.js";
+
+// Embedded assets: in compiled executables, Bun.embeddedFiles exposes imported
+// `with { type: "file" }` assets as Blobs. In dev mode, it's an empty array.
+// This allows the dashboard to work inside standalone compiled executables.
+import { embeddedFiles } from "bun";
+import { EMBEDDED_ASSET_PATHS } from "./embedded-assets.js";
+
+interface NamedBlob extends Blob {
+  name: string;
+}
+
+// Prevent tree-shaking of the embedded asset imports.
+// EMBEDDED_ASSET_PATHS is referenced here so the bundler keeps the side-effect imports.
+void EMBEDDED_ASSET_PATHS;
+
+// Module-level: populated only in compiled executables.
+// In dev mode, Bun.embeddedFiles is [] (empty array), so this stays null.
+const EMBEDDED_ASSETS: Map<string, Blob> | null = (() => {
+  try {
+    if (!embeddedFiles || embeddedFiles.length === 0) return null;
+    const map = new Map<string, Blob>();
+    for (const blob of embeddedFiles as NamedBlob[]) {
+      // blob.name is an internal Bun virtual FS path like /$bunfs/root/dashboard/dist/index.html
+      // Strip the prefix to get the relative path within dashboard/dist/
+      const name = blob.name.replace(/^.*\/dashboard\/dist\//, "");
+      if (name) {
+        // Also store a de-hashed version (Bun adds hash suffix: index-a1b2c3d4.html → index.html)
+        const dehashed = name.replace(/-[a-f0-9]{6,}(\.[^.]+)$/, "$1");
+        map.set(name, blob);
+        if (dehashed !== name) map.set(dehashed, blob);
+      }
+    }
+    return map.size > 0 ? map : null;
+  } catch {
+    return null;
+  }
+})();
 
 export interface CreateViewerRouterOptions {
   db: CaptureDB;
@@ -28,7 +75,15 @@ export interface CreateViewerRouterOptions {
   models: ModelsClient | null;
   reloadConfig?: () => ReloadResult;
   refreshLimits?: () => Promise<
-    { ok: true; hardCap: number; softLimit: number } | { ok: false; error: string }
+    | {
+        ok: true;
+        hardCap: number;
+        softLimit: number;
+        requestsLimit: number | null;
+        requestsHardCap: number | null;
+        requestsWindowSeconds: number | null;
+      }
+    | { ok: false; error: string }
   >;
   restart?: () => void;
 }
@@ -58,18 +113,41 @@ function contentTypeFor(path: string): string {
 /**
  * Try to resolve a static file from multiple candidate directories.
  * Returns the Bun file if found, null otherwise.
+ *
+ * Security: after resolving the relative path against each candidate base,
+ * verify the resolved URL remains inside the base directory. This is an
+ * explicit containment check that does not rely on URL-parser normalization
+ * or Bun.file's own file-URL validation to prevent path traversal.
  */
 async function resolveStaticFile(
   relativePath: string,
   candidates: URL[],
 ): Promise<Response | null> {
-  for (const base of candidates) {
-    const fileUrl = new URL(relativePath, base);
-    const file = Bun.file(fileUrl);
-    if (await file.exists()) {
-      return new Response(file, {
+  if (EMBEDDED_ASSETS) {
+    const dehashed = relativePath.replace(/-[a-f0-9]{6,}(\.[^.]+)$/, "$1");
+    const blob = EMBEDDED_ASSETS.get(relativePath) ?? EMBEDDED_ASSETS.get(dehashed);
+    if (blob) {
+      return new Response(blob, {
         headers: { "content-type": contentTypeFor(relativePath) },
       });
+    }
+  }
+  for (const base of candidates) {
+    const fileUrl = new URL(relativePath, base);
+    // Reject any resolved path that escapes the base directory.
+    // base.href always ends with "/" (constructed with trailing slash),
+    // so a contained fileUrl must start with base.href.
+    if (!fileUrl.href.startsWith(base.href)) continue;
+    try {
+      const file = Bun.file(fileUrl);
+      if (await file.exists()) {
+        return new Response(file, {
+          headers: { "content-type": contentTypeFor(relativePath) },
+        });
+      }
+    } catch {
+      // Bun.file rejects malformed file URLs (e.g. encoded path
+      // separators like %2f). Treat as "not found" and continue.
     }
   }
   return null;
@@ -95,7 +173,15 @@ interface ViewerRouteContext {
   reloadConfig: (() => ReloadResult) | null;
   refreshLimits:
     | (() => Promise<
-        { ok: true; hardCap: number; softLimit: number } | { ok: false; error: string }
+        | {
+            ok: true;
+            hardCap: number;
+            softLimit: number;
+            requestsLimit: number | null;
+            requestsHardCap: number | null;
+            requestsWindowSeconds: number | null;
+          }
+        | { ok: false; error: string }
       >)
     | null;
   restart: (() => void) | null;
@@ -119,19 +205,13 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
   const DETAIL_RE = new RegExp(`^${VIEWER}/api/captures/(\\d+)$`);
 
   // Candidate directories for static assets, in priority order.
-  // When running from src/ (dev): dashboard/dist/ and public/ are in project root.
-  // When running from dist/ (built): dashboard/dist/ and public/ are siblings to dist/.
+  // When running from src/ (dev): dashboard/dist/ is in project root.
+  // When running from dist/ (built): dashboard/dist/ is a sibling to dist/.
   const assetBases: URL[] = [
     // dashboard/dist/ relative to src/ (dev mode)
     new URL("../../dashboard/dist/", import.meta.url),
     // dashboard/dist/ relative to dist/ (built mode)
     new URL("../dashboard/dist/", import.meta.url),
-    // public/ relative to src/ (dev mode)
-    new URL("../../public/", import.meta.url),
-    // public/ relative to dist/ (built mode)
-    new URL("../public/", import.meta.url),
-    // public/ relative to cwd (fallback)
-    new URL("./public/", import.meta.url),
   ];
 
   // Route table — exact priority order of the former if-chain.
@@ -152,6 +232,7 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
       pattern: `${VIEWER}/api/clear`,
       handler: (ctx) => {
         ctx.db.clear();
+        ctx.vision?.clearRecords();
         ctx.ws.broadcast({ type: "clear" });
         return Response.json({ ok: true });
       },
@@ -180,16 +261,6 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
     },
     {
       method: "GET",
-      pattern: `${VIEWER}/api/model-stats`,
-      handler: (ctx) => {
-        const latestN = ctx.config.usageStatsLatestN ?? 100;
-        const rows = ctx.db.getModelStats(latestN);
-        const stats = summarizeByModel(rows, latestN);
-        return Response.json(stats);
-      },
-    },
-    {
-      method: "GET",
       pattern: `${VIEWER}/api/performance`,
       handler: (ctx) => Response.json(ctx.db.getPerformanceStats()),
     },
@@ -206,6 +277,7 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
       pattern: `${VIEWER}/api/vision-calls`,
       handler: (ctx) => {
         ctx.vision?.clearRecords();
+        ctx.ws.broadcast({ type: "vision-clear" });
         return Response.json({ ok: true });
       },
     },
@@ -217,9 +289,12 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
     {
       method: "GET",
       pattern: `${VIEWER}/api/config`,
-      handler: () => {
+      handler: (ctx) => {
         const raw = readConfigFile();
-        return Response.json(raw);
+        const { umans_api_key: _omitted, ...safe } = raw;
+        // Use the resolved config's umansApiKey (env > file) so has_api_key
+        // is true even when the key is set via UMANS_API_KEY env var only.
+        return Response.json({ ...safe, has_api_key: Boolean(ctx.config.umansApiKey) });
       },
     },
     {
@@ -241,6 +316,32 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
             { status: 400 },
           );
         }
+      },
+    },
+    {
+      method: "POST",
+      pattern: `${VIEWER}/api/config/reset`,
+      handler: async (ctx) => {
+        const result = resetConfig();
+        if (!result.ok) {
+          return Response.json(result, { status: 500 });
+        }
+        if (ctx.refreshLimits) {
+          const limits = await ctx.refreshLimits();
+          return Response.json({
+            ...result,
+            limits: limits.ok
+              ? {
+                  hardCap: limits.hardCap,
+                  softLimit: limits.softLimit,
+                  requestsLimit: limits.requestsLimit ?? null,
+                  requestsHardCap: limits.requestsHardCap ?? null,
+                  requestsWindowSeconds: limits.requestsWindowSeconds ?? null,
+                }
+              : null,
+          });
+        }
+        return Response.json(result);
       },
     },
     {
@@ -304,8 +405,38 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
           return Response.json({ ok: false, error: "Restart not available" }, { status: 501 });
         }
         setTimeout(() => restart(), 100);
-        return Response.json({ ok: true, message: "Restarting — reconnect in a few seconds" });
+        return Response.json({
+          ok: true,
+          message:
+            "Server is restarting. Requires a process manager (bun --watch, systemd, pm2) to auto-restart — otherwise the server exits and stays down.",
+        });
       },
+    },
+    {
+      method: "GET",
+      pattern: `${VIEWER}/api/economics/summary`,
+      handler: (ctx) => {
+        const year = Number(ctx.url.searchParams.get("year") ?? new Date().getFullYear());
+        const month = Number(ctx.url.searchParams.get("month") ?? new Date().getMonth() + 1);
+        const summaryData = getMonthSummary(ctx.db.rawDb, year, month);
+        const months = getAvailableMonths(ctx.db.rawDb);
+        const pricing = getPricingTable(ctx.db.rawDb);
+        return Response.json({ summary: summaryData, months, pricing });
+      },
+    },
+    {
+      method: "GET",
+      pattern: `${VIEWER}/api/economics/daily`,
+      handler: (ctx) => {
+        const limit = Math.min(Number(ctx.url.searchParams.get("limit") ?? 90), 365);
+        const rows = getDailyUsage(ctx.db.rawDb, limit);
+        return Response.json(rows);
+      },
+    },
+    {
+      method: "GET",
+      pattern: `${VIEWER}/api/economics/pricing`,
+      handler: (ctx) => Response.json(getPricingTable(ctx.db.rawDb)),
     },
     // DETAIL_RE regex route — must come after all exact-match API routes and
     // before static file fallback. Uses the capture id from match[1].
@@ -364,11 +495,14 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
       }
     }
 
-    // Static assets: serve from dashboard/dist/ or public/
+    // Static assets: serve from dashboard/dist/
     // Map /dashboard/ → index.html, /dashboard/assets/* → assets/*
     if (p === VIEWER || p === `${VIEWER}/`) {
       const resp = await resolveStaticFile("index.html", assetBases);
-      if (resp) return resp;
+      if (resp) {
+        resp.headers.set("cache-control", "no-cache, no-store, must-revalidate");
+        return resp;
+      }
       return new Response("dashboard not built. Run: cd dashboard && bun run build", {
         status: 404,
       });
@@ -386,7 +520,10 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
       // But only for non-API, non-asset paths
       if (!relativePath.startsWith("api/") && !relativePath.includes(".")) {
         const spaResp = await resolveStaticFile("index.html", assetBases);
-        if (spaResp) return spaResp;
+        if (spaResp) {
+          spaResp.headers.set("cache-control", "no-cache, no-store, must-revalidate");
+          return spaResp;
+        }
       }
 
       return new Response("not found", { status: 404 });

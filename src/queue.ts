@@ -17,7 +17,7 @@ interface QueuedUpdate {
 /** Abstraction over the capture persistence layer used by WriteQueue. */
 export interface CaptureStore {
   updateCapture(params: UpdateParams): void;
-  batchUpdate(items: Array<{ id: number; res: Omit<UpdateParams, "$id"> }>): void;
+  batchUpdate(items: Array<{ id: number; res: Omit<UpdateParams, "$id"> }>): Promise<void>;
 }
 
 /**
@@ -34,6 +34,7 @@ export class WriteQueue {
   private store: CaptureStore;
   private onFlush?: (messages: WsMessage[]) => void;
   private config: QueueConfig & ProtocolConfig;
+  droppedCount = 0;
 
   constructor(
     store: CaptureStore,
@@ -56,22 +57,38 @@ export class WriteQueue {
         clearTimeout(this.flushTimer);
         this.flushTimer = null;
       }
-      this.flushNow();
+      void this.flushNow().catch((err) => {
+        logger.error("WriteQueue flush failed", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
     } else if (!this.flushTimer) {
-      this.flushTimer = setTimeout(() => this.flushNow(), this.flushIntervalMs);
+      this.flushTimer = setTimeout(() => {
+        void this.flushNow().catch((err) => {
+          logger.error("WriteQueue flush failed", {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        });
+      }, this.flushIntervalMs);
     }
     if (this.queue.length >= this.queueMaxDepth) {
       if (this.flushTimer) {
         clearTimeout(this.flushTimer);
         this.flushTimer = null;
       }
-      this.flushNow();
+      void this.flushNow().catch((err) => {
+        logger.error("WriteQueue flush failed", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
       if (this.queue.length >= this.queueMaxDepth) {
         const dropped = this.queue.shift();
+        this.droppedCount++;
         logger.warn("WriteQueue overflow: dropped oldest entry", {
           captureId: dropped?.id,
           depth: this.queue.length,
           maxDepth: this.queueMaxDepth,
+          totalDropped: this.droppedCount,
         });
       }
     }
@@ -85,12 +102,25 @@ export class WriteQueue {
     return this.flushTimer !== null;
   }
 
-  /** Flush all queued updates to the database immediately. */
-  flushNow(): void {
+  /** Flush all queued updates to the database immediately.
+   *  On batchUpdate failure, re-queues the batch at the front so items are
+   *  not permanently lost. The drop path in queueUpdate() will activate
+   *  if the queue overflows after a failed flush. */
+  async flushNow(): Promise<void> {
     this.flushTimer = null;
     if (this.queue.length === 0) return;
     const batch = this.queue.splice(0, this.queue.length);
-    this.store.batchUpdate(batch.map((it) => ({ id: it.id, res: it.res })));
+    try {
+      await this.store.batchUpdate(batch.map((it) => ({ id: it.id, res: it.res })));
+    } catch (err) {
+      this.queue.unshift(...batch);
+      logger.error("WriteQueue flush failed, re-queued batch", {
+        batchSize: batch.length,
+        depth: this.queue.length,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return;
+    }
     if (this.onFlush) {
       const messages: WsMessage[] = batch.map((it) => ({
         type: "update" as const,

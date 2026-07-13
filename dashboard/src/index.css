@@ -141,6 +141,11 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /* Tailwind v4 defaults buttons to cursor:default; restore pointer per shadcn docs. */
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
   html,
   body,
   #root {

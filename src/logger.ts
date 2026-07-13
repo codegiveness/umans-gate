@@ -10,7 +10,7 @@ const LEVEL_PRIORITY: Record<LogLevel, number> = {
 const ENV_LEVEL = (process.env.UMANS_LOG_LEVEL ?? "info") as LogLevel;
 const globalMinPriority = LEVEL_PRIORITY[ENV_LEVEL] ?? LEVEL_PRIORITY.info;
 
-export interface LogContext {
+interface LogContext {
   captureId?: string | number;
   module?: string;
   [k: string]: unknown;

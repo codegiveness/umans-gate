@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { ConcurrencyGate } from "../src/limiter.js";
+import { ConcurrencyGate } from "../src/limiter/index.js";
 import type { UsageSnapshot } from "../src/types.js";
 
 const baseOpts = {
@@ -28,6 +28,8 @@ const dummySnapshot: UsageSnapshot = {
   priorityLow: false,
   boxedUntil: null,
   boxedReason: null,
+  unitsDemoted: false,
+  demotedUntil: null,
 };
 
 function sleep(ms: number): Promise<void> {

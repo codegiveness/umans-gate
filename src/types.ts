@@ -48,6 +48,8 @@ export interface CaptureRow {
   metrics_extracted_at: number | null;
   is_vision: number;
   parent_capture_id: number | null;
+  status_source: string | null;
+  gate_reason: string | null;
 }
 
 /** Summary of a capture (no body data) — used in list view and WS broadcasts. */
@@ -84,6 +86,10 @@ export interface CaptureSummary {
   total_output_tokens: number | null;
   /** True if this row is a vision-model API call (merged into captures). */
   is_vision: boolean;
+  /** "upstream" = status from upstream API; "gate" = proxy-generated; null = not yet recorded. */
+  status_source: "upstream" | "gate" | null;
+  /** Human-readable explanation when the proxy generated the HTTP status. */
+  gate_reason: string | null;
 }
 
 /** Request metadata captured at proxy time. */
@@ -104,6 +110,8 @@ export interface ResponseMeta {
   $sse: number;
   $dur: number;
   $fin: number;
+  $status_source: "upstream" | "gate" | null;
+  $gate_reason: string | null;
   $usage?: UsageMetrics | null;
   $model?: string | null;
 }
@@ -114,7 +122,8 @@ export type WsMessage =
   | { type: "update"; capture: CaptureSummary }
   | { type: "state"; captureId: number; state: CaptureState }
   | { type: "gate"; stats: GateStats }
-  | { type: "clear" };
+  | { type: "clear" }
+  | { type: "vision-clear" };
 
 /** Configuration object resolved from environment variables. */
 export interface ProxyConfig {
@@ -129,15 +138,8 @@ export interface ProxyConfig {
   idleTimeout: number;
   upstreamProtocol: UpstreamProtocol;
   incomingProtocol: IncomingProtocol;
-  stampTtl: string | null;
-  /** Value to inject as `top_k` on every request body (after model). Null = disabled. */
-  stampTopK: number | null;
-  /** Value to inject as `max_tokens` on Anthropic request bodies. Null = disabled. */
-  stampMaxTokens: number | null;
-  /** Value to inject as `thinking` on Anthropic request bodies. Null = disabled. */
-  stampThinking: ThinkingConfig | null;
-  /** Value to inject as `output_config` on Anthropic request bodies. Null = disabled. */
-  stampOutputConfig: OutputConfig | null;
+  /** Apply the Claude Code stamp bundle on Anthropic requests (TTL, top_k, max_tokens, thinking, output_config, context_management). */
+  stampClaudeCode: boolean;
   /** Value to inject as `reasoning_effort` on OpenAI request bodies. Null = disabled. */
   stampReasoningEffort: "high" | "max" | null;
   openaiPath: string;
@@ -157,9 +159,7 @@ export interface ProxyConfig {
   concurrencyHardCap: number;
   /** Persisted concurrency soft limit (from /v1/usage, read-only display). */
   concurrencySoftLimit: number;
-  /** Per-provider/family weight overrides for the concurrency gate. Key is provider or family name; value is the weight (default 1.0). */
-  concurrencyWeights: Record<string, number>;
-  /** Pro-tier rolling window: max requests before rejecting. Set to 0 to disable. */
+  /** Pro-tier rolling window: -1 = unlimited (no limiter), 0 = auto-derive from /v1/usage, >0 = explicit limit. */
   rateLimitRequests: number;
   /** Max time a request can wait in the queue before 503, in ms. */
   queueTimeoutMs: number;
@@ -173,8 +173,6 @@ export interface ProxyConfig {
   breakerWindowMs: number;
   /** Circuit breaker OPEN cooldown before HALF_OPEN probe, in ms. */
   breakerCooldownMs: number;
-  /** Number of latest requests per model to use for percentile stats. */
-  usageStatsLatestN: number;
   /** Vision handoff strategy: never (off), catalog (model lookup), always. */
   visionStrategy: "never" | "catalog" | "always";
   /** URL of vision model API, or null to disable. */
@@ -201,8 +199,6 @@ export interface ProxyConfig {
   visionCacheMaxRows: number;
   /** Enable SQLite-backed persistent description cache. */
   visionPersistentCache: boolean;
-  /** Bearer token for the vision API, or null to use env VISION_API_KEY. */
-  visionApiKey: string | null;
   /** When true (catalog strategy), also intercept images for vision-capable
    *  models — converting them to cacheable text descriptions for KV cache
    *  efficiency and to bypass the 10-image-per-session limit. */
@@ -217,6 +213,8 @@ export interface ProxyConfig {
   visionImageFormat: "jpeg" | "png";
   /** OpenAI image_url detail parameter: "auto", "low", or "high". */
   visionImageDetail: "auto" | "low" | "high";
+  /** When true, vision cache misses forward the original body and process vision in the background. */
+  backgroundVision: boolean;
   /** Reserved concurrency slots for the "main" intention (default 1). */
   concurrencyMainReservation: number;
   /** Reserved concurrency slots for the "vision" intention (default 1). */
@@ -231,6 +229,12 @@ export interface ProxyConfig {
   wsCloseOnBackpressureLimit: boolean;
   /** Max pending vision requests to batch together. */
   visionPendingMaxBatch: number;
+  /** Enable zstd compression for captured text payloads. */
+  compressionEnabled: boolean;
+  /** Use a Bun Worker for write-behind batch updates (offloads event loop blocking). */
+  useWriteWorker: boolean;
+  /** Hard timeout for upstream requests in milliseconds. Prevents permit leaks when upstream hangs and client stays connected. */
+  upstreamTimeoutMs: number;
 }
 
 // Narrow config interfaces (ISP). ProxyConfig structurally satisfies each,
@@ -240,15 +244,12 @@ export interface ProxyConfig {
 export interface ProtocolConfig {
   incomingProtocol: ProxyConfig["incomingProtocol"];
   upstreamProtocol: ProxyConfig["upstreamProtocol"];
+  upstreamTimeoutMs: ProxyConfig["upstreamTimeoutMs"];
 }
 
 /** Stamp-related fields used by the proxy stamp pipeline. */
 export interface StampConfig {
-  stampTtl: ProxyConfig["stampTtl"];
-  stampTopK: ProxyConfig["stampTopK"];
-  stampMaxTokens: ProxyConfig["stampMaxTokens"];
-  stampThinking: ProxyConfig["stampThinking"];
-  stampOutputConfig: ProxyConfig["stampOutputConfig"];
+  stampClaudeCode: ProxyConfig["stampClaudeCode"];
   stampReasoningEffort: ProxyConfig["stampReasoningEffort"];
   openaiPath: ProxyConfig["openaiPath"];
 }
@@ -259,13 +260,13 @@ export interface CaptureConfig {
   captureBodyMaxBytes: ProxyConfig["captureBodyMaxBytes"];
   maxCaptures: ProxyConfig["maxCaptures"];
   dbPath: ProxyConfig["dbPath"];
+  backgroundVision: ProxyConfig["backgroundVision"];
 }
 
 /** Gate-related fields for concurrency/rate-limit/circuit-breaker tuning. */
 export interface GateConfig {
   concurrencyHardCap: ProxyConfig["concurrencyHardCap"];
   concurrencySoftLimit: ProxyConfig["concurrencySoftLimit"];
-  concurrencyWeights: ProxyConfig["concurrencyWeights"];
   rateLimitRequests: ProxyConfig["rateLimitRequests"];
   queueTimeoutMs: ProxyConfig["queueTimeoutMs"];
   maxQueueDepth: ProxyConfig["maxQueueDepth"];
@@ -285,7 +286,7 @@ export interface QueueConfig {
 }
 
 /** A cache_control block in an Anthropic message body. */
-export interface CacheControlBlock {
+interface CacheControlBlock {
   type: string;
   ttl?: string;
 }
@@ -315,6 +316,7 @@ export interface AnthropicBody {
   max_tokens?: number;
   thinking?: ThinkingConfig;
   output_config?: OutputConfig;
+  context_management?: { edits: Array<{ type: string; keep: string }> };
   [key: string]: unknown;
 }
 
@@ -342,6 +344,8 @@ export interface UsageSnapshot {
   priorityLow: boolean;
   boxedUntil: number | null;
   boxedReason: string | null;
+  unitsDemoted: boolean;
+  demotedUntil: number | null;
 }
 
 /** Discriminated state of the circuit breaker. */
@@ -357,7 +361,10 @@ export interface GateStats {
   breaker: BreakerState;
   boxed: boolean;
   boxedReason: string | null;
+  boxedUntil: number | null;
   priorityLow: boolean;
+  unitsDemoted: boolean;
+  demotedUntil: number | null;
   requestsRemaining: number | null;
   requestsInWindow: number;
   requestsLimit: number | null;

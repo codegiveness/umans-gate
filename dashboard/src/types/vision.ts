@@ -1,3 +1,5 @@
+import type { CaptureState } from "@/types";
+
 export interface VisionCallRecord {
   id: number;
   captureId: number | null;
@@ -11,4 +13,7 @@ export interface VisionCallRecord {
   description: string;
   error: string | null;
   timestamp: number;
+  incoming_protocol: string;
+  upstream_protocol: string;
+  state: CaptureState;
 }

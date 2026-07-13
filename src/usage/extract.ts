@@ -18,8 +18,7 @@ import type {
 
 type ResponseLike = {
   responseBody: string;
-  chunkTimes: number[];
-  chunks?: TimedChunk[];
+  chunks: TimedChunk[];
   durationMs: number;
   requestStartedAt: number;
 };
@@ -34,7 +33,7 @@ const EXTRACTORS: Record<string, ProviderExtractors> = {
   anthropic: {
     stream: (res) =>
       extractAnthropicStreaming(
-        parseAnthropicSse(res.responseBody, res.chunkTimes, res.chunks),
+        parseAnthropicSse(res.chunks),
         res.requestStartedAt,
         res.durationMs,
       ),
@@ -42,11 +41,7 @@ const EXTRACTORS: Record<string, ProviderExtractors> = {
   },
   openai: {
     stream: (res) =>
-      extractOpenAiStreaming(
-        parseOpenAiSse(res.responseBody, res.chunkTimes, res.chunks),
-        res.requestStartedAt,
-        res.durationMs,
-      ),
+      extractOpenAiStreaming(parseOpenAiSse(res.chunks), res.requestStartedAt, res.durationMs),
     batch: (res) => extractOpenAiNonStreaming(JSON.parse(res.responseBody), res.durationMs),
   },
 };
@@ -305,7 +300,6 @@ export function extractModel(requestBody: unknown): string {
  * @param opts.responseBody   raw response body (SSE string for streaming, JSON for non-streaming)
  * @param opts.durationMs     full request duration in ms (used for non-streaming + fallback)
  * @param opts.requestStartedAt epoch ms when the request started (used for streaming TTFT/duration)
- * @param opts.chunkTimes     array of epoch ms timestamps per SSE chunk (for streaming TTFT)
  * @returns `{ model, metrics }` — model is the extracted model name, metrics has model stamped on it
  */
 export function extractUsage(opts: {
@@ -315,7 +309,6 @@ export function extractUsage(opts: {
   responseBody: string;
   durationMs: number;
   requestStartedAt: number;
-  chunkTimes: number[];
   chunks?: TimedChunk[];
 }): { model: string; metrics: UsageMetrics } {
   const parsedBody = JSON.parse(opts.requestBody);
@@ -324,8 +317,7 @@ export function extractUsage(opts: {
   const extractor = EXTRACTORS[opts.provider]?.[key] ?? EXTRACTORS.openai[key];
   const metrics = extractor({
     responseBody: opts.responseBody,
-    chunkTimes: opts.chunkTimes,
-    chunks: opts.chunks,
+    chunks: opts.chunks ?? [],
     durationMs: opts.durationMs,
     requestStartedAt: opts.requestStartedAt,
   });

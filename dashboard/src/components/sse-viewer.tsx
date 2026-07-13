@@ -1,4 +1,5 @@
 import { ChevronDown } from "lucide-react";
+import { memo, useMemo } from "react";
 
 import { syntaxHighlight } from "@/lib/format";
 
@@ -61,11 +62,11 @@ interface SseViewerProps {
 }
 
 export function SseViewer({ body }: SseViewerProps) {
+  const events = useMemo(() => (body ? parseSSE(body) : []), [body]);
+
   if (!body) {
     return <div className="text-muted-foreground italic">empty body</div>;
   }
-
-  const events = parseSSE(body);
 
   return (
     <div>
@@ -94,7 +95,7 @@ export function SseViewer({ body }: SseViewerProps) {
   );
 }
 
-function EventData({ data }: { data: string }) {
+const EventData = memo(function EventData({ data }: { data: string }) {
   try {
     const parsed = JSON.parse(data) as unknown;
     const formatted = JSON.stringify(parsed, null, 2);
@@ -112,4 +113,4 @@ function EventData({ data }: { data: string }) {
       </pre>
     );
   }
-}
+});

@@ -29,7 +29,7 @@ describe("parseAnthropicSse with chunks parameter", () => {
 
     const ts = 1000000;
     const chunks: TimedChunk[] = [{ text: sseBody, time: ts }];
-    const events = parseAnthropicSse("", [], chunks);
+    const events = parseAnthropicSse(chunks);
 
     expect(events.length).toBe(3);
     expect(events[0].type).toBe("message_start");
@@ -49,7 +49,7 @@ describe("parseAnthropicSse with chunks parameter", () => {
       { text: part1, time: 1000 },
       { text: part2, time: 2000 },
     ];
-    const events = parseAnthropicSse("", [], chunks);
+    const events = parseAnthropicSse(chunks);
 
     expect(events.length).toBe(1);
     expect(events[0].type).toBe("content_block_delta");
@@ -80,7 +80,7 @@ describe("parseAnthropicSse with chunks parameter", () => {
       { text: chunk1Text, time: 1000 },
       { text: chunk2Text, time: 2000 },
     ];
-    const events = parseAnthropicSse("", [], chunks);
+    const events = parseAnthropicSse(chunks);
 
     expect(events.length).toBe(3);
     expect(events[0].type).toBe("message_start");
@@ -91,25 +91,6 @@ describe("parseAnthropicSse with chunks parameter", () => {
     expect(events[2].type).toBe("content_block_delta");
     expect(events[2].delta?.type).toBe("text_delta");
     expect(events[2].received_at).toBe(2000);
-  });
-
-  test("legacy path still works without chunks", () => {
-    const sseBody = [
-      "event: message_start",
-      'data: {"type":"message_start","message":{"usage":{"input_tokens":10}}}',
-      "",
-      "event: content_block_delta",
-      'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"Hi"}}',
-      "",
-      "",
-    ].join("\n");
-
-    const chunkTimes = [1000, 2000];
-    const events = parseAnthropicSse(sseBody, chunkTimes);
-
-    expect(events.length).toBe(2);
-    expect(events[0].received_at).toBe(1000);
-    expect(events[1].received_at).toBe(2000);
   });
 });
 
@@ -338,7 +319,7 @@ describe("parseOpenAiSse with chunks parameter", () => {
     ].join("\n");
 
     const chunks: TimedChunk[] = [{ text: sseBody, time: 5000 }];
-    const result = parseOpenAiSse("", [], chunks);
+    const result = parseOpenAiSse(chunks);
 
     expect(result.length).toBe(2);
     expect(result[0].received_at).toBe(5000);
@@ -353,26 +334,10 @@ describe("parseOpenAiSse with chunks parameter", () => {
       { text: part1, time: 1000 },
       { text: part2, time: 2000 },
     ];
-    const result = parseOpenAiSse("", [], chunks);
+    const result = parseOpenAiSse(chunks);
 
     expect(result.length).toBe(1);
     expect(result[0].received_at).toBe(2000);
     expect(result[0].choices?.[0]?.delta?.content).toBe("Hi");
-  });
-
-  test("legacy path still works without chunks", () => {
-    const sseBody = [
-      'data: {"choices":[{"delta":{"content":"Hi"}}]}',
-      "",
-      'data: {"choices":[{"delta":{"content":" there"}}]}',
-      "",
-      "data: [DONE]",
-      "",
-    ].join("\n");
-
-    const result = parseOpenAiSse(sseBody, [1000, 2000]);
-    expect(result.length).toBe(2);
-    expect(result[0].received_at).toBe(1000);
-    expect(result[1].received_at).toBe(2000);
   });
 });

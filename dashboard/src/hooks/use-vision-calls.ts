@@ -30,6 +30,7 @@ export function useVisionCalls(): UseVisionCallsResult {
   const clear = async () => {
     try {
       await fetch(`${API_BASE}/vision-calls`, { method: "DELETE" });
+      refresh();
     } catch (err) {
       // Ignore: the next poll will reconcile the server state anyway.
     }

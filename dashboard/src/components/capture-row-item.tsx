@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { badgeInfo, badgeSuccess } from "@/lib/badge-colors";
 import {
   fmtCachePct,
   fmtDate,
@@ -111,7 +112,12 @@ export function CaptureRowItem({
         >
           <span className="shrink-0 font-mono text-xs font-bold text-primary">{c.method}</span>
         </RowTip>
-        <StatusBadge status={c.response_status} size="sm" />
+        <StatusBadge
+          status={c.response_status}
+          statusSource={c.status_source}
+          gateReason={c.gate_reason}
+          size="sm"
+        />
         {c.is_vision && (
           <RowTip tip="Vision call — request included image input">
             <span className="inline-flex shrink-0 items-center text-muted-foreground">
@@ -121,14 +127,14 @@ export function CaptureRowItem({
         )}
         {c.state === "enqueued" && (
           <RowTip tip="Queued — waiting for a concurrency slot">
-            <Badge variant="secondary" size="sm">
+            <Badge variant="secondary" size="sm" className={badgeInfo}>
               queued
             </Badge>
           </RowTip>
         )}
         {c.state === "streaming" && (
           <RowTip tip="Running — upstream is streaming the response">
-            <Badge variant="secondary" size="sm">
+            <Badge variant="secondary" size="sm" className={badgeSuccess}>
               running
             </Badge>
           </RowTip>
@@ -212,10 +218,22 @@ export function CaptureRowItem({
             <span>{fmtTime(c.duration_ms) || "—"}</span>
           </RowTip>
         )}
-        <RowTip tip="Time to first token — delay before first response token">
-          <span>ttft {fmtTtft(c.ttft_ms)}</span>
-        </RowTip>
-        <RowTip tip="Tokens per second — output generation rate">
+        {(!isRunning || c.ttft_ms != null) && (
+          <RowTip tip="Time to first token — delay before first response token">
+            <span>ttft {fmtTtft(c.ttft_ms)}</span>
+          </RowTip>
+        )}
+        <RowTip
+          tip={
+            c.tps == null
+              ? c.usage_missing
+                ? "Tokens per second — usage data unavailable"
+                : c.output_tokens == null || c.output_tokens <= 0
+                  ? "Tokens per second — no output tokens"
+                  : "Tokens per second — generation time too short to measure (< 1 s)"
+              : "Tokens per second — output generation rate"
+          }
+        >
           <span>{fmtTps(c.tps)} t/s</span>
         </RowTip>
         <RowTip tip="Total input tokens — prompt tokens sent (incl. cache writes)">

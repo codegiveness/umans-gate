@@ -67,22 +67,22 @@ use the same aliases rather than raw color values.
 
 ### Status → Badge variant mapping
 
-HTTP status classes map to the four stock Badge variants (no custom variants):
+HTTP status classes use the shadcn Badge Custom Colors pattern — Tailwind
+palette classes applied via `className` from `@/lib/badge-colors`, layered on
+top of the `secondary` stock variant:
 
-| `statusClass()` | Badge `variant` |
-|-----------------|-----------------|
-| `ok` (2xx/3xx) | `default` |
-| `info` | `secondary` |
-| `warn` (4xx) | `outline` |
-| `err` (5xx) | `destructive` |
-| `""` (unknown) | `secondary` |
+| `statusClass()` | Badge `variant` | Semantic `className` |
+|-----------------|-----------------|----------------------|
+| `ok` (2xx/3xx) | `secondary` | `badgeSuccess` (green) |
+| `info` | `secondary` | `badgeInfo` (blue) |
+| `warn` (4xx) | `secondary` | `badgeWarning` (amber) |
+| `err` (5xx) | `destructive` | — |
+| `""` (unknown) | `secondary` | — |
 
-The previously-documented custom Badge variants (`sse`, `proto`, `queued`,
-`running`, `success`, `warning`) and the `success` / `warning` / `info` /
-`sse` / `json-*` color tokens were **never wired into components**; they were
-aspirational and have been removed from the token file. If a future feature
-needs a semantic accent, add the OKLCH token to `src/index.css` first, register
-it here, then reference it.
+The same semantic color constants (`badgeSuccess`, `badgeWarning`, `badgeInfo`)
+are reused for non-HTTP badges with matching semantics: WebSocket live/down,
+capture queued/running/live, vision call ok/cache_hit, gate priority
+high/low/stale, and config experimental/Umans API badges.
 
 ## Typography
 

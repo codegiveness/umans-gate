@@ -2,13 +2,15 @@
 // WAL mode + write-behind queue for non-blocking captures.
 
 import { Database } from "bun:sqlite";
-import type { CaptureRow, ProxyConfig } from "./types.js";
+import { compressText, decompressText } from "./compress.js";
+import { accountCaptureUsage, backfillFromCaptures, migrateEconomicsSchema } from "./economics.js";
+import type { CaptureRow, CaptureState, ProxyConfig } from "./types.js";
 import {
   LATEST_N_PER_MODEL_VIEW,
   PERFORMANCE_STATS_SQL,
   USAGE_COLUMNS_DDL,
 } from "./usage-extract.js";
-import type { ModelRequestRow, PerformanceStatsRow, UsageMetrics } from "./usage-extract.js";
+import type { PerformanceStatsRow, UsageMetrics } from "./usage-extract.js";
 import { VisionDescriptionStore } from "./vision-description-store.js";
 import type { VisionCallRecord } from "./vision/handoff.js";
 
@@ -36,6 +38,8 @@ export interface UpdateParams {
   $sse: number;
   $dur: number;
   $fin: number;
+  $status_source: "upstream" | "gate" | null;
+  $gate_reason: string | null;
   $usage?: UsageMetrics | null;
   $model?: string | null;
 }
@@ -53,6 +57,7 @@ interface VisionInsertParams {
   $rs2: number;
   $ct: string;
   $dur: number;
+  $state: CaptureState;
   $started_at: number;
   $finished_at: number;
   $inp: string;
@@ -60,6 +65,35 @@ interface VisionInsertParams {
   $model: string;
   $parent_capture_id: number | null;
   $vision_meta: string | null;
+  $provider: string | null;
+  $streaming: number | null;
+  $input_tokens: number | null;
+  $output_tokens: number | null;
+  $cache_creation_tokens: number | null;
+  $cache_read_tokens: number | null;
+  $total_input_tokens: number | null;
+  $total_output_tokens: number | null;
+  $thinking_tokens: number | null;
+  $ttft_ms: number | null;
+  $tps: number | null;
+  $usage_missing: number | null;
+  $metrics_extracted_at: number | null;
+}
+
+export interface VisionUpdateParams {
+  $id: number;
+  $status: number | null;
+  $rh: string;
+  $rb: string;
+  $rs: number;
+  $ct: string;
+  $sse: number;
+  $dur: number;
+  $fin: number;
+  $status_source: "upstream" | "gate" | null;
+  $gate_reason: string | null;
+  $vision_meta: string | null;
+  $model: string | null;
   $provider: string | null;
   $streaming: number | null;
   $input_tokens: number | null;
@@ -127,7 +161,10 @@ export function migrateCaptureSchema(db: Database): void {
   db.exec("PRAGMA journal_mode = WAL;");
   db.exec("PRAGMA synchronous = NORMAL;");
   db.exec("PRAGMA temp_store = MEMORY;");
-  db.exec("PRAGMA cache_size = -20000;");
+  db.exec("PRAGMA cache_size = -64000;"); // 64MB page cache (was 20MB)
+  db.exec("PRAGMA mmap_size = 268435456;"); // 256MB memory-mapped I/O
+  db.exec("PRAGMA journal_size_limit = 67108864;"); // 64MB WAL cap
+  db.exec("PRAGMA busy_timeout = 5000;"); // 5s wait on lock contention
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS captures (
@@ -164,6 +201,10 @@ export function migrateCaptureSchema(db: Database): void {
   // and response_body can hold the actual HTTP request/response exchanged
   // with the vision model.
   addColumnIfMissing(db, "vision_meta", "TEXT");
+  // Status source: "upstream" = response from upstream API, "gate" = proxy-generated.
+  addColumnIfMissing(db, "status_source", "TEXT");
+  // Human-readable explanation when the proxy (gate) generated the HTTP status.
+  addColumnIfMissing(db, "gate_reason", "TEXT");
 
   // Token-usage columns: split DDL on ';', strip SQL comments, exec each individually so
   // SQLite doesn't halt on the first "duplicate column" error when an existing DB is reopened.
@@ -197,6 +238,17 @@ export function migrateCaptureSchema(db: Database): void {
       WHERE model IS NOT NULL;
   `);
 
+  // Null out tps values computed before the 1-second generation-time floor
+  // was introduced. Idempotent: after the first run no rows match because
+  // computeTps() already returns null for short generations.
+  db.exec(`
+    UPDATE captures
+    SET tps = NULL
+    WHERE tps IS NOT NULL
+      AND duration_ms IS NOT NULL
+      AND (duration_ms - COALESCE(ttft_ms, 0)) < 1000
+  `);
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS vision_descriptions (
       key              TEXT PRIMARY KEY,
@@ -212,6 +264,11 @@ export function migrateCaptureSchema(db: Database): void {
     CREATE INDEX IF NOT EXISTS idx_vision_desc_last_accessed
       ON vision_descriptions(last_accessed_at ASC);
   `);
+
+  // Economics schema (model_pricing + daily_usage tables, usage_accounted column).
+  migrateEconomicsSchema(db);
+  // Account captures from before the economics migration.
+  backfillFromCaptures(db);
 }
 
 /** Capture database — wraps a bun:sqlite Database with prepared statements. */
@@ -225,19 +282,24 @@ export class CaptureDB {
   private stmtCount: ReturnType<Database["prepare"]>;
   private stmtSetState: ReturnType<Database["prepare"]>;
   private stmtUpdateRequestBody: ReturnType<Database["prepare"]>;
-  private stmtModelStats: ReturnType<Database["prepare"]>;
   private stmtPerformanceStats: ReturnType<Database["prepare"]>;
   private stmtInsertVision: ReturnType<Database["prepare"]>;
+  private stmtUpdateVision: ReturnType<Database["prepare"]>;
   private stmtListVision: ReturnType<Database["prepare"]>;
   private stmtClearVision: ReturnType<Database["prepare"]>;
   private stmtListVisionRecords: ReturnType<Database["prepare"]>;
   private readonly visionDescStore: VisionDescriptionStore;
   private rowCount: number;
   readonly maxCaptures: number;
+  compressionEnabled: boolean;
 
-  constructor(config: Pick<ProxyConfig, "dbPath" | "maxCaptures">) {
+  constructor(
+    config: Pick<ProxyConfig, "dbPath" | "maxCaptures"> &
+      Partial<Pick<ProxyConfig, "compressionEnabled">>,
+  ) {
     this.db = new Database(config.dbPath);
     this.maxCaptures = config.maxCaptures;
+    this.compressionEnabled = config.compressionEnabled ?? true;
 
     migrateCaptureSchema(this.db);
 
@@ -256,6 +318,8 @@ export class CaptureDB {
         duration_ms      = $dur,
         state            = 'done',
         finished_at      = $fin,
+        status_source    = $status_source,
+        gate_reason      = $gate_reason,
         provider               = $provider,
         streaming              = $streaming,
         model                  = $model,
@@ -283,18 +347,14 @@ export class CaptureDB {
               incoming_protocol, upstream_protocol, model, usage_missing,
               ttft_ms, tps, input_tokens, output_tokens,
               cache_creation_tokens, cache_read_tokens,
-              total_input_tokens, total_output_tokens, is_vision
+              total_input_tokens, total_output_tokens, is_vision,
+              status_source, gate_reason
        FROM captures ORDER BY id DESC LIMIT ?`,
     );
     this.stmtCount = this.db.prepare("SELECT COUNT(*) AS c FROM captures");
     this.stmtSetState = this.db.prepare("UPDATE captures SET state = $state WHERE id = $id");
     this.stmtUpdateRequestBody = this.db.prepare(
       "UPDATE captures SET request_body = $rb, request_size = $rs WHERE id = $id",
-    );
-    this.stmtModelStats = this.db.prepare(
-      `SELECT * FROM captures
-       WHERE model IS NOT NULL AND state = 'done'
-       ORDER BY started_at DESC LIMIT ?`,
     );
     this.stmtPerformanceStats = this.db.prepare(PERFORMANCE_STATS_SQL);
     this.stmtInsertVision = this.db.prepare(
@@ -311,7 +371,7 @@ export class CaptureDB {
        VALUES
          ($method, $path, $url, $rh, $rb, $rs,
           $status, $rh2, $rb2, $rs2,
-          $ct, 0, $dur, 'done', $started_at, $finished_at,
+          $ct, 0, $dur, $state, $started_at, $finished_at,
           $inp, $outp, $model,
           1, $parent_capture_id, $vision_meta,
           $provider, $streaming, $input_tokens, $output_tokens,
@@ -319,19 +379,51 @@ export class CaptureDB {
           $total_input_tokens, $total_output_tokens, $thinking_tokens,
           $ttft_ms, $tps, $usage_missing, $metrics_extracted_at)`,
     );
+    this.stmtUpdateVision = this.db.prepare(`
+      UPDATE captures SET
+        response_status = $status,
+        response_headers = $rh,
+        response_body = $rb,
+        response_size = $rs,
+        content_type = $ct,
+        is_sse = $sse,
+        duration_ms = $dur,
+        state = 'done',
+        finished_at = $fin,
+        status_source = $status_source,
+        gate_reason = $gate_reason,
+        vision_meta = $vision_meta,
+        provider = $provider,
+        streaming = $streaming,
+        model = $model,
+        input_tokens = $input_tokens,
+        output_tokens = $output_tokens,
+        cache_creation_tokens = $cache_creation_tokens,
+        cache_read_tokens = $cache_read_tokens,
+        total_input_tokens = $total_input_tokens,
+        total_output_tokens = $total_output_tokens,
+        thinking_tokens = $thinking_tokens,
+        ttft_ms = $ttft_ms,
+        tps = $tps,
+        usage_missing = $usage_missing,
+        metrics_extracted_at = $metrics_extracted_at
+      WHERE id = $id
+    `);
     this.stmtListVision = this.db.prepare(
       `SELECT id, method, path, response_status, is_sse, content_type,
               request_size, response_size, duration_ms, state, started_at, finished_at,
               incoming_protocol, upstream_protocol, model, usage_missing,
               ttft_ms, tps, input_tokens, output_tokens,
               cache_creation_tokens, cache_read_tokens,
-              total_input_tokens, total_output_tokens, is_vision, parent_capture_id
+              total_input_tokens, total_output_tokens, is_vision, parent_capture_id,
+              status_source, gate_reason
        FROM captures WHERE is_vision = 1
        ORDER BY id DESC LIMIT ?`,
     );
     this.stmtClearVision = this.db.prepare("DELETE FROM captures WHERE is_vision = 1");
     this.stmtListVisionRecords = this.db.prepare(
-      `SELECT id, response_body, request_body, vision_meta, started_at, finished_at, parent_capture_id, model
+      `SELECT id, response_body, request_body, vision_meta, started_at, finished_at, parent_capture_id, model,
+              state, incoming_protocol, upstream_protocol
        FROM captures WHERE is_vision = 1
        ORDER BY id DESC LIMIT ?`,
     );
@@ -349,9 +441,14 @@ export class CaptureDB {
 
   /** Insert a new capture row and enforce the ring buffer. Returns the new id. */
   startCapture(params: InsertParams): number {
+    const compressed = {
+      ...params,
+      $rh: compressText(params.$rh, this.compressionEnabled),
+      $rb: compressText(params.$rb, this.compressionEnabled),
+    };
     let id = 0;
     this.db.transaction(() => {
-      id = Number(this.stmtInsert.run(params as unknown as never).lastInsertRowid);
+      id = Number(this.stmtInsert.run(compressed as unknown as never).lastInsertRowid);
       if (++this.rowCount > this.maxCaptures) {
         this.stmtDeleteOld.run({ $n: this.maxCaptures });
         this.rowCount = this.maxCaptures;
@@ -362,7 +459,15 @@ export class CaptureDB {
 
   /** Update a capture row with response data. */
   updateCapture(params: UpdateParams): void {
-    this.stmtUpdate.run(params as unknown as never);
+    const compressed = {
+      ...params,
+      $rh: compressText(params.$rh, this.compressionEnabled),
+      $rb: compressText(params.$rb, this.compressionEnabled),
+    };
+    this.db.transaction(() => {
+      this.stmtUpdate.run(compressed as unknown as never);
+      accountCaptureUsage(this.db, params.$id);
+    })();
   }
 
   /** Transition a capture's state (enqueued → streaming → done). */
@@ -372,64 +477,41 @@ export class CaptureDB {
 
   /** Update request_body and request_size after in-flight modification (e.g. vision handoff). */
   updateRequestBody(id: number, body: string, size: number): void {
-    this.stmtUpdateRequestBody.run({ $rb: body, $rs: size, $id: id });
+    const compressedBody = compressText(body, this.compressionEnabled);
+    this.stmtUpdateRequestBody.run({ $rb: compressedBody, $rs: size, $id: id });
   }
 
   /** Batch-update multiple captures in a single transaction. */
-  batchUpdate(items: Array<{ id: number; res: Omit<UpdateParams, "$id"> }>): void {
+  async batchUpdate(items: Array<{ id: number; res: Omit<UpdateParams, "$id"> }>): Promise<void> {
     this.db.transaction(() => {
       for (const it of items) {
         this.stmtUpdate.run({
           ...it.res,
+          $rh: compressText(it.res.$rh, this.compressionEnabled),
+          $rb: compressText(it.res.$rb, this.compressionEnabled),
           ...flattenUsage(it.res.$usage),
           $model: it.res.$model ?? null,
           $id: it.id,
         } as unknown as never);
+        accountCaptureUsage(this.db, it.id);
       }
     })();
   }
 
   /** Get a single capture by id (full row including bodies). */
   get(id: number): CaptureRow | null {
-    return (this.stmtGet.get({ $id: id }) as CaptureRow | undefined) ?? null;
+    const raw = this.stmtGet.get({ $id: id }) as Record<string, unknown> | undefined;
+    if (!raw) return null;
+    raw.request_headers = decompressText(raw.request_headers as string | Uint8Array | null);
+    raw.request_body = decompressText(raw.request_body as string | Uint8Array | null);
+    raw.response_headers = decompressText(raw.response_headers as string | Uint8Array | null);
+    raw.response_body = decompressText(raw.response_body as string | Uint8Array | null);
+    return raw as unknown as CaptureRow;
   }
 
   /** List recent capture summaries (no body data). */
   list(limit: number): CaptureRow[] {
     return this.stmtList.all(Math.min(limit, 1000)) as CaptureRow[];
-  }
-
-  /** Pull the latest N requests per model (across all models) with full usage metrics.
-   *  Returns rows shaped as ModelRequestRow (model + nested metrics). The SQL
-   *  fetches latestN * 20 rows (bounds memory); caller-side summarizeByModel()
-   *  slices the true latest-N per model. */
-  getModelStats(latestN: number): ModelRequestRow[] {
-    const rows = this.stmtModelStats.all(latestN * 20) as Array<Record<string, unknown>>;
-    return rows.map((row) => {
-      const provider = row.provider as "anthropic" | "openai";
-      const streaming = row.streaming != null ? Number(row.streaming) === 1 : false;
-      const usageMissing = row.usage_missing != null ? Number(row.usage_missing) === 1 : false;
-      return {
-        model: row.model as string,
-        provider,
-        captured_at: row.started_at as number,
-        metrics: {
-          provider,
-          streaming,
-          input_tokens: (row.input_tokens as number | null) ?? null,
-          output_tokens: (row.output_tokens as number | null) ?? null,
-          cache_creation_tokens: (row.cache_creation_tokens as number | null) ?? null,
-          cache_read_tokens: (row.cache_read_tokens as number | null) ?? null,
-          total_input_tokens: (row.total_input_tokens as number | null) ?? null,
-          total_output_tokens: (row.total_output_tokens as number | null) ?? null,
-          thinking_tokens: (row.thinking_tokens as number | null) ?? null,
-          ttft_ms: (row.ttft_ms as number | null) ?? null,
-          duration_ms: (row.duration_ms as number | null) ?? null,
-          tps: (row.tps as number | null) ?? null,
-          usage_missing: usageMissing,
-        },
-      };
-    });
   }
 
   /** Compute per-model performance stats entirely in SQL (p10/p50/p95, sums, cached%).
@@ -445,15 +527,18 @@ export class CaptureDB {
       total_input_tokens: Number(row.total_input_tokens) || 0,
       total_output_tokens: Number(row.total_output_tokens) || 0,
       total_cache_read_tokens: Number(row.total_cache_read_tokens) || 0,
+      total_thinking_tokens: Number(row.total_thinking_tokens) || 0,
       cached_pct: Number(row.cached_pct) || 0,
+      ttft_mean: (row.ttft_mean as number | null) ?? null,
       ttft_p10: (row.ttft_p10 as number | null) ?? null,
       ttft_p50: (row.ttft_p50 as number | null) ?? null,
       ttft_p95: (row.ttft_p95 as number | null) ?? null,
+      ttft_outlier_count: 0,
+      tps_mean: (row.tps_mean as number | null) ?? null,
       tps_p10: (row.tps_p10 as number | null) ?? null,
       tps_p50: (row.tps_p50 as number | null) ?? null,
       tps_p95: (row.tps_p95 as number | null) ?? null,
-      ttft_mean: (row.ttft_mean as number | null) ?? null,
-      tps_mean: (row.tps_mean as number | null) ?? null,
+      tps_outlier_count: 0,
     }));
   }
 
@@ -465,15 +550,35 @@ export class CaptureDB {
 
   /** Insert a vision-call capture row. Returns the new row id. */
   insertVisionCapture(params: VisionInsertParams): number {
+    const compressed = {
+      ...params,
+      $rh: compressText(params.$rh, this.compressionEnabled),
+      $rb: compressText(params.$rb, this.compressionEnabled),
+      $rh2: compressText(params.$rh2, this.compressionEnabled),
+      $rb2: compressText(params.$rb2, this.compressionEnabled),
+    };
     let id = 0;
     this.db.transaction(() => {
-      id = Number(this.stmtInsertVision.run(params as unknown as never).lastInsertRowid);
+      id = Number(this.stmtInsertVision.run(compressed as unknown as never).lastInsertRowid);
       if (++this.rowCount > this.maxCaptures) {
         this.stmtDeleteOld.run({ $n: this.maxCaptures });
         this.rowCount = this.maxCaptures;
       }
     })();
     return id;
+  }
+
+  /** Update a vision-call capture row with final response data and mark it done. */
+  updateVisionCapture(params: VisionUpdateParams): void {
+    const compressed = {
+      ...params,
+      $rh: compressText(params.$rh, this.compressionEnabled),
+      $rb: compressText(params.$rb, this.compressionEnabled),
+    };
+    this.db.transaction(() => {
+      this.stmtUpdateVision.run(compressed as unknown as never);
+      accountCaptureUsage(this.db, params.$id);
+    })();
   }
 
   /** List recent vision-call capture summaries (is_vision=1). */
@@ -494,14 +599,21 @@ export class CaptureDB {
   getVisionCallRecords(limit: number): VisionCallRecord[] {
     const rows = this.stmtListVisionRecords.all(Math.min(limit, 1000)) as Array<{
       id: number;
-      response_body: string | null;
-      request_body: string | null;
+      response_body: string | Uint8Array | null;
+      request_body: string | Uint8Array | null;
       vision_meta: string | null;
       started_at: number | null;
       finished_at: number | null;
       parent_capture_id: number | null;
       model: string | null;
+      state: string | null;
+      incoming_protocol: string | null;
+      upstream_protocol: string | null;
     }>;
+    for (const row of rows) {
+      row.response_body = decompressText(row.response_body);
+      row.request_body = decompressText(row.request_body);
+    }
     const records: VisionCallRecord[] = [];
     for (const row of rows) {
       if (!row.vision_meta) continue;
@@ -530,6 +642,9 @@ export class CaptureDB {
           latencyMs: data.latencyMs ?? 0,
           description: data.description ?? "",
           error: data.error ?? null,
+          incomingProtocol: row.incoming_protocol ?? "",
+          upstreamProtocol: row.upstream_protocol ?? "",
+          state: (row.state ?? "done") as CaptureState,
         });
       } catch {
         // Corrupt JSON — skip this row.
@@ -541,6 +656,11 @@ export class CaptureDB {
   /** Close the database connection. */
   close(): void {
     this.db.close();
+  }
+
+  /** Access the raw bun:sqlite Database (for economics queries). */
+  get rawDb(): Database {
+    return this.db;
   }
 
   /** Insert or update a vision description in the persistent store. */

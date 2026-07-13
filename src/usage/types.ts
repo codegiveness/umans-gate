@@ -107,25 +107,6 @@ export interface TimedChunk {
   time: number;
 }
 
-/** A per-request row that includes model + timestamp for dashboard queries. */
-export interface ModelRequestRow {
-  model: string;
-  provider: "anthropic" | "openai";
-  captured_at: number; // epoch ms
-  metrics: UsageMetrics;
-}
-
-/** Percentile summary for a single numeric field. */
-export interface PercentileStat {
-  count: number;
-  min: number;
-  p10: number;
-  p50: number;
-  p95: number;
-  max: number;
-  mean: number;
-}
-
 /** Aggregated per-model performance stats (computed in SQL, not JS). */
 export interface PerformanceStatsRow {
   model: string;
@@ -135,32 +116,16 @@ export interface PerformanceStatsRow {
   total_input_tokens: number;
   total_output_tokens: number;
   total_cache_read_tokens: number;
+  total_thinking_tokens: number;
   cached_pct: number;
+  ttft_mean: number | null;
   ttft_p10: number | null;
   ttft_p50: number | null;
   ttft_p95: number | null;
+  ttft_outlier_count: number;
+  tps_mean: number | null;
   tps_p10: number | null;
   tps_p50: number | null;
   tps_p95: number | null;
-  ttft_mean: number | null;
-  tps_mean: number | null;
-}
-
-/** Per-model summary row — one per model, computed from the latest N requests. */
-export interface ModelSummary {
-  model: string;
-  provider: "anthropic" | "openai";
-  request_count: number;
-  streaming_count: number;
-  non_streaming_count: number;
-  usage_missing_count: number;
-  ttft_ms: PercentileStat | null;
-  tps: PercentileStat | null;
-  duration_ms: PercentileStat | null;
-  input_tokens: PercentileStat | null;
-  output_tokens: PercentileStat | null;
-  cache_creation_tokens: PercentileStat | null;
-  cache_read_tokens: PercentileStat | null;
-  total_input_tokens: PercentileStat | null;
-  total_output_tokens: PercentileStat | null;
+  tps_outlier_count: number;
 }

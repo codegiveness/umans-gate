@@ -14,10 +14,11 @@ import {
   textDecoder,
   textEncoder,
 } from "./helpers.js";
-import type { GateError } from "./limiter.js";
-import type { ConcurrencyGate } from "./limiter.js";
+import type { GateError } from "./limiter/index.js";
+import type { ConcurrencyGate } from "./limiter/index.js";
 import { createLogger } from "./logger.js";
 
+import { STAMP_ANTHROPIC_BETA_HEADER } from "./config.js";
 import { extractModelName } from "./models/name.js";
 import type { WriteQueue } from "./queue.js";
 import type { SlidingWindowRateLimiter } from "./rate.js";
@@ -64,13 +65,15 @@ function stampPostVision(
 }
 
 /** Create the proxy request handler. */
+export type RateLimiterRef = { current: SlidingWindowRateLimiter | null };
+
 export function createProxyHandler(
   db: CaptureDB,
   ws: WsBroadcaster,
   queue: WriteQueue,
   config: StampConfig & CaptureConfig & GateConfig & ProtocolConfig,
   gate: ConcurrencyGate,
-  rate: SlidingWindowRateLimiter | null,
+  rateRef: RateLimiterRef,
   vision: VisionHandoff | null,
   models: ModelsClient,
   onTraffic?: () => void,
@@ -81,10 +84,199 @@ export function createProxyHandler(
     const path = url.pathname + url.search;
     const targetUrl = config.target + path;
 
-    // --- Rate limit check (pro tier only; rate is null when disabled or max tier) ---
+    const reqHeadersRaw = headersToObject(req.headers);
+    const isOpenAi = url.pathname.includes(config.openaiPath);
+
+    // Claude Code stamp: ensure ?beta=true on /v1/messages requests.
+    const stampBeta = config.stampClaudeCode && !isOpenAi && url.pathname === "/v1/messages";
+    const targetUrlObj = new URL(targetUrl);
+    const finalTargetUrl =
+      stampBeta && targetUrlObj.searchParams.get("beta") !== "true"
+        ? `${targetUrl}${targetUrl.includes("?") ? "&" : "?"}beta=true`
+        : targetUrl;
+
+    // --- Request body capture ---
+    let reqBuf: Uint8Array | null = null;
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      reqBuf = new Uint8Array(await req.arrayBuffer());
+    }
+
+    // Early exit if client already disconnected after sending the body.
+    if (req.signal.aborted) {
+      return new Response(null, { status: 499 });
+    }
+
+    // --- Stamp pipeline (TTL, AnthropicBody, OpenAiReasoning, TopK) ---
+    // Non-critical: stamping is optimization, not correctness. If it fails,
+    // forward the original body unchanged.
+    let body: unknown = null;
+    if (reqBuf && reqBuf.byteLength > 0) {
+      try {
+        const parsed = parseJsonBody(reqBuf, reqHeadersRaw);
+        body = parsed.body;
+      } catch (err) {
+        log.warn("stamp pipeline failed, forwarding original body", {
+          error: (err as Error).message,
+          path: url.pathname,
+        });
+      }
+    }
+
+    const reqModelName = body ? (extractModelName(body) ?? null) : null;
+
+    if (body && typeof body === "object" && body !== null) {
+      try {
+        const stampCtx: StampContext = {
+          config,
+          isOpenAi,
+          headers: reqHeadersRaw,
+          url,
+          method: req.method,
+          modelName: reqModelName ?? undefined,
+        };
+        let stampChanged = false;
+        for (const step of STAMP_PIPELINE) {
+          if (!step.applies(stampCtx)) continue;
+          if (step.apply(body, stampCtx)) stampChanged = true;
+        }
+        if (stampChanged) {
+          reqBuf = textEncoder.encode(JSON.stringify(body));
+        }
+      } catch (err) {
+        log.warn("stamp pipeline failed, forwarding original body", {
+          error: (err as Error).message,
+          path: url.pathname,
+        });
+      }
+    }
+
+    // --- Insert capture row (early, so vision calls can link to it) ---
+    let reqBodyText = reqBuf ? decodeText(reqBuf) : "";
+    const reqMeta: RequestMeta = {
+      method: req.method,
+      path,
+      request_size: reqBuf ? reqBuf.byteLength : 0,
+      started_at: startedAt,
+    };
+    const capId = db.startCapture({
+      $method: req.method,
+      $path: path,
+      $url: finalTargetUrl,
+      $rh: JSON.stringify(redactHeaders(reqHeadersRaw)),
+      $rb: reqBodyText,
+      $rs: reqBuf ? reqBuf.byteLength : 0,
+      $st: startedAt,
+      $state: "enqueued",
+      $inp: config.incomingProtocol,
+      $outp: config.upstreamProtocol,
+    });
+    ws.broadcast({
+      type: "new",
+      capture: newSummary(capId, reqMeta, config, "enqueued", reqModelName),
+    });
+
+    // --- Vision handoff (image → text description) ---
+    // Non-critical: vision is an optional feature. If it fails, forward
+    // the original body unchanged.
+    if (reqBuf && reqBuf.byteLength > 0 && vision) {
+      try {
+        if (!body) {
+          try {
+            const ct = reqHeadersRaw["content-type"] ?? "";
+            if (ct.includes("json") || reqBuf[0] === 0x7b) {
+              body = JSON.parse(textDecoder.decode(reqBuf));
+            }
+          } catch {
+            body = null;
+          }
+        }
+        if (body) {
+          const apiKind = isOpenAi ? "openai" : "anthropic";
+          const modelName = reqModelName ?? undefined;
+          const result = config.backgroundVision
+            ? await vision.processBodyCacheOnly(body, apiKind, modelName, capId, req.signal)
+            : await vision.processBody(body, apiKind, modelName, capId, req.signal);
+          if (result.changed) {
+            reqBuf = textEncoder.encode(JSON.stringify(result.body));
+            const postVisionCtx: StampContext = {
+              config,
+              isOpenAi,
+              headers: reqHeadersRaw,
+              url,
+              method: req.method,
+              modelName: extractModelName(result.body),
+            };
+            const stamped = stampPostVision(result.body, postVisionCtx, reqBuf);
+            if (stamped.changed) {
+              reqBuf = stamped.reqBuf;
+              log.info(`post-handoff stamped (claude_code=${config.stampClaudeCode})`, {
+                method: req.method,
+                path: url.pathname,
+              });
+            }
+            reqBodyText = decodeText(reqBuf);
+            db.updateRequestBody(capId, reqBodyText, reqBuf.byteLength);
+            reqMeta.request_size = reqBuf.byteLength;
+            ws.broadcast({
+              type: "update",
+              capture: newSummary(capId, reqMeta, config, "enqueued", reqModelName),
+            });
+            log.info(
+              `vision handoff: ${result.stats.handoffCount} images, ${result.stats.cacheHits} hits, ${result.stats.visionCalls} calls, active=${vision.visionActive} queued=${vision.visionQueued}`,
+              {
+                captureId: capId,
+                method: req.method,
+                path: url.pathname,
+              },
+            );
+          }
+        }
+      } catch (err) {
+        log.warn("vision handoff failed, forwarding original body", {
+          error: (err as Error).message,
+          captureId: capId,
+        });
+      }
+    }
+
+    const reqSize = reqBuf ? reqBuf.byteLength : 0;
+    reqMeta.request_size = reqSize;
+
+    // --- Forwarded request headers: strip hop-by-hop + host ---
+    const fwdHeaders: Record<string, string> = {};
+    for (const [k, v] of Object.entries(reqHeadersRaw)) {
+      if (HOP.has(k)) continue;
+      fwdHeaders[k] = v;
+    }
+
+    // The proxy strips Content-Encoding from the upstream response and forwards
+    // decoded bodies, so it must not advertise compression. Force identity on
+    // every upstream request to stay responsible for the encoding contract.
+    fwdHeaders["accept-encoding"] = "identity";
+
+    if (stampBeta) {
+      fwdHeaders["anthropic-beta"] = STAMP_ANTHROPIC_BETA_HEADER;
+    }
+
+    // --- Weighted rate limit check (pro tier only; rate is null when unlimited) ---
+    const modelName = reqModelName ?? undefined;
+    const weight = computeRequestWeight(modelName, models);
+    const rate = rateRef.current;
     if (rate) {
-      const rc = rate.check();
+      const rc = rate.check(weight);
       if (!rc.allowed) {
+        queue.queueUpdate(capId, reqMeta, {
+          $status: 429,
+          $rh: JSON.stringify({ error: "rate_limit_exceeded" }),
+          $rb: JSON.stringify({ error: "rate_limit_exceeded", retry_after: rc.retryAfterSeconds }),
+          $rs: 0,
+          $ct: "application/json",
+          $sse: 0,
+          $dur: Date.now() - startedAt,
+          $fin: Date.now(),
+          $status_source: "gate",
+          $gate_reason: `Rate limit exceeded — retry after ${rc.retryAfterSeconds}s`,
+        });
         return new Response(
           JSON.stringify({
             error: "rate_limit_exceeded",
@@ -101,134 +293,9 @@ export function createProxyHandler(
       }
     }
 
-    const reqHeadersRaw = headersToObject(req.headers);
-    const isOpenAi = url.pathname.includes(config.openaiPath);
-
-    // --- Request body capture ---
-    let reqBuf: Uint8Array | null = null;
-    if (req.method !== "GET" && req.method !== "HEAD") {
-      reqBuf = new Uint8Array(await req.arrayBuffer());
-    }
-
-    // --- Stamp pipeline (TTL, AnthropicBody, OpenAiReasoning, TopK) ---
-    let body: unknown = null;
-    if (reqBuf && reqBuf.byteLength > 0) {
-      const parsed = parseJsonBody(reqBuf, reqHeadersRaw);
-      body = parsed.body;
-      const stampCtx: StampContext = {
-        config,
-        isOpenAi,
-        headers: reqHeadersRaw,
-        url,
-        method: req.method,
-        modelName: extractModelName(body),
-      };
-      if (STAMP_PIPELINE.some((s) => s.applies(stampCtx))) {
-        if (parsed.ok && typeof body === "object" && body !== null) {
-          for (const step of STAMP_PIPELINE) {
-            if (!step.applies(stampCtx) || !body) continue;
-            if (step.apply(body, stampCtx)) {
-              reqBuf = textEncoder.encode(JSON.stringify(body));
-            }
-          }
-        }
-      }
-    }
-
-    // --- Insert capture row (early, so vision calls can link to it) ---
-    const reqMeta: RequestMeta = {
-      method: req.method,
-      path,
-      request_size: reqBuf ? reqBuf.byteLength : 0,
-      started_at: startedAt,
-    };
-    const capId = db.startCapture({
-      $method: req.method,
-      $path: path,
-      $url: targetUrl,
-      $rh: JSON.stringify(redactHeaders(headersToObject(req.headers))),
-      $rb: reqBuf ? decodeText(reqBuf) : "",
-      $rs: reqBuf ? reqBuf.byteLength : 0,
-      $st: startedAt,
-      $state: "enqueued",
-      $inp: config.incomingProtocol,
-      $outp: config.upstreamProtocol,
-    });
-    ws.broadcast({ type: "new", capture: newSummary(capId, reqMeta, config, "enqueued") });
-
-    // --- Vision handoff (image → text description) ---
-    if (reqBuf && reqBuf.byteLength > 0 && vision) {
-      if (!body) {
-        try {
-          const ct = reqHeadersRaw["content-type"] ?? "";
-          if (ct.includes("json") || reqBuf[0] === 0x7b) {
-            body = JSON.parse(textDecoder.decode(reqBuf));
-          }
-        } catch {
-          body = null;
-        }
-      }
-      if (body) {
-        const apiKind = isOpenAi ? "openai" : "anthropic";
-        const modelName = extractModelName(body);
-        const result = await vision.processBody(body, apiKind, modelName, capId, req.signal);
-        if (result.changed) {
-          reqBuf = textEncoder.encode(JSON.stringify(result.body));
-          const postVisionCtx: StampContext = {
-            config,
-            isOpenAi,
-            headers: reqHeadersRaw,
-            url,
-            method: req.method,
-            modelName: extractModelName(result.body),
-          };
-          const stamped = stampPostVision(result.body, postVisionCtx, reqBuf);
-          if (stamped.changed) {
-            reqBuf = stamped.reqBuf;
-            log.info(`post-handoff stamped ttl="${config.stampTtl}"`, {
-              method: req.method,
-              path: url.pathname,
-            });
-          }
-          db.updateRequestBody(capId, decodeText(reqBuf), reqBuf.byteLength);
-          reqMeta.request_size = reqBuf.byteLength;
-          ws.broadcast({
-            type: "update",
-            capture: newSummary(capId, reqMeta, config, "enqueued"),
-          });
-          log.info(
-            `vision handoff: ${result.stats.handoffCount} images, ${result.stats.cacheHits} hits, ${result.stats.visionCalls} calls, active=${vision.visionActive} queued=${vision.visionQueued}`,
-            {
-              captureId: capId,
-              method: req.method,
-              path: url.pathname,
-            },
-          );
-        }
-      }
-    }
-
-    const reqSize = reqBuf ? reqBuf.byteLength : 0;
-    const reqBodyText = reqBuf ? decodeText(reqBuf) : "";
-    reqMeta.request_size = reqSize;
-
-    // --- Forwarded request headers: strip hop-by-hop + host ---
-    const fwdHeaders: Record<string, string> = {};
-    for (const [k, v] of Object.entries(reqHeadersRaw)) {
-      if (HOP.has(k)) continue;
-      fwdHeaders[k] = v;
-    }
-
-    // The proxy strips Content-Encoding from the upstream response and forwards
-    // decoded bodies, so it must not advertise compression. Force identity on
-    // every upstream request to stay responsible for the encoding contract.
-    fwdHeaders["accept-encoding"] = "identity";
-
     // --- Concurrency gate: acquire a permit (blocks if at cap) ---
     let permit: { release: () => void } | null = null;
     try {
-      const modelName = extractModelName(body);
-      const weight = computeRequestWeight(config, modelName, models);
       permit = await gate.acquire({
         weight,
         signal: req.signal,
@@ -254,6 +321,18 @@ export function createProxyHandler(
         $sse: 0,
         $dur: Date.now() - startedAt,
         $fin: Date.now(),
+        $status_source: "gate",
+        $gate_reason: aborted
+          ? "Client disconnected while enqueued"
+          : err.code === "circuit_open"
+            ? "Circuit breaker open — upstream concurrency 429s exceeded threshold"
+            : err.code === "queue_full"
+              ? "Concurrency queue full — too many requests waiting for a slot"
+              : err.code === "timeout"
+                ? "Queue timeout — request waited too long for a concurrency slot"
+                : err.code === "invalid_weight"
+                  ? "Invalid weight — model weight must be positive"
+                  : err.message,
       });
       if (aborted) return new Response(null, { status: 499 });
       return new Response(JSON.stringify({ error: err.code, message: err.message }), {
@@ -265,165 +344,224 @@ export function createProxyHandler(
     // --- Forward upstream ---
     let upstream: Response;
     try {
-      upstream = await fetch(targetUrl, {
+      const upstreamSignal = AbortSignal.any([
+        req.signal,
+        AbortSignal.timeout(config.upstreamTimeoutMs),
+      ]);
+      upstream = await fetch(finalTargetUrl, {
         method: req.method,
         headers: fwdHeaders,
-        body: reqBuf && reqBuf.byteLength > 0 ? reqBuf : undefined,
+        body: reqBuf && reqBuf.byteLength > 0 ? (reqBuf as BodyInit) : undefined,
         protocol: config.upstreamProtocol as unknown as never,
-        signal: req.signal,
+        signal: upstreamSignal,
       });
     } catch (e) {
       const err = e as Error;
-      const aborted = err.name === "AbortError" || req.signal.aborted;
-      const status = aborted ? 499 : 502;
+      const clientAborted = err.name === "AbortError" && req.signal.aborted;
+      const upstreamTimedOut =
+        err.name === "TimeoutError" || (err.name === "AbortError" && !req.signal.aborted);
+      const status = clientAborted ? 499 : upstreamTimedOut ? 504 : 502;
       queue.queueUpdate(capId, reqMeta, {
         $status: status,
-        $rh: JSON.stringify({ error: aborted ? "client_disconnected" : String(err) }),
-        $rb: aborted ? "" : `Upstream error: ${err.message}`,
+        $rh: JSON.stringify({
+          error: clientAborted
+            ? "client_disconnected"
+            : upstreamTimedOut
+              ? "upstream_timeout"
+              : String(err),
+        }),
+        $rb: clientAborted ? "" : `Upstream error: ${err.message}`,
         $rs: 0,
         $ct: "text/plain",
         $sse: 0,
         $dur: Date.now() - startedAt,
         $fin: Date.now(),
+        $status_source: "gate",
+        $gate_reason: clientAborted
+          ? "Client disconnected during upstream request"
+          : upstreamTimedOut
+            ? "Upstream inactivity timeout (300s)"
+            : `Upstream unreachable — ${err.message}`,
       });
       permit?.release();
-      if (aborted) return new Response(null, { status: 499 });
+      if (clientAborted) return new Response(null, { status: 499 });
+      if (upstreamTimedOut) return new Response(`Gateway Timeout: ${err.message}`, { status: 504 });
       return new Response(`Bad Gateway: ${err.message}`, { status: 502 });
     }
 
     // --- Classify 429: only concurrency-429s trip the breaker ---
-    if (upstream.status === 429) {
-      gate.record429(classify429(upstream));
-    } else if (upstream.status < 400) {
-      gate.recordSuccess();
-    }
+    try {
+      if (upstream.status === 429) {
+        gate.record429(classify429(upstream));
+      } else if (upstream.status < 400) {
+        gate.recordSuccess();
+      }
 
-    const resHeadersRaw = headersToObject(upstream.headers);
-    const resHeadersJson = JSON.stringify(resHeadersRaw);
-    const contentType = upstream.headers.get("content-type") ?? "";
-    const isSSE = contentType.includes("text/event-stream");
+      const resHeadersRaw = headersToObject(upstream.headers);
+      const resHeadersJson = JSON.stringify(resHeadersRaw);
+      const contentType = upstream.headers.get("content-type") ?? "";
+      const isSSE = contentType.includes("text/event-stream");
 
-    // Forwarded response headers: strip content-encoding/length + hop-by-hop.
-    const outHeaders: Record<string, string> = {};
-    for (const [k, v] of Object.entries(resHeadersRaw)) {
-      if (HOP.has(k) || k === "content-encoding") continue;
-      outHeaders[k] = v;
-    }
+      // Forwarded response headers: strip content-encoding/length + hop-by-hop.
+      const outHeaders: Record<string, string> = {};
+      for (const [k, v] of Object.entries(resHeadersRaw)) {
+        if (HOP.has(k) || k === "content-encoding") continue;
+        outHeaders[k] = v;
+      }
 
-    const doneRes = (): Omit<ResponseMeta, "$rb" | "$rs"> => ({
-      $status: upstream.status,
-      $rh: resHeadersJson,
-      $ct: contentType,
-      $sse: isSSE ? 1 : 0,
-      $dur: Date.now() - startedAt,
-      $fin: Date.now(),
-    });
+      const doneRes = (): Omit<ResponseMeta, "$rb" | "$rs"> => ({
+        $status: upstream.status,
+        $rh: resHeadersJson,
+        $ct: contentType,
+        $sse: isSSE ? 1 : 0,
+        $dur: Date.now() - startedAt,
+        $fin: Date.now(),
+        $status_source: "upstream",
+        $gate_reason: null,
+      });
 
-    if (!upstream.body) {
-      queue.queueUpdate(capId, reqMeta, { ...doneRes(), $rb: "", $rs: 0 });
-      permit?.release();
-      return new Response(null, { status: upstream.status, headers: outHeaders });
-    }
+      if (!upstream.body) {
+        queue.queueUpdate(capId, reqMeta, { ...doneRes(), $rb: "", $rs: 0 });
+        permit?.release();
+        return new Response(null, { status: upstream.status, headers: outHeaders });
+      }
 
-    // Stream response to client while incrementally decoding for capture.
-    // Decodes each chunk with stream:true to handle multi-byte sequences
-    // spanning chunk boundaries, avoiding the combine() double-copy.
-    // `captureBodyMaxBytes` caps in-memory buffer growth (0 = unlimited);
-    // the stream to the client is never truncated.
-    const cap = config.captureBodyMaxBytes;
-    const parts: string[] = [];
-    const chunkTimes: number[] = [];
-    const timedChunks: { text: string; time: number }[] = [];
-    let totalSize = 0;
-    let flushed = false;
-    const decoder = new TextDecoder("utf-8", { fatal: true });
-    const flushCapture = (): void => {
-      if (flushed) return;
-      flushed = true;
-      if (cap === 0 || totalSize <= cap) {
+      // Stream response to client while incrementally decoding for capture.
+      // Decodes each chunk with stream:true to handle multi-byte sequences
+      // spanning chunk boundaries, avoiding the combine() double-copy.
+      // `captureBodyMaxBytes` caps in-memory buffer growth (0 = unlimited);
+      // the stream to the client is never truncated.
+      const cap = config.captureBodyMaxBytes;
+      const parts: string[] = [];
+      const timedChunks: { text: string; time: number }[] = [];
+      let totalSize = 0;
+      let flushed = false;
+      let firstChunkSent = false;
+      const decoder = new TextDecoder("utf-8", { fatal: true });
+      const flushCapture = (): void => {
+        if (flushed) return;
+        flushed = true;
+        if (cap === 0 || totalSize <= cap) {
+          try {
+            const tail = decoder.decode();
+            if (tail) parts.push(tail);
+          } catch {
+            // Tail had invalid bytes — ignore, already captured above.
+          }
+        }
+        const fullBody = parts.join("");
+        const isStream = isSSE;
+        let usage: UsageMetrics | null = null;
+        let model: string | null = null;
         try {
-          const tail = decoder.decode();
-          if (tail) parts.push(tail);
+          const result = extractUsage({
+            provider: isOpenAi ? "openai" : "anthropic",
+            streaming: isStream,
+            requestBody: reqBodyText,
+            responseBody: fullBody,
+            durationMs: Date.now() - startedAt,
+            requestStartedAt: startedAt,
+            chunks: isStream ? timedChunks : undefined,
+          });
+          model = result.model;
+          usage = result.metrics;
         } catch {
-          // Tail had invalid bytes — ignore, already captured above.
+          usage = null;
+          model = null;
+        }
+        try {
+          queue.queueUpdate(capId, reqMeta, {
+            ...doneRes(),
+            $rb: fullBody,
+            $rs: totalSize,
+            $usage: usage,
+            $model: model,
+          });
+        } catch {
+          // Non-critical: capture persistence failure must not block permit release
+        }
+        permit?.release();
+      };
+      const capture = new TransformStream({
+        transform(chunk: Uint8Array, controller) {
+          totalSize += chunk.byteLength;
+          const capturing = cap === 0 || totalSize <= cap;
+          const now = Date.now();
+          if (capturing) {
+            let decoded = "";
+            try {
+              decoded = decoder.decode(chunk, { stream: true });
+              parts.push(decoded);
+            } catch {
+              parts.push(Buffer.from(chunk).toString("base64"));
+            }
+            if (decoded) timedChunks.push({ text: decoded, time: now });
+          }
+          if (!firstChunkSent) {
+            firstChunkSent = true;
+            try {
+              ws.broadcast({
+                type: "update",
+                capture: {
+                  ...newSummary(capId, reqMeta, config, "streaming", reqModelName),
+                  ttft_ms: now - startedAt,
+                },
+              });
+            } catch {
+              // Non-critical: dashboard update failure must not error the stream
+            }
+          }
+          controller.enqueue(chunk);
+        },
+        flush() {
+          flushCapture();
+        },
+      });
+
+      // Client disconnected mid-stream — flush capture so it doesn't stay "streaming".
+      if (req.signal) {
+        if (req.signal.aborted) {
+          flushCapture();
+        } else {
+          req.signal.addEventListener(
+            "abort",
+            () => {
+              flushCapture();
+            },
+            { once: true },
+          );
         }
       }
-      const fullBody = parts.join("");
-      const isStream = isSSE;
-      let usage: UsageMetrics | null = null;
-      let model: string | null = null;
-      try {
-        const result = extractUsage({
-          provider: isOpenAi ? "openai" : "anthropic",
-          streaming: isStream,
-          requestBody: reqBodyText,
-          responseBody: fullBody,
-          durationMs: Date.now() - startedAt,
-          requestStartedAt: startedAt,
-          chunkTimes,
-          chunks: isStream ? timedChunks : undefined,
-        });
-        model = result.model;
-        usage = result.metrics;
-      } catch {
-        usage = null;
-        model = null;
-      }
+
+      const stream = upstream.body.pipeThrough(capture);
+      return new Response(stream, {
+        status: upstream.status,
+        statusText: upstream.statusText,
+        headers: outHeaders,
+      });
+    } catch (err) {
+      log.error("post-fetch processing failed", {
+        error: (err as Error).message,
+        captureId: capId,
+      });
       queue.queueUpdate(capId, reqMeta, {
-        ...doneRes(),
-        $rb: fullBody,
-        $rs: totalSize,
-        $usage: usage,
-        $model: model,
+        $status: 500,
+        $rh: JSON.stringify({ error: "internal_error" }),
+        $rb: `Internal error: ${(err as Error).message}`,
+        $rs: 0,
+        $ct: "application/json",
+        $sse: 0,
+        $dur: Date.now() - startedAt,
+        $fin: Date.now(),
+        $status_source: "gate",
+        $gate_reason: `Internal proxy error — ${(err as Error).message}`,
       });
       permit?.release();
-    };
-    const capture = new TransformStream({
-      transform(chunk: Uint8Array, controller) {
-        totalSize += chunk.byteLength;
-        // Capture is enabled when unlimited (0) or still within the cap.
-        const capturing = cap === 0 || totalSize <= cap;
-        const now = Date.now();
-        if (capturing) {
-          let decoded = "";
-          try {
-            decoded = decoder.decode(chunk, { stream: true });
-            parts.push(decoded);
-          } catch {
-            // Invalid UTF-8 in this chunk — base64-encode for fidelity.
-            parts.push(Buffer.from(chunk).toString("base64"));
-          }
-          if (decoded) timedChunks.push({ text: decoded, time: now });
-          chunkTimes.push(now);
-        }
-        controller.enqueue(chunk);
-      },
-      flush() {
-        flushCapture();
-      },
-    });
-
-    // Client disconnected mid-stream — flush capture so it doesn't stay "streaming".
-    if (req.signal) {
-      if (req.signal.aborted) {
-        flushCapture();
-      } else {
-        req.signal.addEventListener(
-          "abort",
-          () => {
-            flushCapture();
-          },
-          { once: true },
-        );
-      }
+      return new Response(
+        JSON.stringify({ error: "internal_error", message: (err as Error).message }),
+        { status: 500, headers: { "content-type": "application/json" } },
+      );
     }
-
-    const stream = upstream.body.pipeThrough(capture);
-    return new Response(stream, {
-      status: upstream.status,
-      statusText: upstream.statusText,
-      headers: outHeaders,
-    });
   }
 
   return { handleProxy };

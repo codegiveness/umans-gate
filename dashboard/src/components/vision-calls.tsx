@@ -1,4 +1,5 @@
 import { AlertCircle, Eye, RotateCcw, Trash2 } from "lucide-react";
+import { Suspense, lazy, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,19 +8,43 @@ import { Loader } from "@/components/ui/loader";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useVisionCalls } from "@/hooks/use-vision-calls";
+import { badgeInfo, badgeSuccess } from "@/lib/badge-colors";
 import { fmtDate, fmtSize, fmtTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { VisionCallRecord } from "@/types/vision";
 
-const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  ok: "secondary",
-  cache_hit: "secondary",
-  empty: "destructive",
-  http_error: "destructive",
-  fetch_error: "destructive",
-  parse_error: "destructive",
-  timeout: "destructive",
-  skipped: "outline",
+const ClearConfirmDialog = lazy(() =>
+  import("@/components/clear-confirm-dialog").then((m) => ({
+    default: m.ClearConfirmDialog,
+  })),
+);
+
+type BadgeConfig = {
+  variant: "default" | "secondary" | "destructive" | "outline";
+  className?: string;
+};
+
+const STATE_VARIANT: Record<string, BadgeConfig> = {
+  enqueued: { variant: "secondary", className: badgeInfo },
+  streaming: { variant: "secondary", className: badgeSuccess },
+  done: { variant: "outline" },
+};
+
+const STATE_LABEL: Record<string, string> = {
+  enqueued: "queued",
+  streaming: "running",
+  done: "done",
+};
+
+const STATUS_VARIANT: Record<string, BadgeConfig> = {
+  ok: { variant: "secondary", className: badgeSuccess },
+  cache_hit: { variant: "secondary", className: badgeInfo },
+  empty: { variant: "destructive" },
+  http_error: { variant: "destructive" },
+  fetch_error: { variant: "destructive" },
+  parse_error: { variant: "destructive" },
+  timeout: { variant: "destructive" },
+  skipped: { variant: "outline" },
 };
 
 const STATUS_TIP: Record<string, string> = {
@@ -35,6 +60,7 @@ const STATUS_TIP: Record<string, string> = {
 
 export function VisionCalls() {
   const { records, loading, error, refresh, clear } = useVisionCalls();
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   return (
     <div className="flex flex-col h-full">
@@ -44,7 +70,12 @@ export function VisionCalls() {
         </h2>
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="sm" onClick={clear} disabled={records.length === 0}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setConfirmOpen(true)}
+              disabled={records.length === 0}
+            >
               <Trash2 className="size-3.5 mr-1" />
               Clear
             </Button>
@@ -89,6 +120,23 @@ export function VisionCalls() {
           </div>
         </ScrollArea>
       )}
+
+      {confirmOpen && (
+        <Suspense fallback={null}>
+          <ClearConfirmDialog
+            open={confirmOpen}
+            count={records.length}
+            title="Clear all vision calls?"
+            itemLabel="vision call record"
+            confirmTooltip="Permanently delete all vision call records"
+            onConfirm={() => {
+              setConfirmOpen(false);
+              void clear();
+            }}
+            onClose={() => setConfirmOpen(false)}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }
@@ -103,10 +151,28 @@ function VisionCallCard({ record }: { record: VisionCallRecord }) {
           <div className="flex items-center gap-2">
             <Tooltip>
               <TooltipTrigger render={<span className="inline-flex" />}>
-                <Badge variant={STATUS_VARIANT[record.status] ?? "outline"}>{record.status}</Badge>
+                <Badge
+                  variant={STATUS_VARIANT[record.status]?.variant ?? "outline"}
+                  className={STATUS_VARIANT[record.status]?.className}
+                >
+                  {record.status}
+                </Badge>
               </TooltipTrigger>
               <TooltipContent side="top" className="max-w-[220px]">
                 {record.status} — {STATUS_TIP[record.status] ?? "unknown status"}
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger render={<span className="inline-flex" />}>
+                <Badge
+                  variant={STATE_VARIANT[record.state]?.variant ?? "outline"}
+                  className={STATE_VARIANT[record.state]?.className}
+                >
+                  {STATE_LABEL[record.state] ?? record.state}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-[220px]">
+                Lifecycle state — {record.state}
               </TooltipContent>
             </Tooltip>
             <span className="text-sm font-mono text-muted-foreground">#{record.id}</span>
@@ -117,10 +183,30 @@ function VisionCallCard({ record }: { record: VisionCallRecord }) {
           <span className="text-xs text-muted-foreground">{fmtDate(record.timestamp)}</span>
         </div>
 
-        <div className="flex items-center gap-3 text-sm">
+        <div className="flex items-center gap-3 text-sm flex-wrap">
           <span className="font-mono">{record.model}</span>
           <span className="text-muted-foreground">{fmtSize(record.imageSize)}</span>
           <span className="text-muted-foreground">{fmtTime(record.latencyMs)}</span>
+          {record.incoming_protocol && (
+            <Tooltip>
+              <TooltipTrigger render={<span className="inline-flex" />}>
+                <Badge variant="outline" size="sm">
+                  {record.incoming_protocol}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent side="top">Incoming HTTP protocol</TooltipContent>
+            </Tooltip>
+          )}
+          {record.upstream_protocol && (
+            <Tooltip>
+              <TooltipTrigger render={<span className="inline-flex" />}>
+                <Badge variant="outline" size="sm">
+                  {record.upstream_protocol}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent side="top">Upstream HTTP protocol</TooltipContent>
+            </Tooltip>
+          )}
           {record.httpStatus !== null && (
             <span
               className={cn(
@@ -143,14 +229,11 @@ function VisionCallCard({ record }: { record: VisionCallRecord }) {
         )}
 
         {record.description && (
-          <div
-            className={cn(
-              "text-sm rounded px-2 py-1 break-words whitespace-pre-wrap",
-              isOk ? "bg-muted" : "bg-muted/50",
-            )}
-          >
-            {record.description}
-          </div>
+          <ScrollArea className={cn("max-h-40 rounded", isOk ? "bg-muted" : "bg-muted/50")}>
+            <div className="text-sm px-2 py-1 break-words whitespace-pre-wrap">
+              {record.description}
+            </div>
+          </ScrollArea>
         )}
       </CardContent>
     </Card>

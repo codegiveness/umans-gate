@@ -9,10 +9,8 @@ import {
   applyReloadToConfig,
   ensureConfigFile,
   loadConfig,
-  migrateFromYamlIfNeeded,
   resolveConfigDir,
   resolveConfigPath,
-  resolveLegacyYamlPath,
   saveConfig,
   validateConfig,
 } from "../src/config.js";
@@ -46,11 +44,6 @@ test("resolveConfigPath appends config.json", () => {
   expect(path).toBe(join(tmpConfigDir, "umans-gate", "config.json"));
 });
 
-test("resolveLegacyYamlPath appends config.yml", () => {
-  const path = resolveLegacyYamlPath();
-  expect(path).toBe(join(tmpConfigDir, "umans-gate", "config.yml"));
-});
-
 test("ensureConfigFile creates JSON config on first run", () => {
   const path = resolveConfigPath();
   expect(existsSync(path)).toBe(false);
@@ -58,9 +51,9 @@ test("ensureConfigFile creates JSON config on first run", () => {
   expect(result).toBe(path);
   expect(existsSync(path)).toBe(true);
   const content = readFileSync(path, "utf-8");
-  expect(content).toContain('"port": 9000');
+  expect(content).toContain('"port": 1945');
   expect(content).toContain('"upstream_protocol": "http1.1"');
-  expect(content).toContain('"stamp_cache_ttl_enabled": false');
+  expect(content).toContain('"stamp_claude_code_enabled": false');
 });
 
 test("ensureConfigFile does not overwrite existing JSON config", () => {
@@ -78,11 +71,11 @@ test("loadConfig writes JSON config on first run and returns defaults", () => {
   expect(existsSync(path)).toBe(false);
   const config = loadConfig({});
   expect(existsSync(path)).toBe(true);
-  expect(config.port).toBe(9000);
-  expect(config.host).toBe("0.0.0.0");
+  expect(config.port).toBe(1945);
+  expect(config.host).toBe("127.0.0.1");
   expect(config.target).toBe("https://api.code.umans.ai");
   expect(config.upstreamProtocol).toBe("http1.1");
-  expect(config.stampTtl).toBeNull();
+  expect(config.stampClaudeCode).toBe(false);
   expect(config.warmerEnabled).toBe(true);
 });
 
@@ -94,14 +87,14 @@ test("loadConfig reads JSON config file when present", () => {
     JSON.stringify({
       port: 8080,
       upstream_protocol: "http2",
-      stamp_cache_ttl_enabled: true,
+      stamp_claude_code_enabled: true,
     }),
     "utf-8",
   );
   const config = loadConfig({});
   expect(config.port).toBe(8080);
   expect(config.upstreamProtocol).toBe("http2");
-  expect(config.stampTtl).toBe("1h");
+  expect(config.stampClaudeCode).toBe(true);
 });
 
 test("loadConfig env vars override JSON config", () => {
@@ -118,11 +111,11 @@ test("loadConfig env vars override JSON config", () => {
   const config = loadConfig({
     PORT: "3000",
     UPSTREAM_PROTOCOL: "http1.1",
-    STAMP_CACHE_TTL_ENABLED: "true",
+    STAMP_CLAUDE_CODE_ENABLED: "true",
   });
   expect(config.port).toBe(3000);
   expect(config.upstreamProtocol).toBe("http1.1");
-  expect(config.stampTtl).toBe("1h");
+  expect(config.stampClaudeCode).toBe(true);
 });
 
 test("loadConfig falls back gracefully on malformed JSON", () => {
@@ -130,25 +123,17 @@ test("loadConfig falls back gracefully on malformed JSON", () => {
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, "config.json"), "{ this is not valid json }}}", "utf-8");
   const config = loadConfig({});
-  expect(config.port).toBe(9000);
+  expect(config.port).toBe(1945);
   expect(config.target).toBe("https://api.code.umans.ai");
   expect(config.upstreamProtocol).toBe("http1.1");
 });
 
-test("loadConfig handles stamp_cache_ttl_enabled toggle", () => {
-  expect(loadConfig({ STAMP_CACHE_TTL_ENABLED: "false" }).stampTtl).toBeNull();
-  expect(loadConfig({ STAMP_CACHE_TTL_ENABLED: "0" }).stampTtl).toBeNull();
-  expect(loadConfig({ STAMP_CACHE_TTL_ENABLED: undefined }).stampTtl).toBeNull();
-  expect(loadConfig({ STAMP_CACHE_TTL_ENABLED: "true" }).stampTtl).toBe("1h");
-  expect(loadConfig({ STAMP_CACHE_TTL_ENABLED: "1" }).stampTtl).toBe("1h");
-});
-
-test("loadConfig handles stamp_top_k_enabled toggle", () => {
-  expect(loadConfig({ STAMP_TOP_K_ENABLED: undefined }).stampTopK).toBeNull();
-  expect(loadConfig({ STAMP_TOP_K_ENABLED: "false" }).stampTopK).toBeNull();
-  expect(loadConfig({ STAMP_TOP_K_ENABLED: "0" }).stampTopK).toBeNull();
-  expect(loadConfig({ STAMP_TOP_K_ENABLED: "true" }).stampTopK).toBe(20);
-  expect(loadConfig({ STAMP_TOP_K_ENABLED: "1" }).stampTopK).toBe(20);
+test("loadConfig handles stamp_claude_code_enabled toggle", () => {
+  expect(loadConfig({ STAMP_CLAUDE_CODE_ENABLED: "false" }).stampClaudeCode).toBe(false);
+  expect(loadConfig({ STAMP_CLAUDE_CODE_ENABLED: "0" }).stampClaudeCode).toBe(false);
+  expect(loadConfig({ STAMP_CLAUDE_CODE_ENABLED: undefined }).stampClaudeCode).toBe(false);
+  expect(loadConfig({ STAMP_CLAUDE_CODE_ENABLED: "true" }).stampClaudeCode).toBe(true);
+  expect(loadConfig({ STAMP_CLAUDE_CODE_ENABLED: "1" }).stampClaudeCode).toBe(true);
 });
 
 test("loadConfig strips trailing slashes from target", () => {
@@ -178,48 +163,8 @@ test("loadConfig warmer_enabled env overrides JSON config", () => {
 test("loadConfig warmer_enabled defaults to true when absent from JSON", () => {
   const dir = join(tmpConfigDir, "umans-gate");
   mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, "config.json"), JSON.stringify({ port: 9000 }), "utf-8");
+  writeFileSync(join(dir, "config.json"), JSON.stringify({ port: 1945 }), "utf-8");
   expect(loadConfig({}).warmerEnabled).toBe(true);
-});
-
-test("migrateFromYamlIfNeeded converts YAML to JSON when only YAML exists", () => {
-  const dir = join(tmpConfigDir, "umans-gate");
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(
-    join(dir, "config.yml"),
-    "port: 8080\ntarget: https://migrated.example.com\nupstream_protocol: http2\n",
-    "utf-8",
-  );
-  const jsonPath = resolveConfigPath();
-  expect(existsSync(jsonPath)).toBe(false);
-
-  const migrated = migrateFromYamlIfNeeded();
-  expect(migrated).toBe(true);
-  expect(existsSync(jsonPath)).toBe(true);
-  // YAML file is NOT deleted.
-  expect(existsSync(join(dir, "config.yml"))).toBe(true);
-
-  const json = JSON.parse(readFileSync(jsonPath, "utf-8"));
-  expect(json.port).toBe(8080);
-  expect(json.target).toBe("https://migrated.example.com");
-  expect(json.upstream_protocol).toBe("http2");
-});
-
-test("migrateFromYamlIfNeeded is a no-op when JSON already exists", () => {
-  const dir = join(tmpConfigDir, "umans-gate");
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, "config.yml"), "port: 8080\n", "utf-8");
-  writeFileSync(join(dir, "config.json"), JSON.stringify({ port: 9000 }), "utf-8");
-
-  const migrated = migrateFromYamlIfNeeded();
-  expect(migrated).toBe(false);
-  const json = JSON.parse(readFileSync(resolveConfigPath(), "utf-8"));
-  expect(json.port).toBe(9000);
-});
-
-test("migrateFromYamlIfNeeded is a no-op when neither file exists", () => {
-  const migrated = migrateFromYamlIfNeeded();
-  expect(migrated).toBe(false);
 });
 
 // --- validateConfig tests ---
@@ -228,14 +173,13 @@ test("validateConfig accepts a valid default config", () => {
   const r = validateConfig({});
   expect(r.ok).toBe(true);
   expect(r.errors).toEqual([]);
-  expect(r.normalized.port).toBe(9000);
-  expect(r.normalized.host).toBe("0.0.0.0");
+  expect(r.normalized.port).toBe(1945);
 });
 
 test("validateConfig rejects out-of-range port", () => {
   expect(validateConfig({ port: 0 }).ok).toBe(false);
   expect(validateConfig({ port: 70000 }).ok).toBe(false);
-  expect(validateConfig({ port: 9000 }).ok).toBe(true);
+  expect(validateConfig({ port: 1945 }).ok).toBe(true);
 });
 
 test("validateConfig rejects invalid upstream_protocol", () => {
@@ -244,15 +188,15 @@ test("validateConfig rejects invalid upstream_protocol", () => {
   expect(validateConfig({ upstream_protocol: "http2" }).ok).toBe(true);
 });
 
-test("validateConfig accepts boolean stamp_cache_ttl_enabled", () => {
-  expect(validateConfig({ stamp_cache_ttl_enabled: true }).ok).toBe(true);
-  expect(validateConfig({ stamp_cache_ttl_enabled: false }).ok).toBe(true);
-  expect(validateConfig({ stamp_cache_ttl_enabled: undefined }).ok).toBe(true);
+test("validateConfig accepts boolean stamp_claude_code_enabled", () => {
+  expect(validateConfig({ stamp_claude_code_enabled: true }).ok).toBe(true);
+  expect(validateConfig({ stamp_claude_code_enabled: false }).ok).toBe(true);
+  expect(validateConfig({ stamp_claude_code_enabled: undefined }).ok).toBe(true);
 });
 
-test("validateConfig rejects non-boolean stamp_cache_ttl_enabled", () => {
-  expect(validateConfig({ stamp_cache_ttl_enabled: "yes" as unknown as boolean }).ok).toBe(false);
-  expect(validateConfig({ stamp_cache_ttl_enabled: 1 as unknown as boolean }).ok).toBe(false);
+test("validateConfig rejects non-boolean stamp_claude_code_enabled", () => {
+  expect(validateConfig({ stamp_claude_code_enabled: "yes" as unknown as boolean }).ok).toBe(false);
+  expect(validateConfig({ stamp_claude_code_enabled: 1 as unknown as boolean }).ok).toBe(false);
 });
 
 test("validateConfig rejects invalid idle_timeout", () => {
@@ -301,24 +245,24 @@ function makeLiveConfig(): ProxyConfig {
 
 test("applyReloadToConfig applies hot-reloadable fields", () => {
   const live = makeLiveConfig();
-  // fresh reflects the newRaw values — simulate a reload from disk where stamp_cache_ttl_enabled changed.
-  const fresh = loadConfig({ STAMP_CACHE_TTL_ENABLED: "true" });
-  const oldRaw = { stamp_cache_ttl_enabled: false };
-  const newRaw = { stamp_cache_ttl_enabled: true };
+  // fresh reflects the newRaw values — simulate a reload from disk where stamp_claude_code_enabled changed.
+  const fresh = loadConfig({ STAMP_CLAUDE_CODE_ENABLED: "true" });
+  const oldRaw = { stamp_claude_code_enabled: false };
+  const newRaw = { stamp_claude_code_enabled: true };
   const r = applyReloadToConfig(live, fresh, oldRaw, newRaw);
-  expect(r.applied).toContain("stamp_cache_ttl_enabled");
-  expect(live.stampTtl).toBe("1h");
+  expect(r.applied).toContain("stamp_claude_code_enabled");
+  expect(live.stampClaudeCode).toBe(true);
 });
 
 test("applyReloadToConfig flags restartRequired for non-reloadable fields", () => {
   const live = makeLiveConfig();
   const fresh = loadConfig({});
-  const oldRaw = { port: 9000 };
+  const oldRaw = { port: 1945 };
   const newRaw = { port: 7777 };
   const r = applyReloadToConfig(live, fresh, oldRaw, newRaw);
   expect(r.restartRequired).toContain("port");
   // Port is NOT applied to live.
-  expect(live.port).toBe(9000);
+  expect(live.port).toBe(1945);
 });
 
 // --- UI data flow tests (strings from HTML inputs) ---
@@ -347,84 +291,6 @@ test("saveConfig accepts string-valued numeric patches from UI", () => {
   expect(json.port).toBe(7777);
 });
 
-test("validateConfig accepts boolean stamp_top_k_enabled", () => {
-  expect(validateConfig({ stamp_top_k_enabled: true }).ok).toBe(true);
-  expect(validateConfig({ stamp_top_k_enabled: false }).ok).toBe(true);
-  expect(validateConfig({ stamp_top_k_enabled: undefined }).ok).toBe(true);
-});
-
-test("validateConfig rejects non-boolean stamp_top_k_enabled", () => {
-  expect(validateConfig({ stamp_top_k_enabled: "yes" as unknown as boolean }).ok).toBe(false);
-  expect(validateConfig({ stamp_top_k_enabled: 1 as unknown as boolean }).ok).toBe(false);
-});
-
-test("validateConfig accepts boolean stamp_thinking_enabled", () => {
-  expect(validateConfig({ stamp_thinking_enabled: true }).ok).toBe(true);
-  expect(validateConfig({ stamp_thinking_enabled: false }).ok).toBe(true);
-  expect(validateConfig({ stamp_thinking_enabled: undefined }).ok).toBe(true);
-});
-
-test("validateConfig rejects non-boolean stamp_thinking_enabled", () => {
-  expect(validateConfig({ stamp_thinking_enabled: "yes" as unknown as boolean }).ok).toBe(false);
-  expect(validateConfig({ stamp_thinking_enabled: 1 as unknown as boolean }).ok).toBe(false);
-});
-
-test("loadConfig handles stamp_thinking_enabled toggle", () => {
-  expect(loadConfig({ STAMP_THINKING_ENABLED: undefined }).stampThinking).toBeNull();
-  expect(loadConfig({ STAMP_THINKING_ENABLED: "false" }).stampThinking).toBeNull();
-  expect(loadConfig({ STAMP_THINKING_ENABLED: "0" }).stampThinking).toBeNull();
-  expect(loadConfig({ STAMP_THINKING_ENABLED: "true" }).stampThinking).toEqual({
-    type: "adaptive",
-  });
-  expect(loadConfig({ STAMP_THINKING_ENABLED: "1" }).stampThinking).toEqual({
-    type: "adaptive",
-  });
-});
-
-test("validateConfig accepts boolean stamp_max_tokens_enabled", () => {
-  expect(validateConfig({ stamp_max_tokens_enabled: true }).ok).toBe(true);
-  expect(validateConfig({ stamp_max_tokens_enabled: false }).ok).toBe(true);
-  expect(validateConfig({ stamp_max_tokens_enabled: undefined }).ok).toBe(true);
-});
-
-test("validateConfig rejects non-boolean stamp_max_tokens_enabled", () => {
-  expect(validateConfig({ stamp_max_tokens_enabled: "yes" as unknown as boolean }).ok).toBe(false);
-  expect(validateConfig({ stamp_max_tokens_enabled: 1 as unknown as boolean }).ok).toBe(false);
-});
-
-test("loadConfig handles stamp_max_tokens_enabled toggle", () => {
-  expect(loadConfig({ STAMP_MAX_TOKENS_ENABLED: undefined }).stampMaxTokens).toBeNull();
-  expect(loadConfig({ STAMP_MAX_TOKENS_ENABLED: "false" }).stampMaxTokens).toBeNull();
-  expect(loadConfig({ STAMP_MAX_TOKENS_ENABLED: "0" }).stampMaxTokens).toBeNull();
-  expect(loadConfig({ STAMP_MAX_TOKENS_ENABLED: "true" }).stampMaxTokens).toBe(32000);
-  expect(loadConfig({ STAMP_MAX_TOKENS_ENABLED: "1" }).stampMaxTokens).toBe(32000);
-});
-
-test("validateConfig accepts boolean stamp_output_config_enabled", () => {
-  expect(validateConfig({ stamp_output_config_enabled: true }).ok).toBe(true);
-  expect(validateConfig({ stamp_output_config_enabled: false }).ok).toBe(true);
-  expect(validateConfig({ stamp_output_config_enabled: undefined }).ok).toBe(true);
-});
-
-test("validateConfig rejects non-boolean stamp_output_config_enabled", () => {
-  expect(validateConfig({ stamp_output_config_enabled: "yes" as unknown as boolean }).ok).toBe(
-    false,
-  );
-  expect(validateConfig({ stamp_output_config_enabled: 1 as unknown as boolean }).ok).toBe(false);
-});
-
-test("loadConfig handles stamp_output_config_enabled toggle", () => {
-  expect(loadConfig({ STAMP_OUTPUT_CONFIG_ENABLED: undefined }).stampOutputConfig).toBeNull();
-  expect(loadConfig({ STAMP_OUTPUT_CONFIG_ENABLED: "false" }).stampOutputConfig).toBeNull();
-  expect(loadConfig({ STAMP_OUTPUT_CONFIG_ENABLED: "0" }).stampOutputConfig).toBeNull();
-  expect(loadConfig({ STAMP_OUTPUT_CONFIG_ENABLED: "true" }).stampOutputConfig).toEqual({
-    effort: "high",
-  });
-  expect(loadConfig({ STAMP_OUTPUT_CONFIG_ENABLED: "1" }).stampOutputConfig).toEqual({
-    effort: "high",
-  });
-});
-
 test("validateConfig accepts boolean stamp_reasoning_effort_enabled", () => {
   expect(validateConfig({ stamp_reasoning_effort_enabled: true }).ok).toBe(true);
   expect(validateConfig({ stamp_reasoning_effort_enabled: false }).ok).toBe(true);
@@ -450,7 +316,7 @@ test("loadConfig handles stamp_reasoning_effort_enabled toggle", () => {
 
 test("loadConfig returns memory-tuning defaults", () => {
   const c = loadConfig({});
-  expect(c.captureBodyMaxBytes).toBe(1_000_000);
+  expect(c.captureBodyMaxBytes).toBe(10_000_000);
   expect(c.queueMaxDepth).toBe(100);
   expect(c.wsBackpressureLimit).toBe(1_048_576);
   expect(c.wsCloseOnBackpressureLimit).toBe(true);
@@ -525,7 +391,7 @@ test("loadConfig env takes precedence over JSON for memory-tuning fields", () =>
 test("validateConfig accepts memory-tuning defaults", () => {
   const r = validateConfig({});
   expect(r.ok).toBe(true);
-  expect(r.normalized.capture_body_max_bytes).toBe(1_000_000);
+  expect(r.normalized.capture_body_max_bytes).toBe(10_000_000);
   expect(r.normalized.queue_max_depth).toBe(100);
   expect(r.normalized.ws_backpressure_limit).toBe(1_048_576);
   expect(r.normalized.ws_close_on_backpressure_limit).toBe(true);

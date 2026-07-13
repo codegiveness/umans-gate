@@ -243,7 +243,7 @@ describe("OpenAI streaming usage extraction", () => {
       includeUsage: true,
       completionTokens: 100,
       ttftMs: 100,
-      perChunkMs: 10,
+      perChunkMs: 100,
       contentChunks: 10,
     });
     const m = extractOpenAiStreaming(chunks, startedAt);
@@ -254,6 +254,19 @@ describe("OpenAI streaming usage extraction", () => {
     const expectedTps = (100 / genMs) * 1000;
     expect(m.tps).toBeCloseTo(expectedTps, 1);
     expect(m.tps).toBeGreaterThan(0);
+  });
+
+  test("TPS null when generation time < 1 second", () => {
+    const { chunks, startedAt } = buildChunks({
+      includeUsage: true,
+      completionTokens: 100,
+      ttftMs: 100,
+      perChunkMs: 10,
+      contentChunks: 10,
+    });
+    const m = extractOpenAiStreaming(chunks, startedAt);
+    expect(m.output_tokens).toBe(100);
+    expect(m.tps).toBeNull();
   });
 
   test("stream aborted before usage chunk → usage_missing = true but TTFT preserved", () => {

@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,9 +17,37 @@ interface ClearConfirmDialogProps {
   onConfirm: () => void;
   onClose: () => void;
   count: number;
+  title?: string;
+  itemLabel?: string;
+  confirmTooltip?: string;
 }
 
-export function ClearConfirmDialog({ open, onConfirm, onClose, count }: ClearConfirmDialogProps) {
+export function ClearConfirmDialog({
+  open,
+  onConfirm,
+  onClose,
+  count,
+  title = "Clear all captures?",
+  itemLabel = "captured request",
+  confirmTooltip = "Permanently delete all captured requests",
+}: ClearConfirmDialogProps) {
+  useEffect(() => {
+    if (!open) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        onClose();
+      }
+    };
+
+    // Use capture phase so we intercept Escape before Base UI's AlertDialog
+    // (which blocks Escape to enforce non-dismissable behavior) can swallow it.
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, [open, onClose]);
+
   return (
     <AlertDialog
       open={open}
@@ -27,9 +57,10 @@ export function ClearConfirmDialog({ open, onConfirm, onClose, count }: ClearCon
     >
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Clear all captures?</AlertDialogTitle>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>
-            Delete {count} captured request{count === 1 ? "" : "s"}? This cannot be undone.
+            Delete {count} {itemLabel}
+            {count === 1 ? "" : "s"}? This cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -42,7 +73,7 @@ export function ClearConfirmDialog({ open, onConfirm, onClose, count }: ClearCon
               Clear
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-[220px]">
-              Permanently delete all captured requests
+              {confirmTooltip}
             </TooltipContent>
           </Tooltip>
         </AlertDialogFooter>

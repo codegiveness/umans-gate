@@ -14,36 +14,31 @@ class FakeModelsClient {
 }
 
 describe("computeRequestWeight", () => {
-  test("known model maps to configured weight", () => {
+  test("known model returns derived weight", () => {
     const models = new FakeModelsClient({ "umans-coder": 0.5 });
-    const weight = computeRequestWeight(
-      { concurrencyWeights: { "umans-coder": 2 } },
-      "umans-coder",
-      models,
-    );
-    expect(weight).toBe(2);
+    const weight = computeRequestWeight("umans-coder", models);
+    expect(weight).toBe(0.5);
   });
 
   test("unknown model returns default weight (1)", () => {
-    const weight = computeRequestWeight({ concurrencyWeights: {} }, "unknown-model", null);
+    const weight = computeRequestWeight("unknown-model", null);
     expect(weight).toBe(1);
   });
 
-  test("explicit weight of 0 is respected", () => {
-    const models = new FakeModelsClient({ cheap: 0.5 });
-    const weight = computeRequestWeight({ concurrencyWeights: { cheap: 0 } }, "cheap", models);
-    expect(weight).toBe(0);
-  });
-
-  test("falls back to ModelsClient when no config override", () => {
+  test("falls back to default when model not in catalog", () => {
     const models = new FakeModelsClient({ "umans-flash": 0.25 });
-    const weight = computeRequestWeight({ concurrencyWeights: {} }, "umans-flash", models);
-    expect(weight).toBe(0.25);
+    const weight = computeRequestWeight("other-model", models);
+    expect(weight).toBe(1);
   });
 
   test("returns default weight when model name is undefined", () => {
     const models = new FakeModelsClient({ "umans-coder": 0.5 });
-    const weight = computeRequestWeight({ concurrencyWeights: {} }, undefined, models);
+    const weight = computeRequestWeight(undefined, models);
+    expect(weight).toBe(1);
+  });
+
+  test("returns default weight when no model source", () => {
+    const weight = computeRequestWeight("umans-coder", null);
     expect(weight).toBe(1);
   });
 });

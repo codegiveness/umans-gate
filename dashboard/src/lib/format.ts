@@ -47,7 +47,18 @@ export function fmtDate(ts: number | null | undefined): string {
   return ts ? new Date(ts).toLocaleTimeString([], { hour12: false }) : "";
 }
 
-export function escapeHtml(s: string | null | undefined): string {
+export function fmtDateTime(ts: number | null | undefined): string {
+  if (!ts) return "";
+  return new Date(ts).toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
+function escapeHtml(s: string | null | undefined): string {
   return (s ?? "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c] ?? c);
 }
 

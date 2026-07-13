@@ -357,18 +357,30 @@ describe("Anthropic streaming usage extraction", () => {
     const { events, startedAt } = buildEvents({
       outputTokens: 100,
       ttftMs: 100,
-      perDeltaMs: 10,
+      perDeltaMs: 120,
       deltaCount: 10,
     });
     const m = extractAnthropicStreaming(events, startedAt);
     expect(m.output_tokens).toBe(100);
-    expect(m.ttft_ms).toBe(110); // first delta at startedAt + ttftMs + perDeltaMs = 1000+100+10 = 1110 → 110
+    expect(m.ttft_ms).toBe(220); // first delta at startedAt + ttftMs + perDeltaMs = 1000+100+120 = 1220 → 220
     expect(m.duration_ms).not.toBeNull();
     // TPS = output / ((duration - ttft) / 1000)
     const genMs = (m.duration_ms ?? 0) - (m.ttft_ms ?? 0);
     const expectedTps = (100 / genMs) * 1000;
     expect(m.tps).toBeCloseTo(expectedTps, 1);
     expect(m.tps).toBeGreaterThan(0);
+  });
+
+  test("TPS null when generation time < 1 second", () => {
+    const { events, startedAt } = buildEvents({
+      outputTokens: 100,
+      ttftMs: 100,
+      perDeltaMs: 10,
+      deltaCount: 10,
+    });
+    const m = extractAnthropicStreaming(events, startedAt);
+    expect(m.output_tokens).toBe(100);
+    expect(m.tps).toBeNull();
   });
 
   test("usage_missing when no message_start or message_delta usage", () => {

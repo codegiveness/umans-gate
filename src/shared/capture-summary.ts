@@ -36,6 +36,8 @@ export function summary(row: CaptureRow): CaptureSummary {
     output_tokens: row.output_tokens ?? null,
     total_output_tokens: row.total_output_tokens ?? null,
     is_vision: !!row.is_vision,
+    status_source: (row.status_source as "upstream" | "gate" | null) ?? null,
+    gate_reason: row.gate_reason ?? null,
   };
 }
 
@@ -45,6 +47,7 @@ export function newSummary(
   reqMeta: RequestMeta,
   config: ProtocolConfig,
   state: CaptureState = "streaming",
+  model: string | null = null,
 ): CaptureSummary {
   return {
     id,
@@ -61,7 +64,7 @@ export function newSummary(
     finished_at: null,
     incoming_protocol: config.incomingProtocol,
     upstream_protocol: config.upstreamProtocol,
-    model: null,
+    model,
     usage_missing: null,
     ttft_ms: null,
     tps: null,
@@ -71,6 +74,8 @@ export function newSummary(
     output_tokens: null,
     total_output_tokens: null,
     is_vision: false,
+    status_source: null,
+    gate_reason: null,
   };
 }
 
@@ -107,5 +112,7 @@ export function buildSummary(
     output_tokens: u?.output_tokens ?? null,
     total_output_tokens: u?.total_output_tokens ?? null,
     is_vision: false,
+    status_source: res.$status_source,
+    gate_reason: res.$gate_reason,
   };
 }

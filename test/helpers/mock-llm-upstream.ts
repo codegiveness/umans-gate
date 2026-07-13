@@ -273,7 +273,7 @@ function resolveAnthropicUsage(
   // First time seeing this system prompt → create cache.
   // Subsequent calls with the same system prompt → read from cache.
   const isCold = !seenSystemPrompts.has(systemText);
-  const maxTokens = typeof body?.max_tokens === "number" ? body.max_tokens : 50;
+  const maxTokens = Math.min(typeof body?.max_tokens === "number" ? body.max_tokens : 50, 100);
   if (hasCacheControl) {
     if (isCold) {
       seenSystemPrompts.add(systemText);
@@ -315,7 +315,7 @@ function handleOpenAi(body: MockRequestBody, callCount: number): Response {
   const includeUsage = body?.stream_options?.include_usage === true;
 
   const inputTokens = body?.messages ? JSON.stringify(body.messages).length : 100;
-  const outputTokens = typeof body?.max_tokens === "number" ? body.max_tokens : 50;
+  const outputTokens = Math.min(typeof body?.max_tokens === "number" ? body.max_tokens : 50, 100);
   const cachedTokens =
     body?.messages && JSON.stringify(body.messages).includes("cache")
       ? Math.floor(inputTokens * 0.8)

@@ -25,6 +25,8 @@ export interface CaptureSummary {
   output_tokens: number | null;
   total_output_tokens: number | null;
   is_vision: boolean;
+  status_source: "upstream" | "gate" | null;
+  gate_reason: string | null;
 }
 
 export interface PerformanceStatsRow {
@@ -35,15 +37,18 @@ export interface PerformanceStatsRow {
   total_input_tokens: number;
   total_output_tokens: number;
   total_cache_read_tokens: number;
+  total_thinking_tokens: number;
   cached_pct: number;
+  ttft_mean: number | null;
   ttft_p10: number | null;
   ttft_p50: number | null;
   ttft_p95: number | null;
+  ttft_outlier_count: number;
+  tps_mean: number | null;
   tps_p10: number | null;
   tps_p50: number | null;
   tps_p95: number | null;
-  ttft_mean: number | null;
-  tps_mean: number | null;
+  tps_outlier_count: number;
 }
 
 export type VisionSupport = boolean | "via-handoff";
@@ -72,6 +77,10 @@ export interface ModelInfo {
     };
   };
   benchmarks: Record<string, unknown>;
+  weights: {
+    precision: string | undefined;
+    hf_url: string | undefined;
+  };
   stage?: string;
   lifecycle?: {
     playground_start_date?: string;
@@ -111,7 +120,10 @@ export interface GateStats {
   breaker: BreakerState;
   boxed: boolean;
   boxedReason: string | null;
+  boxedUntil: number | null;
   priorityLow: boolean;
+  unitsDemoted: boolean;
+  demotedUntil: number | null;
   requestsRemaining: number | null;
   requestsInWindow: number;
   requestsLimit: number | null;
@@ -131,4 +143,83 @@ export type WsMessage =
   | { type: "update"; capture: CaptureSummary }
   | { type: "state"; captureId: number; state: CaptureState }
   | { type: "gate"; stats: GateStats }
-  | { type: "clear" };
+  | { type: "clear" }
+  | { type: "vision-clear" };
+
+/** Snapshot of /v1/usage response (subset we care about). */
+export interface UsageSnapshot {
+  ok: boolean;
+  fetchedAt: number;
+  plan: "Code Pro" | "Code Max" | "unknown";
+  requestsLimit: number | null;
+  requestsHardCap: number | null;
+  requestsWindowSeconds: number | null;
+  concurrencySoftLimit: number;
+  concurrencyHardCap: number;
+  requestsInWindow: number;
+  requestsRemaining: number | null;
+  concurrentSessions: number;
+  priorityLow: boolean;
+  boxedUntil: number | null;
+  boxedReason: string | null;
+  unitsDemoted: boolean;
+  demotedUntil: number | null;
+}
+
+export interface EconomicsDailyRow {
+  date: string;
+  model: string;
+  requests: number;
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_tokens: number;
+  cache_creation_tokens: number;
+  thinking_tokens: number;
+  cost_input: number;
+  cost_output: number;
+  cost_cache_read: number;
+  cost_cache_creation: number;
+  cost_total: number;
+  pricing_known: number;
+}
+
+export interface EconomicsMonthSummary {
+  year: number;
+  month: number;
+  requests: number;
+  input_tokens: number;
+  output_tokens: number;
+  cache_read_tokens: number;
+  cache_creation_tokens: number;
+  thinking_tokens: number;
+  cost_input: number;
+  cost_output: number;
+  cost_cache_read: number;
+  cost_cache_creation: number;
+  cost_total: number;
+  has_unpriced: boolean;
+  per_model: Array<{
+    model: string;
+    requests: number;
+    input_tokens: number;
+    output_tokens: number;
+    cache_read_tokens: number;
+    cache_creation_tokens: number;
+    cost_total: number;
+  }>;
+}
+
+export interface ModelPricingRow {
+  model_id: string;
+  input_per_mtoken: number;
+  output_per_mtoken: number;
+  cache_read_per_mtoken: number;
+  pricing_known: number;
+  updated_at: number;
+}
+
+export interface EconomicsSummaryResponse {
+  summary: EconomicsMonthSummary;
+  months: Array<{ year: number; month: number }>;
+  pricing: ModelPricingRow[];
+}

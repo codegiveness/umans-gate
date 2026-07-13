@@ -32,12 +32,12 @@ export class WsBroadcaster {
   /** Broadcast a message to all connected clients. Swallows per-client errors. */
   broadcast(msg: WsMessage): void {
     const s = JSON.stringify(msg);
+    const dead: BunServerWebSocket[] = [];
     for (const ws of this.clients) {
       try {
         const sent = ws.send(s);
         if (sent === 0) {
-          // Message dropped — the connection is dead or over backpressure.
-          this.clients.delete(ws);
+          dead.push(ws);
           try {
             ws.close(1013, "backpressure");
           } catch {
@@ -45,8 +45,11 @@ export class WsBroadcaster {
           }
         }
       } catch {
-        this.clients.delete(ws);
+        dead.push(ws);
       }
+    }
+    for (const ws of dead) {
+      this.clients.delete(ws);
     }
   }
 

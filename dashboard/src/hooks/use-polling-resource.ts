@@ -27,33 +27,48 @@ export function usePollingResource<T>({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchData = useCallback(
-    async (signal: AbortSignal) => {
-      try {
-        const res = await fetch(`${API_BASE}${endpoint}`, { signal });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const ct = res.headers.get("content-type") ?? "";
-        if (!ct.includes("application/json")) {
-          setData(parse(undefined));
-          setError(null);
-          return;
+  const hasDataRef = useRef(false);
+
+  const latestRef = useRef({ endpoint, errorMessage, parse });
+  latestRef.current = { endpoint, errorMessage, parse };
+
+  const fetchData = useCallback(async (signal: AbortSignal) => {
+    const {
+      endpoint: currentEndpoint,
+      errorMessage: currentErrorMessage,
+      parse: currentParse,
+    } = latestRef.current;
+    try {
+      const res = await fetch(`${API_BASE}${currentEndpoint}`, { signal });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const ct = res.headers.get("content-type") ?? "";
+      if (!ct.includes("application/json")) {
+        if (!hasDataRef.current) {
+          setData(currentParse(undefined));
         }
-        const json = (await res.json()) as unknown;
-        setData(parse(json));
         setError(null);
-      } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") return;
-        setError(err instanceof Error ? err.message : errorMessage);
-      } finally {
-        setLoading(false);
+        return;
       }
-    },
-    [endpoint, errorMessage, parse],
-  );
+      const json = (await res.json()) as unknown;
+      const parsed = currentParse(json);
+      setData(parsed);
+      setError(null);
+      hasDataRef.current = parsed !== null && parsed !== undefined;
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      // Keep existing data on transient failures; only error before first load.
+      if (!hasDataRef.current) {
+        setError(err instanceof Error ? err.message : currentErrorMessage);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const refresh = useCallback(() => {
     const controller = new AbortController();
     setLoading(true);
+    setError(null);
     void fetchData(controller.signal);
     return () => controller.abort();
   }, [fetchData]);
@@ -65,10 +80,38 @@ export function usePollingResource<T>({
   useEffect(() => {
     const controller = new AbortController();
     void fetchData(controller.signal);
-    const interval = setInterval(() => fetchData(controller.signal), pollInterval);
+
+    let interval: ReturnType<typeof setInterval> | null = null;
+
+    const startPolling = () => {
+      if (interval === null) {
+        interval = setInterval(() => fetchData(controller.signal), pollInterval);
+      }
+    };
+
+    const stopPolling = () => {
+      if (interval !== null) {
+        clearInterval(interval);
+        interval = null;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        void fetchData(controller.signal);
+        startPolling();
+      }
+    };
+
+    startPolling();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       controller.abort();
-      clearInterval(interval);
+      stopPolling();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [fetchData, pollInterval]);
 

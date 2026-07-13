@@ -11,7 +11,14 @@ import { usePerformanceStats } from "@/hooks/use-performance-stats";
 import { fmtTokensCompact } from "@/lib/format";
 import type { PerformanceStatsRow } from "@/types";
 
-import { fmtMs, fmtPct, fmtTps } from "./perf-utils";
+import {
+  fmtAvgLabel,
+  fmtAvgMs,
+  fmtAvgTps,
+  fmtPct,
+  fmtPercentiles,
+  fmtTpsPercentiles,
+} from "./perf-utils";
 
 export function PerformanceMeter() {
   const { stats, loading, error, refresh } = usePerformanceStats();
@@ -38,7 +45,7 @@ export function PerformanceMeter() {
               Refresh
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="bottom">Re-compute performance percentiles</TooltipContent>
+          <TooltipContent side="bottom">Re-compute performance statistics</TooltipContent>
         </Tooltip>
       </header>
 
@@ -48,28 +55,37 @@ export function PerformanceMeter() {
             <div className="flex flex-1 items-center justify-center">
               <Loader className="h-auto" />
             </div>
-          ) : error ? (
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center text-muted-foreground">
-              <AlertCircle className="h-12 w-12 text-destructive" />
-              <p className="text-sm font-medium text-destructive">Something went wrong</p>
-              <p className="text-xs">{error}</p>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" size="sm" onClick={refresh}>
-                    Retry
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top">Retry loading performance stats</TooltipContent>
-              </Tooltip>
-            </div>
           ) : stats === null || stats.length === 0 ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center text-muted-foreground">
               <Inbox className="h-12 w-12 text-muted-foreground/40" />
-              <p className="text-sm font-medium">No performance data yet</p>
-              <p className="text-xs">Send requests through the proxy to see stats.</p>
+              <p className="text-sm font-medium">
+                {error ? "Something went wrong" : "No performance data yet"}
+              </p>
+              {error ? (
+                <>
+                  <p className="text-xs">{error}</p>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="outline" size="sm" onClick={refresh}>
+                        Retry
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">Retry loading performance stats</TooltipContent>
+                  </Tooltip>
+                </>
+              ) : (
+                <p className="text-xs">Send requests through the proxy to see stats.</p>
+              )}
             </div>
           ) : (
             <div className="space-y-4">
+              {error && (
+                <div className="flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                  <AlertCircle className="h-3.5 w-3.5" />
+                  <span className="font-medium">Failed to refresh:</span>
+                  <span className="text-muted-foreground">{error}</span>
+                </div>
+              )}
               {stats.map((row) => (
                 <ModelPerfCard key={row.model} row={row} />
               ))}
@@ -84,7 +100,7 @@ export function PerformanceMeter() {
 function ModelPerfCard({ row }: { row: PerformanceStatsRow }) {
   return (
     <Card>
-      <CardContent className="p-4">
+      <CardContent className="px-4 py-0">
         <div className="mb-3 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <h3 className="truncate text-sm font-semibold" title={row.model}>
@@ -111,16 +127,16 @@ function ModelPerfCard({ row }: { row: PerformanceStatsRow }) {
           <StatTile
             icon={<Zap className="h-3.5 w-3.5" />}
             label="TTFT"
-            primaryLabel="p50"
-            primary={fmtMs(row.ttft_p50)}
-            sub={`p10 ${fmtMs(row.ttft_p10)} · p95 ${fmtMs(row.ttft_p95)} · μ ${fmtMs(row.ttft_mean)}`}
+            primary={fmtAvgMs(row.ttft_mean)}
+            primaryDetail={fmtAvgLabel(row.ttft_mean)}
+            sub2={fmtPercentiles(row.ttft_p10, row.ttft_p50, row.ttft_p95)}
           />
           <StatTile
             icon={<Gauge className="h-3.5 w-3.5" />}
             label="TPS"
-            primaryLabel="p50"
-            primary={fmtTps(row.tps_p50)}
-            sub={`p10 ${fmtTps(row.tps_p10)} · p95 ${fmtTps(row.tps_p95)} · μ ${fmtTps(row.tps_mean)}`}
+            primary={fmtAvgTps(row.tps_mean)}
+            primaryDetail={fmtAvgLabel(row.tps_mean)}
+            sub2={fmtTpsPercentiles(row.tps_p10, row.tps_p50, row.tps_p95)}
           />
           <StatTile
             icon={<Cpu className="h-3.5 w-3.5" />}
@@ -132,13 +148,17 @@ function ModelPerfCard({ row }: { row: PerformanceStatsRow }) {
             icon={<Cpu className="h-3.5 w-3.5" />}
             label="Total Out"
             primary={fmtTokensCompact(row.total_output_tokens)}
-            sub={`cached ${fmtTokensCompact(row.total_cache_read_tokens)}`}
+            sub={
+              row.total_thinking_tokens > 0
+                ? `${fmtTokensCompact(row.total_thinking_tokens)} thinking`
+                : undefined
+            }
           />
           <StatTile
             icon={<Activity className="h-3.5 w-3.5" />}
-            label="Cached"
+            label="Cache Hit"
             primary={fmtPct(row.cached_pct)}
-            sub={`${fmtTokensCompact(row.total_cache_read_tokens)} tokens`}
+            sub={`${fmtTokensCompact(row.total_cache_read_tokens)} cached`}
           />
         </div>
       </CardContent>
@@ -149,15 +169,17 @@ function ModelPerfCard({ row }: { row: PerformanceStatsRow }) {
 function StatTile({
   icon,
   label,
-  primaryLabel,
   primary,
+  primaryDetail,
   sub,
+  sub2,
 }: {
   icon: React.ReactNode;
   label: string;
-  primaryLabel?: string;
   primary: string;
-  sub: string;
+  primaryDetail?: string;
+  sub?: string;
+  sub2?: string;
 }) {
   return (
     <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
@@ -167,13 +189,14 @@ function StatTile({
       </div>
       <div className="mt-1 flex items-baseline gap-1.5">
         <span className="text-lg font-semibold tabular-nums leading-tight">{primary}</span>
-        {primaryLabel && (
-          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground/70">
-            {primaryLabel}
+        {primaryDetail && (
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/80 tabular-nums">
+            {primaryDetail}
           </span>
         )}
       </div>
-      <div className="mt-0.5 text-xs text-muted-foreground tabular-nums">{sub}</div>
+      {sub && <div className="mt-0.5 text-xs text-muted-foreground tabular-nums">{sub}</div>}
+      {sub2 && <div className="text-xs text-muted-foreground/70 tabular-nums">{sub2}</div>}
     </div>
   );
 }

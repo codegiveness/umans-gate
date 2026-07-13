@@ -4,12 +4,10 @@
 //   Windows:     %APPDATA%/umans-gate/config.json
 // Precedence: env vars > JSON config file > built-in defaults.
 // On first run, a config.json is written to the resolved path.
-// If a legacy config.yml exists, it is migrated to config.json (one-time).
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir, platform } from "node:os";
 import { dirname, join } from "node:path";
-import { parse } from "yaml";
 import type {
   IncomingProtocol,
   OutputConfig,
@@ -36,11 +34,6 @@ export function resolveConfigPath(): string {
   return join(resolveConfigDir(), "config.json");
 }
 
-/** Resolve the legacy YAML config path (used for migration only). */
-export function resolveLegacyYamlPath(): string {
-  return join(resolveConfigDir(), "config.yml");
-}
-
 /**
  * Fields removed from user config (hardcoded — app is Umans-specific):
  *   target              → "https://api.code.umans.ai"
@@ -48,27 +41,17 @@ export function resolveLegacyYamlPath(): string {
  *   warmer_path         → "/v1/models"
  *   rate_limit_window_seconds → derived from /v1/usage (inherent, not configurable)
  *   vision_target       → derived from target + "/v1/chat/completions"
- *   stamp_cache_ttl     → replaced by stamp_cache_ttl_enabled (toggle)
- *   stamp_top_k         → replaced by stamp_top_k_enabled (toggle)
+ *   host                → hardcoded "127.0.0.1" (local-only; use SSH tunnel for remote access)
  */
 export interface RawConfig {
   port?: number;
-  host?: string;
   max_captures?: number;
   db_path?: string;
   idle_timeout?: number;
   upstream_protocol?: string;
-  /** Experimental toggle: when true, stamps TTL=1h onto Anthropic ephemeral cache_control blocks. Default false (off). */
-  stamp_cache_ttl_enabled?: boolean;
-  /** Experimental toggle: when true, stamps top_k=20 onto requests. Default false (off). */
-  stamp_top_k_enabled?: boolean;
-  /** Experimental toggle: when true, stamps max_tokens=32000 onto Anthropic requests. Default false (off). */
-  stamp_max_tokens_enabled?: boolean;
-  /** Experimental toggle: when true, stamps thinking block onto Anthropic requests. Default false (off). */
-  stamp_thinking_enabled?: boolean;
-  /** Experimental toggle: when true, stamps output_config onto Anthropic requests (effort=max for umans-glm* models, effort=high for all others). Default false (off). */
-  stamp_output_config_enabled?: boolean;
-  /** Experimental toggle: when true, stamps reasoning_effort onto OpenAI-compatible requests (effort=max for umans-glm* models, effort=high for all others) and removes max_tokens/thinking. Default false (off). */
+  /** When true, applies the full Claude Code stamp bundle on Anthropic requests (TTL, top_k, max_tokens, thinking, output_config, context_management). */
+  stamp_claude_code_enabled?: boolean;
+  /** When true, stamps reasoning_effort onto OpenAI-compatible requests (effort=max for umans-glm* models, effort=high for all others) and removes max_tokens/thinking. */
   stamp_reasoning_effort_enabled?: boolean;
   warmer_enabled?: boolean;
   warmer_interval_ms?: number;
@@ -77,8 +60,7 @@ export interface RawConfig {
   models_refresh_ms?: number;
   concurrency_hard_cap?: number;
   concurrency_soft_limit?: number;
-  concurrency_weights?: Record<string, number>;
-  /** Pro-tier rolling-window request limit. 0 = disabled. If null/unset, derived from /v1/usage. */
+  /** Pro-tier rolling-window request limit. -1 = unlimited (no limiter), 0 = auto-derive from /v1/usage, >0 = explicit limit. */
   rate_limit_requests?: number;
   queue_timeout_ms?: number;
   max_queue_depth?: number;
@@ -86,7 +68,6 @@ export interface RawConfig {
   breaker_threshold?: number;
   breaker_window_ms?: number;
   breaker_cooldown_ms?: number;
-  usage_stats_latest_n?: number;
   vision_strategy?: "never" | "catalog" | "always";
   vision_model?: string;
   vision_prompt?: string;
@@ -106,8 +87,6 @@ export interface RawConfig {
   vision_image_detail?: "auto" | "low" | "high";
   concurrency_main_reservation?: number;
   concurrency_vision_reservation?: number;
-  vision_api_key?: string;
-  vision_force_intercept_capable?: boolean;
   /** Max captured request/response body size in bytes. 0 = unlimited. */
   capture_body_max_bytes?: number;
   /** Max depth of the write-behind response queue. Distinct from waiters queue. */
@@ -118,6 +97,9 @@ export interface RawConfig {
   ws_close_on_backpressure_limit?: boolean;
   /** Max pending vision requests to batch together. */
   vision_pending_max_batch?: number;
+  /** Compress stored request/response bodies with zstd. Default true (on). */
+  compression_enabled?: boolean;
+  upstream_timeout_ms?: number;
 }
 
 /**
@@ -137,44 +119,53 @@ export const OPENAI_CHAT_PATH = "chat/completions";
 export const WARMER_PATH = "/v1/models";
 /** Vision target derived from upstream target. */
 export const VISION_TARGET_PATH = "/v1/chat/completions";
-/** Stamp TTL value used when stamp_cache_ttl_enabled is true. */
+/** Stamp TTL value used when stamp_claude_code_enabled is true. */
 export const STAMP_CACHE_TTL_VALUE = "1h";
-/** Top-K value used when stamp_top_k_enabled is true. */
+/** Top-K value used when stamp_claude_code_enabled is true. */
 export const STAMP_TOP_K_VALUE = 20;
-/** Thinking block injected when stamp_thinking_enabled is true. */
+/** Temperature value forced when stamp_claude_code_enabled is true. */
+export const STAMP_TEMPERATURE_VALUE = 1.0;
+/** Thinking block injected when stamp_claude_code_enabled is true. */
 export const STAMP_THINKING_VALUE: ThinkingConfig = {
   type: "adaptive",
 };
 
-/** max_tokens value injected when stamp_max_tokens_enabled is true. */
-export const STAMP_MAX_TOKENS_VALUE = 32000;
+/** max_tokens injected for umans-glm* models when stamp_claude_code_enabled is true. */
+export const STAMP_MAX_TOKENS_GLM_VALUE = 131071;
 
-/** output_config value injected when stamp_output_config_enabled is true. */
+/** max_tokens injected for non-GLM models when stamp_claude_code_enabled is true. */
+export const STAMP_MAX_TOKENS_VALUE = 32767;
+
+/** output_config injected for non-GLM models when stamp_claude_code_enabled is true. */
 export const STAMP_OUTPUT_CONFIG_VALUE: OutputConfig = {
   effort: "high",
 };
 
-/** output_config value injected for umans-glm* models when stamp_output_config_enabled is true. */
+/** output_config injected for umans-glm* models when stamp_claude_code_enabled is true. */
 export const STAMP_OUTPUT_CONFIG_GLM_VALUE: OutputConfig = {
   effort: "max",
 };
+
+/** anthropic-beta header injected when stamp_claude_code_enabled is true (Anthropic requests only). */
+export const STAMP_ANTHROPIC_BETA_HEADER =
+  "claude-code-20250219,interleaved-thinking-2025-05-14,redact-thinking-2026-02-12,thinking-token-count-2026-05-13,context-management-2025-06-27,prompt-caching-scope-2026-01-05,mid-conversation-system-2026-04-07,advisor-tool-2026-03-01,effort-2025-11-24,extended-cache-ttl-2025-04-11";
+
+/** context_management block injected when stamp_claude_code_enabled is true and anthropic-version is 2023-06-01. */
+export const STAMP_CONTEXT_MANAGEMENT_VALUE = {
+  edits: [{ type: "clear_thinking_20251015", keep: "all" }],
+} as const;
 
 export const STAMP_REASONING_EFFORT_VALUE = "high" as const;
 export const STAMP_REASONING_EFFORT_GLM_VALUE = "max" as const;
 
 /** The default config written on first run. */
 const DEFAULT_CONFIG: RawConfig = {
-  port: 9000,
-  host: "0.0.0.0",
+  port: 1945,
   max_captures: 200,
   db_path: "./umans-gate.db",
   idle_timeout: 255,
   upstream_protocol: "http1.1",
-  stamp_cache_ttl_enabled: false,
-  stamp_top_k_enabled: false,
-  stamp_max_tokens_enabled: false,
-  stamp_thinking_enabled: false,
-  stamp_output_config_enabled: false,
+  stamp_claude_code_enabled: false,
   stamp_reasoning_effort_enabled: false,
   warmer_enabled: true,
   warmer_interval_ms: 20000,
@@ -183,7 +174,6 @@ const DEFAULT_CONFIG: RawConfig = {
   models_refresh_ms: 3600000,
   concurrency_hard_cap: 1,
   concurrency_soft_limit: 1,
-  concurrency_weights: { Qwen: 0.5 },
   rate_limit_requests: 0,
   queue_timeout_ms: 30000,
   max_queue_depth: 256,
@@ -191,8 +181,7 @@ const DEFAULT_CONFIG: RawConfig = {
   breaker_threshold: 5,
   breaker_window_ms: 300000,
   breaker_cooldown_ms: 60000,
-  usage_stats_latest_n: 200,
-  vision_strategy: "always",
+  vision_strategy: "catalog",
   vision_model: "umans-flash",
   vision_prompt:
     "You are an expert visual analyst with perfect vision and meticulous attention to detail. Your task is to produce an exhaustive, accurate description of an image for a downstream text-only language model that cannot see the image.\n\nStructure your description as:\n\n1. IMAGE TYPE: What kind of image is this (photograph, screenshot, diagram, chart, illustration, document scan, UI mockup, etc.)?\n\n2. OVERALL CONTENT: A comprehensive summary of everything visible.\n\n3. TEXT/OCR: Transcribe ALL visible text exactly as written, preserving:\n   - Original spelling, formatting, and hierarchy\n   - Line breaks and spatial layout\n   - Numbers, codes, identifiers, and labels\n   - Captions, watermarks, signatures\n   If text is partially visible, transcribe what you can and mark gaps with [...].\n\n4. VISUAL ELEMENTS: Describe in detail:\n   - Objects, people, and their positions/relationships\n   - Colors, shapes, textures\n   - Spatial layout and composition\n   - UI elements (buttons, menus, fields, tabs) if a screenshot\n\n5. DATA/CHARTS: If charts, tables, or data visualizations are present:\n   - Chart type and axes\n   - Data values, ranges, and trends\n   - Table structure and cell contents\n\n6. CONTEXTUAL CLUES: Date/time indicators, language, cultural context, technical domain indicators.\n\n7. QUALITY NOTES: Any blur, artifacts, obstructions, or ambiguity.\n\nRules:\n- Describe what is VISIBLE, not what you infer.\n- Be exhaustive: omit nothing visible. When in doubt, include it.\n- For uncertain elements, state your uncertainty rather than guessing.\n- Do not summarize or abbreviate.\n- Output only the description, no preamble.",
@@ -212,13 +201,13 @@ const DEFAULT_CONFIG: RawConfig = {
   vision_image_detail: "high",
   concurrency_main_reservation: 1,
   concurrency_vision_reservation: 1,
-  vision_api_key: "",
-  vision_force_intercept_capable: false,
-  capture_body_max_bytes: 1_000_000,
+  capture_body_max_bytes: 10_000_000,
   queue_max_depth: 100,
   ws_backpressure_limit: 1_048_576,
   ws_close_on_backpressure_limit: true,
   vision_pending_max_batch: 50,
+  compression_enabled: true,
+  upstream_timeout_ms: 300000,
 };
 
 /** Validation result. */
@@ -260,7 +249,6 @@ const INT_FIELDS: (keyof RawConfig)[] = [
   "breaker_threshold",
   "breaker_window_ms",
   "breaker_cooldown_ms",
-  "usage_stats_latest_n",
   "vision_prompt_version",
   "vision_max_images",
   "vision_max_description_tokens",
@@ -277,6 +265,7 @@ const INT_FIELDS: (keyof RawConfig)[] = [
   "queue_max_depth",
   "ws_backpressure_limit",
   "vision_pending_max_batch",
+  "upstream_timeout_ms",
 ];
 
 /**
@@ -289,6 +278,15 @@ const INT_FIELDS: (keyof RawConfig)[] = [
  */
 function coerceRawForValidation(raw: RawConfigInput): RawConfig {
   const out = { ...raw } as Record<string, unknown>;
+  // Strip keys that are no longer in RawConfig (e.g. background_vision,
+  // vision_force_intercept_capable, use_write_worker — now derived/hardcoded).
+  // This prevents dead keys from persisting through save cycles.
+  const knownKeys = new Set(Object.keys(DEFAULT_CONFIG));
+  for (const k of Object.keys(out)) {
+    if (!knownKeys.has(k)) {
+      delete out[k];
+    }
+  }
   for (const k of INT_FIELDS) {
     const v = out[k];
     if (typeof v === "string" && v.length > 0) {
@@ -316,13 +314,6 @@ const FIELD_RULES: FieldRule[] = [
     errors: (n) =>
       n.port !== undefined && (!Number.isInteger(n.port) || n.port < 1 || n.port > 65535)
         ? ["port must be an integer between 1 and 65535"]
-        : [],
-  },
-  {
-    name: "host",
-    errors: (n) =>
-      n.host !== undefined && (typeof n.host !== "string" || n.host.length === 0)
-        ? ["host must be a non-empty string"]
         : [],
   },
   {
@@ -358,14 +349,7 @@ const FIELD_RULES: FieldRule[] = [
     },
   },
   ...(
-    [
-      "stamp_cache_ttl_enabled",
-      "stamp_top_k_enabled",
-      "stamp_thinking_enabled",
-      "stamp_max_tokens_enabled",
-      "stamp_output_config_enabled",
-      "stamp_reasoning_effort_enabled",
-    ] as const
+    ["stamp_claude_code_enabled", "stamp_reasoning_effort_enabled", "compression_enabled"] as const
   ).map((field) => ({
     name: field,
     errors: (n: RawConfig) =>
@@ -426,7 +410,7 @@ const FIELD_RULES: FieldRule[] = [
         : [],
   },
   {
-    // Cross-field: only checked when hard_cap is an integer >= 2.
+    // Cross-field: only checked when hard_cap is an integer >= 3.
     name: "concurrency_main_reservation",
     errors: (n) => {
       if (
@@ -436,19 +420,19 @@ const FIELD_RULES: FieldRule[] = [
       ) {
         return [];
       }
-      const resMax = n.concurrency_hard_cap - 1;
+      const resMax = n.concurrency_hard_cap - 2;
       if (resMax < 1) return [];
       if (!Number.isInteger(n.concurrency_main_reservation) || n.concurrency_main_reservation < 1) {
         return ["concurrency_main_reservation must be a positive integer (min 1)"];
       }
       if (n.concurrency_main_reservation > resMax) {
-        return [`concurrency_main_reservation must be <= hard_cap - 1 (=${resMax})`];
+        return [`concurrency_main_reservation must be <= hard_cap - 2 (=${resMax})`];
       }
       return [];
     },
   },
   {
-    // Cross-field: only checked when hard_cap is an integer >= 2.
+    // Cross-field: only checked when hard_cap is an integer >= 3.
     name: "concurrency_vision_reservation",
     errors: (n) => {
       if (
@@ -458,7 +442,7 @@ const FIELD_RULES: FieldRule[] = [
       ) {
         return [];
       }
-      const resMax = n.concurrency_hard_cap - 1;
+      const resMax = n.concurrency_hard_cap - 2;
       if (resMax < 1) return [];
       if (
         !Number.isInteger(n.concurrency_vision_reservation) ||
@@ -467,25 +451,9 @@ const FIELD_RULES: FieldRule[] = [
         return ["concurrency_vision_reservation must be a positive integer (min 1)"];
       }
       if (n.concurrency_vision_reservation > resMax) {
-        return [`concurrency_vision_reservation must be <= hard_cap - 1 (=${resMax})`];
+        return [`concurrency_vision_reservation must be <= hard_cap - 2 (=${resMax})`];
       }
       return [];
-    },
-  },
-  {
-    name: "concurrency_weights",
-    errors: (n) => {
-      if (n.concurrency_weights === undefined) return [];
-      if (typeof n.concurrency_weights !== "object" || n.concurrency_weights === null) {
-        return ["concurrency_weights must be an object"];
-      }
-      const out: string[] = [];
-      for (const [k, v] of Object.entries(n.concurrency_weights)) {
-        if (typeof v !== "number" || v <= 0) {
-          out.push(`concurrency_weights.${k} must be a positive number`);
-        }
-      }
-      return out;
     },
   },
   {
@@ -493,9 +461,9 @@ const FIELD_RULES: FieldRule[] = [
     errors: (n) =>
       n.rate_limit_requests !== undefined &&
       n.rate_limit_requests !== null &&
-      (!Number.isInteger(n.rate_limit_requests) || n.rate_limit_requests < 0)
+      (!Number.isInteger(n.rate_limit_requests) || n.rate_limit_requests < -1)
         ? [
-            "rate_limit_requests must be a non-negative integer (0 = disabled, null = derive from /v1/usage)",
+            "rate_limit_requests must be -1 (unlimited), 0 (auto-derive from /v1/usage), or a positive integer",
           ]
         : [],
   },
@@ -545,14 +513,6 @@ const FIELD_RULES: FieldRule[] = [
       n.breaker_cooldown_ms !== undefined &&
       (!Number.isInteger(n.breaker_cooldown_ms) || n.breaker_cooldown_ms < 1000)
         ? ["breaker_cooldown_ms must be an integer >= 1000"]
-        : [],
-  },
-  {
-    name: "usage_stats_latest_n",
-    errors: (n) =>
-      n.usage_stats_latest_n !== undefined &&
-      (!Number.isInteger(n.usage_stats_latest_n) || n.usage_stats_latest_n < 1)
-        ? ["usage_stats_latest_n must be a positive integer"]
         : [],
   },
   {
@@ -629,21 +589,6 @@ const FIELD_RULES: FieldRule[] = [
         n.vision_concurrency < 1 ||
         n.vision_concurrency > 20)
         ? ["vision_concurrency must be an integer between 1 and 20"]
-        : [],
-  },
-  {
-    name: "vision_api_key",
-    errors: (n) =>
-      n.vision_api_key !== undefined && typeof n.vision_api_key !== "string"
-        ? ["vision_api_key must be a string"]
-        : [],
-  },
-  {
-    name: "vision_force_intercept_capable",
-    errors: (n) =>
-      n.vision_force_intercept_capable !== undefined &&
-      typeof n.vision_force_intercept_capable !== "boolean"
-        ? ["vision_force_intercept_capable must be a boolean"]
         : [],
   },
   {
@@ -766,20 +711,22 @@ const WARNING_RULES: WarningRule[] = [
   {
     name: "rate_limit_disabled",
     warning: (n) =>
-      n.rate_limit_requests === 0 ? "Rate limiting is disabled (rate_limit_requests=0)" : null,
+      n.rate_limit_requests === -1
+        ? "Rate limiting is unlimited (rate_limit_requests=-1). No request cap is enforced."
+        : null,
   },
   {
-    name: "stamp_cache_ttl_off",
+    name: "stamp_claude_code_off",
     warning: (n) =>
-      n.stamp_cache_ttl_enabled !== true
-        ? "Cache TTL stamping is off (experimental) — ephemeral cache entries will have no default TTL"
+      n.stamp_claude_code_enabled !== true
+        ? "Claude Code stamping is off — ephemeral cache entries will have no default TTL, no top_k/max_tokens/thinking/output_config/context_management injection"
         : null,
   },
   {
     name: "umans_api_key_empty",
     warning: (n) =>
       n.umans_api_key === "" || n.umans_api_key === undefined
-        ? "umans_api_key is empty — proxy runs in fail-safe mode (worst-case limits, priority_low=true)"
+        ? "umans_api_key is empty — proxy runs in fail-safe mode (worst-case limits, priority_low=true). Set umans_api_key in the Server section to enable usage-based limits."
         : null,
   },
 ];
@@ -809,37 +756,17 @@ export function validateConfig(raw: RawConfigInput): ValidationResult {
 }
 
 /**
- * Migrate legacy config.yml → config.json (one-time).
- * If config.yml exists and config.json does not, parse YAML and write JSON.
- * The YAML file is NOT deleted (user may want it as backup).
- */
-export function migrateFromYamlIfNeeded(): boolean {
-  const jsonPath = resolveConfigPath();
-  const ymlPath = resolveLegacyYamlPath();
-  if (!existsSync(ymlPath) || existsSync(jsonPath)) return false;
-  try {
-    const text = readFileSync(ymlPath, "utf-8");
-    const parsed = (parse(text) ?? {}) as RawConfig;
-    writeFileSync(jsonPath, JSON.stringify(parsed, null, 2), "utf-8");
-    return true;
-  } catch {
-    // If migration fails, fall through to ensureConfigFile which creates defaults.
-    return false;
-  }
-}
-
-/**
  * Write the default config template if no config file exists.
- * Migrates from legacy YAML if present.
  */
 export function ensureConfigFile(): string {
   const path = resolveConfigPath();
   if (!existsSync(path)) {
     mkdirSync(dirname(path), { recursive: true });
-    migrateFromYamlIfNeeded();
-    // If migration didn't create it, write defaults.
-    if (!existsSync(path)) {
-      writeFileSync(path, JSON.stringify(DEFAULT_CONFIG, null, 2), "utf-8");
+    writeFileSync(path, JSON.stringify(DEFAULT_CONFIG, null, 2), "utf-8");
+    try {
+      chmodSync(path, 0o600);
+    } catch {
+      // File permissions are best-effort — some filesystems (e.g. Windows) don't support chmod.
     }
   }
   return path;
@@ -918,35 +845,17 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   const configPath = ensureConfigFile();
   const raw = loadJsonConfig(configPath);
 
-  const port = num(env.PORT ?? raw.port, 9000);
-  const host = str(env.HOST ?? raw.host, "0.0.0.0");
+  const port = num(env.PORT ?? raw.port, 1945);
+  const host = "127.0.0.1";
   const target = (env.TARGET ?? UPSTREAM_TARGET).replace(/\/+$/, "");
   const maxCaptures = num(env.MAX_CAPTURES ?? raw.max_captures, 200);
   const dbPath = str(env.DB_PATH ?? raw.db_path, "./umans-gate.db");
   const idleTimeout = Math.min(num(env.IDLE_TIMEOUT ?? raw.idle_timeout, 255), 255);
   const upstreamProtocol = resolveUpstreamProtocol(env.UPSTREAM_PROTOCOL ?? raw.upstream_protocol);
-  const stampCacheTtlEnabled = bool(
-    env.STAMP_CACHE_TTL_ENABLED ?? raw.stamp_cache_ttl_enabled,
+  const stampClaudeCode = bool(
+    env.STAMP_CLAUDE_CODE_ENABLED ?? raw.stamp_claude_code_enabled,
     false,
   );
-  const stampTtl = stampCacheTtlEnabled ? STAMP_CACHE_TTL_VALUE : null;
-  const stampTopKEnabled = bool(env.STAMP_TOP_K_ENABLED ?? raw.stamp_top_k_enabled, false);
-  const stampTopK = stampTopKEnabled ? STAMP_TOP_K_VALUE : null;
-  const stampMaxTokensEnabled = bool(
-    env.STAMP_MAX_TOKENS_ENABLED ?? raw.stamp_max_tokens_enabled,
-    false,
-  );
-  const stampMaxTokens = stampMaxTokensEnabled ? STAMP_MAX_TOKENS_VALUE : null;
-  const stampThinkingEnabled = bool(
-    env.STAMP_THINKING_ENABLED ?? raw.stamp_thinking_enabled,
-    false,
-  );
-  const stampThinking = stampThinkingEnabled ? STAMP_THINKING_VALUE : null;
-  const stampOutputConfigEnabled = bool(
-    env.STAMP_OUTPUT_CONFIG_ENABLED ?? raw.stamp_output_config_enabled,
-    false,
-  );
-  const stampOutputConfig = stampOutputConfigEnabled ? STAMP_OUTPUT_CONFIG_VALUE : null;
   const stampReasoningEffortEnabled = bool(
     env.STAMP_REASONING_EFFORT_ENABLED ?? raw.stamp_reasoning_effort_enabled,
     false,
@@ -965,7 +874,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   const modelsRefreshMs = num(env.MODELS_REFRESH_MS ?? raw.models_refresh_ms, 3600000);
   const concurrencyHardCap = num(env.CONCURRENCY_HARD_CAP ?? raw.concurrency_hard_cap, 1);
   const concurrencySoftLimit = num(env.CONCURRENCY_SOFT_LIMIT ?? raw.concurrency_soft_limit, 1);
-  const concurrencyWeights = raw.concurrency_weights ?? {};
   const rateLimitRequests = num(env.RATE_LIMIT_REQUESTS ?? raw.rate_limit_requests, 0);
   const queueTimeoutMs = num(env.QUEUE_TIMEOUT_MS ?? raw.queue_timeout_ms, 30000);
   const maxQueueDepth = num(env.MAX_QUEUE_DEPTH ?? raw.max_queue_depth, 256);
@@ -973,9 +881,8 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   const breakerThreshold = num(env.BREAKER_THRESHOLD ?? raw.breaker_threshold, 5);
   const breakerWindowMs = num(env.BREAKER_WINDOW_MS ?? raw.breaker_window_ms, 300000);
   const breakerCooldownMs = num(env.BREAKER_COOLDOWN_MS ?? raw.breaker_cooldown_ms, 60000);
-  const usageStatsLatestN = num(env.USAGE_STATS_LATEST_N ?? raw.usage_stats_latest_n, 200);
 
-  const visionStrategy = str(env.VISION_STRATEGY ?? raw.vision_strategy, "always") as
+  const visionStrategy = str(env.VISION_STRATEGY ?? raw.vision_strategy, "catalog") as
     | "never"
     | "catalog"
     | "always";
@@ -1015,6 +922,9 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     | "auto"
     | "low"
     | "high";
+  // Derived from vision_strategy: "catalog" uses cache-first (background) mode,
+  // "always" forces intercept even for vision-capable models.
+  const backgroundVision = visionStrategy === "catalog";
   const concurrencyMainReservation = num(
     env.CONCURRENCY_MAIN_RESERVATION ?? raw.concurrency_main_reservation,
     1,
@@ -1023,12 +933,8 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     env.CONCURRENCY_VISION_RESERVATION ?? raw.concurrency_vision_reservation,
     1,
   );
-  const visionApiKey = env.VISION_API_KEY || raw.vision_api_key || null;
 
-  const visionForceInterceptCapable =
-    env.VISION_FORCE_INTERCEPT_CAPABLE === "true" ||
-    (env.VISION_FORCE_INTERCEPT_CAPABLE === undefined &&
-      raw.vision_force_intercept_capable === true);
+  const visionForceInterceptCapable = visionStrategy === "always";
 
   const captureBodyMaxBytes = envOrRawNum(
     env.CAPTURE_BODY_MAX_BYTES,
@@ -1060,6 +966,19 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     "vision_pending_max_batch",
     DEFAULT_CONFIG.vision_pending_max_batch ?? 50,
   );
+  const compressionEnabled = envOrRawBool(
+    env.COMPRESSION_ENABLED,
+    raw,
+    "compression_enabled",
+    DEFAULT_CONFIG.compression_enabled ?? true,
+  );
+  const useWriteWorker = false;
+  const upstreamTimeoutMs = envOrRawNum(
+    env.UPSTREAM_TIMEOUT_MS,
+    raw,
+    "upstream_timeout_ms",
+    DEFAULT_CONFIG.upstream_timeout_ms ?? 300000,
+  );
 
   return {
     port,
@@ -1073,11 +992,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     idleTimeout,
     upstreamProtocol,
     incomingProtocol: "http1.1" as IncomingProtocol,
-    stampTtl,
-    stampTopK,
-    stampMaxTokens,
-    stampThinking,
-    stampOutputConfig,
+    stampClaudeCode,
     stampReasoningEffort,
     openaiPath,
     warmerEnabled,
@@ -1088,7 +1003,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     modelsRefreshMs,
     concurrencyHardCap,
     concurrencySoftLimit,
-    concurrencyWeights,
     rateLimitRequests,
     queueTimeoutMs,
     maxQueueDepth,
@@ -1096,7 +1010,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     breakerThreshold,
     breakerWindowMs,
     breakerCooldownMs,
-    usageStatsLatestN,
     visionStrategy,
     visionTarget,
     visionModel,
@@ -1115,15 +1028,18 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     visionJpegQuality,
     visionImageFormat,
     visionImageDetail,
+    backgroundVision,
     concurrencyMainReservation,
     concurrencyVisionReservation,
-    visionApiKey,
     visionForceInterceptCapable,
     captureBodyMaxBytes,
     queueMaxDepth,
     wsBackpressureLimit,
     wsCloseOnBackpressureLimit,
     visionPendingMaxBatch,
+    compressionEnabled,
+    useWriteWorker,
+    upstreamTimeoutMs,
   };
 }
 
@@ -1156,7 +1072,33 @@ export function saveConfig(patch: RawConfigInput): {
   const path = resolveConfigPath();
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, JSON.stringify(result.normalized, null, 2), "utf-8");
+  try {
+    chmodSync(path, 0o600);
+  } catch {
+    // Best-effort: not all platforms support chmod.
+  }
   return { ok: true, errors: [], warnings: result.warnings, written: result.normalized };
+}
+
+/**
+ * Reset config to defaults on disk, preserving `umans_api_key` so the user is
+ * not locked out of the upstream. Returns the written config.
+ */
+export function resetConfig(): { ok: boolean; written: RawConfig | null } {
+  const existing = readConfigFile();
+  const reset: RawConfig = {
+    ...DEFAULT_CONFIG,
+    umans_api_key: existing.umans_api_key ?? DEFAULT_CONFIG.umans_api_key,
+  };
+  const path = resolveConfigPath();
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, JSON.stringify(reset, null, 2), "utf-8");
+  try {
+    chmodSync(path, 0o600);
+  } catch {
+    // Best-effort: not all platforms support chmod.
+  }
+  return { ok: true, written: reset };
 }
 
 /**
@@ -1165,7 +1107,6 @@ export function saveConfig(patch: RawConfigInput): {
  */
 const RESTART_REQUIRED_FIELDS = new Set<keyof RawConfig>([
   "port",
-  "host",
   "max_captures",
   "db_path",
   "idle_timeout",
@@ -1192,8 +1133,6 @@ const RESTART_REQUIRED_FIELDS = new Set<keyof RawConfig>([
   "vision_image_format",
   "vision_image_detail",
   "vision_concurrency",
-  "vision_api_key",
-  "vision_force_intercept_capable",
 ]);
 
 /**
@@ -1205,45 +1144,15 @@ const RELOAD_FIELDS: Array<{
   apply: (live: ProxyConfig, fresh: ProxyConfig) => void;
 }> = [
   {
-    rawKey: "stamp_cache_ttl_enabled",
+    rawKey: "stamp_claude_code_enabled",
     apply: (live, fresh) => {
-      live.stampTtl = fresh.stampTtl;
-    },
-  },
-  {
-    rawKey: "stamp_top_k_enabled",
-    apply: (live, fresh) => {
-      live.stampTopK = fresh.stampTopK;
-    },
-  },
-  {
-    rawKey: "stamp_thinking_enabled",
-    apply: (live, fresh) => {
-      live.stampThinking = fresh.stampThinking;
-    },
-  },
-  {
-    rawKey: "stamp_max_tokens_enabled",
-    apply: (live, fresh) => {
-      live.stampMaxTokens = fresh.stampMaxTokens;
-    },
-  },
-  {
-    rawKey: "stamp_output_config_enabled",
-    apply: (live, fresh) => {
-      live.stampOutputConfig = fresh.stampOutputConfig;
+      live.stampClaudeCode = fresh.stampClaudeCode;
     },
   },
   {
     rawKey: "stamp_reasoning_effort_enabled",
     apply: (live, fresh) => {
       live.stampReasoningEffort = fresh.stampReasoningEffort;
-    },
-  },
-  {
-    rawKey: "concurrency_weights",
-    apply: (live, fresh) => {
-      live.concurrencyWeights = fresh.concurrencyWeights;
     },
   },
   {
@@ -1289,12 +1198,6 @@ const RELOAD_FIELDS: Array<{
     },
   },
   {
-    rawKey: "usage_stats_latest_n",
-    apply: (live, fresh) => {
-      live.usageStatsLatestN = fresh.usageStatsLatestN;
-    },
-  },
-  {
     rawKey: "concurrency_main_reservation",
     apply: (live, fresh) => {
       live.concurrencyMainReservation = fresh.concurrencyMainReservation;
@@ -1316,6 +1219,18 @@ const RELOAD_FIELDS: Array<{
     rawKey: "concurrency_soft_limit",
     apply: (live, fresh) => {
       live.concurrencySoftLimit = fresh.concurrencySoftLimit;
+    },
+  },
+  {
+    rawKey: "compression_enabled",
+    apply: (live, fresh) => {
+      live.compressionEnabled = fresh.compressionEnabled;
+    },
+  },
+  {
+    rawKey: "capture_body_max_bytes",
+    apply: (live, fresh) => {
+      live.captureBodyMaxBytes = fresh.captureBodyMaxBytes;
     },
   },
 ];

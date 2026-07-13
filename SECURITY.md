@@ -6,15 +6,18 @@ If you discover a security vulnerability in umans-gate, please report it respons
 
 **Do NOT open a public GitHub issue.**
 
-Instead, email: security@umans.ai
+Instead, use **GitHub's private security vulnerability reporting**:
 
-Include:
-- Description of the vulnerability
-- Steps to reproduce
-- Potential impact
-- Suggested fix (if any)
+1. Go to [github.com/umans-ai/umans-gate/security/advisories/new](https://github.com/umans-ai/umans-gate/security/advisories/new)
+2. Click **"Report a vulnerability"**
+3. Fill in the advisory form with:
+   - Description of the vulnerability
+   - Steps to reproduce
+   - Potential impact
+   - Suggested fix (if any)
 
-You will receive a response within 48 hours. If the vulnerability is confirmed, we will publish a fix and credit you in the release notes.
+You will receive a response within 48 hours. If the vulnerability is confirmed,
+we will publish a fix and credit you in the release notes.
 
 ## Scope
 
