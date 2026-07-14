@@ -9,35 +9,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Docs overhaul**: rewrote README for npm-first "setup and forget" experience.
-  Quick Start now leads with `npx umans-gate` / `npm install -g umans-gate`.
-  Added platform support table, updating/uninstall sections, and cross-reference
-  to [umans-open-stack](https://github.com/umans-ai/umans-open-stack).
-- **Stale URLs**: fixed all `umans-ai/umans-gate` → `codegiveness/umans-gate`
-  references across package.json, CONTRIBUTING, ROADMAP, CODE_OF_CONDUCT,
-  SECURITY, TROUBLESHOOTING, and issue templates.
-- **Stale `install.sh` reference**: removed nonexistent curl install script
-  from `src/updater.ts`; replaced with `npm install -g umans-gate@latest`.
-- **CODEOWNERS**: uncommented catch-all rule (`* @codegiveness`) — file was
-  entirely commented out, providing no enforcement.
-- **SECURITY.md**: reworded branch protection from "enabled" (false claim) to
-  "should be enabled" with checklist + `gh api` CLI command to configure.
-- **`.env.example`**: removed from `.gitignore` and staged — README referenced
-  it but it was not tracked by git.
-- **README prerequisite**: reworded "Bun required" to clarify npm/npx users
-  need no prerequisites; Bun only needed for development from source.
-- **Removed `publish.yml`**: duplicate publish workflow would race with
-  `release.yml` and publish a broken package (no platform binary shim,
-  no `optionalDependencies`). Only `release.yml` remains.
+- **CI workflow professionalization**: split monolithic CI into `quality` job
+  (typecheck + lint + build, 3-OS matrix: ubuntu/macos/windows) and `test` job
+  (ubuntu-only). Dropped Bun 1.1.0 from matrix (caused 158 test failures on
+  ubuntu). Added dashboard asset build step before tests (`src/embedded-assets.ts`
+  has static imports to gitignored `dashboard/dist/`). Replaced fragile
+  `sleep(900)` in test helper with health-check polling (`GET /health`).
+  Added `--timeout 30000` to test command (bunfig.toml `timeout` key is not
+  respected by Bun).
+- **Stuck master CI runs**: `cancel-in-progress` was only enabled for
+  `pull_request` events — a stuck `in_progress` run held the concurrency
+  group lock indefinitely, blocking all master push runs (stayed `pending`
+  with 0 jobs). Fixed: `cancel-in-progress: true` for all events.
+- **CI permissions hardening**: added `permissions: contents: read`
+  (least-privilege) and `timeout-minutes: 15` to both CI jobs.
+- **Dependabot hardening**: configured major-version bump ignores for
+  critical dependencies (commander, lru-cache, @types/bun, react, react-dom,
+  lucide-react, @types/react, @types/react-dom, vite, tailwind-merge, sonner,
+  typescript, @vitejs/plugin-react, @base-ui/react). Closed 13 dangerous
+  major-bump PRs.
+- **Release workflow**: `--notes-file CHANGELOG.md` dumped the entire
+  changelog as release notes — now extracts only the matching version
+  section. Added `--frozen-lockfile` to all `bun install` steps. Added
+  `timeout-minutes: 20` to prevent hung release builds.
+- **Test helper singleton race condition**: `echo-upstream.ts` used a
+  module-level singleton server that would break under parallel test
+  execution. Refactored to per-instance servers with explicit lifecycle
+  management.
+- **CI dependency drift**: added `--frozen-lockfile` to all `bun install`
+  steps in CI to fail fast on lockfile drift.
+- **Stale draft releases**: deleted 5 stale draft releases from failed
+  release workflow runs.
 
 ### Added
 
+- **Branch protection** on master: requires 4 CI checks (Quality
+  ubuntu/macos/windows + Tests), 1 code-owner review, linear history,
+  stale review dismissal, no force pushes.
+- **Repo settings professionalized**: squash-only merges, delete-branch-on-merge,
+  wiki disabled, discussions disabled, secret scanning enabled, push protection
+  enabled.
 - **CODEOWNERS** (`.github/CODEOWNERS`) for automated review routing.
-- **`publishConfig.provenance`** in `package.json` for npm supply-chain attestation.
-- **SECURITY.md** rewritten with: npm supply-chain security section, GitHub
-  repository security checklist, disclosure timeline, and contributor checklist.
-  Corrected false claim about NPM_TOKEN (workflows use a scoped publish token,
-  not OIDC-only auth — migration to trusted publishing documented as target).
 
 ### Changed
 

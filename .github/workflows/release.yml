@@ -17,6 +17,7 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,10 +34,10 @@ jobs:
           node-version: "20"
           registry-url: "https://registry.npmjs.org/"
 
-      - run: bun install
+      - run: bun install --frozen-lockfile
 
       - name: Install dashboard dependencies
-        run: cd dashboard && bun install
+        run: cd dashboard && bun install --frozen-lockfile
 
       - name: Extract version
         id: ver
@@ -68,10 +69,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#v}"
+          NOTES=$(awk "/^## \[${VERSION}\]/{f=1} f; /^## \[/{if(f && NR>1 && !seen) exit; if(f) seen=1}" CHANGELOG.md)
+          if [ -z "$NOTES" ]; then
+            NOTES="Release ${TAG}"
+          fi
           gh release create "$TAG" \
             release/umans-gate-darwin-* release/umans-gate-linux-* release/umans-gate-win32-* \
             release/SHA256SUMS \
-            --title "$TAG" --notes-file CHANGELOG.md
+            --title "$TAG" --notes "$NOTES"
 
       - name: Publish platform packages to npm
         env:
