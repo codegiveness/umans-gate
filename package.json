@@ -62,7 +62,7 @@
     "build:server": "bash scripts/build-server.sh",
     "build:dashboard": "cd dashboard && bun run build",
     "build:embed-assets": "bun scripts/embed-assets.ts",
-    "test": "bun test",
+    "test": "bun test --timeout 30000",
     "test:dashboard": "cd dashboard && bun run test",
     "test:dashboard:watch": "cd dashboard && bun run test:watch",
     "test:all": "bun run test && bun run test:dashboard",

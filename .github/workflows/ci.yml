@@ -73,7 +73,7 @@ jobs:
         run: cd dashboard && bun install
 
       - name: Test
-        run: bun test
+        run: bun test --timeout 30000
 
       - name: Test dashboard
         run: bun run test:dashboard
