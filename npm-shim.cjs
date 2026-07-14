@@ -8,6 +8,7 @@ const fs = require("node:fs");
 const platform = process.platform;
 const arch = process.arch;
 
+const SCOPE = "@codegiveness";
 const platformMap = {
   darwin: { arm64: "darwin-arm64", x64: "darwin-x64" },
   linux: { arm64: "linux-arm64", x64: "linux-x64" },
@@ -30,8 +31,8 @@ const binName = `umans-gate-${target}${ext}`;
 let binPath = null;
 
 // Try 1: sibling directory (npm hoists optionalDependencies to top-level node_modules/)
-// When umans-gate is installed, umans-gate-<target> is a sibling package.
-const localPath = path.join(__dirname, "..", `umans-gate-${target}`, binName);
+// When umans-gate is installed, @codegiveness/umans-gate-<target> is a sibling package.
+const localPath = path.join(__dirname, "..", SCOPE, `umans-gate-${target}`, binName);
 if (fs.existsSync(localPath)) {
   binPath = localPath;
 }
@@ -40,7 +41,7 @@ if (fs.existsSync(localPath)) {
 if (!binPath) {
   try {
     const globalPrefix = execSync("npm root -g", { encoding: "utf8" }).trim();
-    const globalPath = path.join(globalPrefix, `umans-gate-${target}`, binName);
+    const globalPath = path.join(globalPrefix, SCOPE, `umans-gate-${target}`, binName);
     if (fs.existsSync(globalPath)) {
       binPath = globalPath;
     }
@@ -52,7 +53,7 @@ if (!binPath) {
 // Try 3: require.resolve the platform package
 if (!binPath) {
   try {
-    const pkgPath = require.resolve(`umans-gate-${target}/package.json`);
+    const pkgPath = require.resolve(`${SCOPE}/umans-gate-${target}/package.json`);
     binPath = path.join(path.dirname(pkgPath), binName);
   } catch {
     // Package not found — fall through to error
@@ -62,7 +63,7 @@ if (!binPath) {
 if (!binPath || !fs.existsSync(binPath)) {
   console.error(`umans-gate: platform binary not found for ${target}.`);
   console.error(`  Tried: ${localPath}`);
-  console.error(`  Install it with: npm install umans-gate-${target}`);
+  console.error(`  Install it with: npm install ${SCOPE}/umans-gate-${target}`);
   process.exit(1);
 }
 

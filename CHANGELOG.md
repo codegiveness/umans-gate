@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-07-14
+
+### Changed
+
+- **npm package naming**: platform binary packages renamed from unscoped
+  `umans-gate-<target>` to scoped `@codegiveness/umans-gate-<target>`
+  (e.g. `@codegiveness/umans-gate-darwin-arm64`). This follows the
+  industry convention used by `@esbuild/*`, `@rollup/rollup-*`, and
+  `@swc/core-*` for platform-specific binary packages. The main package
+  `umans-gate` is unchanged — `optionalDependencies` now reference the
+  scoped packages.
+- **npm-shim.cjs**: updated binary resolution paths to find
+  `@codegiveness/umans-gate-<target>` in `node_modules/@codegiveness/`.
+- **pack-npm.sh**: main package now includes README.md, LICENSE, and
+  CHANGELOG.md in the published files so npm registry pages display
+  the current README. Added keywords, homepage, and bugs fields to
+  the generated package.json.
+- **Release workflow**: publish step globs updated to
+  `release/npm/@codegiveness/umans-gate-*/`.
+
 ### Fixed
 
 - **Release workflow awk extraction**: the awk command extracting per-version
