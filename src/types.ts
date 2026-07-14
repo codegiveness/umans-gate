@@ -328,6 +328,11 @@ export interface OpenAiBody {
   [key: string]: unknown;
 }
 
+export interface ServiceMode {
+  current: string;
+  resetsAt: number | null;
+}
+
 /** Snapshot of /v1/usage response (subset we care about). */
 export interface UsageSnapshot {
   ok: boolean;
@@ -346,6 +351,7 @@ export interface UsageSnapshot {
   boxedReason: string | null;
   unitsDemoted: boolean;
   demotedUntil: number | null;
+  serviceMode: ServiceMode;
 }
 
 /** Discriminated state of the circuit breaker. */
@@ -377,4 +383,6 @@ export interface GateStats {
   queuedByIntention: Record<string, number>;
   /** Reserved concurrency slots per intention. */
   reservations: Record<string, number>;
+  /** Current upstream service mode and optional reset timestamp. */
+  serviceMode: ServiceMode;
 }

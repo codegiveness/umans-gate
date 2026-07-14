@@ -38,6 +38,11 @@ interface RawUsage {
     priority: {
       low: boolean;
       boxed_until: number | null;
+      reason: string | null;
+    };
+    service_mode: {
+      current: string;
+      resets_at: number | null;
     };
   };
 }
@@ -65,7 +70,8 @@ export function startCombinedMock(config: CombinedMockConfig): CombinedMockHandl
       requests_in_window: 0,
       remaining_requests: null,
       concurrent_sessions: 0,
-      priority: { low: false, boxed_until: null },
+      priority: { low: false, boxed_until: null, reason: null },
+      service_mode: { current: "normal", resets_at: null },
     },
   });
 

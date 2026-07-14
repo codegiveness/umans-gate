@@ -539,6 +539,7 @@ export class ConcurrencyGate {
       activeByIntention,
       queuedByIntention: { ...this.semaphore.getQueuedByIntention() },
       reservations,
+      serviceMode: snapshot.serviceMode,
     };
   }
 

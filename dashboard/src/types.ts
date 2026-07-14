@@ -136,6 +136,8 @@ export interface GateStats {
   queuedByIntention: Record<string, number>;
   /** Reserved concurrency slots per intention. */
   reservations: Record<string, number>;
+  /** Current upstream service mode and optional reset timestamp. */
+  serviceMode: ServiceMode;
 }
 
 export type WsMessage =
@@ -145,6 +147,11 @@ export type WsMessage =
   | { type: "gate"; stats: GateStats }
   | { type: "clear" }
   | { type: "vision-clear" };
+
+export interface ServiceMode {
+  current: string;
+  resetsAt: number | null;
+}
 
 /** Snapshot of /v1/usage response (subset we care about). */
 export interface UsageSnapshot {
@@ -164,6 +171,7 @@ export interface UsageSnapshot {
   boxedReason: string | null;
   unitsDemoted: boolean;
   demotedUntil: number | null;
+  serviceMode: ServiceMode;
 }
 
 export interface EconomicsDailyRow {

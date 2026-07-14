@@ -12,7 +12,7 @@ export interface RawUsage {
   };
   usage?: {
     requests_in_window?: number;
-    remaining_requests?: number;
+    remaining_requests?: number | null;
     concurrent_sessions?: number;
     tokens_in?: number;
     tokens_out?: number;
@@ -22,6 +22,10 @@ export interface RawUsage {
       reason?: string | null;
       units_demoted?: boolean;
       demoted_until?: number | null;
+    };
+    service_mode?: {
+      current?: string;
+      resets_at?: number | null;
     };
   };
 }
@@ -64,6 +68,10 @@ export function buildSnapshot(
     boxedReason: raw.usage?.priority?.reason ?? null,
     unitsDemoted: raw.usage?.priority?.units_demoted ?? false,
     demotedUntil: raw.usage?.priority?.demoted_until ?? null,
+    serviceMode: {
+      current: raw.usage?.service_mode?.current ?? "normal",
+      resetsAt: raw.usage?.service_mode?.resets_at ?? null,
+    },
   };
 }
 
@@ -87,5 +95,6 @@ export function failSafeSnapshot(): UsageSnapshot {
     boxedReason: null,
     unitsDemoted: false,
     demotedUntil: null,
+    serviceMode: { current: "normal", resetsAt: null },
   };
 }

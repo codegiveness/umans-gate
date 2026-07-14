@@ -1,5 +1,6 @@
 import { expect, mock, test } from "bun:test";
 import { UmansUsageClient } from "../src/usage.js";
+import { buildSnapshot, failSafeSnapshot } from "../src/usage/parser.js";
 
 const baseConfig = {
   target: "https://api.code.umans.ai",
@@ -20,6 +21,7 @@ const validRawResponse = {
     tokens_in: 1200000,
     tokens_out: 340000,
     priority: { low: false, boxed_until: null, reason: null },
+    service_mode: { current: "interactive", resets_at: null },
   },
 };
 
@@ -189,4 +191,31 @@ test("Code Pro (Annual) variant is classified as Code Pro", async () => {
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("buildSnapshot parses service_mode correctly", () => {
+  const raw = {
+    ...validRawResponse,
+    usage: {
+      ...validRawResponse.usage,
+      service_mode: { current: "degraded", resets_at: 1893456000 },
+    },
+  };
+  const snap = buildSnapshot(raw, true);
+  expect(snap.serviceMode.current).toBe("degraded");
+  expect(snap.serviceMode.resetsAt).toBe(1893456000);
+});
+
+test("buildSnapshot defaults service_mode when absent", () => {
+  const { service_mode: _, ...usageWithoutServiceMode } = validRawResponse.usage;
+  const raw = { ...validRawResponse, usage: usageWithoutServiceMode };
+  const snap = buildSnapshot(raw, true);
+  expect(snap.serviceMode.current).toBe("normal");
+  expect(snap.serviceMode.resetsAt).toBeNull();
+});
+
+test("failSafeSnapshot sets service_mode to normal", () => {
+  const snap = failSafeSnapshot();
+  expect(snap.serviceMode.current).toBe("normal");
+  expect(snap.serviceMode.resetsAt).toBeNull();
 });
