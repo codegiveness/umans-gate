@@ -70,7 +70,7 @@ jobs:
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
           VERSION="${TAG#v}"
-          NOTES=$(awk "/^## \[${VERSION}\]/{f=1} f; /^## \[/{if(f && NR>1 && !seen) exit; if(f) seen=1}" CHANGELOG.md)
+          NOTES=$(awk "/^## \[${VERSION}\]/{f=1; next} f && /^## \[/{exit} f" CHANGELOG.md)
           if [ -z "$NOTES" ]; then
             NOTES="Release ${TAG}"
           fi
