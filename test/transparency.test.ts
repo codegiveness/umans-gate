@@ -8,11 +8,12 @@ import { type ProxyHandle, startProxy } from "./helpers/proxy";
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 let proxy: ProxyHandle;
+let echoUpstream: ReturnType<typeof import("./helpers/echo-upstream")["startEchoUpstream"]>;
 
 beforeAll(async () => {
-  startEchoUpstream();
+  echoUpstream = startEchoUpstream();
   proxy = await startProxy({
-    TARGET: `http://127.0.0.1:${getEchoPort()}`,
+    TARGET: `http://127.0.0.1:${getEchoPort(echoUpstream)}`,
     STAMP_CACHE_TTL_ENABLED: "false", // transparent mode
     STAMP_TOP_K_ENABLED: "false", // disable top_k injection for passthrough test
   });
@@ -20,7 +21,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await proxy.kill();
-  stopEchoUpstream();
+  stopEchoUpstream(echoUpstream);
 });
 
 test("GET request passes through and returns echo", async () => {

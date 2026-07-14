@@ -14,18 +14,19 @@ import { type ProxyHandle, startProxy } from "./helpers/proxy";
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 let proxy: ProxyHandle;
+let echoUpstream: ReturnType<typeof import("./helpers/echo-upstream")["startEchoUpstream"]>;
 
 beforeAll(async () => {
-  startEchoUpstream();
+  echoUpstream = startEchoUpstream();
   proxy = await startProxy({
-    TARGET: `http://127.0.0.1:${getEchoPort()}`,
+    TARGET: `http://127.0.0.1:${getEchoPort(echoUpstream)}`,
     STAMP_CACHE_TTL_ENABLED: "false",
   });
 });
 
 afterAll(async () => {
   await proxy.kill();
-  stopEchoUpstream();
+  stopEchoUpstream(echoUpstream);
 });
 
 test("GET /dashboard/api/captures/:id matches detail route, not list route", async () => {

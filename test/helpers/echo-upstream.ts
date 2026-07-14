@@ -3,15 +3,9 @@
 
 import type { Server } from "bun";
 
-let server: ReturnType<typeof Bun.serve> | null = null;
-let currentPort = 9098;
-
 export function startEchoUpstream(port = 0): ReturnType<typeof Bun.serve> {
-  if (server) return server;
-
-  const actualPort = port === 0 ? 0 : port;
-  server = Bun.serve({
-    port: actualPort,
+  return Bun.serve({
+    port,
     async fetch(req) {
       const url = new URL(req.url);
       const headers: Record<string, string> = {};
@@ -30,18 +24,12 @@ export function startEchoUpstream(port = 0): ReturnType<typeof Bun.serve> {
       );
     },
   });
-
-  currentPort = server.port ?? currentPort;
-  return server;
 }
 
-export function stopEchoUpstream(): void {
-  if (server) {
-    server.stop();
-    server = null;
-  }
+export function stopEchoUpstream(server: ReturnType<typeof Bun.serve>): void {
+  server.stop();
 }
 
-export function getEchoPort(): number {
-  return server?.port ?? currentPort;
+export function getEchoPort(server: ReturnType<typeof Bun.serve>): number {
+  return server.port ?? 0;
 }
