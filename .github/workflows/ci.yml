@@ -72,6 +72,9 @@ jobs:
       - name: Install dashboard dependencies
         run: cd dashboard && bun install
 
+      - name: Build dashboard assets
+        run: bun run build:dashboard && bun run build:embed-assets
+
       - name: Test
         run: bun test --timeout 30000
 
