@@ -15,6 +15,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(dirname "${SCRIPT_DIR}")"
 RELEASE_DIR="${ROOT}/release"
 NPM_DIR="${RELEASE_DIR}/npm"
+SCOPE="@codegiveness"
 
 declare -A OS_MAP=(
   ["darwin-arm64"]="darwin"
@@ -36,7 +37,7 @@ declare -A CPU_MAP=(
 rm -rf "${NPM_DIR}"
 mkdir -p "${NPM_DIR}"
 
-# --- Platform packages ---
+# --- Platform packages (scoped: @codegiveness/umans-gate-<target>) ---
 for target in "${!OS_MAP[@]}"; do
   os="${OS_MAP[$target]}"
   cpu="${CPU_MAP[$target]}"
@@ -50,23 +51,30 @@ for target in "${!OS_MAP[@]}"; do
     continue
   fi
 
-  pkg_dir="${NPM_DIR}/umans-gate-${target}"
+  # Scoped package directory: @codegiveness/umans-gate-<target>
+  pkg_dir="${NPM_DIR}/${SCOPE}/umans-gate-${target}"
   mkdir -p "${pkg_dir}"
   cp "${exec_path}" "${pkg_dir}/"
 
   cat > "${pkg_dir}/package.json" <<EOF
 {
-  "name": "umans-gate-${target}",
+  "name": "${SCOPE}/umans-gate-${target}",
   "version": "${VERSION}",
-  "description": "Standalone binary for umans-gate (${target})",
-  "repository": { "type": "git", "url": "git+https://github.com/codegiveness/umans-gate.git" },
+  "description": "umans-gate standalone binary for ${target}",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codegiveness/umans-gate.git",
+    "directory": "scripts/pack-npm.sh"
+  },
+  "homepage": "https://github.com/codegiveness/umans-gate#readme",
+  "bugs": { "url": "https://github.com/codegiveness/umans-gate/issues" },
   "license": "MIT",
   "os": ["${os}"],
   "cpu": ["${cpu}"],
   "files": ["umans-gate-${target}${ext}"]
 }
 EOF
-  echo "✅ Packaged umans-gate-${target}"
+  echo "✅ Packaged ${SCOPE}/umans-gate-${target}"
 done
 
 # --- Main shim package ---
@@ -81,29 +89,32 @@ fi
 # Copy npm-shim.cjs
 cp "${ROOT}/npm-shim.cjs" "${MAIN_DIR}/npm-shim.cjs"
 
-# Copy docs required by package.json "files" field
+# Copy docs
 cp "${ROOT}/README.md" "${MAIN_DIR}/" 2>/dev/null || true
 cp "${ROOT}/LICENSE" "${MAIN_DIR}/" 2>/dev/null || true
 cp "${ROOT}/CHANGELOG.md" "${MAIN_DIR}/" 2>/dev/null || true
 
-# Write main package.json
+# Write main package.json with scoped optionalDependencies
 cat > "${MAIN_DIR}/package.json" <<EOF
 {
   "name": "umans-gate",
   "version": "${VERSION}",
-  "description": "LLM capture proxy with live inspection dashboard",
+  "description": "LLM capture proxy with Anthropic cache_control TTL stamping, vision handoff, concurrency gating, rate limiting, and a live inspection dashboard",
   "repository": { "type": "git", "url": "git+https://github.com/codegiveness/umans-gate.git" },
+  "homepage": "https://github.com/codegiveness/umans-gate#readme",
+  "bugs": { "url": "https://github.com/codegiveness/umans-gate/issues" },
   "license": "MIT",
   "bin": { "umans-gate": "./npm-shim.cjs" },
-  "files": ["npm-shim.cjs", "dist"],
+  "files": ["npm-shim.cjs", "dist", "README.md", "LICENSE", "CHANGELOG.md"],
   "engines": { "node": ">=18.0.0" },
+  "keywords": ["llm", "proxy", "capture", "anthropic", "openai", "cache-control", "ttl", "inspector", "debugger", "websocket", "claude", "prompt-engineering", "observability", "sqlite", "bun", "developer-tools", "api-proxy", "prompt-caching"],
   "optionalDependencies": {
-    "umans-gate-darwin-arm64": "${VERSION}",
-    "umans-gate-darwin-x64": "${VERSION}",
-    "umans-gate-linux-x64": "${VERSION}",
-    "umans-gate-linux-arm64": "${VERSION}",
-    "umans-gate-win32-x64": "${VERSION}",
-    "umans-gate-win32-arm64": "${VERSION}"
+    "${SCOPE}/umans-gate-darwin-arm64": "${VERSION}",
+    "${SCOPE}/umans-gate-darwin-x64": "${VERSION}",
+    "${SCOPE}/umans-gate-linux-x64": "${VERSION}",
+    "${SCOPE}/umans-gate-linux-arm64": "${VERSION}",
+    "${SCOPE}/umans-gate-win32-x64": "${VERSION}",
+    "${SCOPE}/umans-gate-win32-arm64": "${VERSION}"
   }
 }
 EOF

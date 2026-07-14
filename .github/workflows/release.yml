@@ -87,7 +87,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         continue-on-error: true
         run: |
-          for dir in release/npm/umans-gate-*/; do
+          for dir in release/npm/@codegiveness/umans-gate-*/; do
             name=$(node -p "require('./${dir}package.json').name")
             for attempt in 1 2 3; do
               if (cd "$dir" && npm publish --provenance --access public 2>&1); then
