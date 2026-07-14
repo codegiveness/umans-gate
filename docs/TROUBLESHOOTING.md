@@ -1,5 +1,7 @@
 # Troubleshooting
 
+> **Applies to:** umans-gate v0.1.4 · **Last updated:** 2026-07-14
+
 Common issues and solutions for umans-gate.
 
 ## Server won't start

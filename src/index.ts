@@ -80,6 +80,7 @@ interface RequestDispatcherOptions {
   handleHealth: () => Response;
   handleMetrics: () => Response;
   viewerPrefix: string;
+  port: number;
 }
 
 /**
@@ -94,13 +95,46 @@ interface RequestDispatcherOptions {
 function createRequestDispatcher(options: RequestDispatcherOptions) {
   const { handleViewer, handleProxy, handleHealth, handleMetrics, viewerPrefix: VIEWER } = options;
 
+  const LOCAL_ORIGIN_SET = new Set([
+    `http://127.0.0.1:${options.port}`,
+    `http://localhost:${options.port}`,
+  ]);
+
   return async (req: Request, server: Bun.Server<undefined>): Promise<Response> => {
     const url = new URL(req.url);
 
-    // WebSocket upgrade
+    // WebSocket upgrade — check Origin to prevent cross-origin WS hijacking (SEC-8).
     if (url.pathname === `${VIEWER}/ws`) {
+      const origin = req.headers.get("origin");
+      if (origin && !LOCAL_ORIGIN_SET.has(origin)) {
+        return new Response("forbidden", { status: 403 });
+      }
       if (server.upgrade(req)) return new Response(null, { status: 101 });
       return new Response("upgrade failed", { status: 400 });
+    }
+
+    // CSRF protection: reject cross-origin POST/DELETE to dashboard API (SEC-4).
+    if (
+      (req.method === "POST" || req.method === "DELETE") &&
+      (url.pathname === VIEWER || url.pathname.startsWith(`${VIEWER}/`))
+    ) {
+      const origin = req.headers.get("origin");
+      const referer = req.headers.get("referer");
+      const foreignOrigin = origin && !LOCAL_ORIGIN_SET.has(origin);
+      let foreignReferer = false;
+      if (!origin && referer) {
+        try {
+          foreignReferer = !LOCAL_ORIGIN_SET.has(new URL(referer).origin);
+        } catch {
+          foreignReferer = true;
+        }
+      }
+      if (foreignOrigin || foreignReferer) {
+        return new Response(JSON.stringify({ error: "cross_origin_forbidden" }), {
+          status: 403,
+          headers: { "content-type": "application/json" },
+        });
+      }
     }
 
     // Viewer routes (dashboard + REST API)
@@ -507,6 +541,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     handleHealth,
     handleMetrics,
     viewerPrefix: VIEWER,
+    port: config.port,
   });
 
   const server = Bun.serve({

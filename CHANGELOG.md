@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-07-14
+
+### Added
+
+- **Service persistence** (`umans-gate service`): install, uninstall,
+  start, stop, restart, status, and logs subcommands for running
+  umans-gate as a managed service that starts on boot and survives
+  restarts. Platform support:
+  - **Linux**: systemd user unit with `enable-linger` for boot-start
+    without login. `Restart=always` for crash recovery. `EnvironmentFile`
+    with `chmod 600` for API key (never inline).
+  - **macOS**: launchd LaunchAgent with `RunAtLoad=true` and
+    `KeepAlive=true` for unconditional restart (including dashboard
+    Restart button).
+  - **Windows**: Windows Service via NSSM (bundled in win32 platform
+    packages) with `SERVICE_AUTO_START` and 10 MB log rotation.
+  - Service PATH includes common runtime directories (`~/.bun/bin`,
+    `/opt/homebrew/bin`, `/usr/local/bin`, etc.) so the shebang resolves
+    in minimal-PATH service environments.
+  - Pre-install validation: config validation + port availability check
+    before writing service files.
+  - `npx` detection: `service install` from npx throws a clear error
+    with install instructions.
+  - `umans-gate update` now stops the service before updating and
+    restarts it after.
+  - `umans-gate uninstall` removes the service before cleaning up the
+    binary.
+  - Standalone binary self-update: `umans-gate update` auto-downloads
+    and replaces the binary from the latest GitHub Release (previously
+    only printed the URL).
+  - Dashboard Restart button works automatically when running as a
+    managed service.
+
+### Fixed
+
+- **launchd KeepAlive**: changed from conditional dict
+  (`SuccessfulExit=false, Crashed=true`) to unconditional `true` so
+  the dashboard Restart button works on macOS (previously only worked
+  on Linux via `Restart=always`).
+- **NSSM bundling**: `scripts/pack-npm.sh` now downloads and includes
+  `nssm.exe` in `@codegiveness/umans-gate-win32-*` packages so
+  `service install` works on Windows out of the box.
+- **ESM compliance**: replaced `require("node:fs")` / `require("node:net")`
+  calls in `installer.ts` and `updater.ts` with static imports.
+
 ## [0.1.4] - 2026-07-14
 
 ### Changed

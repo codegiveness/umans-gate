@@ -1,5 +1,7 @@
 # Architecture
 
+> **Applies to:** umans-gate v0.1.4 · **Last updated:** 2026-07-14
+
 This document describes the system architecture, data flow, and key design
 decisions of umans-gate.
 
@@ -60,6 +62,64 @@ defined order when `stamp_claude_code_enabled` is on:
 
 For OpenAI-compatible requests, `stamp-reasoning.ts` handles
 `reasoning_effort` injection separately.
+
+```
+                        STAMP PIPELINE (stamp_claude_code_enabled = true)
+                        ────────────────────────────────────────────────────
+
+  Anthropic request body
+        │
+        ▼
+┌───────────────────┐
+│ 1. TTL stamping   │  stamp.ts
+│   + ttl:"1h" on   │  → cache_control ephemeral blocks
+│     ephemeral     │
+└───────┬───────────┘
+        │
+        ▼
+┌───────────────────┐
+│ 2. top_k injection│  stamp-topk.ts
+│   + top_k: 20     │  → injected after model field
+└───────┬───────────┘
+        │
+        ▼
+┌───────────────────┐
+│ 3. temperature    │  stamp-temperature.ts
+│   = 1.0 (forced)  │
+└───────┬───────────┘
+        │
+        ▼
+┌───────────────────┐
+│ 4. max_tokens     │  stamp-thinking.ts
+│   + thinking      │  → umans-glm* models: 131071
+│   + output_config  │     others: 32767
+│                   │  → thinking: { type: "adaptive" }
+│                   │     (umans-coder/flash/kimi*/qwen*)
+│                   │  → output_config: { effort: "high"|"max" }
+└───────┬───────────┘
+        │
+        ▼
+┌───────────────────┐
+│ 5. context_mgmt   │  injected when anthropic-version = 2023-06-01
+│   + clear_thinking │  → { edits: [{ type: clear_thinking_20251015,
+│     keep: "all"   │       keep: "all" }] }
+└───────┬───────────┘
+        │
+        ▼
+  Stamped body ──────────► forwarded upstream AND captured
+                          (inspector shows exactly what went to API)
+
+
+  OpenAI-compatible request body
+        │
+        ▼
+┌───────────────────┐
+│ reasoning_effort  │  stamp-reasoning.ts
+│ + high / max      │  → high (default), max (umans-glm*)
+│ - max_tokens      │  → removes max_tokens + thinking
+│ - thinking        │
+└───────────────────┘
+```
 
 ### 3. Vision Handoff
 
@@ -193,8 +253,8 @@ The dashboard communicates with the backend via:
 
 umans-gate implements patterns documented in
 [umans-open-stack](https://github.com/umans-ai/umans-open-stack) — a curated set of
-open source tools and playbooks tested with Umans. The architecture maps directly
-to open-stack playbooks:
+open source tools and playbooks. The architecture maps to open-stack
+playbooks:
 
 | umans-open-stack playbook | umans-gate implementation |
 |---|---|
@@ -204,4 +264,4 @@ to open-stack playbooks:
 | Workflows | Capture-and-replay architecture (`src/db.ts`, `src/proxy.ts`) |
 
 See the [umans-open-stack repository](https://github.com/umans-ai/umans-open-stack)
-for playbooks, configuration examples, and community patterns.
+for playbooks and configuration examples.

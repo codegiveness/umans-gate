@@ -1,47 +1,30 @@
 # Product
 
-## Register
+> **Applies to:** umans-gate v0.1.4 · **Last updated:** 2026-07-14
 
-product
+## Project Goals
 
-## Users
+umans-gate is a personal-use LLM capture proxy. It exists to solve a
+specific problem: seeing exactly what goes between an LLM harness and the
+upstream API, in real time, without modifying client code.
 
-Developers working with LLM APIs (Anthropic, OpenAI-compatible) who need to
-see exactly what their client sends to the model API and what comes back.
-Typical context: a local development or debugging session, the proxy running
-on `localhost:1945` alongside the developer's LLM harness, the inspector open
-in a browser tab they switch to when something looks off.
-
-The job to be done is narrow and real-time:
-
-1. **Inspect** — see every request/response pair captured by the proxy,
-   including the exact body that was forwarded upstream (after TTL stamping).
-2. **Verify** — confirm that `cache_control: {type:"ephemeral"}` blocks
-   received the expected `ttl`, that streaming responses rendered correctly,
-   and that the upstream returned what the client expected.
-3. **Diagnose** — spot latency regressions, error rates, and unusual traffic
-   patterns via the Performance and Vision Calls tabs.
-
-Users are technical, fluent in HTTP/JSON, and often debugging under time
-pressure. They do not need hand-holding; they need speed, accuracy, and
-signal over noise.
-
-## Product Purpose
-
-`umans-gate` is an npm-installable LLM capture proxy (powered by Bun) with three responsibilities:
+The project has three core responsibilities:
 
 1. **Intercept** LLM API traffic (Anthropic + OpenAI-compatible) and store
    every request/response pair in SQLite with a ring buffer.
-2. **Stamp** `ttl` onto Anthropic `cache_control: {type:"ephemeral"}` blocks
+2. **Stamp** `ttl` onto Anthropic `cache_control` ephemeral blocks
    before forwarding upstream, so ephemeral cache entries get a default TTL
    without client changes. The stamped body is what is forwarded AND what is
    captured — the inspector shows exactly what went to the API.
 3. **Inspect** via a live React + shadcn/ui dashboard with WebSocket updates,
    SSE rendering, performance telemetry, and a config tab with hot-reload.
 
-Success looks like: a developer runs `npx umans-gate` (or `npm install -g umans-gate`), points any LLM harness at the proxy, and within seconds sees exactly what is on the wire — bodies, headers, stream events, latency, and the effect of TTL stamping — without modifying their client code. Setup is a single command; the proxy runs unattended.
+Success looks like: run `npx umans-gate`, point any LLM harness at the
+proxy, and within seconds see exactly what is on the wire — bodies, headers,
+stream events, latency, and the effect of TTL stamping — without modifying
+client code. Setup is a single command; the proxy runs unattended.
 
-## Brand Personality
+## Design Personality
 
 **Precise. Confident. Engineered.**
 

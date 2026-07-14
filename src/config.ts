@@ -325,10 +325,16 @@ const FIELD_RULES: FieldRule[] = [
   },
   {
     name: "db_path",
-    errors: (n) =>
-      n.db_path !== undefined && (typeof n.db_path !== "string" || n.db_path.length === 0)
-        ? ["db_path must be a non-empty string"]
-        : [],
+    errors: (n) => {
+      if (n.db_path === undefined) return [];
+      if (typeof n.db_path !== "string" || n.db_path.length === 0) {
+        return ["db_path must be a non-empty string"];
+      }
+      if (n.db_path.includes("..")) {
+        return ["db_path must not contain path traversal (..)"];
+      }
+      return [];
+    },
   },
   {
     name: "idle_timeout",

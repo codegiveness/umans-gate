@@ -8,10 +8,12 @@
 
 > A capture proxy for LLM APIs. Point your harness at it, and every
 > request/response is stored in SQLite with a live inspection dashboard.
-> Built for the [umans-open-stack](https://github.com/umans-ai/umans-open-stack)
-> community.
+>
+> **Personal-use project.** This software is intended for personal use
+> only. It is a community contribution and is not affiliated with,
+> endorsed by, or an official product of Umans.
 
-**Setup in 30 seconds. Set it and forget it.**
+**Setup in 30 seconds.**
 
 ```bash
 npx umans-gate
@@ -27,6 +29,7 @@ request and response is captured automatically.
 - [Install](#install)
 - [Quick Start](#quick-start)
 - [Updating](#updating)
+- [Service Persistence](#service-persistence)
 - [Configuration](#configuration)
   - [Config Fields](#config-fields)
   - [Hot Reload and Restart](#hot-reload-and-restart)
@@ -154,7 +157,9 @@ umans-gate update     # self-update (npm global or standalone binary)
 The updater detects your install method (npm global, standalone
 executable, or dev) and performs the appropriate action. For npm global
 installs, it runs `npm update -g umans-gate`. For standalone binaries,
-it points you to the latest GitHub Release.
+it auto-downloads and replaces the binary from the latest GitHub Release.
+If the proxy is running as a managed service, the updater stops the
+service before updating and restarts it after.
 
 To check for updates without installing:
 
@@ -165,8 +170,12 @@ umans-gate update --check
 ### Uninstall
 
 ```bash
-umans-gate uninstall   # removes config, database, and binary
+umans-gate uninstall   # removes service, config, database, and binary
 ```
+
+The uninstaller first removes any installed service (systemd, launchd,
+or Windows service) before cleaning up the binary and config. Pass
+`--keep-config` to preserve `config.json` and the database.
 
 Or manually:
 
@@ -174,6 +183,71 @@ Or manually:
 npm uninstall -g umans-gate
 rm -rf ~/.config/umans-gate
 ```
+
+## Service Persistence
+
+`umans-gate` can install itself as a managed service that starts on boot
+and survives restarts — no external process manager required.
+
+### Install as a service
+
+```bash
+umans-gate service install
+```
+
+This creates a platform-appropriate service definition, enables it for
+auto-start on boot, and starts it immediately:
+
+| Platform | Service manager | Unit location |
+|----------|----------------|---------------|
+| Linux | systemd (user unit + linger) | `~/.config/systemd/user/umans-gate.service` |
+| macOS | launchd (LaunchAgent) | `~/Library/LaunchAgents/com.umans.gate.plist` |
+| Windows | Windows Service (via NSSM) | Registered with `sc.exe` |
+
+The service runs with `WorkingDirectory` set to your home directory and
+uses the same `config.json` as a foreground run. If an API key is set
+via environment variable (not in config.json), it is stored securely:
+systemd uses a separate `EnvironmentFile` with `chmod 600`; launchd
+stores it in the plist (also `chmod 600`); NSSM stores it in the
+Windows service registry. The key is never inlined in the systemd unit
+file.
+
+Use `--force` to overwrite an existing service definition:
+
+```bash
+umans-gate service install --force
+```
+
+### Service lifecycle commands
+
+```bash
+umans-gate service start      # start the service
+umans-gate service stop       # stop the service
+umans-gate service restart    # restart the service
+umans-gate service status     # show service status (running, PID, uptime)
+umans-gate service logs       # tail service logs (follow mode)
+umans-gate service logs -f    # same as above (alias)
+umans-gate service uninstall  # stop, disable, and remove the service
+```
+
+### How it works
+
+- **Linux**: A systemd user unit with `Restart=always` and
+  `loginctl enable-linger` so the service starts at boot without needing
+  to log in. The PATH includes common runtime directories (`/usr/local/bin`,
+  `~/.bun/bin`, `/opt/homebrew/bin`, etc.) so the shebang resolves.
+- **macOS**: A launchd LaunchAgent with `RunAtLoad=true` and
+  `KeepAlive=true` for unconditional restart. Loaded via `launchctl load`.
+- **Windows**: A Windows Service registered via NSSM (bundled in the
+  win32 platform package) with `SERVICE_AUTO_START` for boot-start and
+  automatic log rotation at 10 MB.
+
+### Dashboard restart button
+
+When running as a managed service, the dashboard's **Restart** button
+(`POST /dashboard/api/restart`) works automatically — the service
+manager restarts the process after `process.exit(0)` thanks to
+`Restart=always` / `KeepAlive`.
 
 ## Configuration
 
@@ -261,8 +335,10 @@ apply live; fields marked `restartRequired` (e.g. `port`, `db_path`,
 `upstream_protocol`, `vision_*`) require a server restart.
 
 The dashboard also has a **Restart** button (`POST /dashboard/api/restart`)
-that calls `process.exit(0)`. This requires an external process manager
-to restart the server automatically:
+that calls `process.exit(0)`. When running as a managed service
+(`umans-gate service install`), the service manager restarts the
+process automatically. Without a service manager, you need an external
+process watcher:
 
 | Manager | Command |
 |---------|---------|
@@ -444,6 +520,7 @@ umans-gate/
 
 ## Documentation
 
+- [Documentation Index](docs/README.md) — curated reading guide
 - [Architecture](docs/ARCHITECTURE.md) — system design and data flow
 - [Proxy Modifications](docs/proxy-modifications.md) — complete inventory of proxy modifications
 - [Troubleshooting](docs/TROUBLESHOOTING.md) — common issues and solutions
@@ -460,9 +537,7 @@ umans-gate/
 - **[umans-open-stack](https://github.com/umans-ai/umans-open-stack)** — A
   curated set of open source playbooks and tools tested with Umans. umans-gate
   implements several patterns documented there: concurrency gating, vision
-  handoff, cache_control TTL stamping, and workflow orchestration. If you're
-  using umans-gate, the open-stack playbooks explain the why behind each
-  feature.
+  handoff, cache_control TTL stamping, and workflow orchestration.
 
 ## Contributing
 
@@ -471,4 +546,19 @@ testing, and release instructions.
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).
+
+## Usage Rights
+
+This is a **personal-use project**. The source code is published under the MIT
+license for transparency and educational purposes. While the MIT license
+technically permits commercial use and redistribution, this project is not
+actively maintained as a product and is not intended for production deployment.
+
+**This is a community contribution and is not an official Umans product.**
+It is not affiliated with, endorsed by, or supported by Umans AI. All upstream
+service names, model names, and API endpoints referenced in this codebase
+belong to their respective owners.
+
+Use it, learn from it, fork it — but don't expect official support or
+warranties of any kind.
