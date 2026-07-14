@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-07-14
+
+### Added
+
+- **Service mode display**: the upstream `/v1/usage` `service_mode` field
+  is now parsed and surfaced in the dashboard as a badge in the gate
+  status bar. Shows the current mode (e.g. `normal`, `interactive`,
+  `degraded`) and optional `resets_at` timestamp in the tooltip. Falls
+  back to `normal` when absent or on fetch failure.
+
 ## [0.1.5] - 2026-07-14
 
 ### Added

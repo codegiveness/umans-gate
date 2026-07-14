@@ -133,12 +133,35 @@ export function GateStatus({ stats }: { stats: GateStats | null }) {
           <TooltipContent side="bottom" className="max-w-[260px]">
             <div className="space-y-1">
               <p>Priority: {stats.unitsDemoted ? "demoted" : stats.priorityLow ? "low" : "high"}</p>
+              {stats.boxedReason !== null && (
+                <p className="text-muted-foreground">reason: {stats.boxedReason}</p>
+              )}
               {stats.boxed && stats.boxedUntil !== null && (
                 <p className="text-muted-foreground">boxed until {fmtDateTime(stats.boxedUntil)}</p>
               )}
               {stats.demotedUntil !== null && (
                 <p className="text-muted-foreground">
                   demoted until {fmtDateTime(stats.demotedUntil)}
+                </p>
+              )}
+            </div>
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger render={<span className="inline-flex" />}>
+            <Badge
+              variant="secondary"
+              className={stats.serviceMode.current === "normal" ? badgeSuccess : badgeInfo}
+            >
+              {stats.serviceMode.current}
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="max-w-[260px]">
+            <div className="space-y-1">
+              <p>Service mode: {stats.serviceMode.current}</p>
+              {stats.serviceMode.resetsAt !== null && (
+                <p className="text-muted-foreground">
+                  resets at {fmtDateTime(stats.serviceMode.resetsAt)}
                 </p>
               )}
             </div>

@@ -30,6 +30,7 @@ const failSnap: UsageSnapshot = {
   boxedReason: null,
   unitsDemoted: false,
   demotedUntil: null,
+  serviceMode: { current: "normal", resetsAt: null },
 };
 
 test("acquire up to limit resolves immediately", async () => {

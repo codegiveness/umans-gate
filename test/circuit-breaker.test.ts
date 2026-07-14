@@ -30,6 +30,7 @@ const failSnap: UsageSnapshot = {
   boxedReason: null,
   unitsDemoted: false,
   demotedUntil: null,
+  serviceMode: { current: "normal", resetsAt: null },
 };
 
 describe("CircuitBreaker characterization via ConcurrencyGate", () => {
