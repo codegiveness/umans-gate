@@ -153,7 +153,7 @@ test("client-sent anthropic-beta header is overwritten by the stamp value", asyn
   expect(r!.head).not.toContain("some-other-feature-2025-01-01");
 });
 
-test("stamp disabled: /v1/messages gets neither ?beta=true nor anthropic-beta header", async () => {
+test("stamp disabled: /v1/messages still gets anthropic-beta + anthropic-version headers but not ?beta=true", async () => {
   const rawOff = await startRawUpstream();
   const proxyOff = await startProxy({
     TARGET: `http://127.0.0.1:${rawOff.port}`,
@@ -176,10 +176,16 @@ test("stamp disabled: /v1/messages gets neither ?beta=true nor anthropic-beta he
     expect(r).not.toBeNull();
     const requestLine = r!.head.split("\r\n")[0];
     expect(requestLine).not.toContain("beta=true");
-    const headerLine = r!.head
+    const betaHeader = r!.head
       .split("\r\n")
       .find((l) => l.toLowerCase().startsWith("anthropic-beta:"));
-    expect(headerLine).toBeUndefined();
+    expect(betaHeader).toBeDefined();
+    expect(betaHeader!).toBe(`anthropic-beta: ${STAMP_ANTHROPIC_BETA_HEADER}`);
+    const versionHeader = r!.head
+      .split("\r\n")
+      .find((l) => l.toLowerCase().startsWith("anthropic-version:"));
+    expect(versionHeader).toBeDefined();
+    expect(versionHeader!).toBe("anthropic-version: 2023-06-01");
   } finally {
     await proxyOff.kill();
     await rawOff.close();
