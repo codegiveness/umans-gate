@@ -76,6 +76,7 @@ jobs:
       - name: Publish platform packages to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        continue-on-error: true
         run: |
           for dir in release/npm/umans-gate-*/; do
             name=$(node -p "require('./${dir}package.json').name")
