@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-07-15
+
+### Fixed
+
+- **Vision reservation forced to 0 when `vision_strategy="never"`**: when vision
+  interception is disabled, `concurrency_vision_reservation` is now normalized
+  to 0 in both `validateConfig()` and `loadConfig()` so no concurrency slots are
+  wasted on an unused intention. The field validation rule allows 0 in this case
+  and the dashboard field description and minimum value are updated accordingly.
+- **Always send `anthropic-beta` + `anthropic-version` headers on `/v1/messages`**:
+  these headers are now sent on every `/v1/messages` request regardless of the
+  `stampClaudeCode` setting. The `?beta=true` URL parameter remains gated by
+  `stampClaudeCode`.
+
 ## [0.1.6] - 2026-07-14
 
 ### Added

@@ -86,9 +86,10 @@ export function createProxyHandler(
 
     const reqHeadersRaw = headersToObject(req.headers);
     const isOpenAi = url.pathname.includes(config.openaiPath);
+    const isAnthropicMessages = !isOpenAi && url.pathname === "/v1/messages";
 
     // Claude Code stamp: ensure ?beta=true on /v1/messages requests.
-    const stampBeta = config.stampClaudeCode && !isOpenAi && url.pathname === "/v1/messages";
+    const stampBeta = config.stampClaudeCode && isAnthropicMessages;
     const targetUrlObj = new URL(targetUrl);
     const finalTargetUrl =
       stampBeta && targetUrlObj.searchParams.get("beta") !== "true"
@@ -254,8 +255,9 @@ export function createProxyHandler(
     // every upstream request to stay responsible for the encoding contract.
     fwdHeaders["accept-encoding"] = "identity";
 
-    if (stampBeta) {
+    if (isAnthropicMessages) {
       fwdHeaders["anthropic-beta"] = STAMP_ANTHROPIC_BETA_HEADER;
+      fwdHeaders["anthropic-version"] = "2023-06-01";
     }
 
     // --- Weighted rate limit check (pro tier only; rate is null when unlimited) ---

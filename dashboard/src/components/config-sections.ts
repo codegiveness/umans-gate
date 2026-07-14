@@ -192,9 +192,9 @@ const CONCURRENCY_GATE_FIELDS: FieldDef[] = [
     label: "Vision Reservation",
     kind: "number",
     description:
-      "Number of concurrency slots reserved exclusively for vision interception requests. Ensures main traffic cannot starve vision handoffs. Must be ≥ 1 and ≤ (hard_cap − 2) when hard_cap ≥ 3. Default: 1.",
+      "Number of concurrency slots reserved exclusively for vision interception requests. When vision_strategy is 'never' this is forced to 0 so no slots are wasted. Otherwise must be ≥ 1 and ≤ (hard_cap − 2) when hard_cap ≥ 3. Default: 1.",
     required: true,
-    min: 1,
+    min: 0,
   },
   {
     key: "release_cooldown_ms",

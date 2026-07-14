@@ -146,7 +146,7 @@ export const STAMP_OUTPUT_CONFIG_GLM_VALUE: OutputConfig = {
   effort: "max",
 };
 
-/** anthropic-beta header injected when stamp_claude_code_enabled is true (Anthropic requests only). */
+/** anthropic-beta header injected on all Anthropic /v1/messages requests. */
 export const STAMP_ANTHROPIC_BETA_HEADER =
   "claude-code-20250219,interleaved-thinking-2025-05-14,redact-thinking-2026-02-12,thinking-token-count-2026-05-13,context-management-2025-06-27,prompt-caching-scope-2026-01-05,mid-conversation-system-2026-04-07,advisor-tool-2026-03-01,effort-2025-11-24,extended-cache-ttl-2025-04-11";
 
@@ -439,6 +439,8 @@ const FIELD_RULES: FieldRule[] = [
   },
   {
     // Cross-field: only checked when hard_cap is an integer >= 3.
+    // When vision_strategy is "never", the reservation is forced to 0 and
+    // the field is allowed to be 0 (no slots wasted on disabled vision).
     name: "concurrency_vision_reservation",
     errors: (n) => {
       if (
@@ -450,10 +452,14 @@ const FIELD_RULES: FieldRule[] = [
       }
       const resMax = n.concurrency_hard_cap - 2;
       if (resMax < 1) return [];
-      if (
-        !Number.isInteger(n.concurrency_vision_reservation) ||
-        n.concurrency_vision_reservation < 1
-      ) {
+      if (!Number.isInteger(n.concurrency_vision_reservation)) {
+        return ["concurrency_vision_reservation must be an integer"];
+      }
+      if (n.vision_strategy === "never") {
+        // Normalized to 0 upstream; any value here is accepted as 0.
+        return [];
+      }
+      if (n.concurrency_vision_reservation < 1) {
         return ["concurrency_vision_reservation must be a positive integer (min 1)"];
       }
       if (n.concurrency_vision_reservation > resMax) {
@@ -747,6 +753,12 @@ export function validateConfig(raw: RawConfigInput): ValidationResult {
   const coerced = coerceRawForValidation(raw);
   const n: RawConfig = { ...DEFAULT_CONFIG, ...coerced };
 
+  // When vision is disabled, the vision reservation is forced to 0 so no
+  // concurrency slots are wasted on an unused intention.
+  if (n.vision_strategy === "never") {
+    n.concurrency_vision_reservation = 0;
+  }
+
   for (const rule of FIELD_RULES) {
     errors.push(...rule.errors(n));
   }
@@ -935,10 +947,10 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     env.CONCURRENCY_MAIN_RESERVATION ?? raw.concurrency_main_reservation,
     1,
   );
-  const concurrencyVisionReservation = num(
-    env.CONCURRENCY_VISION_RESERVATION ?? raw.concurrency_vision_reservation,
-    1,
-  );
+  const concurrencyVisionReservation =
+    visionStrategy === "never"
+      ? 0
+      : num(env.CONCURRENCY_VISION_RESERVATION ?? raw.concurrency_vision_reservation, 1);
 
   const visionForceInterceptCapable = visionStrategy === "always";
 
