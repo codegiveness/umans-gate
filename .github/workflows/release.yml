@@ -49,6 +49,9 @@ jobs:
       - name: Generate embedded-assets.ts from dashboard build
         run: bun run scripts/embed-assets.ts
 
+      - name: Build server (type declarations for npm package)
+        run: bun run build:server
+
       - name: Build standalone executables (all 6 platforms)
         run: |
           mkdir -p release
