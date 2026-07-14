@@ -16,21 +16,22 @@ Another process is using port 1945. Either stop it or change the port:
 # Find what's using the port
 lsof -i :1945
 
-# Or change the port via env
-PORT=9001 bun src/cli.ts
+# Or change the port
+PORT=9001 umans-gate          # npm install
+PORT=9001 bun src/cli.ts      # dev
 ```
 
 ### `bun:sqlite` not found
 
-This means you're running with Node.js instead of Bun. umans-gate requires
-Bun — `bun:sqlite` is a Bun built-in.
+This means you're running with Node.js instead of Bun. If you installed via
+npm (`npm install -g umans-gate`), the bundled binary already includes Bun
+internally — make sure you're running `umans-gate`, not `node`.
+
+If you're running from source, Bun is required:
 
 ```bash
-# Check you're using Bun
-bun --version
-
-# Start with Bun, not Node
-bun src/cli.ts
+bun --version    # verify Bun is installed
+bun src/cli.ts   # start with Bun, not Node
 ```
 
 ### Config file not created
@@ -199,7 +200,10 @@ due to TLS handshake.
 
 ## Getting help
 
-- [GitHub Issues](https://github.com/umans-ai/umans-gate/issues) — bug reports
-- [GitHub Discussions](https://github.com/umans-ai/umans-gate/discussions) — questions
+- [GitHub Issues](https://github.com/codegiveness/umans-gate/issues) — bug reports
+- [GitHub Discussions](https://github.com/codegiveness/umans-gate/discussions) — questions
 - [Proxy Modifications Inventory](proxy-modifications.md) — what the proxy changes
 - [Architecture](ARCHITECTURE.md) — system design
+- [Product](PRODUCT.md) — product positioning and users
+- [Benchmarks](BENCHMARKS.md) — performance methodology and results
+- [Security Policy](../SECURITY.md) — vulnerability reporting and security practices

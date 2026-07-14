@@ -17,7 +17,6 @@ umans-gate.db*
 .env
 .env.local
 .env.*.local
-.env.example
 
 # OS files
 .DS_Store
@@ -33,6 +32,7 @@ Thumbs.db
 # Test artifacts
 test-internal/
 benchmark/**/results/
+benchmark/**/results.json
 benchmark/**/__pycache__/
 
 # Temp images (moved to .omo/images/)

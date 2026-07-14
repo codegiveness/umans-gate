@@ -5,7 +5,7 @@ Thank you for your interest in contributing! This guide covers the basics.
 ## Development setup
 
 ```bash
-git clone https://github.com/umans-ai/umans-gate.git
+git clone https://github.com/codegiveness/umans-gate.git
 cd umans-gate
 bun install                          # install root dependencies
 cd dashboard && bun install && cd ..  # install dashboard dependencies
@@ -37,7 +37,7 @@ bun run build           # build server (tsup) + dashboard (vite)
 
 ## Making changes
 
-1. Create a branch from `main`
+1. Create a branch from `master`
 2. Make your changes — keep the design intent intact
 3. Run `bun run typecheck && bun run lint && bun run test:all`
 4. If you changed the dashboard, verify it builds: `cd dashboard && bun run build`
@@ -65,8 +65,6 @@ Every code change should keep the codebase aligned with SOLID principles:
   `CaptureStore` for persistence, a `Broadcaster` for WebSocket updates)
 - **Dependency Inversion**: inject dependencies (config, stores, broadcasters,
   loggers) rather than constructing them inside business logic
-
-See [AGENTS.md](AGENTS.md) for detailed SOLID guidance with examples.
 
 ## Testing
 

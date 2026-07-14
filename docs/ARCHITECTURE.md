@@ -14,21 +14,21 @@ capture, stamp, and optionally transform requests before forwarding.
 │  Client   │ ────────────▶ │ umans-gate  │ ──────────────────────────▶ │  Upstream    │
 │ (harness) │ ◀──────────── │   proxy     │ ◀────────────────────────── │  (Umans API) │
 └──────────┘   SSE stream   └──────┬──────┘     SSE stream            └──────────────┘
-                                    │
-                              ┌─────┴─────┐
-                              │  SQLite    │  capture store (WAL, ring buffer)
-                              │  capture.db│
-                              └───────────┘
-                                    │
-                              ┌─────┴─────┐
-                              │ WebSocket │  live updates to dashboard
-                              │ broadcaster│
-                              └───────────┘
-                                    │
-                              ┌─────┴─────┐
-                              │ Dashboard  │  React SPA (shadcn/ui)
-                              │  :1945     │
-                              └───────────┘
+                                   │
+                           ┌───────┴───────┐
+                           │ SQLite        │  capture store (WAL, ring buffer)
+                           │ umans-gate.db │
+                           └───────────────┘
+                                   │
+                             ┌─────┴─────┐
+                             │ WebSocket │  live updates to dashboard
+                             │ broadcaster│
+                             └───────────┘
+                                   │
+                             ┌─────┴─────┐
+                             │ Dashboard  │  React SPA (shadcn/ui)
+                             │  :1945     │
+                             └───────────┘
 ```
 
 ## Request Flow
@@ -188,3 +188,20 @@ The dashboard communicates with the backend via:
   it). Request body modifications are gated by config flags and default off
 - **Non-blocking streaming**: writes are batched and offloaded to workers;
   the TransformStream never blocks the response
+
+## Related: umans-open-stack
+
+umans-gate implements patterns documented in
+[umans-open-stack](https://github.com/umans-ai/umans-open-stack) — a curated set of
+open source tools and playbooks tested with Umans. The architecture maps directly
+to open-stack playbooks:
+
+| umans-open-stack playbook | umans-gate implementation |
+|---|---|
+| Concurrency | Concurrency gate (semaphore + circuit breaker in `src/limiter/gate.ts`) |
+| Caching | `cache_control` TTL stamping pipeline (`src/stamp.ts`) |
+| Vision-handoff | Image → text description pipeline (`src/vision/handoff.ts`) |
+| Workflows | Capture-and-replay architecture (`src/db.ts`, `src/proxy.ts`) |
+
+See the [umans-open-stack repository](https://github.com/umans-ai/umans-open-stack)
+for playbooks, configuration examples, and community patterns.

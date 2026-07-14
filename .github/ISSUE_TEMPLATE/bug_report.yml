@@ -22,9 +22,10 @@ What you expected to happen.
 
 ## Environment
 
-- OS: [e.g. macOS 14, Ubuntu 22.04]
-- Bun version: [e.g. 1.1.0]
-- umans-gate version: [e.g. 0.1.0]
+- OS: [e.g. macOS 14, Ubuntu 22.04, Windows 11]
+- Install method: [e.g. `npm install -g umans-gate`, `npx umans-gate`, standalone binary, or from source]
+- umans-gate version: [run `umans-gate --version` or check `package.json`]
+- Bun version: [only if running from source — run `bun --version`]
 
 ## Additional context
 

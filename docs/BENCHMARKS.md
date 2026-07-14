@@ -9,7 +9,6 @@ umans-gate proxy optimizations.
 - 5 runs per test configuration
 - Median values reported (to filter outliers)
 - Tests run on 2026-07-05
-- Full results in `benchmark/proxy-optimizations/results/`
 
 ## Results
 
@@ -59,8 +58,8 @@ add complexity and risk corrupting streams.
 
 ## Running Benchmarks
 
-Benchmark scripts are in `benchmark/`. Results are timestamped and stored as
-markdown files in `benchmark/*/results/`.
+Benchmark scripts are in `benchmark/`. Run them to generate fresh
+results for regression tracking.
 
 ```bash
 # Run benchmarks (requires a running proxy and UMANS_API_KEY)
@@ -70,6 +69,6 @@ bun run <benchmark-script>.ts
 
 ## Historical Results
 
-Benchmark results are preserved as timestamped files for regression tracking:
-
-- `benchmark/proxy-optimizations/results/` — proxy optimization benchmarks
+Benchmark results are summarized in the table above. Raw result files
+were excluded from the repository to avoid shipping stale data; run the
+benchmark scripts to generate fresh results for regression tracking.

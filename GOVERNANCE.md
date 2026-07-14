@@ -59,7 +59,7 @@ by maintainer consensus.
 1. A maintainer proposes a release in a GitHub issue
 2. Maintainers confirm the release scope (CHANGELOG, version bump)
 3. The release PR updates `package.json` version and `CHANGELOG.md`
-4. The PR is merged to `main`
+4. The PR is merged to `master`
 5. A `v*` tag is pushed, triggering the publish workflow
 6. The release is announced in GitHub Releases
 

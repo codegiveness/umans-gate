@@ -11,9 +11,10 @@
       "dashboard/dist/**",
       "dashboard/node_modules/**",
       "node_modules/**",
-      "capture.db*",
+      "umans-gate.db*",
       "*.db",
-      "benchmark/**"
+      "benchmark/**",
+      "src/embedded-assets.ts"
     ]
   },
   "formatter": {

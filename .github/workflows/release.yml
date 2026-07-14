@@ -78,7 +78,18 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           for dir in release/npm/umans-gate-*/; do
-            (cd "$dir" && npm publish --provenance --access public)
+            name=$(node -p "require('./${dir}package.json').name")
+            for attempt in 1 2 3; do
+              if (cd "$dir" && npm publish --provenance --access public 2>&1); then
+                echo "✅ Published ${name} (attempt ${attempt})"
+                break
+              elif [ "$attempt" -eq 3 ]; then
+                echo "⚠️  Failed to publish ${name} after 3 attempts — continuing anyway"
+              else
+                echo "⏳ Retrying ${name} in 15s..."
+                sleep 15
+              fi
+            done
           done
 
       - name: Publish main shim package to npm
@@ -86,4 +97,15 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           cd release/npm/main
-          npm publish --provenance --access public
+          for attempt in 1 2 3; do
+            if npm publish --provenance --access public 2>&1; then
+              echo "✅ Published umans-gate (attempt ${attempt})"
+              break
+            elif [ "$attempt" -eq 3 ]; then
+              echo "❌ Failed to publish umans-gate after 3 attempts"
+              exit 1
+            else
+              echo "⏳ Retrying umans-gate in 15s..."
+              sleep 15
+            fi
+          done

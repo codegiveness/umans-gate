@@ -61,7 +61,7 @@ representative at an online or offline event.
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported to the project maintainers via **GitHub's private vulnerability
 reporting** at
-[github.com/umans-ai/umans-gate/security/advisories/new](https://github.com/umans-ai/umans-gate/security/advisories/new)
+[github.com/codegiveness/umans-gate/security/advisories/new](https://github.com/codegiveness/umans-gate/security/advisories/new)
 (select "Report a vulnerability" and choose "Code of Conduct" as the type,
 or include "CoC" in the title).
 

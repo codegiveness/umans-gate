@@ -1,0 +1,13 @@
+# CODEOWNERS — umans-gate
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# These owners will be automatically requested for review on PRs
+# that touch the matching paths.
+
+* @codegiveness
+
+# Per-area ownership (optional — uncomment to override the catch-all):
+# src/          @codegiveness
+# dashboard/    @codegiveness
+# .github/      @codegiveness
+# docs/         @codegiveness

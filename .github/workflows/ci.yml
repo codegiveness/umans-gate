@@ -2,13 +2,13 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [master]
     paths-ignore:
       - "**/*.md"
       - "docs/**"
       - "LICENSE"
   pull_request:
-    branches: [main, master]
+    branches: [master]
     paths-ignore:
       - "**/*.md"
       - "docs/**"

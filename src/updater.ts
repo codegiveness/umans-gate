@@ -107,10 +107,8 @@ export async function performUpdate(currentVersion: string): Promise<void> {
     console.log("Install method: standalone executable");
     console.log("Please download the latest binary from:");
     console.log("  https://github.com/codegiveness/umans-gate/releases/latest");
-    console.log("Or reinstall via the install script:");
-    console.log(
-      "  curl -fsSL https://raw.githubusercontent.com/codegiveness/umans-gate/main/install.sh | sh",
-    );
+    console.log("Or switch to npm for automatic updates:");
+    console.log("  npm install -g umans-gate@latest");
   } else {
     console.log("Install method: development");
     console.log("Pull the latest changes and reinstall:");

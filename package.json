@@ -1,21 +1,22 @@
 {
   "name": "umans-gate",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "LLM capture proxy with Anthropic cache_control TTL stamping and live inspection dashboard",
   "type": "module",
   "license": "MIT",
   "author": "umans.ai",
   "publishConfig": {
     "access": "public",
-    "registry": "https://registry.npmjs.org/"
+    "registry": "https://registry.npmjs.org/",
+    "provenance": true
   },
-  "homepage": "https://github.com/umans-ai/umans-gate",
+  "homepage": "https://github.com/codegiveness/umans-gate",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/codegiveness/umans-gate.git"
   },
   "bugs": {
-    "url": "https://github.com/umans-ai/umans-gate/issues"
+    "url": "https://github.com/codegiveness/umans-gate/issues"
   },
   "keywords": [
     "llm",
@@ -27,7 +28,15 @@
     "ttl",
     "inspector",
     "debugger",
-    "websocket"
+    "websocket",
+    "claude",
+    "prompt-engineering",
+    "observability",
+    "sqlite",
+    "bun",
+    "developer-tools",
+    "api-proxy",
+    "prompt-caching"
   ],
   "bin": {
     "umans-gate": "dist/cli.js"
@@ -43,13 +52,7 @@
     },
     "./package.json": "./package.json"
   },
-  "files": [
-    "dist",
-    "dashboard/dist",
-    "README.md",
-    "LICENSE",
-    "CHANGELOG.md"
-  ],
+  "files": ["dist", "dashboard/dist", "README.md", "LICENSE", "CHANGELOG.md"],
   "engines": {
     "bun": ">=1.1.0"
   },
@@ -67,7 +70,7 @@
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist dashboard/dist dashboard/node_modules capture.db capture.db-shm capture.db-wal",
+    "clean": "rm -rf dist dashboard/dist dashboard/node_modules umans-gate.db umans-gate.db-shm umans-gate.db-wal",
     "prepublishOnly": "bun run build"
   },
   "devDependencies": {

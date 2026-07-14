@@ -4,8 +4,8 @@
 blank_issues_enabled: false
 contact_links:
   - name: 💬 Ask a question
-    url: https://github.com/umans-ai/umans-gate/discussions
+    url: https://github.com/codegiveness/umans-gate/discussions
     about: Ask questions and discuss with the community in GitHub Discussions.
   - name: 🔒 Report a security vulnerability
-    url: https://github.com/umans-ai/umans-gate/security/advisories/new
+    url: https://github.com/codegiveness/umans-gate/security/advisories/new
     about: Please report security vulnerabilities privately via GitHub Security Advisories.

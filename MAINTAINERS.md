@@ -8,10 +8,7 @@ issues, and guiding the project's direction.
 
 | Name | GitHub | Role |
 |------|--------|------|
-| _Maintainer name_ | [@github-handle](https://github.com/github-handle) | Creator & Lead Maintainer |
-
-> **Note:** This file is intentionally a template. The project owner should
-> populate it with actual maintainer information.
+| codegiveness | [@codegiveness](https://github.com/codegiveness) | Creator & Lead Maintainer |
 
 ## Responsibilities
 

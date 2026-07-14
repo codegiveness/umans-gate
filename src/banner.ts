@@ -1,5 +1,6 @@
 // Startup banner — prints the proxy configuration to stderr.
 
+import pkg from "../package.json" with { type: "json" };
 import type { ProxyConfig } from "./types.js";
 
 /** Print the startup banner showing all resolved config values. */
@@ -9,7 +10,7 @@ export function printBanner(config: ProxyConfig): void {
     ? "on (claude code: ttl, top_k, max_tokens, thinking, output_config, context_management)"
     : "off (transparent passthrough)";
 
-  console.log("umans-gate v0.1.0 — LLM capture proxy");
+  console.log(`umans-gate v${pkg.version} — LLM capture proxy`);
   console.log();
   console.log(`  target    ${config.target}`);
   console.log(`  listen    ${config.host}:${config.port}`);

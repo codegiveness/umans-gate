@@ -28,7 +28,7 @@ signal over noise.
 
 ## Product Purpose
 
-`umans-gate` is a Bun-based LLM capture proxy with three responsibilities:
+`umans-gate` is an npm-installable LLM capture proxy (powered by Bun) with three responsibilities:
 
 1. **Intercept** LLM API traffic (Anthropic + OpenAI-compatible) and store
    every request/response pair in SQLite with a ring buffer.
@@ -39,10 +39,7 @@ signal over noise.
 3. **Inspect** via a live React + shadcn/ui dashboard with WebSocket updates,
    SSE rendering, performance telemetry, and a config tab with hot-reload.
 
-Success looks like: a developer can point any LLM harness at the proxy and,
-within seconds, see exactly what is on the wire — bodies, headers, stream
-events, latency, and the effect of TTL stamping — without modifying their
-client code.
+Success looks like: a developer runs `npx umans-gate` (or `npm install -g umans-gate`), points any LLM harness at the proxy, and within seconds sees exactly what is on the wire — bodies, headers, stream events, latency, and the effect of TTL stamping — without modifying their client code. Setup is a single command; the proxy runs unattended.
 
 ## Brand Personality
 

@@ -4,7 +4,7 @@ This document outlines the planned direction for umans-gate. It is a living
 document — priorities may shift based on community feedback and upstream API
 changes.
 
-## Current State (v0.1.0)
+## Current State (v0.1.3)
 
 - ✅ Capture proxy with SQLite storage and WAL mode
 - ✅ Anthropic `cache_control` TTL stamping via unified stamp pipeline
@@ -17,6 +17,11 @@ changes.
 - ✅ Worker-based capture pipeline
 - ✅ Live inspector dashboard (React + shadcn/ui)
 - ✅ Dashboard config validation with hot-reload
+- ✅ npm-first distribution: `npx umans-gate` / `npm install -g umans-gate` (no Bun required)
+- ✅ Self-update (`umans-gate update`) and uninstall (`umans-gate uninstall`)
+- ✅ 6 pre-compiled platform binaries (darwin/linux/win32 × arm64/x64)
+- ✅ npm provenance attestation on all published packages
+- ✅ CodeQL code scanning (weekly + on push/PR)
 
 ## Near-Term (v0.2.x)
 
@@ -70,10 +75,23 @@ changes.
 - Distributed concurrency coordination
 - Cluster-aware circuit breaker
 
+## Related: umans-open-stack
+
+umans-gate implements patterns documented in
+[umans-open-stack](https://github.com/umans-ai/umans-open-stack) — a curated set of
+open source tools and playbooks tested with Umans. Specifically:
+
+- **Concurrency playbook** → umans-gate's concurrency gate (semaphore + circuit breaker)
+- **Caching playbook** → `cache_control` TTL stamping pipeline
+- **Vision-handoff playbook** → vision description pipeline (image → text → context injection)
+- **Workflows playbook** → capture-and-replay architecture
+
+Future roadmap items are informed by playbooks added to umans-open-stack.
+
 ## How to Influence This Roadmap
 
-- Open a [GitHub issue](https://github.com/umans-ai/umans-gate/issues) with the
+- Open a [GitHub issue](https://github.com/codegiveness/umans-gate/issues) with the
   `enhancement` label
-- Start a [discussion](https://github.com/umans-ai/umans-gate/discussions) for
+- Start a [discussion](https://github.com/codegiveness/umans-gate/discussions) for
   larger proposals
 - Submit a PR — we welcome prototypes and proofs of concept
