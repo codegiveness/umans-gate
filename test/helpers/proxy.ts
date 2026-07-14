@@ -1,12 +1,9 @@
-// Test helper: spawn the proxy server with given env overrides.
-// Finds a free port, returns the process handle + the URL to connect to.
-
 import { existsSync, unlinkSync } from "node:fs";
 import { spawn } from "bun";
 import type { Subprocess } from "bun";
 
 export interface ProxyHandle {
-  proc: Subprocess<"ignore", "ignore", "ignore">;
+  proc: Subprocess<"ignore", "ignore", "pipe">;
   port: number;
   baseUrl: string;
   dbPath: string;
@@ -15,7 +12,6 @@ export interface ProxyHandle {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** Find a free TCP port by binding to port 0. */
 async function findFreePort(): Promise<number> {
   const { createServer } = await import("node:net");
   return new Promise((resolve, reject) => {
@@ -64,8 +60,6 @@ export async function startProxy(options: StartProxyOptions = {}): Promise<Proxy
       USAGE_REFRESH_MS: "100",
       VISION_STRATEGY: "never",
       RELEASE_COOLDOWN_MS: "0",
-      // Disable all stamp features so tests don't mutate request bodies
-      // (the config file at ~/.config/umans-gate/config.json enables them all).
       STAMP_CLAUDE_CODE_ENABLED: "false",
       STAMP_REASONING_EFFORT_ENABLED: "false",
       UMANS_API_KEY: umansApiKey ?? "",
@@ -73,11 +67,33 @@ export async function startProxy(options: StartProxyOptions = {}): Promise<Proxy
       ...envOverrides,
     },
     stdout: "ignore",
-    stderr: "ignore",
+    stderr: "pipe",
   });
 
-  // Wait for the server to start listening
-  await sleep(900);
+  const healthUrl = `http://127.0.0.1:${port}/health`;
+  let started = false;
+  for (let attempt = 0; attempt < 100; attempt++) {
+    try {
+      const res = await fetch(healthUrl);
+      if (res.ok) {
+        started = true;
+        break;
+      }
+    } catch {
+      await sleep(100);
+    }
+  }
+  if (!started) {
+    let errOutput = "";
+    try {
+      errOutput = await new Response(proc.stderr).text();
+    } catch {
+      // stderr already consumed or unavailable
+    }
+    throw new Error(
+      `Proxy server did not start within 10s on port ${port}. stderr: ${errOutput.slice(0, 500)}`,
+    );
+  }
 
   return {
     proc,
