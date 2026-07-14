@@ -11,8 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **PR canary npm publish workflow**: pull requests to `master` now automatically
   publish a canary npm package tagged `canary` (not `latest`) with version
-  `{base}-pr.{number}.{attempt}`. A PR comment with the install command is
-  posted and auto-updated on each push. Fork PRs are skipped for security.
+  `{base}-pr.{number}.{short_sha}`. The published package matches the release
+  structure: a main shim with optional platform-specific binary packages so it
+  runs without Bun. A PR comment with the install command is posted and
+  auto-updated on each push. Fork PRs are skipped for security.
 
 ## [0.1.7] - 2026-07-15
 
