@@ -36,7 +36,7 @@
     "@testing-library/user-event": "14.6.1",
     "@types/react": "^18.3.14",
     "@types/react-dom": "^18.3.3",
-    "@vitejs/plugin-react": "^4.3.4",
+    "@vitejs/plugin-react": "^6.0.3",
     "@tailwindcss/postcss": "^4.1.13",
     "jsdom": "29.1.1",
     "postcss": "^8.4.49",
