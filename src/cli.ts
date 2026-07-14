@@ -32,10 +32,27 @@ program
   .option("--check", "check if update is available without installing")
   .action(async (options) => {
     const { checkForUpdate, performUpdate } = await import("./updater.js");
+    const { isServiceInstalled, stopService, startService } = await import("./service/index.js");
+
     if (options.check) {
       await checkForUpdate(VERSION);
-    } else {
-      await performUpdate(VERSION);
+      return;
+    }
+
+    // Stop service before update if installed
+    const serviceWasInstalled = await isServiceInstalled();
+    if (serviceWasInstalled) {
+      console.log("Stopping service before update...");
+      await stopService();
+    }
+
+    await performUpdate(VERSION);
+
+    // Restart service after update
+    if (serviceWasInstalled) {
+      console.log("Starting service after update...");
+      await startService();
+      console.log("✅ Service restarted after update.");
     }
   });
 
@@ -44,6 +61,14 @@ program
   .description("Remove umans-gate")
   .option("--keep-config", "keep configuration files")
   .action(async (options) => {
+    const { isServiceInstalled, uninstallService } = await import("./service/index.js");
+
+    // Stop and remove service first
+    if (await isServiceInstalled()) {
+      console.log("Removing service...");
+      await uninstallService();
+    }
+
     const { uninstall } = await import("./uninstaller.js");
     await uninstall({ keepConfig: options.keepConfig ?? false });
   });
@@ -62,6 +87,68 @@ program
     const cfg = readConfigFile();
     console.log(JSON.stringify(cfg, null, 2));
     console.log(`\nConfig file: ${configPath}`);
+  });
+
+// --- service command group ---
+
+const service = program.command("service").description("Manage the umans-gate background service");
+
+service
+  .command("install")
+  .description("Install and start the background service (auto-starts on boot)")
+  .option("--force", "overwrite existing service configuration")
+  .action(async (options) => {
+    const { installServiceCli } = await import("./service/index.js");
+    await installServiceCli(options.force ?? false);
+  });
+
+service
+  .command("uninstall")
+  .description("Stop and remove the background service")
+  .action(async () => {
+    const { uninstallService } = await import("./service/index.js");
+    await uninstallService();
+  });
+
+service
+  .command("start")
+  .description("Start the background service")
+  .action(async () => {
+    const { startService } = await import("./service/index.js");
+    await startService();
+  });
+
+service
+  .command("stop")
+  .description("Stop the background service")
+  .action(async () => {
+    const { stopService } = await import("./service/index.js");
+    await stopService();
+  });
+
+service
+  .command("restart")
+  .description("Restart the background service")
+  .action(async () => {
+    const { restartService } = await import("./service/index.js");
+    await restartService();
+  });
+
+service
+  .command("status")
+  .description("Show service status")
+  .action(async () => {
+    const { statusService } = await import("./service/index.js");
+    await statusService();
+  });
+
+service
+  .command("logs")
+  .description("Tail service logs")
+  .option("-f, --follow", "follow log output")
+  .action(async (options) => {
+    const { tailServiceLogs } = await import("./service/index.js");
+    await tailServiceLogs(options.follow ?? false);
   });
 
 program.parse(process.argv);

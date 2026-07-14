@@ -3,13 +3,24 @@
 // and performs the appropriate update action.
 
 import { execSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import {
+  chmodSync,
+  closeSync,
+  copyFileSync,
+  existsSync,
+  openSync,
+  renameSync,
+  unlinkSync,
+  writeSync,
+} from "node:fs";
+import { arch, platform } from "node:os";
+import { dirname, join } from "node:path";
 
 const GITHUB_API = "https://api.github.com/repos/codegiveness/umans-gate/releases/latest";
 
 interface GithubRelease {
   tag_name: string;
-  assets: Array<{ name: string; browser_download_url: string }>;
+  assets: Array<{ name: string; browser_download_url: string; size: number }>;
 }
 
 /** Fetch latest version from GitHub Releases. */
@@ -21,6 +32,19 @@ async function fetchLatestVersion(): Promise<string | null> {
     if (!resp.ok) return null;
     const data = (await resp.json()) as GithubRelease;
     return data.tag_name.replace(/^v/, "");
+  } catch {
+    return null;
+  }
+}
+
+/** Fetch the full release data including assets. */
+async function fetchLatestRelease(): Promise<GithubRelease | null> {
+  try {
+    const resp = await fetch(GITHUB_API, {
+      headers: { "User-Agent": "umans-gate-updater" },
+    });
+    if (!resp.ok) return null;
+    return (await resp.json()) as GithubRelease;
   } catch {
     return null;
   }
@@ -55,6 +79,108 @@ function compareVersions(a: string, b: string): number {
     if (va > vb) return 1;
   }
   return 0;
+}
+
+/** Map current platform + arch to the GitHub release asset name. */
+function platformAssetName(): string | null {
+  const p = platform();
+  const a = arch();
+
+  const archMap: Record<string, string> = {
+    x64: "x64",
+    arm64: "arm64",
+  };
+  const archStr = archMap[a];
+  if (!archStr) return null;
+
+  switch (p) {
+    case "linux":
+      return `umans-gate-linux-${archStr}`;
+    case "darwin":
+      return `umans-gate-darwin-${archStr}`;
+    case "win32":
+      return `umans-gate-win32-${archStr}.exe`;
+    default:
+      return null;
+  }
+}
+
+/**
+ * Download and replace the standalone binary from GitHub Releases.
+ * The service must be stopped before calling this (done by the CLI update command).
+ */
+async function downloadAndReplaceStandaloneBinary(_latestVersion: string): Promise<void> {
+  const release = await fetchLatestRelease();
+  if (!release) {
+    console.error("Could not fetch release assets from GitHub.");
+    process.exit(1);
+  }
+
+  const assetName = platformAssetName();
+  if (!assetName) {
+    console.error(`Unsupported platform: ${platform()}/${arch()}`);
+    process.exit(1);
+  }
+
+  const asset = release.assets.find((a) => a.name === assetName);
+  if (!asset) {
+    console.error(`Could not find asset "${assetName}" in the latest release.`);
+    console.error("Available assets:");
+    for (const a of release.assets) console.error(`  ${a.name}`);
+    process.exit(1);
+  }
+
+  console.log(`Downloading ${asset.name} (${(asset.size / 1024 / 1024).toFixed(1)} MB)...`);
+
+  const resp = await fetch(asset.browser_download_url, {
+    headers: { "User-Agent": "umans-gate-updater" },
+  });
+  if (!resp.ok) {
+    console.error(`Download failed: HTTP ${resp.status}`);
+    process.exit(1);
+  }
+
+  const buffer = await resp.arrayBuffer();
+  if (buffer.byteLength !== asset.size) {
+    console.error(`Download size mismatch: expected ${asset.size}, got ${buffer.byteLength}`);
+    process.exit(1);
+  }
+
+  // Write to temp file, then replace
+  const oldPath = process.execPath;
+  const dir = dirname(oldPath);
+  const tmpPath = join(dir, ".umans-gate-update.tmp");
+
+  const fd = openSync(tmpPath, "w");
+  writeSync(fd, Buffer.from(buffer));
+  closeSync(fd);
+
+  // Make executable on Unix
+  if (platform() !== "win32") {
+    chmodSync(tmpPath, 0o755);
+  }
+
+  // On Windows, the old binary may be locked if the service is running.
+  // The CLI update command stops the service before calling this.
+  try {
+    renameSync(tmpPath, oldPath);
+    console.log(`Replaced binary: ${oldPath}`);
+  } catch {
+    // rename may fail on Windows if file is locked, or cross-filesystem on Linux.
+    // Try copy + delete as fallback.
+    try {
+      copyFileSync(tmpPath, oldPath);
+      unlinkSync(tmpPath);
+      console.log(`Replaced binary: ${oldPath}`);
+    } catch (err) {
+      console.error(
+        `Failed to replace binary: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      console.error(`The downloaded binary is at: ${tmpPath}`);
+      console.error("You may need to replace it manually.");
+      process.exit(1);
+    }
+  }
 }
 
 /** Check for available update without installing. Prints result and exits. */
@@ -105,10 +231,8 @@ export async function performUpdate(currentVersion: string): Promise<void> {
     }
   } else if (isCompiledExecutable()) {
     console.log("Install method: standalone executable");
-    console.log("Please download the latest binary from:");
-    console.log("  https://github.com/codegiveness/umans-gate/releases/latest");
-    console.log("Or switch to npm for automatic updates:");
-    console.log("  npm install -g umans-gate@latest");
+    await downloadAndReplaceStandaloneBinary(latest);
+    console.log("Update complete.");
   } else {
     console.log("Install method: development");
     console.log("Pull the latest changes and reinstall:");

@@ -37,6 +37,30 @@ declare -A CPU_MAP=(
 rm -rf "${NPM_DIR}"
 mkdir -p "${NPM_DIR}"
 
+# --- Download NSSM for Windows packages ---
+NSSM_VERSION="2.24"
+NSSM_CACHE="${ROOT}/.cache/nssm"
+NSSM_EXE="${NSSM_CACHE}/nssm-${NSSM_VERSION}/win64/nssm.exe"
+
+if [ ! -f "${NSSM_EXE}" ]; then
+  echo "📥 Downloading NSSM ${NSSM_VERSION}..."
+  mkdir -p "${NSSM_CACHE}"
+  NSSM_ZIP="${NSSM_CACHE}/nssm-${NSSM_VERSION}.zip"
+  curl -fsSL -o "${NSSM_ZIP}" "https://nssm.cc/release/nssm-${NSSM_VERSION}.zip" || {
+    echo "⚠️  Failed to download NSSM. Windows packages will not include nssm.exe."
+    echo "   Service install on Windows will not work until NSSM is bundled."
+  }
+  if [ -f "${NSSM_ZIP}" ]; then
+    (cd "${NSSM_CACHE}" && unzip -o "nssm-${NSSM_VERSION}.zip" >/dev/null 2>&1) || true
+  fi
+fi
+
+if [ -f "${NSSM_EXE}" ]; then
+  echo "✅ NSSM available at ${NSSM_EXE}"
+else
+  echo "⚠️  NSSM not found. Windows packages will not include nssm.exe."
+fi
+
 # --- Platform packages (scoped: @codegiveness/umans-gate-<target>) ---
 for target in "${!OS_MAP[@]}"; do
   os="${OS_MAP[$target]}"
@@ -54,7 +78,16 @@ for target in "${!OS_MAP[@]}"; do
   # Scoped package directory: @codegiveness/umans-gate-<target>
   pkg_dir="${NPM_DIR}/${SCOPE}/umans-gate-${target}"
   mkdir -p "${pkg_dir}"
+  # Copy executable
   cp "${exec_path}" "${pkg_dir}/"
+
+  # For Windows packages, also include nssm.exe (Windows Service manager)
+  if [[ "$target" == win32-* ]] && [ -f "${NSSM_EXE}" ]; then
+    cp "${NSSM_EXE}" "${pkg_dir}/nssm.exe"
+    files_list="\"umans-gate-${target}${ext}\", \"nssm.exe\""
+  else
+    files_list="\"umans-gate-${target}${ext}\""
+  fi
 
   cat > "${pkg_dir}/package.json" <<EOF
 {
@@ -71,7 +104,7 @@ for target in "${!OS_MAP[@]}"; do
   "license": "MIT",
   "os": ["${os}"],
   "cpu": ["${cpu}"],
-  "files": ["umans-gate-${target}${ext}"]
+  "files": [${files_list}]
 }
 EOF
   echo "✅ Packaged ${SCOPE}/umans-gate-${target}"

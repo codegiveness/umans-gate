@@ -6,6 +6,7 @@
 // 2. 404
 
 import {
+  type RawConfig,
   type ReloadResult,
   readConfigFile,
   resetConfig,
@@ -151,6 +152,15 @@ async function resolveStaticFile(
     }
   }
   return null;
+}
+
+/** Strip umans_api_key from a RawConfig object, replacing it with has_api_key. */
+function stripApiKey(
+  written: RawConfig | null,
+): (Omit<RawConfig, "umans_api_key"> & { has_api_key: boolean }) | null {
+  if (!written) return null;
+  const { umans_api_key: _omitted, ...safe } = written;
+  return { ...safe, has_api_key: Boolean(_omitted) };
 }
 
 /** Result of matching a RegExp route pattern; `match[1]` is the capture id. */
@@ -304,7 +314,8 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
         try {
           const body = (await ctx.req.json()) as RawConfigInput;
           const result = saveConfig(body);
-          return Response.json(result, { status: result.ok ? 200 : 400 });
+          const safe = stripApiKey(result.written);
+          return Response.json({ ...result, written: safe }, { status: result.ok ? 200 : 400 });
         } catch (e) {
           return Response.json(
             {
@@ -326,10 +337,12 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
         if (!result.ok) {
           return Response.json(result, { status: 500 });
         }
+        const safe = stripApiKey(result.written);
         if (ctx.refreshLimits) {
           const limits = await ctx.refreshLimits();
           return Response.json({
             ...result,
+            written: safe,
             limits: limits.ok
               ? {
                   hardCap: limits.hardCap,
@@ -341,7 +354,7 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
               : null,
           });
         }
-        return Response.json(result);
+        return Response.json({ ...result, written: safe });
       },
     },
     {

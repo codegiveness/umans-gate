@@ -1,8 +1,10 @@
 # Roadmap
 
+> **Applies to:** umans-gate v0.1.4 · **Last updated:** 2026-07-14
+
 This document outlines the planned direction for umans-gate. It is a living
-document — priorities may shift based on community feedback and upstream API
-changes.
+document — priorities may shift based on upstream API changes and personal
+development needs.
 
 ## Current State (v0.1.3)
 
@@ -79,19 +81,18 @@ changes.
 
 umans-gate implements patterns documented in
 [umans-open-stack](https://github.com/umans-ai/umans-open-stack) — a curated set of
-open source tools and playbooks tested with Umans. Specifically:
+open source tools and playbooks. Specifically:
 
 - **Concurrency playbook** → umans-gate's concurrency gate (semaphore + circuit breaker)
 - **Caching playbook** → `cache_control` TTL stamping pipeline
 - **Vision-handoff playbook** → vision description pipeline (image → text → context injection)
 - **Workflows playbook** → capture-and-replay architecture
 
-Future roadmap items are informed by playbooks added to umans-open-stack.
+Future roadmap items may be informed by playbooks added to umans-open-stack.
 
 ## How to Influence This Roadmap
 
-- Open a [GitHub issue](https://github.com/codegiveness/umans-gate/issues) with the
-  `enhancement` label
-- Start a [discussion](https://github.com/codegiveness/umans-gate/discussions) for
-  larger proposals
-- Submit a PR — we welcome prototypes and proofs of concept
+This is a personal project. The roadmap reflects the maintainer's own
+priorities. If you've forked the project and want to share a fix or
+improvement, open a [GitHub issue](https://github.com/codegiveness/umans-gate/issues)
+or submit a PR — it may be reviewed on a best-effort basis.

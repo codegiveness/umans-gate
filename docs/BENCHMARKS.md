@@ -1,5 +1,7 @@
 # Benchmarks
 
+> **Applies to:** umans-gate v0.1.4 · **Last updated:** 2026-07-05
+
 This document describes the benchmark methodology and summarizes results for
 umans-gate proxy optimizations.
 
