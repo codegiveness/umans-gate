@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Release workflow awk extraction**: the awk command extracting per-version
+  release notes from CHANGELOG.md self-terminated on the matching header line,
+  producing only `## [VERSION] - DATE` as release notes. Fixed with corrected
+  awk logic that extracts the full version section body.
+- **CodeQL workflow efficiency**: added `paths-ignore` for markdown, docs, and
+  LICENSE files — CodeQL no longer runs on doc-only changes (matching CI
+  workflow behavior).
 - **CI workflow professionalization**: split monolithic CI into `quality` job
   (typecheck + lint + build, 3-OS matrix: ubuntu/macos/windows) and `test` job
   (ubuntu-only). Dropped Bun 1.1.0 from matrix (caused 158 test failures on
@@ -50,6 +57,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   wiki disabled, discussions disabled, secret scanning enabled, push protection
   enabled.
 - **CODEOWNERS** (`.github/CODEOWNERS`) for automated review routing.
+- **Dependabot update grouping**: minor and patch updates are now grouped into
+  a single PR per ecosystem (root npm, dashboard npm) to reduce PR noise.
 
 ### Changed
 

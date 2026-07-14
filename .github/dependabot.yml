@@ -7,6 +7,9 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
+    groups:
+      minor-patch:
+        update-types: ["minor", "patch"]
     ignore:
       - dependency-name: "commander"
         update-types: ["version-update:semver-major"]
@@ -22,6 +25,9 @@ updates:
     labels:
       - "dependencies"
       - "dashboard"
+    groups:
+      minor-patch:
+        update-types: ["minor", "patch"]
     ignore:
       - dependency-name: "react"
         update-types: ["version-update:semver-major"]
