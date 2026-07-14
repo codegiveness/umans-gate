@@ -59,6 +59,8 @@ for target in "${!OS_MAP[@]}"; do
   "name": "umans-gate-${target}",
   "version": "${VERSION}",
   "description": "Standalone binary for umans-gate (${target})",
+  "repository": { "type": "git", "url": "git+https://github.com/codegiveness/umans-gate.git" },
+  "license": "MIT",
   "os": ["${os}"],
   "cpu": ["${cpu}"],
   "files": ["umans-gate-${target}${ext}"]
@@ -90,6 +92,8 @@ cat > "${MAIN_DIR}/package.json" <<EOF
   "name": "umans-gate",
   "version": "${VERSION}",
   "description": "LLM capture proxy with live inspection dashboard",
+  "repository": { "type": "git", "url": "git+https://github.com/codegiveness/umans-gate.git" },
+  "license": "MIT",
   "bin": { "umans-gate": "./npm-shim.cjs" },
   "files": ["npm-shim.cjs", "dist"],
   "engines": { "node": ">=18.0.0" },

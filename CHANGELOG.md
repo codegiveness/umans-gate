@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-07-14
+
+### Fixed
+
+- Add `repository.url` and `license` to platform-specific npm packages generated
+  by `scripts/pack-npm.sh` to fix npm provenance publishing (E422 rejection).
+
 ## [0.1.1] - 2026-07-14
 
 ### Fixed
