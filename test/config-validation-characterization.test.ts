@@ -505,9 +505,29 @@ test("char: concurrency_vision_reservation — valid with hard_cap=5 passes", ()
   expectNoErrors(validateConfig({ concurrency_hard_cap: 5, concurrency_vision_reservation: 3 }));
 });
 
-test("char: concurrency_vision_reservation — 0 fails with hard_cap=5", () => {
+test("char: concurrency_vision_reservation — 0 fails with hard_cap=5 unless vision is disabled", () => {
   const r = validateConfig({ concurrency_hard_cap: 5, concurrency_vision_reservation: 0 });
   expect(r.errors).toContain("concurrency_vision_reservation must be a positive integer (min 1)");
+});
+
+test("char: concurrency_vision_reservation — 0 passes when vision_strategy is 'never'", () => {
+  const r = validateConfig({
+    concurrency_hard_cap: 5,
+    concurrency_vision_reservation: 0,
+    vision_strategy: "never",
+  });
+  expectNoErrors(r);
+  expect(r.normalized.concurrency_vision_reservation).toBe(0);
+});
+
+test("char: concurrency_vision_reservation — normalized to 0 when vision_strategy is 'never'", () => {
+  const r = validateConfig({
+    concurrency_hard_cap: 5,
+    concurrency_vision_reservation: 3,
+    vision_strategy: "never",
+  });
+  expectNoErrors(r);
+  expect(r.normalized.concurrency_vision_reservation).toBe(0);
 });
 
 test("char: concurrency_vision_reservation — exceeds hard_cap-2 fails", () => {
