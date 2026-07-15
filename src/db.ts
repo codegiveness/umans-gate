@@ -339,7 +339,7 @@ export class CaptureDB {
       WHERE id = $id
     `);
     this.stmtDeleteOld = this.db.prepare(
-      "DELETE FROM captures WHERE id NOT IN (SELECT id FROM captures ORDER BY id DESC LIMIT $n)",
+      "DELETE FROM captures WHERE id IN (SELECT id FROM captures ORDER BY id DESC LIMIT $excess OFFSET $limit)",
     );
     this.sweepStaleCaptures();
     this.stmtGet = this.db.prepare("SELECT * FROM captures WHERE id = $id");
@@ -451,8 +451,9 @@ export class CaptureDB {
     let id = 0;
     this.db.transaction(() => {
       id = Number(this.stmtInsert.run(compressed as unknown as never).lastInsertRowid);
-      if (++this.rowCount > this.maxCaptures) {
-        this.stmtDeleteOld.run({ $n: this.maxCaptures });
+      const excess = Math.max(0, ++this.rowCount - this.maxCaptures);
+      if (excess > 0) {
+        this.stmtDeleteOld.run({ $limit: this.maxCaptures, $excess: excess });
         this.rowCount = this.maxCaptures;
       }
     })();
@@ -575,8 +576,9 @@ export class CaptureDB {
     let id = 0;
     this.db.transaction(() => {
       id = Number(this.stmtInsertVision.run(compressed as unknown as never).lastInsertRowid);
-      if (++this.rowCount > this.maxCaptures) {
-        this.stmtDeleteOld.run({ $n: this.maxCaptures });
+      const excess = Math.max(0, ++this.rowCount - this.maxCaptures);
+      if (excess > 0) {
+        this.stmtDeleteOld.run({ $limit: this.maxCaptures, $excess: excess });
         this.rowCount = this.maxCaptures;
       }
     })();
