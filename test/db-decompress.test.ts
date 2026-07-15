@@ -64,7 +64,7 @@ test("get() returns null for corrupted body fields without crashing", () => {
   db2.close();
 });
 
-test("get() logs a warning when decompression returns null", () => {
+test("get() logs a warning with original byte length when decompression returns null", () => {
   const db = new CaptureDB({
     dbPath,
     maxCaptures: 100,
@@ -106,7 +106,10 @@ test("get() logs a warning when decompression returns null", () => {
 
   const warned = errorSpy.mock.calls.some(
     (call) =>
-      typeof call[0] === "string" && call[0].includes("[warn]") && call[0].includes("decompress"),
+      typeof call[0] === "string" &&
+      call[0].includes("[warn]") &&
+      call[0].includes("decompress") &&
+      call[0].includes(String(corruptedBlob.byteLength)),
   );
   expect(warned).toBe(true);
 });

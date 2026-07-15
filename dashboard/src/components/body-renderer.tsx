@@ -1,4 +1,4 @@
-import { FileText } from "lucide-react";
+import { FileText, TriangleAlert } from "lucide-react";
 import { lazy } from "react";
 
 const JsonViewer = lazy(() =>
@@ -15,6 +15,15 @@ export function BodyRenderer({
   body: string | null | undefined;
   isSse: boolean;
 }) {
+  if (body === null) {
+    return (
+      <div className="flex items-center gap-1.5 text-destructive italic">
+        <TriangleAlert className="h-3.5 w-3.5" />
+        body corrupted or unavailable
+      </div>
+    );
+  }
+
   if (!body) {
     return (
       <div className="flex items-center gap-1.5 text-muted-foreground italic">

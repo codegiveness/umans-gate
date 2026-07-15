@@ -515,9 +515,11 @@ export class CaptureDB {
       const original = raw[field] as string | Uint8Array | null;
       const decompressed = decompressText(original);
       if (decompressed === null && original !== null) {
+        const originalLength = typeof original === "string" ? original.length : original.byteLength;
         CaptureDB.log.warn("decompression returned null for corrupted body", {
           captureId: id,
           field,
+          originalLength,
         });
       }
       raw[field] = decompressed;
