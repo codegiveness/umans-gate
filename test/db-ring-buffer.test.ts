@@ -127,3 +127,25 @@ test("ring-buffer DELETE uses primary-key index, not full table scan", () => {
   expect(outerDelete).toContain("SEARCH");
   expect(outerDelete).toContain("INTEGER PRIMARY KEY");
 });
+
+test("ring-buffer cleanup of 10,000 excess rows completes in <50ms", () => {
+  const maxCaptures = 1000;
+  const excess = 10000;
+  const total = maxCaptures + excess;
+  const db = new CaptureDB({ dbPath, maxCaptures } as {
+    dbPath: string;
+    maxCaptures: number;
+  });
+
+  for (let i = 0; i < total; i++) {
+    insertCapture(db, i);
+  }
+
+  const before = Date.now();
+  insertCapture(db, total);
+  const elapsed = Date.now() - before;
+
+  expect(db.list(total).length).toBe(maxCaptures);
+  expect(elapsed).toBeLessThan(50);
+  db.close();
+});
