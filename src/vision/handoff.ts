@@ -400,46 +400,47 @@ export class VisionHandoff {
     stats.handoffCount = kept.length;
 
     const recipe = recipeFromConfig(this.config);
-    const descriptions: string[] = [];
-    let allHit = true;
 
-    for (const part of kept) {
-      if (part.encoding === "url") {
-        allHit = false;
-        break;
-      }
-      const decoded = decodeBase64(part.data);
-      if (decoded === null) {
-        allHit = false;
-        break;
-      }
-      let cacheBytes: Uint8Array;
-      try {
-        const result = await transcodeImage(decoded, {
+    // Parallel decode → transcode → cache lookup; rejection = cache miss.
+    const results = await Promise.allSettled(
+      kept.map((part) => {
+        if (part.encoding === "url") {
+          return Promise.reject(new Error("url-encoded image not cacheable"));
+        }
+        const decoded = decodeBase64(part.data);
+        if (decoded === null) {
+          return Promise.reject(new Error("invalid base64"));
+        }
+        return transcodeImage(decoded, {
           maxDimension: recipe.max_dimension,
           quality: recipe.quality,
           format: this.config.imageFormat,
+        }).then((result) => {
+          const cacheBytes = result.bytes;
+          let cached = "";
+          try {
+            cached = this.cache.getOrCompute(
+              cacheBytes,
+              recipe,
+              ENCODER_VERSION,
+              this.config.model ?? "",
+              this.config.promptVersion,
+              () => {
+                throw CACHE_MISS;
+              },
+            );
+          } catch (err) {
+            if (err !== CACHE_MISS) throw err;
+          }
+          return cached;
         });
-        cacheBytes = result.bytes;
-      } catch {
-        allHit = false;
-        break;
-      }
-      let cached = "";
-      try {
-        cached = this.cache.getOrCompute(
-          cacheBytes,
-          recipe,
-          ENCODER_VERSION,
-          this.config.model ?? "",
-          this.config.promptVersion,
-          () => {
-            throw CACHE_MISS;
-          },
-        );
-      } catch (err) {
-        if (err !== CACHE_MISS) throw err;
-      }
+      }),
+    );
+
+    const descriptions: string[] = [];
+    let allHit = true;
+    for (const result of results) {
+      const cached = result.status === "fulfilled" ? result.value : "";
       if (cached !== "") {
         descriptions.push(wrapDescription(cached));
         stats.cacheHits++;
