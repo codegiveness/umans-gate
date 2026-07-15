@@ -243,7 +243,6 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
   const usage = new UmansUsageClient(config);
   const models = new ModelsClient({
     target: config.target,
-    apiKey: config.umansApiKey,
     refreshMs: config.modelsRefreshMs,
   });
   models.start();

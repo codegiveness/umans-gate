@@ -73,7 +73,6 @@ interface RawModelsResponse {
 
 export interface ModelsClientOptions {
   target: string;
-  apiKey?: string | null;
   refreshMs: number;
   /** Path appended to target for the model list. */
   path?: string;
@@ -93,14 +92,12 @@ export class ModelsClient implements VisionLookup {
   private fetching: Promise<boolean> | null = null;
   private onChangeCb: (() => void) | null = null;
   private readonly target: string;
-  private readonly apiKey: string | null;
   private readonly refreshMs: number;
   private readonly path: string;
   private readonly infoPath: string;
 
   constructor(opts: ModelsClientOptions) {
     this.target = opts.target.replace(/\/+$/, "");
-    this.apiKey = opts.apiKey ?? null;
     this.refreshMs = opts.refreshMs;
     this.path = opts.path ?? DEFAULT_MODELS_PATH;
     this.infoPath = opts.infoPath ?? DEFAULT_MODELS_INFO_PATH;
@@ -184,9 +181,7 @@ export class ModelsClient implements VisionLookup {
   private async doFetch(): Promise<boolean> {
     const url = `${this.target}${this.path}`;
     const infoUrl = `${this.target}${this.infoPath}`;
-    const headers: Record<string, string> = {};
-    if (this.apiKey) headers.authorization = `Bearer ${this.apiKey}`;
-    const infoPromise = fetchModelsInfo(infoUrl, this.apiKey ?? undefined).then(
+    const infoPromise = fetchModelsInfo(infoUrl).then(
       (m) => m,
       (e: unknown) => {
         const msg = e instanceof Error ? e.message : String(e);
@@ -199,7 +194,7 @@ export class ModelsClient implements VisionLookup {
       },
     );
     try {
-      const resp = await fetch(url, { method: "GET", headers, signal: AbortSignal.timeout(15000) });
+      const resp = await fetch(url, { method: "GET", signal: AbortSignal.timeout(15000) });
       if (!resp.ok) {
         this.ok = false;
         log.error(`fetch failed: HTTP ${resp.status} from ${url}`);
