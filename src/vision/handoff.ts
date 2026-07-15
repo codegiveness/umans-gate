@@ -136,7 +136,7 @@ interface ImageProcessResult {
 }
 
 /** Encoder version tag mixed into the cache key. Bump when transcode output bytes change. */
-const ENCODER_VERSION = "bun-image-v2";
+const ENCODER_VERSION = "bun-image-v3";
 
 /**
  * Sentinel value returned (via throw) from {@link DescriptionCache.getOrCompute}
@@ -401,58 +401,41 @@ export class VisionHandoff {
 
     const recipe = recipeFromConfig(this.config);
 
-    // Parallel decode → transcode → cache lookup; rejection = cache miss.
-    const results = await Promise.allSettled(
-      kept.map((part) => {
-        if (part.encoding === "url") {
-          return Promise.reject(new Error("url-encoded image not cacheable"));
-        }
-        const decoded = decodeBase64(part.data);
-        if (decoded === null) {
-          return Promise.reject(new Error("invalid base64"));
-        }
-        return transcodeImage(decoded, {
-          maxDimension: recipe.max_dimension,
-          quality: recipe.quality,
-          format: this.config.imageFormat,
-        }).then((result) => {
-          const cacheBytes = result.bytes;
-          let cached = "";
-          try {
-            cached = this.cache.getOrCompute(
-              cacheBytes,
-              recipe,
-              ENCODER_VERSION,
-              this.config.model ?? "",
-              this.config.promptVersion,
-              () => {
-                throw CACHE_MISS;
-              },
-            );
-          } catch (err) {
-            if (err !== CACHE_MISS) throw err;
-          }
-          return cached;
-        });
-      }),
-    );
-
+    // Synchronous cache-only fast path: decode the ORIGINAL bytes, compute the
+    // cache key, and look up descriptions WITHOUT transcoding. Fail fast on any
+    // miss so the cache-only path never pays the transcode cost for a hit.
     const descriptions: string[] = [];
-    let allHit = true;
-    for (const result of results) {
-      const cached = result.status === "fulfilled" ? result.value : "";
-      if (cached !== "") {
-        descriptions.push(wrapDescription(cached));
-        stats.cacheHits++;
-      } else {
-        allHit = false;
-        break;
+    for (const part of kept) {
+      if (part.encoding === "url") {
+        this.enqueueBackgroundVision(body, apiKind, modelName, captureId, signal);
+        return { body, changed: false, stats };
       }
-    }
-
-    if (!allHit) {
-      this.enqueueBackgroundVision(body, apiKind, modelName, captureId, signal);
-      return { body, changed: false, stats };
+      const decoded = decodeBase64(part.data);
+      if (decoded === null) {
+        this.enqueueBackgroundVision(body, apiKind, modelName, captureId, signal);
+        return { body, changed: false, stats };
+      }
+      let cached = "";
+      try {
+        cached = this.cache.getOrCompute(
+          decoded,
+          recipe,
+          ENCODER_VERSION,
+          this.config.model ?? "",
+          this.config.promptVersion,
+          () => {
+            throw CACHE_MISS;
+          },
+        );
+      } catch (err) {
+        if (err !== CACHE_MISS) throw err;
+      }
+      if (cached === "") {
+        this.enqueueBackgroundVision(body, apiKind, modelName, captureId, signal);
+        return { body, changed: false, stats };
+      }
+      descriptions.push(wrapDescription(cached));
+      stats.cacheHits++;
     }
 
     const mutated = cloneBody(body);
@@ -532,6 +515,79 @@ export class VisionHandoff {
     }
 
     const recipe = recipeFromConfig(this.config);
+
+    // Check the in-flight map and cache using the ORIGINAL decoded bytes as the
+    // key, so a later cache-only pass can find the same entry without re-encoding.
+    const cacheKey = descriptionCacheKey(
+      decoded,
+      recipe,
+      ENCODER_VERSION,
+      this.config.model ?? "",
+      this.config.promptVersion,
+    );
+
+    let cached: string;
+    try {
+      cached = this.cache.getOrCompute(
+        decoded,
+        recipe,
+        ENCODER_VERSION,
+        this.config.model ?? "",
+        this.config.promptVersion,
+        () => {
+          throw CACHE_MISS;
+        },
+      );
+    } catch (err) {
+      if (err !== CACHE_MISS) throw err;
+      cached = "";
+    }
+    if (cached !== "") {
+      this.addRecord({
+        captureId: captureId ?? null,
+        model: this.config.model ?? "",
+        target: this.config.target ?? "",
+        imageSize: decoded.byteLength,
+        imageHash: simpleHash(decoded),
+        status: "cache_hit",
+        httpStatus: null,
+        latencyMs: 0,
+        description: cached,
+        error: null,
+      });
+      return {
+        description: wrapDescription(cached),
+        cacheHit: true,
+        cacheMiss: false,
+        visionCall: false,
+        latencyMs: 0,
+      };
+    }
+
+    const existing = this.inflight.get(cacheKey);
+    if (existing) {
+      const desc = await existing;
+      this.addRecord({
+        captureId: captureId ?? null,
+        model: this.config.model ?? "",
+        target: this.config.target ?? "",
+        imageSize: decoded.byteLength,
+        imageHash: simpleHash(decoded),
+        status: "cache_hit",
+        httpStatus: null,
+        latencyMs: 0,
+        description: desc,
+        error: null,
+      });
+      return {
+        description: wrapDescription(desc),
+        cacheHit: true,
+        cacheMiss: false,
+        visionCall: false,
+        latencyMs: 0,
+      };
+    }
+
     let cacheBytes: Uint8Array;
     try {
       const result = await transcodeImage(decoded, {
@@ -565,76 +621,6 @@ export class VisionHandoff {
 
     const imageHash = simpleHash(cacheBytes);
 
-    let cached: string;
-    try {
-      cached = this.cache.getOrCompute(
-        cacheBytes,
-        recipe,
-        ENCODER_VERSION,
-        this.config.model ?? "",
-        this.config.promptVersion,
-        () => {
-          throw CACHE_MISS;
-        },
-      );
-    } catch (err) {
-      if (err !== CACHE_MISS) throw err;
-      cached = "";
-    }
-    if (cached !== "") {
-      this.addRecord({
-        captureId: captureId ?? null,
-        model: this.config.model ?? "",
-        target: this.config.target ?? "",
-        imageSize: cacheBytes.byteLength,
-        imageHash,
-        status: "cache_hit",
-        httpStatus: null,
-        latencyMs: 0,
-        description: cached,
-        error: null,
-      });
-      return {
-        description: wrapDescription(cached),
-        cacheHit: true,
-        cacheMiss: false,
-        visionCall: false,
-        latencyMs: 0,
-      };
-    }
-
-    const cacheKey = descriptionCacheKey(
-      cacheBytes,
-      recipe,
-      ENCODER_VERSION,
-      this.config.model ?? "",
-      this.config.promptVersion,
-    );
-
-    const existing = this.inflight.get(cacheKey);
-    if (existing) {
-      const desc = await existing;
-      this.addRecord({
-        captureId: captureId ?? null,
-        model: this.config.model ?? "",
-        target: this.config.target ?? "",
-        imageSize: cacheBytes.byteLength,
-        imageHash,
-        status: "cache_hit",
-        httpStatus: null,
-        latencyMs: 0,
-        description: desc,
-        error: null,
-      });
-      return {
-        description: wrapDescription(desc),
-        cacheHit: true,
-        cacheMiss: false,
-        visionCall: false,
-        latencyMs: 0,
-      };
-    }
-
     const startedAt = Date.now();
     const visionDbId = this.db?.insertVisionCapture({
       $method: "POST",
@@ -664,8 +650,10 @@ export class VisionHandoff {
     const start = Date.now();
     const visionPromise = (async () => {
       const result = await this.callVisionRecorded(cacheBytes, signal);
+      // Store the computed description under the original decoded bytes key so
+      // that later cache-only lookups can find it without transcoding.
       const stored = this.cache.getOrCompute(
-        cacheBytes,
+        decoded,
         recipe,
         ENCODER_VERSION,
         this.config.model ?? "",

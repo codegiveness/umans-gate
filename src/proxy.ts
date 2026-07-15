@@ -394,7 +394,6 @@ export function createProxyHandler(
               ? "Upstream inactivity timeout (300s)"
               : `Upstream unreachable — ${err.message}`,
         });
-        releasePermit();
         if (clientAborted) return new Response(null, { status: 499 });
         if (upstreamTimedOut)
           return new Response(`Gateway Timeout: ${err.message}`, { status: 504 });
@@ -433,7 +432,6 @@ export function createProxyHandler(
 
       if (!upstream.body) {
         queue.queueUpdate(capId, reqMeta, { ...doneRes(), $rb: "", $rs: 0 });
-        releasePermit();
         return new Response(null, { status: upstream.status, headers: outHeaders });
       }
 
@@ -491,7 +489,6 @@ export function createProxyHandler(
         } catch {
           // Non-critical: capture persistence failure must not block permit release
         }
-        releasePermit();
       };
       const capture = new TransformStream({
         transform(chunk: Uint8Array, controller) {

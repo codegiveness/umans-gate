@@ -24,6 +24,20 @@ export interface TranscodeResult {
 /** Error codes callers can branch on for fail-open behaviour. */
 export type TranscodeErrorCode = "unsupported" | "decode_failed" | "encode_failed" | "too_large";
 
+// Test-only instrumentation: counts invocations of transcodeImage so the
+// PERF-04 test suite can assert that cache-only fast-paths never transcode.
+let transcodeCallCount = 0;
+
+/** @internal Returns the number of transcodeImage calls since last reset. */
+export function getTranscodeCallCount(): number {
+  return transcodeCallCount;
+}
+
+/** @internal Resets the transcodeImage call counter. */
+export function resetTranscodeCallCount(): void {
+  transcodeCallCount = 0;
+}
+
 /**
  * Typed error thrown by {@link transcodeImage}. Callers should catch this
  * and treat the image as un-transcodable (fail-open) rather than crashing.
@@ -75,6 +89,7 @@ export async function transcodeImage(
   imageBytes: Uint8Array,
   opts: TranscodeOptions = { maxDimension: 1024, quality: 85 },
 ): Promise<TranscodeResult> {
+  transcodeCallCount++;
   const img = new Bun.Image(imageBytes, { maxPixels: 50_000_000 });
   try {
     await img.metadata();

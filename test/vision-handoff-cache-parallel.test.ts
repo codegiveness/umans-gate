@@ -1,7 +1,7 @@
 // TDD tests for PERF-04: parallelize vision cache-only checks.
-// These tests verify that processBodyCacheOnly processes images concurrently
-// (via Promise.allSettled) and correctly handles all-hit, mixed, and
-// error scenarios.
+// These tests verify that processBodyCacheOnly checks the cache from the
+// original decoded bytes before any transcoding, fails fast on any miss,
+// and never calls transcodeImage when all images are cache hits.
 //
 // Run: bun test test/vision-handoff-cache-parallel.test.ts
 
@@ -15,6 +15,7 @@ import { DescriptionCache } from "../src/vision/cache.js";
 import { VisionHandoff } from "../src/vision/handoff.js";
 import type { VisionConfig } from "../src/vision/handoff.js";
 import { PersistentDescriptionStore } from "../src/vision/persistent-cache.js";
+import { getTranscodeCallCount, resetTranscodeCallCount } from "../src/vision/transcode.js";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -332,6 +333,58 @@ describe("processBodyCacheOnly parallel behavior (PERF-04)", () => {
 
     // Wait for background processing.
     await new Promise((r) => setTimeout(r, 500));
+
+    visionServer.stop(true);
+  });
+
+  test("all cache hits do NOT call transcodeImage", async () => {
+    const images = [RED_PNG_B64, BLUE_PNG_B64];
+    const descriptions = ["Red pixel.", "Blue pixel."];
+
+    let visionCallIdx = 0;
+    const visionServer = Bun.serve({
+      port: 0,
+      async fetch() {
+        const desc = descriptions[visionCallIdx] ?? "fallback";
+        visionCallIdx++;
+        return Response.json({
+          id: "chatcmpl-mock",
+          object: "chat.completion",
+          created: Math.floor(Date.now() / 1000),
+          model: "umans-flash",
+          choices: [
+            {
+              index: 0,
+              message: { role: "assistant", content: desc },
+              finish_reason: "stop",
+            },
+          ],
+          usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
+        });
+      },
+    });
+
+    const config = makeConfig({
+      target: `http://127.0.0.1:${visionServer.port}`,
+      backgroundVision: false,
+    });
+    const handoff = new VisionHandoff(config, cache, null, undefined, db);
+    const body = makeAnthropicBody(...images);
+
+    // Phase 1: populate cache via processBody (transcodes + caches).
+    const result1 = await handoff.processBody(body, "anthropic");
+    expect(result1.changed).toBe(true);
+    expect(result1.stats.visionCalls).toBe(2);
+
+    // Phase 2: cache-only must NOT call transcodeImage.
+    resetTranscodeCallCount();
+
+    const result2 = await handoff.processBodyCacheOnly(body, "anthropic");
+
+    expect(result2.changed).toBe(true);
+    expect(result2.stats.cacheHits).toBe(2);
+    expect(result2.stats.visionCalls).toBe(0);
+    expect(getTranscodeCallCount()).toBe(0);
 
     visionServer.stop(true);
   });
