@@ -832,31 +832,45 @@ export class VisionHandoff {
     let permit: { release: () => void } | null = null;
     let response: Response;
     try {
-      permit = await this.gate.acquire({
-        intention: "vision",
-        weight: this.config.visionWeight,
-        signal,
-      });
-      response = await fetch(target, {
-        method: "POST",
-        headers,
-        body: requestBody,
-        signal,
-      });
-    } catch (err) {
-      if (permit) permit.release();
-      const elapsed = Date.now() - visionStart;
-      if (err instanceof DOMException && err.name === "AbortError") {
-        log.warn(`callVision ABORTED after ${elapsed}ms (client disconnect)`, {
-          model,
-          target,
-          imgSize: imageBytes.byteLength,
+      try {
+        permit = await this.gate.acquire({
+          intention: "vision",
+          weight: this.config.visionWeight,
+          signal,
         });
+        response = await fetch(target, {
+          method: "POST",
+          headers,
+          body: requestBody,
+          signal,
+        });
+      } catch (err) {
+        const elapsed = Date.now() - visionStart;
+        if (err instanceof DOMException && err.name === "AbortError") {
+          log.warn(`callVision ABORTED after ${elapsed}ms (client disconnect)`, {
+            model,
+            target,
+            imgSize: imageBytes.byteLength,
+          });
+          return {
+            description: failurePlaceholder("aborted", "client disconnected"),
+            status: "aborted",
+            httpStatus: null,
+            error: "client disconnected",
+            requestBody,
+            requestHeaders,
+            responseBody: "",
+            responseHeaders: "{}",
+            usage: null,
+          };
+        }
+        const errMsg = err instanceof Error ? err.message : String(err);
+        log.error(`callVision FETCH ERROR after ${elapsed}ms: ${errMsg}`, { model, target });
         return {
-          description: failurePlaceholder("aborted", "client disconnected"),
-          status: "aborted",
+          description: failurePlaceholder("generic", "vision fetch failed"),
+          status: "fetch_error",
           httpStatus: null,
-          error: "client disconnected",
+          error: errMsg,
           requestBody,
           requestHeaders,
           responseBody: "",
@@ -864,98 +878,86 @@ export class VisionHandoff {
           usage: null,
         };
       }
-      const errMsg = err instanceof Error ? err.message : String(err);
-      log.error(`callVision FETCH ERROR after ${elapsed}ms: ${errMsg}`, { model, target });
-      return {
-        description: failurePlaceholder("generic", "vision fetch failed"),
-        status: "fetch_error",
-        httpStatus: null,
-        error: errMsg,
-        requestBody,
-        requestHeaders,
-        responseBody: "",
-        responseHeaders: "{}",
-        usage: null,
-      };
-    }
-    permit.release();
 
-    const elapsed = Date.now() - visionStart;
-    const resHeadersJson = JSON.stringify(headersToObject(response.headers));
-    const rawBody = await response.text().catch(() => "");
-    if (!response.ok) {
-      log.error(`callVision HTTP ${response.status} after ${elapsed}ms`, {
+      const elapsed = Date.now() - visionStart;
+      const resHeadersJson = JSON.stringify(headersToObject(response.headers));
+      const rawBody = await response.text().catch(() => "");
+      if (!response.ok) {
+        log.error(`callVision HTTP ${response.status} after ${elapsed}ms`, {
+          model,
+          target,
+          imgSize: imageBytes.byteLength,
+          body: rawBody.slice(0, 300),
+        });
+        return {
+          description: failurePlaceholder("http_status", String(response.status)),
+          status: "http_error",
+          httpStatus: response.status,
+          error: rawBody.slice(0, 500) || `HTTP ${response.status}`,
+          requestBody,
+          requestHeaders,
+          responseBody: rawBody,
+          responseHeaders: resHeadersJson,
+          usage: null,
+        };
+      }
+
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(rawBody);
+      } catch {
+        log.error(`callVision PARSE ERROR after ${elapsed}ms — response not valid JSON`, { model });
+        return {
+          description: failurePlaceholder("parse", ""),
+          status: "parse_error",
+          httpStatus: response.status,
+          error: "response not valid JSON",
+          requestBody,
+          requestHeaders,
+          responseBody: rawBody,
+          responseHeaders: resHeadersJson,
+          usage: null,
+        };
+      }
+
+      const text = extractOpenAIContent(parsed);
+      if (!text) {
+        log.error(
+          `callVision EMPTY response after ${elapsed}ms — choices[0].message.content missing or empty`,
+          { model },
+        );
+        return {
+          description: failurePlaceholder("empty", ""),
+          status: "empty",
+          httpStatus: response.status,
+          error: "choices[0].message.content missing or empty",
+          requestBody,
+          requestHeaders,
+          responseBody: rawBody,
+          responseHeaders: resHeadersJson,
+          usage: null,
+        };
+      }
+      log.info(`callVision OK in ${elapsed}ms`, {
         model,
-        target,
         imgSize: imageBytes.byteLength,
-        body: rawBody.slice(0, 300),
+        descLen: text.length,
       });
+      const usage = extractOpenAiNonStreaming(parsed, elapsed);
       return {
-        description: failurePlaceholder("http_status", String(response.status)),
-        status: "http_error",
+        description: text,
+        status: "ok",
         httpStatus: response.status,
-        error: rawBody.slice(0, 500) || `HTTP ${response.status}`,
+        error: null,
         requestBody,
         requestHeaders,
         responseBody: rawBody,
         responseHeaders: resHeadersJson,
-        usage: null,
+        usage,
       };
+    } finally {
+      permit?.release();
     }
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(rawBody);
-    } catch {
-      log.error(`callVision PARSE ERROR after ${elapsed}ms — response not valid JSON`, { model });
-      return {
-        description: failurePlaceholder("parse", ""),
-        status: "parse_error",
-        httpStatus: response.status,
-        error: "response not valid JSON",
-        requestBody,
-        requestHeaders,
-        responseBody: rawBody,
-        responseHeaders: resHeadersJson,
-        usage: null,
-      };
-    }
-
-    const text = extractOpenAIContent(parsed);
-    if (!text) {
-      log.error(
-        `callVision EMPTY response after ${elapsed}ms — choices[0].message.content missing or empty`,
-        { model },
-      );
-      return {
-        description: failurePlaceholder("empty", ""),
-        status: "empty",
-        httpStatus: response.status,
-        error: "choices[0].message.content missing or empty",
-        requestBody,
-        requestHeaders,
-        responseBody: rawBody,
-        responseHeaders: resHeadersJson,
-        usage: null,
-      };
-    }
-    log.info(`callVision OK in ${elapsed}ms`, {
-      model,
-      imgSize: imageBytes.byteLength,
-      descLen: text.length,
-    });
-    const usage = extractOpenAiNonStreaming(parsed, elapsed);
-    return {
-      description: text,
-      status: "ok",
-      httpStatus: response.status,
-      error: null,
-      requestBody,
-      requestHeaders,
-      responseBody: rawBody,
-      responseHeaders: resHeadersJson,
-      usage,
-    };
   }
 }
 
