@@ -190,4 +190,34 @@ describe("proxy streaming/SSE characterization", () => {
     expect(cap!.ttft_ms).not.toBeNull();
     expect(cap!.ttft_ms! > 0).toBe(true);
   });
+
+  test("permit is released even when streaming response body is discarded", async () => {
+    const path = "/v1/messages";
+    const reqBody = {
+      model: "claude-sonnet-4-5",
+      max_tokens: 50,
+      stream: true,
+      messages: [{ role: "user", content: "Discard body test" }],
+    };
+
+    // Regression: discard the streaming response without consuming the body.
+    // Default concurrency hard cap is 1, so a leaked permit would block the next request.
+    const first = await fetch(`${proxy.baseUrl}${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(reqBody),
+    });
+    expect(first.status).toBe(200);
+
+    const second = await fetch(`${proxy.baseUrl}${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ...reqBody, messages: [{ role: "user", content: "Second after discard" }] }),
+    });
+    expect(second.status).toBe(200);
+
+    const body = await second.text();
+    expect(body).toContain("event: message_start");
+    expect(body).toContain("event: message_stop");
+  });
 });

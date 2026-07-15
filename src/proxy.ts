@@ -343,56 +343,65 @@ export function createProxyHandler(
       });
     }
 
-    // --- Forward upstream ---
-    let upstream: Response;
-    try {
-      const upstreamSignal = AbortSignal.any([
-        req.signal,
-        AbortSignal.timeout(config.upstreamTimeoutMs),
-      ]);
-      upstream = await fetch(finalTargetUrl, {
-        method: req.method,
-        headers: fwdHeaders,
-        body: reqBuf && reqBuf.byteLength > 0 ? (reqBuf as BodyInit) : undefined,
-        protocol: config.upstreamProtocol as unknown as never,
-        signal: upstreamSignal,
-      });
-    } catch (e) {
-      const err = e as Error;
-      const clientAborted = err.name === "AbortError" && req.signal.aborted;
-      const upstreamTimedOut =
-        err.name === "TimeoutError" || (err.name === "AbortError" && !req.signal.aborted);
-      const status = clientAborted ? 499 : upstreamTimedOut ? 504 : 502;
-      queue.queueUpdate(capId, reqMeta, {
-        $status: status,
-        $rh: JSON.stringify({
-          error: clientAborted
-            ? "client_disconnected"
-            : upstreamTimedOut
-              ? "upstream_timeout"
-              : String(err),
-        }),
-        $rb: clientAborted ? "" : `Upstream error: ${err.message}`,
-        $rs: 0,
-        $ct: "text/plain",
-        $sse: 0,
-        $dur: Date.now() - startedAt,
-        $fin: Date.now(),
-        $status_source: "gate",
-        $gate_reason: clientAborted
-          ? "Client disconnected during upstream request"
-          : upstreamTimedOut
-            ? "Upstream inactivity timeout (300s)"
-            : `Upstream unreachable — ${err.message}`,
-      });
-      permit?.release();
-      if (clientAborted) return new Response(null, { status: 499 });
-      if (upstreamTimedOut) return new Response(`Gateway Timeout: ${err.message}`, { status: 504 });
-      return new Response(`Bad Gateway: ${err.message}`, { status: 502 });
-    }
+    let permitReleased = false;
+    const releasePermit = (): void => {
+      if (permit && !permitReleased) {
+        permitReleased = true;
+        permit.release();
+      }
+    };
 
-    // --- Classify 429: only concurrency-429s trip the breaker ---
     try {
+      // --- Forward upstream ---
+      let upstream: Response;
+      try {
+        const upstreamSignal = AbortSignal.any([
+          req.signal,
+          AbortSignal.timeout(config.upstreamTimeoutMs),
+        ]);
+        upstream = await fetch(finalTargetUrl, {
+          method: req.method,
+          headers: fwdHeaders,
+          body: reqBuf && reqBuf.byteLength > 0 ? (reqBuf as BodyInit) : undefined,
+          protocol: config.upstreamProtocol as unknown as never,
+          signal: upstreamSignal,
+        });
+      } catch (e) {
+        const err = e as Error;
+        const clientAborted = err.name === "AbortError" && req.signal.aborted;
+        const upstreamTimedOut =
+          err.name === "TimeoutError" || (err.name === "AbortError" && !req.signal.aborted);
+        const status = clientAborted ? 499 : upstreamTimedOut ? 504 : 502;
+        queue.queueUpdate(capId, reqMeta, {
+          $status: status,
+          $rh: JSON.stringify({
+            error: clientAborted
+              ? "client_disconnected"
+              : upstreamTimedOut
+                ? "upstream_timeout"
+                : String(err),
+          }),
+          $rb: clientAborted ? "" : `Upstream error: ${err.message}`,
+          $rs: 0,
+          $ct: "text/plain",
+          $sse: 0,
+          $dur: Date.now() - startedAt,
+          $fin: Date.now(),
+          $status_source: "gate",
+          $gate_reason: clientAborted
+            ? "Client disconnected during upstream request"
+            : upstreamTimedOut
+              ? "Upstream inactivity timeout (300s)"
+              : `Upstream unreachable — ${err.message}`,
+        });
+        releasePermit();
+        if (clientAborted) return new Response(null, { status: 499 });
+        if (upstreamTimedOut)
+          return new Response(`Gateway Timeout: ${err.message}`, { status: 504 });
+        return new Response(`Bad Gateway: ${err.message}`, { status: 502 });
+      }
+
+      // --- Classify 429: only concurrency-429s trip the breaker ---
       if (upstream.status === 429) {
         gate.record429(classify429(upstream));
       } else if (upstream.status < 400) {
@@ -424,7 +433,7 @@ export function createProxyHandler(
 
       if (!upstream.body) {
         queue.queueUpdate(capId, reqMeta, { ...doneRes(), $rb: "", $rs: 0 });
-        permit?.release();
+        releasePermit();
         return new Response(null, { status: upstream.status, headers: outHeaders });
       }
 
@@ -482,7 +491,7 @@ export function createProxyHandler(
         } catch {
           // Non-critical: capture persistence failure must not block permit release
         }
-        permit?.release();
+        releasePermit();
       };
       const capture = new TransformStream({
         transform(chunk: Uint8Array, controller) {
@@ -558,11 +567,12 @@ export function createProxyHandler(
         $status_source: "gate",
         $gate_reason: `Internal proxy error — ${(err as Error).message}`,
       });
-      permit?.release();
       return new Response(
         JSON.stringify({ error: "internal_error", message: (err as Error).message }),
         { status: 500, headers: { "content-type": "application/json" } },
       );
+    } finally {
+      releasePermit();
     }
   }
 
