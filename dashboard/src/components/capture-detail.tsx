@@ -1,4 +1,4 @@
-import { AlertCircle, Clock, Copy, RotateCcw, ScanSearch } from "lucide-react";
+import { AlertCircle, Check, Clock, Copy, RotateCcw, ScanSearch } from "lucide-react";
 import { Suspense, lazy, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -67,7 +67,7 @@ export function CaptureDetailPanel({
   }
 
   const sourceMap = useMemo(() => {
-    if (!capture) return {} as Record<TabValue, string>;
+    if (!capture) return {} as Record<TabValue, string | null>;
     return {
       response: capture.response_body,
       request: capture.request_body,
@@ -102,8 +102,12 @@ export function CaptureDetailPanel({
 
   if (isLoading) {
     return (
-      <main aria-label="Capture detail" className="flex flex-1 flex-col overflow-hidden">
-        <Loader />
+      <main
+        aria-label="Capture detail"
+        className="flex flex-1 flex-col items-center justify-center gap-3 overflow-hidden"
+      >
+        <Loader className="h-auto" />
+        <p className="text-xs text-muted-foreground">Loading capture…</p>
       </main>
     );
   }
@@ -112,7 +116,7 @@ export function CaptureDetailPanel({
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-3 overflow-y-auto p-8 text-center text-muted-foreground">
         <AlertCircle className="h-12 w-12 text-destructive" />
-        <p className="text-sm font-medium text-destructive">Something went wrong</p>
+        <p className="text-sm font-medium text-destructive">Couldn&apos;t load this capture</p>
         <p className="text-xs">{detailError}</p>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -149,7 +153,11 @@ export function CaptureDetailPanel({
           <Tooltip>
             <TooltipTrigger asChild>
               <Button size="sm" variant="outline" className="shrink-0" onClick={handleCopy}>
-                <Copy className="mr-1.5 h-3.5 w-3.5" />
+                {copyStatus === "copied" ? (
+                  <Check className="mr-1.5 h-3.5 w-3.5" />
+                ) : (
+                  <Copy className="mr-1.5 h-3.5 w-3.5" />
+                )}
                 {copyLabel}
               </Button>
             </TooltipTrigger>

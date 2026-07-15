@@ -4,6 +4,7 @@
 import { Database } from "bun:sqlite";
 import { compressText, decompressText } from "./compress.js";
 import { accountCaptureUsage, backfillFromCaptures, migrateEconomicsSchema } from "./economics.js";
+import { createLogger } from "./logger.js";
 import type { CaptureRow, CaptureState, ProxyConfig } from "./types.js";
 import {
   LATEST_N_PER_MODEL_VIEW,
@@ -273,6 +274,7 @@ export function migrateCaptureSchema(db: Database): void {
 
 /** Capture database — wraps a bun:sqlite Database with prepared statements. */
 export class CaptureDB {
+  private static readonly log = createLogger("db");
   private db: Database;
   private stmtInsert: ReturnType<Database["prepare"]>;
   private stmtUpdate: ReturnType<Database["prepare"]>;
@@ -502,10 +504,23 @@ export class CaptureDB {
   get(id: number): CaptureRow | null {
     const raw = this.stmtGet.get({ $id: id }) as Record<string, unknown> | undefined;
     if (!raw) return null;
-    raw.request_headers = decompressText(raw.request_headers as string | Uint8Array | null);
-    raw.request_body = decompressText(raw.request_body as string | Uint8Array | null);
-    raw.response_headers = decompressText(raw.response_headers as string | Uint8Array | null);
-    raw.response_body = decompressText(raw.response_body as string | Uint8Array | null);
+    const fields: Array<keyof CaptureRow> = [
+      "request_headers",
+      "request_body",
+      "response_headers",
+      "response_body",
+    ];
+    for (const field of fields) {
+      const original = raw[field] as string | Uint8Array | null;
+      const decompressed = decompressText(original);
+      if (decompressed === null && original !== null) {
+        CaptureDB.log.warn("decompression returned null for corrupted body", {
+          captureId: id,
+          field,
+        });
+      }
+      raw[field] = decompressed;
+    }
     return raw as unknown as CaptureRow;
   }
 

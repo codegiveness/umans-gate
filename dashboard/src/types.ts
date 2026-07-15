@@ -103,10 +103,10 @@ export interface ModelsResponse {
 
 export interface CaptureDetail extends CaptureSummary {
   url: string;
-  request_headers: string;
-  request_body: string;
-  response_headers: string;
-  response_body: string;
+  request_headers: string | null;
+  request_body: string | null;
+  response_headers: string | null;
+  response_body: string | null;
 }
 
 export type BreakerState = "closed" | "open" | "half_open";

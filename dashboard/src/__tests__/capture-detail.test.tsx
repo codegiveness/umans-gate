@@ -8,17 +8,21 @@ import type { CaptureDetail } from "@/types";
 
 // Mock heavy child viewers to keep the test focused on panel transitions.
 vi.mock("@/components/json-viewer", () => ({
-  JsonViewer: ({ body }: { body: string }) => <div data-testid="json-viewer">{body}</div>,
+  JsonViewer: ({ body }: { body: string | null }) => (
+    <div data-testid="json-viewer">{body ?? "null"}</div>
+  ),
 }));
 
 vi.mock("@/components/headers-viewer", () => ({
-  HeadersViewer: ({ headers }: { headers: string }) => (
-    <div data-testid="headers-viewer">{headers}</div>
+  HeadersViewer: ({ headers }: { headers: string | null }) => (
+    <div data-testid="headers-viewer">{headers ?? "null"}</div>
   ),
 }));
 
 vi.mock("@/components/sse-viewer", () => ({
-  SseViewer: ({ body }: { body: string }) => <div data-testid="sse-viewer">{body}</div>,
+  SseViewer: ({ body }: { body: string | null }) => (
+    <div data-testid="sse-viewer">{body ?? "null"}</div>
+  ),
 }));
 
 vi.mock("@/components/ui/scroll-area", () => ({
@@ -101,7 +105,7 @@ describe("CaptureDetailPanel transitions", () => {
       />,
     );
 
-    expect(screen.getByText("Something went wrong")).toBeInTheDocument();
+    expect(screen.getByText("Couldn't load this capture")).toBeInTheDocument();
     expect(screen.getByText("HTTP 500 Internal Server Error")).toBeInTheDocument();
 
     // Retry button should call onRetry
@@ -242,5 +246,28 @@ describe("CaptureDetailPanel transitions", () => {
     );
 
     expect(screen.getByText("live")).toBeInTheDocument();
+  });
+
+  it("renders empty body placeholder when response_body is null", async () => {
+    const capture = makeCapture({ response_body: null });
+
+    render(
+      <CaptureDetailPanel capture={capture} isLoading={false} detailError={null} {...baseProps} />,
+    );
+    await flushEffects();
+
+    expect(screen.getByText("empty body")).toBeInTheDocument();
+  });
+
+  it("renders empty body placeholder when request_body is null", async () => {
+    const capture = makeCapture({ request_body: null });
+
+    render(
+      <CaptureDetailPanel capture={capture} isLoading={false} detailError={null} {...baseProps} />,
+    );
+    await flushEffects();
+
+    await userEvent.setup().click(screen.getByRole("tab", { name: "Request Body" }));
+    expect(screen.getByText("empty body")).toBeInTheDocument();
   });
 });
