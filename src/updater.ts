@@ -141,7 +141,7 @@ function platformAssetName(): string | null {
  * Download and replace the standalone binary from GitHub Releases.
  * The service must be stopped before calling this (done by the CLI update command).
  */
-async function downloadAndReplaceStandaloneBinary(_latestVersion: string): Promise<void> {
+export async function downloadAndReplaceStandaloneBinary(_latestVersion: string): Promise<void> {
   const release = await fetchLatestRelease();
   if (!release) {
     console.error("Could not fetch release assets from GitHub.");
