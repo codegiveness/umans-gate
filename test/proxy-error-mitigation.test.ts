@@ -226,6 +226,14 @@ test(
 
       await sleep(300);
 
+      // Regression: assert the concurrency gate fully drained the permit after
+      // the client aborted mid-stream. A leak would leave active=1 with cap 1.
+      const metricsRes = await fetch(`${proxy.baseUrl}/metrics`);
+      const metricsBody = await metricsRes.text();
+      const activeMatch = metricsBody.match(/umans_gate_gate_active\s+(\d+)/);
+      expect(activeMatch).not.toBeNull();
+      expect(Number(activeMatch![1])).toBe(0);
+
       const r2 = await fetch(`${proxy.baseUrl}/v1/messages`, {
         method: "POST",
         headers: { "content-type": "application/json" },
