@@ -18,6 +18,38 @@ import { dirname, join } from "node:path";
 
 const GITHUB_API = "https://api.github.com/repos/codegiveness/umans-gate/releases/latest";
 
+const SHA256SUMS_ASSET = "SHA256SUMS";
+
+/**
+ * Parse a SHA256SUMS file (standard `sha256sum` output) and return the
+ * hex digest for the given asset name.
+ *
+ * Each line is expected to be `<64-char hex digest>  <filename>` (text mode)
+ * or `<64-char hex digest> *<filename>` (binary mode).
+ * Returns `null` if the asset is not found or the file is malformed.
+ */
+export function parseSha256Sums(sums: string, assetName: string): string | null {
+  const lines = sums.split("\n");
+  for (const line of lines) {
+    // Match: <64 hex chars> <separator> <filename>
+    // Separator is two spaces (text mode) or space+asterisk (binary mode)
+    const match = /^([0-9a-fA-F]{64})\s+\*?(.+)$/.exec(line.trim());
+    if (!match) continue;
+    const [, digest, name] = match;
+    if (name === assetName) {
+      return digest.toLowerCase();
+    }
+  }
+  return null;
+}
+
+/** Compute the SHA-256 hex digest of the given data. */
+export function computeSha256(data: Uint8Array | ArrayBuffer): string {
+  const hasher = new Bun.CryptoHasher("sha256");
+  hasher.update(data);
+  return hasher.digest("hex");
+}
+
 interface GithubRelease {
   tag_name: string;
   assets: Array<{ name: string; browser_download_url: string; size: number }>;
@@ -145,6 +177,38 @@ async function downloadAndReplaceStandaloneBinary(_latestVersion: string): Promi
     console.error(`Download size mismatch: expected ${asset.size}, got ${buffer.byteLength}`);
     process.exit(1);
   }
+
+  const sumsAsset = release.assets.find((a) => a.name === SHA256SUMS_ASSET);
+  if (!sumsAsset) {
+    console.error("SHA256SUMS asset not found in release. Aborting for safety.");
+    process.exit(1);
+  }
+
+  const sumsResp = await fetch(sumsAsset.browser_download_url, {
+    headers: { "User-Agent": "umans-gate-updater" },
+  });
+  if (!sumsResp.ok) {
+    console.error(`Failed to download SHA256SUMS: HTTP ${sumsResp.status}`);
+    process.exit(1);
+  }
+
+  const sumsText = await sumsResp.text();
+  const expectedDigest = parseSha256Sums(sumsText, assetName);
+  if (!expectedDigest) {
+    console.error(`Could not find "${assetName}" in SHA256SUMS. Aborting for safety.`);
+    process.exit(1);
+  }
+
+  const actualDigest = computeSha256(buffer);
+  if (actualDigest !== expectedDigest) {
+    console.error("SHA-256 checksum mismatch!");
+    console.error(`  Expected: ${expectedDigest}`);
+    console.error(`  Actual:   ${actualDigest}`);
+    console.error("The downloaded binary may be corrupted or tampered with. Aborting.");
+    process.exit(1);
+  }
+
+  console.log("Checksum verified.");
 
   // Write to temp file, then replace
   const oldPath = process.execPath;
