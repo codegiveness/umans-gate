@@ -7,14 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-07-16
+
 ### Added
 
+- **Dashboard token authentication** (SEC-NEW-1): when `DASHBOARD_TOKEN` is set,
+  all `/dashboard/api/*` routes, `/health`, and `/metrics` require
+  `Authorization: Bearer <token>`. WebSocket upgrades require `?token=<token>`.
+  Includes constant-time token comparison and sliding-window auth-failure rate
+  limiting to resist brute-force attacks. When unset, all endpoints remain open
+  (backward compatible).
+- **Standalone binary checksum verification** (SEC-03): binary updates are now
+  verified against `SHA256SUMS` before replacement. Integration tests cover both
+  the checksum-mismatch rejection path and the successful verification path.
 - **PR canary npm publish workflow**: pull requests to `master` now automatically
   publish a canary npm package tagged `canary` (not `latest`) with version
   `{base}-pr.{number}.{short_sha}`. The published package matches the release
   structure: a main shim with optional platform-specific binary packages so it
   runs without Bun. A PR comment with the install command is posted and
   auto-updated on each push. Fork PRs are skipped for security.
+
+### Fixed
+
+- **Remove API key forwarding to upstream `/v1/models`** (SEC-01): the API key
+  is no longer sent to the upstream `/v1/models` endpoint, preventing unintended
+  credential exposure.
+- **Vision handoff permit release** (BUG-01): the vision handoff permit is now
+  released in a `finally` block, ensuring it is always returned to the
+  concurrency gate even when processing rejects. The proxy permit lifecycle was
+  refactored with a guarded release helper to prevent permit leaks on
+  mid-stream aborts.
+- **Capture body decompression failure** (BUG-02): hardened the decompression
+  failure path with warnings that include the original byte length, and the
+  dashboard now renders a null-safe placeholder for corrupted bodies instead of
+  crashing.
+
+### Changed
+
+- **Config module decomposition**: the monolithic `config.ts` has been decomposed
+  into focused sub-modules (`config/defaults.ts`, `config/loader.ts`,
+  `config/reload.ts`, `config/types.ts`, `config/validation.ts`) with a barrel
+  re-export from `config.ts` for backward compatibility.
+- **CI workflow bumps**: `actions/checkout` bumped to v7 across all workflows.
+
+### Performance
+
+- **DB ring-buffer cleanup**: replaced `NOT IN` subquery with an indexed
+  `OFFSET`-based cleanup query, keeping 10k-row cleanup under 50ms.
+- **Vision cache parallelization**: `processBodyCacheOnly` now uses
+  `Promise.allSettled` for parallel image-description cache lookups.
+- **Vision transcoding optimization**: skip transcoding on cache-only hits and
+  fail fast on cache miss to avoid unnecessary image processing.
 
 ## [0.1.7] - 2026-07-15
 

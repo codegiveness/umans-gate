@@ -109,6 +109,7 @@ export class DescriptionCache {
     modelId: string,
     promptVersion: number,
     compute: () => string,
+    isCacheable?: (value: string) => boolean,
   ): string {
     const key = descriptionCacheKey(bytes, recipe, encoderVersion, modelId, promptVersion);
     if (this.cache.has(key)) {
@@ -130,19 +131,22 @@ export class DescriptionCache {
     }
 
     const value = compute();
-    this.cache.set(key, value);
     this.misses++;
 
-    if (this.persistent) {
-      const imageHash = imageCacheKey(bytes, recipe, encoderVersion);
-      this.persistent.set({
-        key,
-        description: value,
-        imageHash,
-        model: modelId,
-        promptVersion,
-      });
-      this.persistentWrites++;
+    const cacheable = !isCacheable || isCacheable(value);
+    if (cacheable) {
+      this.cache.set(key, value);
+      if (this.persistent) {
+        const imageHash = imageCacheKey(bytes, recipe, encoderVersion);
+        this.persistent.set({
+          key,
+          description: value,
+          imageHash,
+          model: modelId,
+          promptVersion,
+        });
+        this.persistentWrites++;
+      }
     }
     return value;
   }

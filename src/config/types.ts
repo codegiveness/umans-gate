@@ -23,6 +23,8 @@ export interface RawConfig {
   warmer_enabled?: boolean;
   warmer_interval_ms?: number;
   umans_api_key?: string;
+  /** Optional bearer token for dashboard API authentication. When set, all dashboard API requests must include `Authorization: Bearer <token>`. */
+  dashboard_token?: string;
   usage_refresh_ms?: number;
   models_refresh_ms?: number;
   concurrency_hard_cap?: number;

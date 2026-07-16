@@ -14,6 +14,7 @@ const DEFAULT_CONFIG: RawConfig = {
   warmer_enabled: true,
   warmer_interval_ms: 20000,
   umans_api_key: "",
+  dashboard_token: "",
   usage_refresh_ms: 60000,
   models_refresh_ms: 3600000,
   concurrency_hard_cap: 1,

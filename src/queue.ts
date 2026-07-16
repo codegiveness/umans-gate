@@ -28,6 +28,7 @@ export interface CaptureStore {
 export class WriteQueue {
   private queue: QueuedUpdate[] = [];
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
+  private flushing: Promise<void> | null = null;
   private readonly flushIntervalMs: number;
   private readonly flushBatch: number;
   private readonly queueMaxDepth: number;
@@ -52,46 +53,52 @@ export class WriteQueue {
   /** Queue a response metadata update for a capture. */
   queueUpdate(id: number, reqMeta: RequestMeta, res: ResponseMeta): void {
     this.queue.push({ id, reqMeta, res });
-    if (this.queue.length >= this.flushBatch) {
-      if (this.flushTimer) {
-        clearTimeout(this.flushTimer);
-        this.flushTimer = null;
-      }
-      void this.flushNow().catch((err) => {
-        logger.error("WriteQueue flush failed", {
-          error: err instanceof Error ? err.message : String(err),
-        });
-      });
-    } else if (!this.flushTimer) {
+    const shouldFlush =
+      this.queue.length >= this.flushBatch || this.queue.length >= this.queueMaxDepth;
+    if (!shouldFlush && !this.flushTimer) {
       this.flushTimer = setTimeout(() => {
-        void this.flushNow().catch((err) => {
+        this.flushTimer = null;
+        void this.guardedFlush().catch((err) => {
           logger.error("WriteQueue flush failed", {
             error: err instanceof Error ? err.message : String(err),
           });
         });
       }, this.flushIntervalMs);
+      return;
     }
-    if (this.queue.length >= this.queueMaxDepth) {
-      if (this.flushTimer) {
-        clearTimeout(this.flushTimer);
-        this.flushTimer = null;
-      }
-      void this.flushNow().catch((err) => {
-        logger.error("WriteQueue flush failed", {
-          error: err instanceof Error ? err.message : String(err),
-        });
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = null;
+    }
+    void this.guardedFlush().catch((err) => {
+      logger.error("WriteQueue flush failed", {
+        error: err instanceof Error ? err.message : String(err),
       });
-      if (this.queue.length >= this.queueMaxDepth) {
-        const dropped = this.queue.shift();
-        this.droppedCount++;
-        logger.warn("WriteQueue overflow: dropped oldest entry", {
-          captureId: dropped?.id,
-          depth: this.queue.length,
-          maxDepth: this.queueMaxDepth,
-          totalDropped: this.droppedCount,
-        });
-      }
+    });
+    if (this.queue.length >= this.queueMaxDepth) {
+      const dropped = this.queue.shift();
+      this.droppedCount++;
+      logger.warn("WriteQueue overflow: dropped oldest entry", {
+        captureId: dropped?.id,
+        depth: this.queue.length,
+        maxDepth: this.queueMaxDepth,
+        totalDropped: this.droppedCount,
+      });
     }
+  }
+
+  private guardedFlush(): Promise<void> {
+    if (this.flushing) {
+      return this.flushing.then(() => {
+        if (this.queue.length > 0 && !this.flushing) {
+          return this.guardedFlush();
+        }
+      });
+    }
+    this.flushing = this.flushNow().finally(() => {
+      this.flushing = null;
+    });
+    return this.flushing;
   }
 
   get length(): number {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useCaptureDoneListener } from "@/hooks/use-capture-done-listener";
+import { apiFetch } from "@/lib/api";
 import { API_BASE } from "@/lib/constants";
 import type { EconomicsDailyRow, EconomicsSummaryResponse } from "@/types";
 
@@ -24,8 +25,8 @@ export function useEconomics(year: number, month: number): UseEconomicsResult {
     async (signal: AbortSignal) => {
       try {
         const [summaryRes, dailyRes] = await Promise.all([
-          fetch(`${API_BASE}/economics/summary?year=${year}&month=${month}`, { signal }),
-          fetch(`${API_BASE}/economics/daily?limit=90`, { signal }),
+          apiFetch(`${API_BASE}/economics/summary?year=${year}&month=${month}`, { signal }),
+          apiFetch(`${API_BASE}/economics/daily?limit=90`, { signal }),
         ]);
         if (!summaryRes.ok) throw new Error(`HTTP ${summaryRes.status}`);
         if (!dailyRes.ok) throw new Error(`HTTP ${dailyRes.status}`);

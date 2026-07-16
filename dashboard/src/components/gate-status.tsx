@@ -30,11 +30,73 @@ const BreakerIcon: Record<string, typeof ShieldCheck> = {
   closed: ShieldCheck,
 };
 
+const LOW_SERVICE_MODES = ["low_interactivity", "low", "degraded", "boxed", "demoted"];
+
+function shortenServiceMode(mode: string): string {
+  return mode.startsWith("low_") ? "low" : mode;
+}
+
+function computeStatus(stats: GateStats): {
+  label: string;
+  variant: "default" | "secondary" | "outline" | "destructive";
+  className: string | undefined;
+  detail: string;
+} {
+  if (stats.boxed) {
+    return {
+      label: "boxed",
+      variant: "destructive",
+      className: undefined,
+      detail: stats.boxedReason ? `boxed: ${stats.boxedReason}` : "boxed by upstream",
+    };
+  }
+  if (stats.unitsDemoted) {
+    return {
+      label: "demoted",
+      variant: "destructive",
+      className: undefined,
+      detail: "units demoted by upstream",
+    };
+  }
+  const mode = stats.serviceMode.current;
+  if (mode !== "normal" && LOW_SERVICE_MODES.includes(mode)) {
+    return {
+      label: "low",
+      variant: "secondary",
+      className: badgeWarning,
+      detail: `service mode: ${mode}`,
+    };
+  }
+  if (mode !== "normal") {
+    return {
+      label: shortenServiceMode(mode),
+      variant: "secondary",
+      className: badgeInfo,
+      detail: `service mode: ${mode}`,
+    };
+  }
+  if (stats.priorityLow) {
+    return {
+      label: "low",
+      variant: "secondary",
+      className: badgeWarning,
+      detail: "priority low",
+    };
+  }
+  return {
+    label: "high",
+    variant: "secondary",
+    className: badgeSuccess,
+    detail: "priority high",
+  };
+}
+
 export function GateStatus({ stats }: { stats: GateStats | null }) {
   if (!stats) return null;
 
   const pct = stats.hardCap > 0 ? (stats.active / stats.hardCap) * 100 : 0;
   const tierLabel = stats.tier === "unknown" ? "no key" : stats.tier;
+  const status = computeStatus(stats);
 
   return (
     <div className="border-b border-border px-4 py-2 text-xs">
@@ -121,18 +183,13 @@ export function GateStatus({ stats }: { stats: GateStats | null }) {
         </div>
         <Tooltip>
           <TooltipTrigger render={<span className="inline-flex" />}>
-            <Badge
-              variant={stats.unitsDemoted ? "destructive" : "secondary"}
-              className={
-                stats.unitsDemoted ? undefined : stats.priorityLow ? badgeWarning : badgeSuccess
-              }
-            >
-              {stats.unitsDemoted ? "demoted" : stats.priorityLow ? "low" : "high"}
+            <Badge variant={status.variant} className={status.className}>
+              {status.label}
             </Badge>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="max-w-[260px]">
             <div className="space-y-1">
-              <p>Priority: {stats.unitsDemoted ? "demoted" : stats.priorityLow ? "low" : "high"}</p>
+              <p>{status.detail}</p>
               {stats.boxedReason !== null && (
                 <p className="text-muted-foreground">reason: {stats.boxedReason}</p>
               )}
@@ -144,21 +201,6 @@ export function GateStatus({ stats }: { stats: GateStats | null }) {
                   demoted until {fmtDateTime(stats.demotedUntil)}
                 </p>
               )}
-            </div>
-          </TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger render={<span className="inline-flex" />}>
-            <Badge
-              variant="secondary"
-              className={stats.serviceMode.current === "normal" ? badgeSuccess : badgeInfo}
-            >
-              {stats.serviceMode.current}
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className="max-w-[260px]">
-            <div className="space-y-1">
-              <p>Service mode: {stats.serviceMode.current}</p>
               {stats.serviceMode.resetsAt !== null && (
                 <p className="text-muted-foreground">
                   resets at {fmtDateTime(stats.serviceMode.resetsAt)}

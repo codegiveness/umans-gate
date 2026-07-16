@@ -248,7 +248,7 @@ describe("CaptureDetailPanel transitions", () => {
     expect(screen.getByText("live")).toBeInTheDocument();
   });
 
-  it("renders empty body placeholder when response_body is null", async () => {
+  it("renders corrupted body placeholder when response_body is null", async () => {
     const capture = makeCapture({ response_body: null });
 
     render(
@@ -256,10 +256,10 @@ describe("CaptureDetailPanel transitions", () => {
     );
     await flushEffects();
 
-    expect(screen.getByText("empty body")).toBeInTheDocument();
+    expect(screen.getByText("body corrupted or unavailable")).toBeInTheDocument();
   });
 
-  it("renders empty body placeholder when request_body is null", async () => {
+  it("renders corrupted body placeholder when request_body is null", async () => {
     const capture = makeCapture({ request_body: null });
 
     render(
@@ -268,6 +268,6 @@ describe("CaptureDetailPanel transitions", () => {
     await flushEffects();
 
     await userEvent.setup().click(screen.getByRole("tab", { name: "Request Body" }));
-    expect(screen.getByText("empty body")).toBeInTheDocument();
+    expect(screen.getByText("body corrupted or unavailable")).toBeInTheDocument();
   });
 });

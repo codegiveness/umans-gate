@@ -567,3 +567,152 @@ describe("Cache warming simulation (restart scenario)", () => {
     store2.close();
   });
 });
+
+describe("PersistentDescriptionStore close & transaction safety", () => {
+  let dbPath: string;
+  let db: CaptureDB;
+
+  beforeEach(() => {
+    dbPath = makeTmpDbPath();
+    db = makeCaptureDB(dbPath);
+  });
+
+  afterEach(() => {
+    db.close();
+    try {
+      unlinkSync(dbPath);
+    } catch {
+      // ignore
+    }
+  });
+
+  test("close() persists pending writes to SQLite", () => {
+    const store = new PersistentDescriptionStore(db, 60_000, 100);
+    const key = makeKey(Buffer.from("close-persist-bytes"));
+
+    store.set({
+      key,
+      description: "Persisted on close.",
+      imageHash: imageCacheKey(Buffer.from("close-persist-bytes"), RECIPE, ENCODER_V2),
+      model: MODEL,
+      promptVersion: PV,
+    });
+
+    store.close();
+
+    const row = db.getVisionDescription(key);
+    expect(row).not.toBeNull();
+    expect(row?.description).toBe("Persisted on close.");
+  });
+
+  test("close() persists pending writes across a new DB connection", () => {
+    const store = new PersistentDescriptionStore(db, 60_000, 100);
+    const key = makeKey(Buffer.from("restart-persist-bytes"));
+
+    store.set({
+      key,
+      description: "Survives restart.",
+      imageHash: imageCacheKey(Buffer.from("restart-persist-bytes"), RECIPE, ENCODER_V2),
+      model: MODEL,
+      promptVersion: PV,
+    });
+
+    store.close();
+    db.close();
+
+    const db2 = makeCaptureDB(dbPath);
+    const store2 = new PersistentDescriptionStore(db2, 60_000, 100);
+    const got = store2.get(key);
+    expect(got).toBe("Survives restart.");
+    store2.close();
+    db2.close();
+  });
+
+  test("transaction failure re-queues pending writes", () => {
+    const store = new PersistentDescriptionStore(db, 60_000, 100);
+    const key = makeKey(Buffer.from("txn-fail-bytes"));
+
+    store.set({
+      key,
+      description: "Will be re-queued.",
+      imageHash: imageCacheKey(Buffer.from("txn-fail-bytes"), RECIPE, ENCODER_V2),
+      model: MODEL,
+      promptVersion: PV,
+    });
+
+    const boom = new Error("simulated SQLite failure");
+    const originalTransaction = db.transaction.bind(db);
+    let callCount = 0;
+    db.transaction = mock(<T>(fn: () => T): (() => T) => {
+      callCount++;
+      if (callCount === 1) {
+        throw boom;
+      }
+      return originalTransaction(fn);
+    }) as unknown as typeof db.transaction;
+
+    expect(() => store.flushNow()).toThrow(boom);
+    expect(callCount).toBe(1);
+
+    db.transaction = originalTransaction;
+
+    store.flushNow();
+
+    const row = db.getVisionDescription(key);
+    expect(row).not.toBeNull();
+    expect(row?.description).toBe("Will be re-queued.");
+
+    store.close();
+  });
+
+  test("post-close timer flush is a no-op", () => {
+    const store = new PersistentDescriptionStore(db, 60_000, 100, 1);
+    const key = makeKey(Buffer.from("timer-noop-bytes"));
+
+    store.set({
+      key,
+      description: "Buffered before close.",
+      imageHash: imageCacheKey(Buffer.from("timer-noop-bytes"), RECIPE, ENCODER_V2),
+      model: MODEL,
+      promptVersion: PV,
+    });
+
+    store.close();
+
+    expect(db.getVisionDescription(key)?.description).toBe("Buffered before close.");
+
+    const before = db.getVisionDescription(key)?.description;
+    store.flushNow();
+    const after = db.getVisionDescription(key)?.description;
+    expect(after).toBe(before);
+  });
+
+  test("close() is idempotent and prevents future writes", () => {
+    const store = new PersistentDescriptionStore(db, 60_000, 100);
+    const key1 = makeKey(Buffer.from("idempotent-1"));
+
+    store.set({
+      key: key1,
+      description: "Before close.",
+      imageHash: imageCacheKey(Buffer.from("idempotent-1"), RECIPE, ENCODER_V2),
+      model: MODEL,
+      promptVersion: PV,
+    });
+
+    store.close();
+    store.close();
+
+    expect(db.getVisionDescription(key1)?.description).toBe("Before close.");
+
+    const key2 = makeKey(Buffer.from("idempotent-2"));
+    store.set({
+      key: key2,
+      description: "After close — should not persist.",
+      imageHash: imageCacheKey(Buffer.from("idempotent-2"), RECIPE, ENCODER_V2),
+      model: MODEL,
+      promptVersion: PV,
+    });
+
+    expect(db.getVisionDescription(key2)).toBeNull();
+  });
+});

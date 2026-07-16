@@ -12,10 +12,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CaptureDB } from "../src/db.js";
 import { DescriptionCache } from "../src/vision/cache.js";
+import { type CompressionRecipe, imageCacheKey } from "../src/vision/cache.js";
 import { VisionHandoff } from "../src/vision/handoff.js";
 import type { VisionConfig } from "../src/vision/handoff.js";
 import { PersistentDescriptionStore } from "../src/vision/persistent-cache.js";
 import { getTranscodeCallCount, resetTranscodeCallCount } from "../src/vision/transcode.js";
+import { failurePlaceholder, isFailurePlaceholder } from "../src/vision/wrapper.js";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -385,6 +387,195 @@ describe("processBodyCacheOnly parallel behavior (PERF-04)", () => {
     expect(result2.stats.cacheHits).toBe(2);
     expect(result2.stats.visionCalls).toBe(0);
     expect(getTranscodeCallCount()).toBe(0);
+
+    visionServer.stop(true);
+  });
+});
+
+// ── Plan 004: failure placeholders must not be cached ──────────────────────
+
+describe("getOrCompute does not cache failure placeholders (Plan 004)", () => {
+  let dbPath: string;
+  let db: CaptureDB;
+  let store: PersistentDescriptionStore;
+  let cache: DescriptionCache;
+
+  const recipe: CompressionRecipe = {
+    format: "png",
+    quality: 92,
+    max_dimension: 2048,
+  };
+  const bytes = Buffer.from("plan-004-test-image");
+  const modelId = "umans-flash";
+  const promptVersion = 1;
+  const encoderVersion = "bun-image-v3";
+
+  beforeEach(() => {
+    dbPath = makeTmpDbPath();
+    db = new CaptureDB({ dbPath, maxCaptures: 100 });
+    store = new PersistentDescriptionStore(db, 60_000, 100);
+    cache = new DescriptionCache(100, 60_000, store);
+  });
+
+  afterEach(() => {
+    store.close();
+    db.close();
+    try {
+      unlinkSync(dbPath);
+    } catch {
+      // ignore
+    }
+  });
+
+  test("failure placeholder is not written to LRU or persistent store", () => {
+    const placeholder = failurePlaceholder("generic", "vision fetch failed");
+    let computeCalls = 0;
+
+    const result = cache.getOrCompute(
+      bytes,
+      recipe,
+      encoderVersion,
+      modelId,
+      promptVersion,
+      () => {
+        computeCalls++;
+        return placeholder;
+      },
+      (desc) => !isFailurePlaceholder(desc),
+    );
+
+    expect(result).toBe(placeholder);
+    expect(computeCalls).toBe(1);
+    expect(cache.size).toBe(0);
+    expect(cache.stats.misses).toBe(1);
+    expect(cache.stats.hits).toBe(0);
+    expect(cache.persistentStats.writes).toBe(0);
+  });
+
+  test("uncached placeholder causes re-computation on next lookup", () => {
+    const placeholder = failurePlaceholder("http_status", "500");
+    let computeCalls = 0;
+
+    for (let i = 0; i < 3; i++) {
+      cache.getOrCompute(
+        bytes,
+        recipe,
+        encoderVersion,
+        modelId,
+        promptVersion,
+        () => {
+          computeCalls++;
+          return placeholder;
+        },
+        (desc) => !isFailurePlaceholder(desc),
+      );
+    }
+
+    expect(computeCalls).toBe(3);
+    expect(cache.size).toBe(0);
+  });
+
+  test("successful description is cached normally", () => {
+    const description = "A red pixel on a white background.";
+    let computeCalls = 0;
+
+    const r1 = cache.getOrCompute(
+      bytes,
+      recipe,
+      encoderVersion,
+      modelId,
+      promptVersion,
+      () => {
+        computeCalls++;
+        return description;
+      },
+      (desc) => !isFailurePlaceholder(desc),
+    );
+
+    const r2 = cache.getOrCompute(
+      bytes,
+      recipe,
+      encoderVersion,
+      modelId,
+      promptVersion,
+      () => {
+        computeCalls++;
+        return "should not be called";
+      },
+      (desc) => !isFailurePlaceholder(desc),
+    );
+
+    expect(r1).toBe(description);
+    expect(r2).toBe(description);
+    expect(computeCalls).toBe(1);
+    expect(cache.size).toBe(1);
+    expect(cache.stats.hits).toBe(1);
+    expect(cache.persistentStats.writes).toBe(1);
+  });
+
+  test("end-to-end: vision failure is not cached, retry succeeds", async () => {
+    const images = [RED_PNG_B64];
+
+    let visionCallIdx = 0;
+    const visionServer = Bun.serve({
+      port: 0,
+      async fetch() {
+        visionCallIdx++;
+        if (visionCallIdx === 1) {
+          return new Response("upstream error", { status: 500 });
+        }
+        return Response.json({
+          id: "chatcmpl-mock",
+          object: "chat.completion",
+          created: Math.floor(Date.now() / 1000),
+          model: "umans-flash",
+          choices: [
+            {
+              index: 0,
+              message: { role: "assistant", content: "A tiny red pixel." },
+              finish_reason: "stop",
+            },
+          ],
+          usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
+        });
+      },
+    });
+
+    const config = makeConfig({
+      target: `http://127.0.0.1:${visionServer.port}`,
+      backgroundVision: false,
+    });
+    const handoff = new VisionHandoff(config, cache, null, undefined, db);
+
+    const body = makeAnthropicBody(...images);
+
+    const result1 = await handoff.processBody(body, "anthropic");
+    expect(result1.stats.visionCalls).toBe(1);
+    expect(result1.stats.cacheHits).toBe(0);
+
+    const desc1 = result1.body as {
+      messages: Array<{ content: Array<{ type: string; text?: string }> }>;
+    };
+    const text1 = desc1.messages[0].content.find((p) => p.type === "text" && p.text);
+    expect(text1?.text).toBeTruthy();
+    expect(text1!.text!).toContain("[Image analysis failed:");
+
+    expect(cache.size).toBe(0);
+    expect(cache.persistentStats.writes).toBe(0);
+
+    const result2 = await handoff.processBody(body, "anthropic");
+    expect(result2.stats.visionCalls).toBe(1);
+    expect(result2.stats.cacheHits).toBe(0);
+
+    const desc2 = result2.body as {
+      messages: Array<{ content: Array<{ type: string; text?: string }> }>;
+    };
+    const text2 = desc2.messages[0].content.find((p) => p.type === "text" && p.text);
+    expect(text2?.text).toBeTruthy();
+    expect(text2!.text!).not.toContain("[Image analysis failed:");
+
+    expect(cache.size).toBe(1);
+    expect(cache.persistentStats.writes).toBe(1);
 
     visionServer.stop(true);
   });

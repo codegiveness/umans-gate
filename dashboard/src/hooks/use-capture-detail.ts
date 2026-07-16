@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 
+import { apiFetch } from "@/lib/api";
 import { API_BASE } from "@/lib/constants";
 import type { CaptureDetail } from "@/types";
 
@@ -39,7 +40,7 @@ export function useCaptureDetail(): UseCaptureDetailResult {
   const fetchCapture = useCallback(async (id: number) => {
     setIsLoadingDetail(true);
     try {
-      const r = await fetch(`${API_BASE}/captures/${id}`);
+      const r = await apiFetch(`${API_BASE}/captures/${id}`);
       if (!r.ok) {
         setDetailError(`HTTP ${r.status} ${r.statusText}`);
         return;

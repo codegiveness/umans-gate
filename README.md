@@ -129,6 +129,17 @@ installs the correct binary.
    Setting `UMANS_API_KEY` enables `/v1/usage` polling, concurrency gate
    sizing, rate-limit validation, and vision handoff.
 
+5. **Secure the dashboard** (optional but recommended):
+
+   ```bash
+   export DASHBOARD_TOKEN=your-secret-token
+   ```
+
+   When set, all `/dashboard/api/*` routes, `/health`, and `/metrics` require
+   `Authorization: Bearer <token>`. The WebSocket requires `?token=<token>`.
+   When unset, all endpoints are open (backward compatible). Includes
+   brute-force protection via sliding-window rate limiting.
+
 ### What It Does
 
 | Feature | Description |
@@ -291,6 +302,7 @@ All configuration variables have JSON equivalents using `snake_case`
 | `WARMER_ENABLED` | `true` | Toggle TLS connection warmer |
 | `WARMER_INTERVAL_MS` | `20000` | Warmer ping interval in ms |
 | `UMANS_API_KEY` | _(empty)_ | Required for `/v1/usage` fetch, concurrency gate sizing, and rate-limit validation |
+| `DASHBOARD_TOKEN` | _(empty)_ | When set, secures all dashboard API routes, `/health`, `/metrics`, and WebSocket with Bearer token auth |
 | `USAGE_REFRESH_MS` | `60000` | `/v1/usage` poll interval in ms |
 | `MODELS_REFRESH_MS` | `3600000` | `/v1/models` poll interval in ms |
 | `CONCURRENCY_HARD_CAP` | `1` | Maximum concurrent upstream requests (hard ceiling) |

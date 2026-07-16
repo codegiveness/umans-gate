@@ -8,7 +8,7 @@ import { Database } from "bun:sqlite";
 import { compressText } from "../compress.js";
 import { flattenUsage, migrateCaptureSchema } from "../db.js";
 import type { UpdateParams } from "../db.js";
-import { accountCaptureUsage, migrateEconomicsSchema } from "../economics.js";
+import { accountCapturesUsage, migrateEconomicsSchema } from "../economics.js";
 
 interface BatchMessage {
   type: "batch";
@@ -77,8 +77,11 @@ function executeBatch(
         $model: it.res.$model ?? null,
         $id: it.id,
       } as unknown as never);
-      accountCaptureUsage(db!, it.id);
     }
+    accountCapturesUsage(
+      db!,
+      items.map((it) => it.id),
+    );
   })();
 }
 

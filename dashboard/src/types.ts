@@ -138,6 +138,12 @@ export interface GateStats {
   reservations: Record<string, number>;
   /** Current upstream service mode and optional reset timestamp. */
   serviceMode: ServiceMode;
+  tokensIn: number;
+  tokensOut: number;
+  tokensCached: number;
+  windowStartedAt: number | null;
+  windowResetsAt: number | null;
+  windowRemainingMinutes: number | null;
 }
 
 export type WsMessage =
@@ -153,19 +159,30 @@ export interface ServiceMode {
   resetsAt: number | null;
 }
 
-/** Snapshot of /v1/usage response (subset we care about). */
+/** Snapshot of /v1/usage response (enriched subset). */
 export interface UsageSnapshot {
   ok: boolean;
   fetchedAt: number;
+  userId: string | null;
   plan: "Code Pro" | "Code Max" | "unknown";
+  planSlug: string | null;
   requestsLimit: number | null;
   requestsHardCap: number | null;
   requestsWindowSeconds: number | null;
   concurrencySoftLimit: number;
   concurrencyHardCap: number;
   requestsInWindow: number;
+  weightedRequestsInWindow: number;
   requestsRemaining: number | null;
+  weightedRemainingRequests: number | null;
   concurrentSessions: number;
+  weightedConcurrentSessions: number;
+  tokensIn: number;
+  tokensOut: number;
+  tokensCached: number;
+  windowStartedAt: number | null;
+  windowResetsAt: number | null;
+  windowRemainingMinutes: number | null;
   priorityLow: boolean;
   boxedUntil: number | null;
   boxedReason: string | null;

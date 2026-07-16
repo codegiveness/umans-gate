@@ -321,3 +321,23 @@ test("getStats reservations return decimal values", () => {
   expect(stats.reservations.main).toBe(1);
   expect(stats.reservations.vision).toBe(1);
 });
+
+test("shutdown resets active count and activeByIntention to zero", async () => {
+  const g = new ConcurrencyGate({
+    ...opts,
+    releaseCooldownMs: 0,
+    intentions: { main: 2, vision: 1 },
+  });
+  g.resize(3);
+  const p1 = await g.acquire({ intention: "main" });
+  const p2 = await g.acquire({ intention: "vision" });
+  expect(g.getStats(failSnap).active).toBe(2);
+  g.shutdown();
+  const stats = g.getStats(failSnap);
+  expect(stats.active).toBe(0);
+  for (const key of Object.keys(stats.activeByIntention)) {
+    expect(stats.activeByIntention[key]).toBe(0);
+  }
+  p1.release();
+  p2.release();
+});

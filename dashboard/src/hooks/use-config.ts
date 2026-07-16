@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
+import { apiFetch } from "@/lib/api";
 import { API_BASE, CONFIG_API_BASE } from "@/lib/constants";
 
 export interface StampRawConfig {
@@ -60,6 +61,8 @@ export interface ServerRawConfig {
   compression_enabled?: boolean;
   /** Runtime flag: true when the resolved config has an API key (env or file). Read-only — not saved. */
   has_api_key?: boolean;
+  /** Runtime flag: true when the resolved config has a dashboard token. Read-only — not saved. */
+  has_dashboard_token?: boolean;
 }
 
 export type RawConfig = StampRawConfig & GateRawConfig & VisionRawConfig & ServerRawConfig;
@@ -133,7 +136,7 @@ export function useConfig(): UseConfigResult {
     setLoading(true);
     setError(null);
     try {
-      const r = await fetch(CONFIG_API_BASE);
+      const r = await apiFetch(CONFIG_API_BASE);
       if (!r.ok) {
         setError(`HTTP ${r.status}`);
         return null;
@@ -162,7 +165,7 @@ export function useConfig(): UseConfigResult {
   const save = useCallback(
     async (patch: RawConfig): Promise<SaveResult | null> => {
       try {
-        const r = await fetch(CONFIG_API_BASE, {
+        const r = await apiFetch(CONFIG_API_BASE, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(patch),
@@ -187,7 +190,7 @@ export function useConfig(): UseConfigResult {
 
   const validate = useCallback(async (patch: RawConfig): Promise<ValidationResult | null> => {
     try {
-      const r = await fetch(`${CONFIG_API_BASE}/validate`, {
+      const r = await apiFetch(`${CONFIG_API_BASE}/validate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(patch),
@@ -201,7 +204,7 @@ export function useConfig(): UseConfigResult {
 
   const reloadFromDisk = useCallback(async (): Promise<ReloadResult | null> => {
     try {
-      const r = await fetch(`${CONFIG_API_BASE}/reload`, { method: "POST" });
+      const r = await apiFetch(`${CONFIG_API_BASE}/reload`, { method: "POST" });
       if (!r.ok) return null;
       const data = (await r.json()) as ReloadResult;
       // After reload, refresh local copy too.
@@ -214,7 +217,7 @@ export function useConfig(): UseConfigResult {
 
   const refreshFromSource = useCallback(async (): Promise<RefreshSourceResult | null> => {
     try {
-      const r = await fetch(`${API_BASE}/usage/refresh-source`, { method: "POST" });
+      const r = await apiFetch(`${API_BASE}/usage/refresh-source`, { method: "POST" });
       if (!r.ok) return null;
       const data = (await r.json()) as RefreshSourceResult;
       if (data.ok) {
@@ -228,7 +231,7 @@ export function useConfig(): UseConfigResult {
 
   const restart = useCallback(async (): Promise<RestartResult | null> => {
     try {
-      const r = await fetch(`${API_BASE}/restart`, { method: "POST" });
+      const r = await apiFetch(`${API_BASE}/restart`, { method: "POST" });
       if (!r.ok) return null;
       return (await r.json()) as RestartResult;
     } catch (e) {
@@ -241,7 +244,7 @@ export function useConfig(): UseConfigResult {
 
   const resetToDefault = useCallback(async (): Promise<SaveResult | null> => {
     try {
-      const r = await fetch(`${CONFIG_API_BASE}/reset`, { method: "POST" });
+      const r = await apiFetch(`${CONFIG_API_BASE}/reset`, { method: "POST" });
       const data = (await r.json()) as SaveResult;
       if (data.ok) {
         await reload();

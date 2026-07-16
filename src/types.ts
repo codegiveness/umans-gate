@@ -9,7 +9,7 @@ export type UpstreamProtocol = "http2" | "http1.1";
 export type IncomingProtocol = "http1.1";
 
 /** Capture state lifecycle. */
-export type CaptureState = "enqueued" | "streaming" | "done";
+export type CaptureState = "enqueued" | "streaming" | "done" | "failed";
 
 /** A full capture row from the database. */
 export interface CaptureRow {
@@ -151,6 +151,8 @@ export interface ProxyConfig {
   warmerPath: string;
   /** Umans API key for /v1/usage calls (required for tier-aware limits). Null = fail-safe mode. */
   umansApiKey: string | null;
+  /** Optional bearer token for dashboard API authentication. Null = no auth required. */
+  dashboardToken: string | null;
   /** Polling interval for /v1/usage reconciliation, in ms. */
   usageRefreshMs: number;
   /** Polling interval for /v1/models fetch (model weights + listing), in ms. */
@@ -333,19 +335,30 @@ export interface ServiceMode {
   resetsAt: number | null;
 }
 
-/** Snapshot of /v1/usage response (subset we care about). */
+/** Snapshot of /v1/usage response (enriched subset). */
 export interface UsageSnapshot {
   ok: boolean;
   fetchedAt: number;
+  userId: string | null;
   plan: "Code Pro" | "Code Max" | "unknown";
+  planSlug: string | null;
   requestsLimit: number | null;
   requestsHardCap: number | null;
   requestsWindowSeconds: number | null;
   concurrencySoftLimit: number;
   concurrencyHardCap: number;
   requestsInWindow: number;
+  weightedRequestsInWindow: number;
   requestsRemaining: number | null;
+  weightedRemainingRequests: number | null;
   concurrentSessions: number;
+  weightedConcurrentSessions: number;
+  tokensIn: number;
+  tokensOut: number;
+  tokensCached: number;
+  windowStartedAt: number | null;
+  windowResetsAt: number | null;
+  windowRemainingMinutes: number | null;
   priorityLow: boolean;
   boxedUntil: number | null;
   boxedReason: string | null;
@@ -385,4 +398,10 @@ export interface GateStats {
   reservations: Record<string, number>;
   /** Current upstream service mode and optional reset timestamp. */
   serviceMode: ServiceMode;
+  tokensIn: number;
+  tokensOut: number;
+  tokensCached: number;
+  windowStartedAt: number | null;
+  windowResetsAt: number | null;
+  windowRemainingMinutes: number | null;
 }

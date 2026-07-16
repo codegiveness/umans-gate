@@ -17,6 +17,7 @@ const RESTART_REQUIRED_FIELDS = new Set<keyof RawConfig>([
   "warmer_interval_ms",
   "usage_refresh_ms",
   "umans_api_key",
+  "dashboard_token",
   "models_refresh_ms",
   "vision_strategy",
   "vision_model",

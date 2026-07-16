@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 
+import { apiFetch } from "@/lib/api";
 import { API_BASE } from "@/lib/constants";
 import type { GateStats } from "@/types";
 
@@ -23,7 +24,7 @@ export function useGateStats(): UseGateStatsResult {
 
   const loadGate = useCallback(async () => {
     try {
-      const r = await fetch(`${API_BASE}/gate`);
+      const r = await apiFetch(`${API_BASE}/gate`);
       if (!r.ok) {
         setGateError(`HTTP ${r.status} ${r.statusText}`);
         return;

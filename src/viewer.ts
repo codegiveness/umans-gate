@@ -5,9 +5,11 @@
 // 1. dashboard/dist/ (production build from Vite)
 // 2. 404
 
+import { type AuthFailureLimiter, isTokenAuthorized } from "./auth.js";
 import {
   type RawConfig,
   type ReloadResult,
+  isRawConfigInput,
   readConfigFile,
   resetConfig,
   saveConfig,
@@ -74,6 +76,7 @@ export interface CreateViewerRouterOptions {
   usage: UmansUsageClient;
   vision: VisionHandoff | null;
   models: ModelsClient | null;
+  authFailureLimiter?: AuthFailureLimiter;
   reloadConfig?: () => ReloadResult;
   refreshLimits?: () => Promise<
     | {
@@ -154,13 +157,20 @@ async function resolveStaticFile(
   return null;
 }
 
-/** Strip umans_api_key from a RawConfig object, replacing it with has_api_key. */
-function stripApiKey(
-  written: RawConfig | null,
-): (Omit<RawConfig, "umans_api_key"> & { has_api_key: boolean }) | null {
+/** Strip umans_api_key and dashboard_token from a RawConfig object, replacing with has_* booleans. */
+function stripApiKey(written: RawConfig | null):
+  | (Omit<RawConfig, "umans_api_key" | "dashboard_token"> & {
+      has_api_key: boolean;
+      has_dashboard_token: boolean;
+    })
+  | null {
   if (!written) return null;
-  const { umans_api_key: _omitted, ...safe } = written;
-  return { ...safe, has_api_key: Boolean(_omitted) };
+  const { umans_api_key: _omitted, dashboard_token: _dashOmitted, ...safe } = written;
+  return {
+    ...safe,
+    has_api_key: Boolean(_omitted),
+    has_dashboard_token: Boolean(_dashOmitted),
+  };
 }
 
 /** Result of matching a RegExp route pattern; `match[1]` is the capture id. */
@@ -209,8 +219,19 @@ interface ViewerRoute {
  * Returns null if the request is not a viewer route (caller should proxy it).
  */
 export function createViewerRouter(options: CreateViewerRouterOptions) {
-  const { db, ws, config, gate, usage, vision, models, reloadConfig, refreshLimits, restart } =
-    options;
+  const {
+    db,
+    ws,
+    config,
+    gate,
+    usage,
+    vision,
+    models,
+    authFailureLimiter,
+    reloadConfig,
+    refreshLimits,
+    restart,
+  } = options;
   const VIEWER = config.viewerPrefix;
   const DETAIL_RE = new RegExp(`^${VIEWER}/api/captures/(\\d+)$`);
 
@@ -301,10 +322,13 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
       pattern: `${VIEWER}/api/config`,
       handler: (ctx) => {
         const raw = readConfigFile();
-        const { umans_api_key: _omitted, ...safe } = raw;
-        // Use the resolved config's umansApiKey (env > file) so has_api_key
-        // is true even when the key is set via UMANS_API_KEY env var only.
-        return Response.json({ ...safe, has_api_key: Boolean(ctx.config.umansApiKey) });
+        const safe = stripApiKey(raw);
+        if (!safe) return Response.json({ ok: false }, { status: 500 });
+        return Response.json({
+          ...safe,
+          has_api_key: Boolean(ctx.config.umansApiKey),
+          has_dashboard_token: Boolean(ctx.config.dashboardToken),
+        });
       },
     },
     {
@@ -312,15 +336,28 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
       pattern: `${VIEWER}/api/config`,
       handler: async (ctx) => {
         try {
-          const body = (await ctx.req.json()) as RawConfigInput;
+          const raw = await ctx.req.json();
+          if (!isRawConfigInput(raw)) {
+            return Response.json(
+              {
+                ok: false,
+                errors: ["Config must be a JSON object"],
+                warnings: [],
+                written: null,
+              },
+              { status: 400 },
+            );
+          }
+          const body = raw as RawConfigInput;
           const result = saveConfig(body);
           const safe = stripApiKey(result.written);
           return Response.json({ ...result, written: safe }, { status: result.ok ? 200 : 400 });
         } catch (e) {
+          console.error("[viewer] config save error:", e);
           return Response.json(
             {
               ok: false,
-              errors: [`Invalid JSON body: ${e instanceof Error ? e.message : String(e)}`],
+              errors: ["Invalid request body"],
               warnings: [],
               written: null,
             },
@@ -366,10 +403,11 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
           const result = validateConfig(body);
           return Response.json({ ok: result.ok, errors: result.errors, warnings: result.warnings });
         } catch (e) {
+          console.error("[viewer] config validate error:", e);
           return Response.json(
             {
               ok: false,
-              errors: [`Invalid JSON body: ${e instanceof Error ? e.message : String(e)}`],
+              errors: ["Invalid request body"],
               warnings: [],
             },
             { status: 400 },
@@ -474,6 +512,24 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
 
     // WebSocket upgrade is handled by the server, not here.
     if (p === `${VIEWER}/ws`) return null;
+
+    // Dashboard token auth: when configured, require Bearer token for API routes.
+    if (config.dashboardToken && (p === `${VIEWER}/api` || p.startsWith(`${VIEWER}/api/`))) {
+      if (authFailureLimiter?.isLockedOut()) {
+        return new Response(JSON.stringify({ error: "too_many_attempts" }), {
+          status: 429,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      if (!isTokenAuthorized(req, config.dashboardToken)) {
+        authFailureLimiter?.recordFailure();
+        return new Response(JSON.stringify({ error: "unauthorized" }), {
+          status: 401,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      authFailureLimiter?.reset();
+    }
 
     // Build context once for all routes.
     const ctx: ViewerRouteContext = {

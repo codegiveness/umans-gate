@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { ConcurrencyGate, GateError } from "../src/limiter/index.js";
+import { ConcurrencyGate, type GateError } from "../src/limiter/index.js";
 import type { UsageSnapshot } from "../src/types.js";
 
 const baseOpts = {
@@ -204,5 +204,50 @@ describe("CircuitBreaker characterization via ConcurrencyGate", () => {
     g.record429("concurrency");
     g.record429("concurrency");
     expect(g.getStats(failSnap).breaker).toBe("open");
+  });
+
+  test("half_open single-flight: only one probe allowed while permit held", async () => {
+    const g = new ConcurrencyGate({
+      ...baseOpts,
+      breakerThreshold: 1,
+      breakerCooldownMs: 20,
+      queueTimeoutMs: 99999,
+      maxQueueDepth: 10,
+    });
+    g.resize(1);
+
+    const held = await g.acquire();
+
+    g.record429("concurrency");
+    expect(g.getStats(failSnap).breaker).toBe("open");
+
+    await new Promise((r) => setTimeout(r, 35));
+
+    const results: ("pending" | "fulfilled" | "circuit_open")[] = [];
+    const promises = Array.from({ length: 5 }, () => {
+      const p = g.acquire();
+      p.then(
+        () => results.push("fulfilled"),
+        (e: GateError) => results.push(e.code === "circuit_open" ? "circuit_open" : "pending"),
+      );
+      return p;
+    });
+
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(g.getStats(failSnap).breaker).toBe("half_open");
+    expect(g.getStats(failSnap).queued).toBe(1);
+    expect(results.filter((r) => r === "circuit_open").length).toBe(4);
+    expect(results.filter((r) => r === "fulfilled").length).toBe(0);
+
+    held.release();
+    const probe = await promises[0];
+    g.recordSuccess();
+    expect(g.getStats(failSnap).breaker).toBe("closed");
+    probe.release();
+
+    for (let i = 1; i < promises.length; i++) {
+      await promises[i].then(() => {}).catch(() => {});
+    }
   });
 });

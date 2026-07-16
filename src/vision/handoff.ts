@@ -27,7 +27,12 @@ import {
 } from "./detect.js";
 import type { VisionHttpExchange, VisionRecordSink } from "./sink.js";
 import { TranscodeError, transcodeImage } from "./transcode.js";
-import { applyMaxImagesPolicy, failurePlaceholder, wrapDescription } from "./wrapper.js";
+import {
+  applyMaxImagesPolicy,
+  failurePlaceholder,
+  isFailurePlaceholder,
+  wrapDescription,
+} from "./wrapper.js";
 
 const log = createLogger("vision");
 
@@ -659,12 +664,16 @@ export class VisionHandoff {
         this.config.model ?? "",
         this.config.promptVersion,
         () => result.description,
+        (desc) => !isFailurePlaceholder(desc),
       );
       return { result, stored };
     })();
     this.inflight.set(
       cacheKey,
-      visionPromise.then((r) => r.stored),
+      visionPromise.then(
+        (r) => r.stored,
+        () => "",
+      ),
     );
 
     let visionResult: Awaited<ReturnType<typeof this.callVisionRecorded>>;
@@ -673,6 +682,9 @@ export class VisionHandoff {
       const r = await visionPromise;
       visionResult = r.result;
       stored = r.stored;
+    } catch (err) {
+      if (visionDbId) this.db?.setState(visionDbId, "failed");
+      throw err;
     } finally {
       this.inflight.delete(cacheKey);
     }

@@ -239,6 +239,134 @@ export function accountCaptureUsage(db: Database, captureId: number): void {
 }
 
 /**
+ * Batch-account multiple captures' usage into daily_usage.
+ * Eliminates the N+1 query pattern of calling accountCaptureUsage in a loop:
+ * fetches all captures and pricing in two queries instead of 2N+1.
+ *
+ * Idempotent: only processes captures where usage_accounted=0.
+ * Does NOT start its own transaction — caller must wrap in a transaction
+ * if atomicity is needed (existing call sites already do).
+ */
+export function accountCapturesUsage(db: Database, captureIds: readonly number[]): void {
+  if (captureIds.length === 0) return;
+
+  const placeholders = captureIds.map(() => "?").join(",");
+
+  const captures = db
+    .prepare(
+      `SELECT id, model, input_tokens, output_tokens, cache_read_tokens,
+              cache_creation_tokens, thinking_tokens, usage_missing, started_at
+       FROM captures
+       WHERE id IN (${placeholders}) AND usage_accounted = 0`,
+    )
+    .all(...captureIds) as Array<{
+    id: number;
+    model: string | null;
+    input_tokens: number | null;
+    output_tokens: number | null;
+    cache_read_tokens: number | null;
+    cache_creation_tokens: number | null;
+    thinking_tokens: number | null;
+    usage_missing: number | null;
+    started_at: number | null;
+  }>;
+
+  if (captures.length === 0) return;
+
+  const allIds = captures.map((c) => c.id);
+  const needsAccounting = captures.filter((c) => c.model && !c.usage_missing);
+
+  if (needsAccounting.length > 0) {
+    const modelSet = new Set<string>();
+    for (const c of needsAccounting) {
+      if (c.model) modelSet.add(c.model);
+    }
+    const models = [...modelSet];
+    const modelPlaceholders = models.map(() => "?").join(",");
+    const pricingRows = db
+      .prepare(
+        `SELECT model_id, input_per_mtoken, output_per_mtoken,
+                cache_read_per_mtoken, pricing_known
+         FROM model_pricing WHERE model_id IN (${modelPlaceholders})`,
+      )
+      .all(...models) as Array<PricingRow & { model_id: string }>;
+    const pricingMap = new Map(pricingRows.map((p) => [p.model_id, p]));
+
+    const upsertStmt = db.prepare(
+      `INSERT INTO daily_usage
+         (date, model, requests, input_tokens, output_tokens,
+          cache_read_tokens, cache_creation_tokens, thinking_tokens,
+          cost_input, cost_output, cost_cache_read, cost_cache_creation,
+          cost_total, pricing_known)
+       VALUES
+         ($date, $model, 1, $input_tokens, $output_tokens,
+          $cache_read_tokens, $cache_creation_tokens, $thinking_tokens,
+          $cost_input, $cost_output, $cost_cache_read, $cost_cache_creation,
+          $cost_total, $pricing_known)
+       ON CONFLICT(date, model) DO UPDATE SET
+         requests              = requests + excluded.requests,
+         input_tokens          = input_tokens + excluded.input_tokens,
+         output_tokens         = output_tokens + excluded.output_tokens,
+         cache_read_tokens     = cache_read_tokens + excluded.cache_read_tokens,
+         cache_creation_tokens = cache_creation_tokens + excluded.cache_creation_tokens,
+         thinking_tokens       = thinking_tokens + excluded.thinking_tokens,
+         cost_input            = cost_input + excluded.cost_input,
+         cost_output           = cost_output + excluded.cost_output,
+         cost_cache_read       = cost_cache_read + excluded.cost_cache_read,
+         cost_cache_creation   = cost_cache_creation + excluded.cost_cache_creation,
+         cost_total            = cost_total + excluded.cost_total,
+         pricing_known         = excluded.pricing_known`,
+    );
+
+    for (const capture of needsAccounting) {
+      const model = capture.model as string;
+      const startedAt = capture.started_at ?? Date.now();
+      const date = new Date(startedAt).toISOString().slice(0, 10);
+
+      const inputTokens = capture.input_tokens ?? 0;
+      const outputTokens = capture.output_tokens ?? 0;
+      const cacheReadTokens = capture.cache_read_tokens ?? 0;
+      const cacheCreationTokens = capture.cache_creation_tokens ?? 0;
+      const thinkingTokens = capture.thinking_tokens ?? 0;
+
+      const pricing = pricingMap.get(model);
+      const inputPrice = pricing?.input_per_mtoken ?? 0;
+      const outputPrice = pricing?.output_per_mtoken ?? 0;
+      const cacheReadPrice = pricing?.cache_read_per_mtoken ?? 0;
+      const pricingKnown = pricing?.pricing_known ?? 0;
+      const cacheCreationPrice = inputPrice;
+
+      const costInput = (inputTokens / 1_000_000) * inputPrice;
+      const costOutput = (outputTokens / 1_000_000) * outputPrice;
+      const costCacheRead = (cacheReadTokens / 1_000_000) * cacheReadPrice;
+      const costCacheCreation = (cacheCreationTokens / 1_000_000) * cacheCreationPrice;
+      const costTotal = costInput + costOutput + costCacheRead + costCacheCreation;
+
+      upsertStmt.run({
+        $date: date,
+        $model: model,
+        $input_tokens: inputTokens,
+        $output_tokens: outputTokens,
+        $cache_read_tokens: cacheReadTokens,
+        $cache_creation_tokens: cacheCreationTokens,
+        $thinking_tokens: thinkingTokens,
+        $cost_input: costInput,
+        $cost_output: costOutput,
+        $cost_cache_read: costCacheRead,
+        $cost_cache_creation: costCacheCreation,
+        $cost_total: costTotal,
+        $pricing_known: pricingKnown,
+      });
+    }
+  }
+
+  const markPlaceholders = allIds.map(() => "?").join(",");
+  db.prepare(`UPDATE captures SET usage_accounted = 1 WHERE id IN (${markPlaceholders})`).run(
+    ...allIds,
+  );
+}
+
+/**
  * Backfill daily_usage from existing captures that haven't been accounted yet.
  * Called once on migration. Each capture is accounted individually to ensure
  * correct date bucketing (based on started_at).

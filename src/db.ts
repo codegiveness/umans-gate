@@ -2,8 +2,9 @@
 // WAL mode + write-behind queue for non-blocking captures.
 
 import { Database } from "bun:sqlite";
+import { chmodSync, existsSync } from "node:fs";
 import { compressText, decompressText } from "./compress.js";
-import { accountCaptureUsage, backfillFromCaptures, migrateEconomicsSchema } from "./economics.js";
+import { accountCapturesUsage, backfillFromCaptures, migrateEconomicsSchema } from "./economics.js";
 import { createLogger } from "./logger.js";
 import type { CaptureRow, CaptureState, ProxyConfig } from "./types.js";
 import {
@@ -14,6 +15,18 @@ import {
 import type { PerformanceStatsRow, UsageMetrics } from "./usage-extract.js";
 import { VisionDescriptionStore } from "./vision-description-store.js";
 import type { VisionCallRecord } from "./vision/handoff.js";
+
+function restrictDbFilePermissions(dbPath: string): void {
+  for (const p of [dbPath, `${dbPath}-wal`, `${dbPath}-shm`]) {
+    try {
+      if (existsSync(p)) {
+        chmodSync(p, 0o600);
+      }
+    } catch (e) {
+      console.warn(`[db] failed to chmod 0600 on ${p}:`, e);
+    }
+  }
+}
 
 /** Prepared statement parameter types. */
 interface InsertParams {
@@ -304,6 +317,7 @@ export class CaptureDB {
     this.compressionEnabled = config.compressionEnabled ?? true;
 
     migrateCaptureSchema(this.db);
+    restrictDbFilePermissions(config.dbPath);
 
     this.stmtInsert = this.db.prepare(`
       INSERT INTO captures (method, path, url, request_headers, request_body, request_size, started_at, state, incoming_protocol, upstream_protocol)
@@ -469,12 +483,12 @@ export class CaptureDB {
     };
     this.db.transaction(() => {
       this.stmtUpdate.run(compressed as unknown as never);
-      accountCaptureUsage(this.db, params.$id);
+      accountCapturesUsage(this.db, [params.$id]);
     })();
   }
 
   /** Transition a capture's state (enqueued → streaming → done). */
-  setState(id: number, state: "enqueued" | "streaming" | "done"): void {
+  setState(id: number, state: CaptureState): void {
     this.stmtSetState.run({ $state: state, $id: id });
   }
 
@@ -496,8 +510,11 @@ export class CaptureDB {
           $model: it.res.$model ?? null,
           $id: it.id,
         } as unknown as never);
-        accountCaptureUsage(this.db, it.id);
       }
+      accountCapturesUsage(
+        this.db,
+        items.map((it) => it.id),
+      );
     })();
   }
 
@@ -596,7 +613,7 @@ export class CaptureDB {
     };
     this.db.transaction(() => {
       this.stmtUpdateVision.run(compressed as unknown as never);
-      accountCaptureUsage(this.db, params.$id);
+      accountCapturesUsage(this.db, [params.$id]);
     })();
   }
 
@@ -675,6 +692,14 @@ export class CaptureDB {
   /** Close the database connection. */
   close(): void {
     this.db.close();
+  }
+
+  /**
+   * Wrap `fn` in a single SQLite transaction. Returns a function that, when
+   * called, executes `fn` within BEGIN/COMMIT (or ROLLBACK on throw).
+   */
+  transaction<T>(fn: () => T): () => T {
+    return this.db.transaction(fn);
   }
 
   /** Access the raw bun:sqlite Database (for economics queries). */

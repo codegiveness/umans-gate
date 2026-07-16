@@ -217,3 +217,45 @@ test("drop path activates when queue overflows after failed flush", () => {
   expect(queue.length).toBeLessThanOrEqual(config.queueMaxDepth);
   expect(queue.droppedCount).toBeGreaterThan(0);
 });
+
+test("concurrent threshold flush does not double-flush or mis-account dropped items", async () => {
+  const flushed: { id: number; res: ResponseMeta }[] = [];
+  const flushedIds = new Set<number>();
+  let flushInFlight = false;
+  const db = {
+    batchUpdate: async (batch: { id: number; res: ResponseMeta }[]) => {
+      expect(flushInFlight).toBe(false);
+      flushInFlight = true;
+      await Bun.sleep(20);
+      flushInFlight = false;
+      flushed.push(...batch);
+      for (const it of batch) flushedIds.add(it.id);
+    },
+  } as unknown as CaptureDB;
+  const ws = { broadcast: () => {} } as unknown as WsBroadcaster;
+
+  const config = { ...baseConfig, queueMaxDepth: 3, flushBatch: 2 };
+  const queue = new WriteQueue(db, config, (messages) => {
+    for (const msg of messages) ws.broadcast(msg);
+  });
+
+  const totalPushed = 10;
+  for (let i = 1; i <= totalPushed; i++) {
+    queue.queueUpdate(i, reqMeta, makeRes(i));
+  }
+
+  await Bun.sleep(100);
+
+  expect(queue.length).toBeLessThanOrEqual(config.queueMaxDepth);
+
+  const droppedIds = new Set<number>();
+  for (let i = 1; i <= totalPushed; i++) {
+    if (!flushedIds.has(i)) droppedIds.add(i);
+  }
+
+  expect(flushed.length + queue.droppedCount).toBe(totalPushed);
+
+  for (const id of flushedIds) {
+    expect(droppedIds.has(id)).toBe(false);
+  }
+});

@@ -4,6 +4,7 @@ import { useCaptureDetail } from "@/hooks/use-capture-detail";
 import { useCaptureList } from "@/hooks/use-capture-list";
 import { useCapturesSocket } from "@/hooks/use-captures-socket";
 import { useGateStats } from "@/hooks/use-gate-stats";
+import { apiFetch } from "@/lib/api";
 import { API_BASE, CAPTURE_DONE_EVENT } from "@/lib/constants";
 import type { CaptureDetail, CaptureSummary, GateStats } from "@/types";
 
@@ -104,7 +105,7 @@ export function useCaptures(): UseCapturesResult {
 
   const clearCaptures = useCallback(async () => {
     try {
-      await fetch(`${API_BASE}/clear`, { method: "POST" });
+      await apiFetch(`${API_BASE}/clear`, { method: "POST" });
       setCaptures([]);
       resetSelection();
     } catch (e) {

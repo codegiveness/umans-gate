@@ -39,6 +39,18 @@ export function failurePlaceholder(reason: FailureReason, detail: string): strin
   return `[Image analysis failed: ${reasonText[reason]}. The active model cannot see this image.]`;
 }
 
+/** Prefix that every {@link failurePlaceholder} result starts with. */
+const FAILURE_PLACEHOLDER_PREFIX = "[Image analysis failed:";
+
+/**
+ * Returns true when `description` is a failure placeholder produced by
+ * {@link failurePlaceholder}. Such values must not be cached: they represent
+ * transient vision errors that would poison the cache until TTL expiry.
+ */
+export function isFailurePlaceholder(description: string): boolean {
+  return description.startsWith(FAILURE_PLACEHOLDER_PREFIX);
+}
+
 /**
  * Format policy: pass-through natively supported formats, transcode
  * bitmaps/heic/svg, reject anything else. Extension is lower-cased; mediaType

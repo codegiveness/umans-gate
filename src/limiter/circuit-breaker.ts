@@ -7,6 +7,7 @@ export class CircuitBreaker {
   private threshold: number;
   private windowMs: number;
   private cooldownMs: number;
+  private halfOpenProbeStarted = false;
 
   constructor(threshold: number, windowMs: number, cooldownMs: number) {
     this.threshold = threshold;
@@ -24,14 +25,22 @@ export class CircuitBreaker {
     return this.state;
   }
 
-  /** If open and cooldown has elapsed, transition to half_open. Returns the
-   *  current state AFTER any transition. */
+  /** If open and cooldown has elapsed, transition to half_open at most once
+   *  per opening — the first caller becomes the single-flight probe and sees
+   *  "half_open"; later callers see "open" (probe already in flight) until
+   *  recordSuccess closes the breaker or record429 re-opens it. */
   maybeHalfOpen(): BreakerState {
     if (this.state === "open") {
+      if (this.halfOpenProbeStarted) {
+        return "open";
+      }
       const elapsed = Date.now() - this.openedAt;
       if (elapsed >= this.cooldownMs) {
+        this.halfOpenProbeStarted = true;
         this.state = "half_open";
       }
+    } else if (this.state === "half_open" && this.halfOpenProbeStarted) {
+      return "open";
     }
     return this.state;
   }
@@ -45,6 +54,7 @@ export class CircuitBreaker {
       if (this.state === "closed" || this.state === "half_open") {
         this.state = "open";
         this.openedAt = now;
+        this.halfOpenProbeStarted = false;
       }
     }
   }
@@ -53,6 +63,7 @@ export class CircuitBreaker {
     if (this.state === "half_open") {
       this.state = "closed";
       this.concurrency429s = [];
+      this.halfOpenProbeStarted = false;
     }
   }
 }

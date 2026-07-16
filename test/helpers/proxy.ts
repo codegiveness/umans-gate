@@ -32,18 +32,31 @@ async function findFreePort(): Promise<number> {
 export interface StartProxyOptions {
   TARGET?: string;
   umansApiKey?: string;
+  dashboardToken?: string;
   envOverrides?: Record<string, string>;
   proxyPort?: number;
   [key: string]: string | number | boolean | undefined | Record<string, string>;
 }
 
 export async function startProxy(options: StartProxyOptions = {}): Promise<ProxyHandle> {
-  const { TARGET = "http://127.0.0.1:9099", umansApiKey, envOverrides = {}, proxyPort } = options;
+  const {
+    TARGET = "http://127.0.0.1:9099",
+    umansApiKey,
+    dashboardToken,
+    envOverrides = {},
+    proxyPort,
+  } = options;
   const port = proxyPort ?? (await findFreePort());
   const dbPath = `/tmp/umans-gate-test-${port}-${Date.now()}.db`;
   const extraEnv: Record<string, string> = {};
   for (const [k, v] of Object.entries(options)) {
-    if (k === "TARGET" || k === "umansApiKey" || k === "envOverrides" || k === "proxyPort")
+    if (
+      k === "TARGET" ||
+      k === "umansApiKey" ||
+      k === "dashboardToken" ||
+      k === "envOverrides" ||
+      k === "proxyPort"
+    )
       continue;
     if (v !== undefined) extraEnv[k] = String(v);
   }
@@ -63,6 +76,7 @@ export async function startProxy(options: StartProxyOptions = {}): Promise<Proxy
       STAMP_CLAUDE_CODE_ENABLED: "false",
       STAMP_REASONING_EFFORT_ENABLED: "false",
       UMANS_API_KEY: umansApiKey ?? "",
+      DASHBOARD_TOKEN: dashboardToken ?? "",
       ...extraEnv,
       ...envOverrides,
     },
@@ -71,10 +85,14 @@ export async function startProxy(options: StartProxyOptions = {}): Promise<Proxy
   });
 
   const healthUrl = `http://127.0.0.1:${port}/health`;
+  const healthHeaders: Record<string, string> = {};
+  if (dashboardToken) {
+    healthHeaders.Authorization = `Bearer ${dashboardToken}`;
+  }
   let started = false;
   for (let attempt = 0; attempt < 100; attempt++) {
     try {
-      const res = await fetch(healthUrl);
+      const res = await fetch(healthUrl, { headers: healthHeaders });
       if (res.ok) {
         started = true;
         break;

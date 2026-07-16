@@ -268,6 +268,10 @@ class Semaphore {
       w.reject(new GateError("shutdown", "Shutting down"));
     }
     this.waiters = [];
+    this.active = 0;
+    for (const key of Object.keys(this.activeByIntention)) {
+      this.activeByIntention[key] = 0;
+    }
     this.assertInvariants();
   }
 
@@ -540,6 +544,12 @@ export class ConcurrencyGate {
       queuedByIntention: { ...this.semaphore.getQueuedByIntention() },
       reservations,
       serviceMode: snapshot.serviceMode,
+      tokensIn: snapshot.tokensIn,
+      tokensOut: snapshot.tokensOut,
+      tokensCached: snapshot.tokensCached,
+      windowStartedAt: snapshot.windowStartedAt,
+      windowResetsAt: snapshot.windowResetsAt,
+      windowRemainingMinutes: snapshot.windowRemainingMinutes,
     };
   }
 

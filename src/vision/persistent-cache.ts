@@ -88,25 +88,32 @@ export class PersistentDescriptionStore {
     this.flushTimer = null;
     if (this.closed || this.pendingWrites.length === 0) return;
     const batch = this.pendingWrites.splice(0, this.pendingWrites.length);
-    for (const pw of batch) {
-      this.db.upsertVisionDescription({
-        $key: pw.entry.key,
-        $image_hash: pw.entry.imageHash,
-        $model: pw.entry.model,
-        $prompt_version: pw.entry.promptVersion,
-        $description: pw.entry.description,
-        $now: pw.now,
-      });
+    try {
+      this.db.transaction(() => {
+        for (const pw of batch) {
+          this.db.upsertVisionDescription({
+            $key: pw.entry.key,
+            $image_hash: pw.entry.imageHash,
+            $model: pw.entry.model,
+            $prompt_version: pw.entry.promptVersion,
+            $description: pw.entry.description,
+            $now: pw.now,
+          });
+        }
+      })();
+    } catch (err) {
+      this.pendingWrites.unshift(...batch);
+      throw err;
     }
   }
 
   close(): void {
-    this.closed = true;
     if (this.flushTimer) {
       clearTimeout(this.flushTimer);
       this.flushTimer = null;
     }
     this.flushNow();
+    this.closed = true;
   }
 
   warmIntoCache(onEntry: (key: string, description: string) => void, limit: number): number {

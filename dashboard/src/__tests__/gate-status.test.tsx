@@ -34,17 +34,35 @@ const baseStats: GateStats = {
   queuedByIntention: {},
   reservations: {},
   serviceMode: { current: "normal", resetsAt: null },
+  tokensIn: 0,
+  tokensOut: 0,
+  tokensCached: 0,
+  windowStartedAt: null,
+  windowResetsAt: null,
+  windowRemainingMinutes: null,
 };
 
 describe("GateStatus service mode", () => {
-  it("renders the current service mode badge", async () => {
+  it("renders high priority badge when normal", async () => {
+    const { container } = render(<GateStatus stats={baseStats} />);
+    await flushEffects();
+    expect(container).toHaveTextContent("high");
+  });
+
+  it("renders low badge when service mode is low_interactivity", async () => {
     const { container } = render(
       <GateStatus
-        stats={{ ...baseStats, serviceMode: { current: "interactive", resetsAt: null } }}
+        stats={{
+          ...baseStats,
+          serviceMode: { current: "low_interactivity", resetsAt: null },
+        }}
       />,
     );
     await flushEffects();
-    expect(container).toHaveTextContent("interactive");
+    const badges = container.querySelectorAll("[class*='badge'], [data-slot='badge']");
+    const badgeTexts = Array.from(badges).map((b) => b.textContent?.trim() ?? "");
+    expect(badgeTexts).toContain("low");
+    expect(badgeTexts).not.toContain("low_interactivity");
   });
 
   it("shows tooltip with service mode details", async () => {
@@ -57,13 +75,36 @@ describe("GateStatus service mode", () => {
       />,
     );
     await flushEffects();
-    expect(container).toHaveTextContent("Service mode: degraded");
+    expect(container).toHaveTextContent("service mode: degraded");
     expect(container).toHaveTextContent("resets at");
   });
 
-  it("renders normal service mode badge by default", async () => {
-    const { container } = render(<GateStatus stats={baseStats} />);
+  it("renders demoted badge when units demoted", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          unitsDemoted: true,
+          demotedUntil: 1893456000000,
+        }}
+      />,
+    );
     await flushEffects();
-    expect(container).toHaveTextContent("normal");
+    expect(container).toHaveTextContent("demoted");
+  });
+
+  it("renders only one status badge, not separate priority + service mode", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          priorityLow: false,
+          serviceMode: { current: "low_interactivity", resetsAt: null },
+        }}
+      />,
+    );
+    await flushEffects();
+    expect(container).toHaveTextContent("low");
+    expect(container).not.toHaveTextContent("high");
   });
 });

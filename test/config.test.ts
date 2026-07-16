@@ -1,13 +1,14 @@
 // Tests for config.ts: JSON SSOT, auto-create, no-overwrite, env precedence,
 // YAML migration, validateConfig, saveConfig, applyReloadToConfig.
 
-import { afterEach, beforeEach, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   applyReloadToConfig,
   ensureConfigFile,
+  isRawConfigInput,
   loadConfig,
   resolveConfigDir,
   resolveConfigPath,
@@ -15,6 +16,7 @@ import {
   validateConfig,
 } from "../src/config.js";
 import type { ProxyConfig } from "../src/types.js";
+import { type ProxyHandle, startProxy } from "./helpers/proxy.js";
 
 let tmpConfigDir: string;
 let origXdg: string | undefined;
@@ -439,4 +441,83 @@ test("saveConfig persists memory-tuning fields", () => {
   expect(json.ws_backpressure_limit).toBe(0);
   expect(json.ws_close_on_backpressure_limit).toBe(false);
   expect(json.vision_pending_max_batch).toBe(75);
+});
+
+// --- isRawConfigInput tests ---
+
+test("isRawConfigInput accepts plain objects", () => {
+  expect(isRawConfigInput({})).toBe(true);
+  expect(isRawConfigInput({ port: 8080 })).toBe(true);
+});
+
+test("isRawConfigInput rejects arrays, null, and primitives", () => {
+  expect(isRawConfigInput([])).toBe(false);
+  expect(isRawConfigInput([1, 2, 3])).toBe(false);
+  expect(isRawConfigInput(null)).toBe(false);
+  expect(isRawConfigInput("string")).toBe(false);
+  expect(isRawConfigInput(42)).toBe(false);
+  expect(isRawConfigInput(true)).toBe(false);
+  expect(isRawConfigInput(undefined)).toBe(false);
+});
+
+// --- POST /dashboard/api/config shape validation tests ---
+
+describe("POST /dashboard/api/config shape validation", () => {
+  const tmpHome = `/tmp/umans-gate-plan008-${process.pid}-${Date.now()}`;
+  let proxy: ProxyHandle;
+
+  beforeAll(async () => {
+    const configDir = join(tmpHome, ".config", "umans-gate");
+    mkdirSync(configDir, { recursive: true });
+    writeFileSync(join(configDir, "config.json"), JSON.stringify({}), "utf-8");
+    proxy = await startProxy({
+      WARMER_ENABLED: "false",
+      USAGE_REFRESH_MS: "999999",
+      envOverrides: { XDG_CONFIG_HOME: `${tmpHome}/.config` },
+    });
+  }, 15000);
+
+  afterAll(async () => {
+    await proxy.kill();
+    try {
+      rmSync(tmpHome, { recursive: true, force: true });
+    } catch {
+      // ignore
+    }
+  });
+
+  test("rejects array payload with 400", async () => {
+    const res = await fetch(`${proxy.baseUrl}/dashboard/api/config`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify([1, 2, 3]),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.ok).toBe(false);
+    expect(body.errors).toContain("Config must be a JSON object");
+  });
+
+  test("rejects string payload with 400", async () => {
+    const res = await fetch(`${proxy.baseUrl}/dashboard/api/config`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify("not an object"),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.ok).toBe(false);
+    expect(body.errors).toContain("Config must be a JSON object");
+  });
+
+  test("accepts valid object payload", async () => {
+    const res = await fetch(`${proxy.baseUrl}/dashboard/api/config`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ max_captures: 500 }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.ok).toBe(true);
+  });
 });

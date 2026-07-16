@@ -3,6 +3,15 @@
 import { DEFAULT_CONFIG } from "./defaults.js";
 import type { RawConfig, RawConfigInput } from "./types.js";
 
+/**
+ * Narrow runtime check that a JSON-parsed value is a plain object suitable
+ * for `validateConfig`/`saveConfig`. Rejects arrays, null, and primitives.
+ * Individual keys are validated downstream by `validateConfig`.
+ */
+export function isRawConfigInput(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 /** Validation result. */
 export interface ValidationResult {
   ok: boolean;
@@ -175,6 +184,13 @@ export const FIELD_RULES: FieldRule[] = [
     errors: (n) =>
       n.umans_api_key !== undefined && typeof n.umans_api_key !== "string"
         ? ["umans_api_key must be a string"]
+        : [],
+  },
+  {
+    name: "dashboard_token",
+    errors: (n) =>
+      n.dashboard_token !== undefined && typeof n.dashboard_token !== "string"
+        ? ["dashboard_token must be a string"]
         : [],
   },
   {

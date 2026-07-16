@@ -50,6 +50,7 @@ opencode.json
 AGENTS.md
 CLAUDE.md
 codegraph.md
+plans/
 
 # Stray build output at repo root (sourcemaps, fonts, html, bins)
 /*.js

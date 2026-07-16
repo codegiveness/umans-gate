@@ -29,6 +29,7 @@ export {
   type WarningRule,
   INT_FIELDS,
   coerceRawForValidation,
+  isRawConfigInput,
   FIELD_RULES,
   WARNING_RULES,
   validateConfig,

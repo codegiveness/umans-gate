@@ -1,6 +1,7 @@
 // Public API — createProxyServer() factory.
 // Exports the main server creation function and key types for programmatic use.
 
+import { AuthFailureLimiter, isTokenAuthorized, tokensEqual } from "./auth.js";
 import { printBanner } from "./banner.js";
 import {
   type RawConfig,
@@ -81,6 +82,8 @@ interface RequestDispatcherOptions {
   handleMetrics: () => Response;
   viewerPrefix: string;
   port: number;
+  dashboardToken: string | null;
+  authFailureLimiter?: AuthFailureLimiter;
 }
 
 /**
@@ -93,7 +96,15 @@ interface RequestDispatcherOptions {
  * 6. 404 fallback for non-LLM paths
  */
 function createRequestDispatcher(options: RequestDispatcherOptions) {
-  const { handleViewer, handleProxy, handleHealth, handleMetrics, viewerPrefix: VIEWER } = options;
+  const {
+    handleViewer,
+    handleProxy,
+    handleHealth,
+    handleMetrics,
+    viewerPrefix: VIEWER,
+    dashboardToken,
+    authFailureLimiter,
+  } = options;
 
   const LOCAL_ORIGIN_SET = new Set([
     `http://127.0.0.1:${options.port}`,
@@ -108,6 +119,20 @@ function createRequestDispatcher(options: RequestDispatcherOptions) {
       const origin = req.headers.get("origin");
       if (origin && !LOCAL_ORIGIN_SET.has(origin)) {
         return new Response("forbidden", { status: 403 });
+      }
+      if (dashboardToken) {
+        if (authFailureLimiter?.isLockedOut()) {
+          return new Response(JSON.stringify({ error: "too_many_attempts" }), {
+            status: 429,
+            headers: { "content-type": "application/json" },
+          });
+        }
+        const wsToken = url.searchParams.get("token");
+        if (!wsToken || !tokensEqual(wsToken, dashboardToken)) {
+          authFailureLimiter?.recordFailure();
+          return new Response("unauthorized", { status: 401 });
+        }
+        authFailureLimiter?.reset();
       }
       if (server.upgrade(req)) return new Response(null, { status: 101 });
       return new Response("upgrade failed", { status: 400 });
@@ -145,11 +170,37 @@ function createRequestDispatcher(options: RequestDispatcherOptions) {
 
     // Health check endpoint
     if (url.pathname === "/health" && req.method === "GET") {
+      if (dashboardToken) {
+        if (authFailureLimiter?.isLockedOut()) {
+          return new Response(JSON.stringify({ error: "too_many_attempts" }), {
+            status: 429,
+            headers: { "content-type": "application/json" },
+          });
+        }
+        if (!isTokenAuthorized(req, dashboardToken)) {
+          authFailureLimiter?.recordFailure();
+          return new Response("unauthorized", { status: 401 });
+        }
+        authFailureLimiter?.reset();
+      }
       return handleHealth();
     }
 
     // Metrics endpoint (Prometheus text format)
     if (url.pathname === "/metrics" && req.method === "GET") {
+      if (dashboardToken) {
+        if (authFailureLimiter?.isLockedOut()) {
+          return new Response(JSON.stringify({ error: "too_many_attempts" }), {
+            status: 429,
+            headers: { "content-type": "application/json" },
+          });
+        }
+        if (!isTokenAuthorized(req, dashboardToken)) {
+          authFailureLimiter?.recordFailure();
+          return new Response("unauthorized", { status: 401 });
+        }
+        authFailureLimiter?.reset();
+      }
       return handleMetrics();
     }
 
@@ -212,6 +263,7 @@ export interface ProxyServer {
   models: ModelsClient;
   rate: SlidingWindowRateLimiter | null;
   config: ProxyConfig;
+  persistentStore: PersistentDescriptionStore | null;
   /** Reload config from disk and apply hot-reloadable fields. */
   reloadConfig(): ReloadResult;
   shutdown(): Promise<void>;
@@ -485,6 +537,10 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     void refreshLimits();
   }
 
+  // Auth failure limiter — protects against brute-force token guessing.
+  // Only active when dashboardToken is configured. 10 failures per 60s window.
+  const authFailureLimiter = config.dashboardToken ? new AuthFailureLimiter(10, 60) : undefined;
+
   const { handleViewer, VIEWER } = createViewerRouter({
     db,
     ws,
@@ -493,6 +549,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     usage,
     vision,
     models,
+    authFailureLimiter,
     reloadConfig,
     refreshLimits,
     restart: () => {
@@ -541,6 +598,8 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     handleMetrics,
     viewerPrefix: VIEWER,
     port: config.port,
+    dashboardToken: config.dashboardToken,
+    authFailureLimiter,
   });
 
   const server = Bun.serve({
@@ -604,6 +663,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     if (writeStore instanceof WorkerCaptureStore) {
       await writeStore.close();
     }
+    persistentStore?.close();
     db.close();
 
     process.removeListener("SIGINT", sigHandler);
@@ -637,5 +697,6 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     config,
     reloadConfig,
     shutdown,
+    persistentStore,
   };
 }

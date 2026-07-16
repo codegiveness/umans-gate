@@ -10,6 +10,7 @@ import {
   MasterDetailProvider,
   useMasterDetail,
 } from "@/components/layout/master-detail-layout";
+import { TokenGate } from "@/components/token-gate";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -86,6 +87,7 @@ export function App() {
       <TooltipProvider delay={300}>
         <MasterDetailProvider>
           <ApiKeyGate />
+          <TokenGate />
           <div className="h-screen flex flex-col overflow-hidden bg-background text-foreground">
             <a
               href="#main"

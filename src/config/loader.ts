@@ -57,6 +57,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   const warmerPath = WARMER_PATH;
 
   const umansApiKey = env.UMANS_API_KEY ?? raw.umans_api_key ?? null;
+  const dashboardToken = env.DASHBOARD_TOKEN ?? raw.dashboard_token ?? null;
   const usageRefreshMs = num(env.USAGE_REFRESH_MS ?? raw.usage_refresh_ms, 60000);
   const modelsRefreshMs = num(env.MODELS_REFRESH_MS ?? raw.models_refresh_ms, 3600000);
   const concurrencyHardCap = num(env.CONCURRENCY_HARD_CAP ?? raw.concurrency_hard_cap, 1);
@@ -119,7 +120,10 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   const concurrencyVisionReservation =
     visionStrategy === "never"
       ? 0
-      : num(env.CONCURRENCY_VISION_RESERVATION ?? raw.concurrency_vision_reservation, 1);
+      : Math.max(
+          1,
+          num(env.CONCURRENCY_VISION_RESERVATION ?? raw.concurrency_vision_reservation, 1),
+        );
 
   const visionForceInterceptCapable = visionStrategy === "always";
 
@@ -186,6 +190,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     warmerIntervalMs,
     warmerPath,
     umansApiKey,
+    dashboardToken,
     usageRefreshMs,
     modelsRefreshMs,
     concurrencyHardCap,

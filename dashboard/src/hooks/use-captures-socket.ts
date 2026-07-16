@@ -1,8 +1,14 @@
 import { useEffect, useRef } from "react";
 
+import { getDashboardToken } from "@/lib/api";
 import type { CaptureState, CaptureSummary, GateStats, WsMessage } from "@/types";
 
-const WS_URL = `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/dashboard/ws`;
+function buildWsUrl(): string {
+  const proto = window.location.protocol === "https:" ? "wss" : "ws";
+  const base = `${proto}://${window.location.host}/dashboard/ws`;
+  const token = getDashboardToken();
+  return token ? `${base}?token=${encodeURIComponent(token)}` : base;
+}
 
 /** Semantic callbacks for each WS message type the hook handles. */
 interface UseCapturesSocketParams {
@@ -80,7 +86,7 @@ export function useCapturesSocket({
 
     function connect() {
       try {
-        ws = new WebSocket(WS_URL);
+        ws = new WebSocket(buildWsUrl());
       } catch {
         setWsState("unavailable");
         return;

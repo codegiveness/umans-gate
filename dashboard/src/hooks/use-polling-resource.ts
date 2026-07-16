@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useCaptureDoneListener } from "@/hooks/use-capture-done-listener";
+import { apiFetch } from "@/lib/api";
 import { API_BASE } from "@/lib/constants";
 
 export interface UsePollingResourceOptions<T> {
@@ -39,7 +40,7 @@ export function usePollingResource<T>({
       parse: currentParse,
     } = latestRef.current;
     try {
-      const res = await fetch(`${API_BASE}${currentEndpoint}`, { signal });
+      const res = await apiFetch(`${API_BASE}${currentEndpoint}`, { signal });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const ct = res.headers.get("content-type") ?? "";
       if (!ct.includes("application/json")) {
