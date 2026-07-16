@@ -66,4 +66,12 @@ export class CircuitBreaker {
       this.halfOpenProbeStarted = false;
     }
   }
+
+  resetHalfOpenProbe(): void {
+    if (this.state === "half_open" && this.halfOpenProbeStarted) {
+      this.halfOpenProbeStarted = false;
+      this.state = "open";
+      this.openedAt = Date.now();
+    }
+  }
 }

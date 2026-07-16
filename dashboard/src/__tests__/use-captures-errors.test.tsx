@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useCaptures } from "@/hooks/use-captures";
+import { MAX_CAPTURES } from "@/lib/constants";
 
 class MockWebSocket {
   static instances: MockWebSocket[] = [];
@@ -156,5 +157,55 @@ describe("useCaptures error surfacing", () => {
     await waitFor(() => {
       expect(result.current.listError).toBeNull();
     });
+  });
+
+  it("caps capture list at MAX_CAPTURES when WS delivers many new captures", async () => {
+    mockFetch(async (url: string) => {
+      if (url.includes("/captures")) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => "application/json" },
+          json: async () => [],
+        };
+      }
+      if (url.includes("/gate")) {
+        return {
+          ok: true,
+          status: 200,
+          headers: { get: () => "application/json" },
+          json: async () => ({ active: 0, hardCap: 16, softLimit: 8 }),
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        headers: { get: () => "application/json" },
+        json: async () => ({}),
+      };
+    });
+
+    const { result } = renderHook(() => useCaptures());
+
+    await waitFor(() => {
+      expect(result.current.captures).toEqual([]);
+    });
+
+    const ws = MockWebSocket.instances[0];
+    ws.onopen?.();
+
+    for (let i = 1; i <= MAX_CAPTURES + 50; i++) {
+      act(() => {
+        ws.onmessage?.({
+          data: JSON.stringify({
+            type: "new",
+            capture: { id: i, state: "streaming", is_vision: false },
+          }),
+        } as MessageEvent);
+      });
+    }
+
+    expect(result.current.captures).toHaveLength(MAX_CAPTURES);
+    expect(result.current.captures[0].id).toBe(MAX_CAPTURES + 50);
   });
 });

@@ -117,16 +117,16 @@ test("AnthropicBodyStep.applies is true when stampClaudeCode is enabled", () => 
   expect(AnthropicBodyStep.applies(ctx)).toBe(true);
 });
 
-test("ContextManagementStep.applies is true when stampClaudeCode enabled and anthropic-version is 2023-06-01", () => {
+test("ContextManagementStep.applies is true when stampClaudeCode enabled", () => {
   const ctx = makeCtx({
     headers: { "content-type": "application/json", "anthropic-version": "2023-06-01" },
   });
   expect(ContextManagementStep.applies(ctx)).toBe(true);
 });
 
-test("ContextManagementStep.applies is false without anthropic-version header", () => {
+test("ContextManagementStep.applies is true when stampClaudeCode enabled (regardless of client-sent version)", () => {
   const ctx = makeCtx({ headers: { "content-type": "application/json" } });
-  expect(ContextManagementStep.applies(ctx)).toBe(false);
+  expect(ContextManagementStep.applies(ctx)).toBe(true);
 });
 
 test("ContextManagementStep.applies is false for OpenAI requests", () => {

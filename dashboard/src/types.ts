@@ -152,7 +152,8 @@ export type WsMessage =
   | { type: "state"; captureId: number; state: CaptureState }
   | { type: "gate"; stats: GateStats }
   | { type: "clear" }
-  | { type: "vision-clear" };
+  | { type: "vision-clear" }
+  | { type: "prune"; ids: number[] };
 
 export interface ServiceMode {
   current: string;

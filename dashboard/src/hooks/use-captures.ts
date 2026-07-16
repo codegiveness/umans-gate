@@ -5,7 +5,7 @@ import { useCaptureList } from "@/hooks/use-capture-list";
 import { useCapturesSocket } from "@/hooks/use-captures-socket";
 import { useGateStats } from "@/hooks/use-gate-stats";
 import { apiFetch } from "@/lib/api";
-import { API_BASE, CAPTURE_DONE_EVENT } from "@/lib/constants";
+import { API_BASE, CAPTURE_DONE_EVENT, MAX_CAPTURES } from "@/lib/constants";
 import type { CaptureDetail, CaptureSummary, GateStats } from "@/types";
 
 export interface UseCapturesResult {
@@ -87,7 +87,9 @@ export function useCaptures(): UseCapturesResult {
           return next;
         }
         // New capture: prepend (newest id goes to front since ids are monotonic)
-        return [capture, ...prev];
+        const next = [capture, ...prev];
+        if (next.length > MAX_CAPTURES) next.length = MAX_CAPTURES;
+        return next;
       });
 
       if (!isNew && capture.state === "done") {
@@ -100,6 +102,14 @@ export function useCaptures(): UseCapturesResult {
           void fetchCapture(capture.id);
         }
       }
+    },
+    onCapturePrune: (ids) => {
+      if (ids.length === 0) return;
+      const idSet = new Set(ids);
+      setCaptures((prev) => {
+        const filtered = prev.filter((c) => !idSet.has(c.id));
+        return filtered.length === prev.length ? prev : filtered;
+      });
     },
   });
 

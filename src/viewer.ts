@@ -349,7 +349,8 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
             );
           }
           const body = raw as RawConfigInput;
-          const result = saveConfig(body);
+          const snapshot = ctx.usage.getSnapshot();
+          const result = saveConfig(body, { upstreamRequestsLimit: snapshot.requestsLimit });
           const safe = stripApiKey(result.written);
           return Response.json({ ...result, written: safe }, { status: result.ok ? 200 : 400 });
         } catch (e) {
@@ -400,7 +401,8 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
       handler: async (ctx) => {
         try {
           const body = (await ctx.req.json()) as RawConfigInput;
-          const result = validateConfig(body);
+          const snapshot = ctx.usage.getSnapshot();
+          const result = validateConfig(body, { upstreamRequestsLimit: snapshot.requestsLimit });
           return Response.json({ ok: result.ok, errors: result.errors, warnings: result.warnings });
         } catch (e) {
           console.error("[viewer] config validate error:", e);

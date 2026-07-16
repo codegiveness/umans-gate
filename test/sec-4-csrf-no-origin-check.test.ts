@@ -57,7 +57,7 @@ test("SEC-4c: POST with local Origin is accepted", async () => {
       "Content-Type": "application/json",
       Origin: `http://127.0.0.1:${proxy.port}`,
     },
-    body: JSON.stringify({ max_captures: 7 }),
+    body: JSON.stringify({ max_captures: 200 }),
   });
   expect(res.status).toBe(200);
   const body = await res.json();

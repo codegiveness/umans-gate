@@ -45,6 +45,7 @@ class Semaphore {
   private pendingReleases: Array<{ weight: number; intention: string }> = [];
   private releaseTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly onEmitStats: () => void;
+  private shutdownRequested = false;
 
   constructor(opts: ConcurrencyGateOptions, onEmitStats: () => void) {
     this.onEmitStats = onEmitStats;
@@ -218,7 +219,7 @@ class Semaphore {
     return true;
   }
 
-  removeWaiter(w: Waiter): void {
+  removeWaiter(w: Waiter): boolean {
     const i = this.waiters.indexOf(w);
     if (i >= 0) {
       this.waiters.splice(i, 1);
@@ -228,7 +229,9 @@ class Semaphore {
       );
       this.assertInvariants();
       this.onEmitStats();
+      return true;
     }
+    return false;
   }
 
   drainWaiters(): void {
@@ -255,6 +258,7 @@ class Semaphore {
   }
 
   shutdown(): void {
+    this.shutdownRequested = true;
     for (const t of this.cooldownTimers) clearTimeout(t);
     this.cooldownTimers.clear();
     this.releaseTimer = null;
@@ -276,6 +280,7 @@ class Semaphore {
   }
 
   private releasePermit(weight: number, intention: string): void {
+    if (this.shutdownRequested) return;
     this.pendingReleases.push({ weight, intention });
     if (this.releaseTimer === null) {
       this.releaseTimer = setTimeout(() => {
@@ -444,21 +449,24 @@ export class ConcurrencyGate {
     }
     const intention = opts.intention ?? "main";
     return new Promise((resolve, reject) => {
-      // Circuit breaker check
-      if (this.breaker.maybeHalfOpen() === "open") {
+      const breakerState = this.breaker.maybeHalfOpen();
+      if (breakerState === "open") {
         reject(new GateError("circuit_open", "Circuit breaker open"));
         return;
       }
+      const wasProbe = breakerState === "half_open";
 
       if (this.semaphore.canGrant(intention, weight)) {
         this.semaphore.grant(resolve, opts.onAcquire, weight, intention);
         return;
       }
 
-      // Enqueue
       const queueTimeoutMs = this.semaphore.getQueueTimeoutMs();
       const timeout = setTimeout(() => {
-        this.semaphore.removeWaiter(waiter);
+        if (this.semaphore.removeWaiter(waiter) && waiter.wasProbe) {
+          this.breaker.resetHalfOpenProbe();
+          this.emitStats();
+        }
         reject(new GateError("timeout", "Queue timeout exceeded"));
       }, queueTimeoutMs);
 
@@ -471,6 +479,7 @@ export class ConcurrencyGate {
         signal: opts.signal,
         onAcquire: opts.onAcquire,
         timeout,
+        wasProbe,
       };
 
       if (!this.semaphore.enqueue(waiter)) {
@@ -485,7 +494,10 @@ export class ConcurrencyGate {
         "abort",
         () => {
           clearTimeout(timeout);
-          this.semaphore.removeWaiter(waiter);
+          if (this.semaphore.removeWaiter(waiter) && waiter.wasProbe) {
+            this.breaker.resetHalfOpenProbe();
+            this.emitStats();
+          }
           reject(new GateError("aborted", "Client disconnected while enqueued"));
         },
         { once: true },

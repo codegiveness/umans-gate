@@ -26,6 +26,8 @@ interface UseCapturesSocketParams {
   onGateStats: (stats: GateStats) => void;
   /** WS `new` / `update` — upsert a capture; `isNew` distinguishes the two. */
   onCaptureUpsert: (capture: CaptureSummary, isNew: boolean) => void;
+  /** WS `prune` — remove captures evicted by the server's ring buffer. */
+  onCapturePrune: (ids: number[]) => void;
 }
 
 /**
@@ -50,6 +52,7 @@ export function useCapturesSocket({
   onCaptureState,
   onGateStats,
   onCaptureUpsert,
+  onCapturePrune,
 }: UseCapturesSocketParams) {
   // Keep latest callbacks in refs so the effect doesn't re-run on every render.
   const onConnectedRef = useRef(onConnected);
@@ -64,6 +67,8 @@ export function useCapturesSocket({
   onGateStatsRef.current = onGateStats;
   const onCaptureUpsertRef = useRef(onCaptureUpsert);
   onCaptureUpsertRef.current = onCaptureUpsert;
+  const onCapturePruneRef = useRef(onCapturePrune);
+  onCapturePruneRef.current = onCapturePrune;
 
   useEffect(() => {
     if (!backendReachable) {
@@ -82,6 +87,7 @@ export function useCapturesSocket({
       gate: (msg) => onGateStatsRef.current(msg.stats),
       new: (msg) => onCaptureUpsertRef.current(msg.capture, true),
       update: (msg) => onCaptureUpsertRef.current(msg.capture, false),
+      prune: (msg) => onCapturePruneRef.current(msg.ids),
     };
 
     function connect() {

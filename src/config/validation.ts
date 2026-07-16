@@ -20,6 +20,21 @@ export interface ValidationResult {
   normalized: RawConfig;
 }
 
+/**
+ * Optional context for cross-source validation.
+ * Carries upstream /v1/usage limits so warning rules can suppress
+ * false-positive warnings when the upstream truly has no limit.
+ */
+export interface ValidationContext {
+  /**
+   * Upstream requests limit from /v1/usage.
+   * `null` = upstream is unlimited (no request cap).
+   * `number` = upstream enforces this limit.
+   * `undefined` = upstream status unknown (not yet fetched).
+   */
+  upstreamRequestsLimit?: number | null;
+}
+
 /** Reload result returned by the reload API. */
 export interface ReloadResult {
   ok: boolean;
@@ -108,7 +123,7 @@ export interface FieldRule {
 
 export interface WarningRule {
   name: string;
-  warning: (n: RawConfig) => string | null;
+  warning: (n: RawConfig, ctx?: ValidationContext) => string | null;
 }
 
 export const FIELD_RULES: FieldRule[] = [
@@ -122,8 +137,8 @@ export const FIELD_RULES: FieldRule[] = [
   {
     name: "max_captures",
     errors: (n) =>
-      n.max_captures !== undefined && (!Number.isInteger(n.max_captures) || n.max_captures < 1)
-        ? ["max_captures must be a positive integer"]
+      n.max_captures !== undefined && (!Number.isInteger(n.max_captures) || n.max_captures < 200)
+        ? ["max_captures must be an integer >= 200"]
         : [],
   },
   {
@@ -532,10 +547,11 @@ export const WARNING_RULES: WarningRule[] = [
   },
   {
     name: "rate_limit_disabled",
-    warning: (n) =>
-      n.rate_limit_requests === -1
-        ? "Rate limiting is unlimited (rate_limit_requests=-1). No request cap is enforced."
-        : null,
+    warning: (n, ctx) => {
+      if (n.rate_limit_requests !== -1) return null;
+      if (ctx?.upstreamRequestsLimit === null) return null;
+      return "Rate limiting is unlimited (rate_limit_requests=-1). No request cap is enforced.";
+    },
   },
   {
     name: "stamp_claude_code_off",
@@ -557,7 +573,7 @@ export const WARNING_RULES: WarningRule[] = [
  * Validate a raw config object. Returns errors (blocking), warnings (non-blocking),
  * and a normalized copy with defaults filled in.
  */
-export function validateConfig(raw: RawConfigInput): ValidationResult {
+export function validateConfig(raw: RawConfigInput, ctx?: ValidationContext): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
   const coerced = coerceRawForValidation(raw);
@@ -574,7 +590,7 @@ export function validateConfig(raw: RawConfigInput): ValidationResult {
   }
 
   for (const rule of WARNING_RULES) {
-    const msg = rule.warning(n);
+    const msg = rule.warning(n, ctx);
     if (msg !== null) {
       warnings.push(msg);
     }

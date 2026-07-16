@@ -1,4 +1,4 @@
-import { existsSync, unlinkSync } from "node:fs";
+import { existsSync, rmSync, unlinkSync } from "node:fs";
 import { spawn } from "bun";
 import type { Subprocess } from "bun";
 
@@ -48,6 +48,7 @@ export async function startProxy(options: StartProxyOptions = {}): Promise<Proxy
   } = options;
   const port = proxyPort ?? (await findFreePort());
   const dbPath = `/tmp/umans-gate-test-${port}-${Date.now()}.db`;
+  const configHome = `/tmp/umans-gate-test-config-${port}-${Date.now()}`;
   const extraEnv: Record<string, string> = {};
   for (const [k, v] of Object.entries(options)) {
     if (
@@ -66,6 +67,7 @@ export async function startProxy(options: StartProxyOptions = {}): Promise<Proxy
     cwd: process.cwd(),
     env: {
       ...process.env,
+      XDG_CONFIG_HOME: configHome,
       TARGET,
       PORT: String(port),
       DB_PATH: dbPath,
@@ -123,6 +125,11 @@ export async function startProxy(options: StartProxyOptions = {}): Promise<Proxy
       await sleep(400);
       try {
         if (existsSync(dbPath)) unlinkSync(dbPath);
+      } catch {
+        // ignore
+      }
+      try {
+        if (existsSync(configHome)) rmSync(configHome, { recursive: true, force: true });
       } catch {
         // ignore
       }

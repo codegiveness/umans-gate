@@ -67,30 +67,37 @@ test("char: port — non-numeric string fails coercion then validation", () => {
 });
 
 // ============================================================================
-// max_captures: must be a positive integer
+// max_captures: must be an integer >= 200
 // ============================================================================
 
 test("char: max_captures — valid values pass", () => {
-  expectNoErrors(validateConfig({ max_captures: 1 }));
   expectNoErrors(validateConfig({ max_captures: 200 }));
   expectNoErrors(validateConfig({ max_captures: 5000 }));
 });
 
+test("char: max_captures — 199 fails (below minimum)", () => {
+  expectSingleError(
+    validateConfig({ max_captures: 199 }),
+    "max_captures must be an integer >= 200",
+  );
+});
+
+test("char: max_captures — 1 fails (below minimum)", () => {
+  expectSingleError(validateConfig({ max_captures: 1 }), "max_captures must be an integer >= 200");
+});
+
 test("char: max_captures — 0 fails", () => {
-  expectSingleError(validateConfig({ max_captures: 0 }), "max_captures must be a positive integer");
+  expectSingleError(validateConfig({ max_captures: 0 }), "max_captures must be an integer >= 200");
 });
 
 test("char: max_captures — negative fails", () => {
-  expectSingleError(
-    validateConfig({ max_captures: -1 }),
-    "max_captures must be a positive integer",
-  );
+  expectSingleError(validateConfig({ max_captures: -1 }), "max_captures must be an integer >= 200");
 });
 
 test("char: max_captures — float fails", () => {
   expectSingleError(
     validateConfig({ max_captures: 1.5 }),
-    "max_captures must be a positive integer",
+    "max_captures must be an integer >= 200",
   );
 });
 
@@ -1157,6 +1164,20 @@ test("char: warning — rate_limit_requests=-1 produces unlimited warning", () =
   );
 });
 
+test("char: warning — rate_limit_requests=-1 warning suppressed when upstream is unlimited (ctx.upstreamRequestsLimit=null)", () => {
+  const r = validateConfig({ rate_limit_requests: -1 }, { upstreamRequestsLimit: null });
+  expect(r.warnings).not.toContain(
+    "Rate limiting is unlimited (rate_limit_requests=-1). No request cap is enforced.",
+  );
+});
+
+test("char: warning — rate_limit_requests=-1 warning fires when upstream has a limit (ctx.upstreamRequestsLimit=1000)", () => {
+  const r = validateConfig({ rate_limit_requests: -1 }, { upstreamRequestsLimit: 1000 });
+  expect(r.warnings).toContain(
+    "Rate limiting is unlimited (rate_limit_requests=-1). No request cap is enforced.",
+  );
+});
+
 test("char: warning — rate_limit_requests=0 does NOT produce rate-limit warning", () => {
   const r = validateConfig({ rate_limit_requests: 0 });
   expect(r.warnings).not.toContain(
@@ -1267,7 +1288,7 @@ test("char: multiple errors — port + max_captures fail simultaneously", () => 
   const r = validateConfig({ port: 0, max_captures: -1 });
   expect(r.errors).toEqual([
     "port must be an integer between 1 and 65535",
-    "max_captures must be a positive integer",
+    "max_captures must be an integer >= 200",
   ]);
   expect(r.ok).toBe(false);
 });

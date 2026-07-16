@@ -7,6 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-07-17
+
+### Added
+
+- **WebSocket `prune` message**: when the server's SQLite ring buffer evicts old
+  captures, the server now broadcasts a `prune` message with the evicted IDs.
+  The dashboard removes those IDs from its in-memory list so the frontend and
+  backend stay in sync without a full refetch.
+- **Frontend capture-list cap**: the dashboard caps its in-memory capture list
+  at `MAX_CAPTURES` (200), matching the REST fetch limit. WS-driven growth no
+  longer diverges from the server's ring buffer.
+- **`ConcurrencyGate.resetHalfOpenProbe()`**: resets a half-open circuit-breaker
+  probe back to `open` so a new probe can start after the previous probe times
+  out or is aborted in the queue. Previously the probe slot was consumed and
+  never reset, stalling recovery.
+- **`ValidationContext`**: `validateConfig()` and `saveConfig()` accept an
+  optional context carrying the upstream `/v1/usage` requests limit. Warning
+  rules use it to suppress false-positive "rate limit unlimited" warnings when
+  the upstream itself has no request cap.
+- Tests for: half-open probe timeout reset, post-shutdown release safety,
+  frontend list cap under WS flood, rate-limit warning suppression, and
+  `max_captures` minimum boundary.
+- Test helper now sets `XDG_CONFIG_HOME` to a temp dir so tests never read or
+  write the developer's real `config.json`.
+
+### Fixed
+
+- **Proxy capture flush on client abort**: the `abort` listener is now
+  registered before the `TransformStream` is created, so a mid-stream client
+  disconnect flushes the capture even if the stream never produced a `flush`
+  callback. The listener is removed on normal stream completion to prevent
+  leaks.
+- **`anthropic-beta` / `anthropic-version` header forcing**: these headers are
+  now only sent when the stamp pipeline is enabled (`stampBeta`), not on every
+  `/v1/messages` request. When stamping is off, the client-sent
+  `anthropic-version` is preserved instead of being overwritten.
+- **`ContextManagementStep` applies condition**: no longer requires
+  `anthropic-version === "2023-06-01"`. The step now applies whenever the stamp
+  bundle is enabled, regardless of the client-sent version header.
+- **Post-shutdown permit release**: `Semaphore.releasePermit` is a no-op after
+  `shutdown()`, preventing negative active counts and leaked cooldown timers
+  from late releases.
+- **`useUsage` endpoint path**: corrected from `/dashboard/api/usage` to
+  `/usage` (the hook already prefixes `API_BASE`).
+
+### Changed
+
+- **`max_captures` minimum**: raised from 1 to 200 in both server validation
+  and the dashboard config field, matching the default ring-buffer size.
+- **`removeWaiter` return type**: now returns `boolean` (whether the waiter was
+  found and removed) so callers can conditionally reset the breaker probe.
+- **Dashboard config validation**: passes `upstreamRequestsLimit` from the
+  usage snapshot into `validateConfigDraft` for cross-source warning logic.
+
 ## [0.1.8] - 2026-07-16
 
 ### Added

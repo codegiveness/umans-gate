@@ -120,11 +120,7 @@ export const AnthropicBodyStep: StampStep = {
 export const ContextManagementStep: StampStep = {
   label: "context-management",
   applies(ctx) {
-    return (
-      ctx.config.stampClaudeCode &&
-      !ctx.isOpenAi &&
-      ctx.headers["anthropic-version"] === "2023-06-01"
-    );
+    return ctx.config.stampClaudeCode && !ctx.isOpenAi;
   },
   apply(body) {
     if (body === null || typeof body !== "object") return false;

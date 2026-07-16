@@ -65,10 +65,10 @@ const SERVER_FIELDS: FieldDef[] = [
     label: "Max Captures",
     kind: "number",
     description:
-      "Maximum number of captures kept in the SQLite ring buffer. When this limit is reached, the oldest entries are evicted to make room for new ones. Must be ≥ 1. Default: 200.",
+      "Maximum number of captures kept in the SQLite ring buffer. When this limit is reached, the oldest entries are evicted to make room for new ones. Must be ≥ 200. Default: 200.",
     restartRequired: true,
     required: true,
-    min: 1,
+    min: 200,
   },
   {
     key: "db_path",

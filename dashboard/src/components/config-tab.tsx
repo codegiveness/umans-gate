@@ -108,8 +108,10 @@ export function ConfigTab() {
   const { errors: clientErrors, warnings: clientWarnings } = useMemo(() => {
     if (!draft) return { errors: {}, warnings: {} };
     const allSections = groupsWithOverrides.flatMap((g) => g.sections);
-    return validateConfigDraft(draft, allSections);
-  }, [draft, groupsWithOverrides]);
+    return validateConfigDraft(draft, allSections, {
+      upstreamRequestsLimit: usage?.requestsLimit ?? null,
+    });
+  }, [draft, groupsWithOverrides, usage]);
   const hasClientErrors = Object.keys(clientErrors).length > 0;
 
   function onField(key: keyof RawConfig, v: unknown) {

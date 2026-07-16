@@ -7,7 +7,7 @@ import { DEFAULT_CONFIG } from "./defaults.js";
 import { loadJsonConfig } from "./env.js";
 import { resolveConfigPath } from "./paths.js";
 import type { RawConfig, RawConfigInput } from "./types.js";
-import { coerceRawForValidation, validateConfig } from "./validation.js";
+import { type ValidationContext, coerceRawForValidation, validateConfig } from "./validation.js";
 
 /**
  * Write the default config template if no config file exists.
@@ -40,7 +40,10 @@ export function readConfigFile(): RawConfig {
  * Save a partial config to disk (validate first, merge with existing).
  * Returns validation result + the merged config that was written.
  */
-export function saveConfig(patch: RawConfigInput): {
+export function saveConfig(
+  patch: RawConfigInput,
+  ctx?: ValidationContext,
+): {
   ok: boolean;
   errors: string[];
   warnings: string[];
@@ -48,7 +51,7 @@ export function saveConfig(patch: RawConfigInput): {
 } {
   const existing = readConfigFile();
   const merged: RawConfig = { ...existing, ...coerceRawForValidation(patch) };
-  const result = validateConfig(merged);
+  const result = validateConfig(merged, ctx);
   if (!result.ok) {
     return { ok: false, errors: result.errors, warnings: result.warnings, written: null };
   }

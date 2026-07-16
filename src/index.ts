@@ -39,7 +39,13 @@ const log = createLogger("server");
 
 export { loadConfig, readConfigFile, saveConfig, validateConfig } from "./config.js";
 export { resolveConfigDir, resolveConfigPath, ensureConfigFile } from "./config.js";
-export type { RawConfig, RawConfigInput, ValidationResult, ReloadResult } from "./config.js";
+export type {
+  RawConfig,
+  RawConfigInput,
+  ValidationResult,
+  ValidationContext,
+  ReloadResult,
+} from "./config.js";
 export { CaptureDB } from "./db.js";
 export { WsBroadcaster } from "./ws.js";
 export type { BunServerWebSocket } from "./ws.js";
@@ -282,6 +288,9 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
 
   const db = options.db ?? new CaptureDB(config);
   const ws = options.ws ?? new WsBroadcaster();
+  db.onPrune = (prunedIds: number[]) => {
+    ws.broadcast({ type: "prune", ids: prunedIds });
+  };
   const writeStore: CaptureStore = config.useWriteWorker
     ? new WorkerCaptureStore(config.dbPath, config.compressionEnabled)
     : db;

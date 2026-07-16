@@ -255,7 +255,7 @@ export function createProxyHandler(
     // every upstream request to stay responsible for the encoding contract.
     fwdHeaders["accept-encoding"] = "identity";
 
-    if (isAnthropicMessages) {
+    if (stampBeta) {
       fwdHeaders["anthropic-beta"] = STAMP_ANTHROPIC_BETA_HEADER;
       fwdHeaders["anthropic-version"] = "2023-06-01";
     }
@@ -490,6 +490,19 @@ export function createProxyHandler(
           // Non-critical: capture persistence failure must not block permit release
         }
       };
+
+      const onAbort = (): void => {
+        flushCapture();
+      };
+
+      if (req.signal) {
+        if (req.signal.aborted) {
+          flushCapture();
+        } else {
+          req.signal.addEventListener("abort", onAbort, { once: true });
+        }
+      }
+
       const capture = new TransformStream({
         transform(chunk: Uint8Array, controller) {
           totalSize += chunk.byteLength;
@@ -523,23 +536,11 @@ export function createProxyHandler(
         },
         flush() {
           flushCapture();
+          if (req.signal) {
+            req.signal.removeEventListener("abort", onAbort);
+          }
         },
       });
-
-      // Client disconnected mid-stream — flush capture so it doesn't stay "streaming".
-      if (req.signal) {
-        if (req.signal.aborted) {
-          flushCapture();
-        } else {
-          req.signal.addEventListener(
-            "abort",
-            () => {
-              flushCapture();
-            },
-            { once: true },
-          );
-        }
-      }
 
       const stream = upstream.body.pipeThrough(capture);
       return new Response(stream, {

@@ -167,15 +167,11 @@ test("release cooldown delays active decrement", async () => {
   });
   g.resize(1);
   const p = await g.acquire();
-  const stats1 = g.getStats(failSnap);
-  expect(stats1.active).toBe(1);
+  expect(g.getStats(failSnap).active).toBe(1);
   p.release();
-  // Immediately after release, active should still be 1 (cooldown)
-  const stats2 = g.getStats(failSnap);
-  expect(stats2.active).toBe(1);
+  expect(g.getStats(failSnap).active).toBe(1);
   await new Promise((r) => setTimeout(r, 60));
-  const stats3 = g.getStats(failSnap);
-  expect(stats3.active).toBe(0);
+  expect(g.getStats(failSnap).active).toBe(0);
 });
 
 test("getStats returns correct counts", async () => {
@@ -340,4 +336,21 @@ test("shutdown resets active count and activeByIntention to zero", async () => {
   }
   p1.release();
   p2.release();
+});
+
+test("release after shutdown does not create cooldown timers or go negative", async () => {
+  const g = new ConcurrencyGate({
+    ...opts,
+    releaseCooldownMs: 50,
+  });
+  g.resize(1);
+  const permit = await g.acquire();
+  g.shutdown();
+  expect(g.getStats(failSnap).active).toBe(0);
+
+  permit.release();
+
+  await new Promise((r) => setTimeout(r, 100));
+
+  expect(g.getStats(failSnap).active).toBe(0);
 });

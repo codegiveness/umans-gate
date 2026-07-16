@@ -25,6 +25,7 @@ export interface Waiter {
   signal?: AbortSignal;
   onAcquire?: () => void;
   timeout: ReturnType<typeof setTimeout>;
+  wasProbe?: boolean;
 }
 
 export interface Permit {

@@ -153,7 +153,7 @@ test("client-sent anthropic-beta header is overwritten by the stamp value", asyn
   expect(r!.head).not.toContain("some-other-feature-2025-01-01");
 });
 
-test("stamp disabled: /v1/messages still gets anthropic-beta + anthropic-version headers but not ?beta=true", async () => {
+test("stamp disabled: /v1/messages does not get anthropic-beta or anthropic-version headers forced", async () => {
   const rawOff = await startRawUpstream();
   const proxyOff = await startProxy({
     TARGET: `http://127.0.0.1:${rawOff.port}`,
@@ -163,7 +163,10 @@ test("stamp disabled: /v1/messages still gets anthropic-beta + anthropic-version
     rawOff.getLastRequest();
     await fetch(`${proxyOff.baseUrl}/v1/messages`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        "anthropic-version": "2023-01-01",
+      },
       body: JSON.stringify({
         model: "umans-glm-5.2",
         max_tokens: 50,
@@ -179,13 +182,12 @@ test("stamp disabled: /v1/messages still gets anthropic-beta + anthropic-version
     const betaHeader = r!.head
       .split("\r\n")
       .find((l) => l.toLowerCase().startsWith("anthropic-beta:"));
-    expect(betaHeader).toBeDefined();
-    expect(betaHeader!).toBe(`anthropic-beta: ${STAMP_ANTHROPIC_BETA_HEADER}`);
+    expect(betaHeader).toBeUndefined();
     const versionHeader = r!.head
       .split("\r\n")
       .find((l) => l.toLowerCase().startsWith("anthropic-version:"));
     expect(versionHeader).toBeDefined();
-    expect(versionHeader!).toBe("anthropic-version: 2023-06-01");
+    expect(versionHeader!).toBe("anthropic-version: 2023-01-01");
   } finally {
     await proxyOff.kill();
     await rawOff.close();

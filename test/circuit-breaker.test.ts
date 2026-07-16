@@ -250,4 +250,39 @@ describe("CircuitBreaker characterization via ConcurrencyGate", () => {
       await promises[i].then(() => {}).catch(() => {});
     }
   });
+
+  test("half_open probe that times out in queue resets so a new probe can start", async () => {
+    const g = new ConcurrencyGate({
+      ...baseOpts,
+      breakerThreshold: 1,
+      breakerCooldownMs: 20,
+      queueTimeoutMs: 30,
+      maxQueueDepth: 10,
+    });
+    g.resize(1);
+
+    const held = await g.acquire();
+    g.record429("concurrency");
+    expect(g.getStats(failSnap).breaker).toBe("open");
+
+    await new Promise((r) => setTimeout(r, 35));
+
+    const probePromise = g.acquire();
+    expect(g.getStats(failSnap).breaker).toBe("half_open");
+    expect(g.getStats(failSnap).queued).toBe(1);
+
+    await expect(probePromise).rejects.toMatchObject({ code: "timeout" });
+
+    expect(g.getStats(failSnap).breaker).toBe("open");
+
+    held.release();
+
+    await new Promise((r) => setTimeout(r, 30));
+
+    const permit = await g.acquire();
+    expect(g.getStats(failSnap).breaker).toBe("half_open");
+    g.recordSuccess();
+    expect(g.getStats(failSnap).breaker).toBe("closed");
+    permit.release();
+  });
 });

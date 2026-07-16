@@ -11,6 +11,10 @@ export interface ConfigDraftValidation {
   warnings: Record<string, string>;
 }
 
+export interface ConfigDraftContext {
+  upstreamRequestsLimit?: number | null;
+}
+
 type FieldValidator = (def: FieldDef, value: unknown) => FieldValidation;
 
 type FieldKind = FieldDef["kind"];
@@ -76,12 +80,14 @@ function validateJsonField(def: FieldDef, value: unknown): FieldValidation {
   return {};
 }
 
-const FIELD_WARNINGS: Partial<Record<keyof RawConfig, (value: unknown) => string | null>> = {
-  rate_limit_requests: (v) => {
+const FIELD_WARNINGS: Partial<
+  Record<keyof RawConfig, (value: unknown, ctx?: ConfigDraftContext) => string | null>
+> = {
+  rate_limit_requests: (v, ctx) => {
     const n = Number(v);
-    return n === -1
-      ? "Unlimited — no request cap is enforced. The upstream may still reject excessive traffic."
-      : null;
+    if (n !== -1) return null;
+    if (ctx?.upstreamRequestsLimit === null) return null;
+    return "Unlimited — no request cap is enforced. The upstream may still reject excessive traffic.";
   },
 };
 
@@ -105,6 +111,7 @@ function validateField(def: FieldDef, value: unknown): FieldValidation {
 export function validateConfigDraft(
   draft: RawConfig,
   sections: { fields: FieldDef[] }[],
+  ctx?: ConfigDraftContext,
 ): ConfigDraftValidation {
   const errors: Record<string, string> = {};
   const warnings: Record<string, string> = {};
@@ -117,7 +124,7 @@ export function validateConfigDraft(
       }
       const warningFn = FIELD_WARNINGS[field.key];
       if (warningFn) {
-        const w = warningFn(draft[field.key]);
+        const w = warningFn(draft[field.key], ctx);
         if (w) warnings[field.key as string] = w;
       }
     }

@@ -15,7 +15,7 @@ export function useUsage(): UseUsageResult {
     value === undefined || value === null ? null : (value as UsageSnapshot);
 
   const { data, loading, error, refresh } = usePollingResource<UsageSnapshot | null>({
-    endpoint: "/dashboard/api/usage",
+    endpoint: "/usage",
     pollInterval: POLL_INTERVAL,
     errorMessage: "Failed to fetch usage",
     parse,

@@ -24,6 +24,7 @@ export {
 export { DEFAULT_CONFIG } from "./config/defaults.js";
 export {
   type ValidationResult,
+  type ValidationContext,
   type ReloadResult,
   type FieldRule,
   type WarningRule,

@@ -307,6 +307,7 @@ export class CaptureDB {
   private rowCount: number;
   readonly maxCaptures: number;
   compressionEnabled: boolean;
+  onPrune: ((prunedIds: number[]) => void) | null = null;
 
   constructor(
     config: Pick<ProxyConfig, "dbPath" | "maxCaptures"> &
@@ -463,14 +464,20 @@ export class CaptureDB {
       $rb: compressText(params.$rb, this.compressionEnabled),
     };
     let id = 0;
+    let prunedIds: number[] = [];
     this.db.transaction(() => {
       id = Number(this.stmtInsert.run(compressed as unknown as never).lastInsertRowid);
       const excess = Math.max(0, ++this.rowCount - this.maxCaptures);
       if (excess > 0) {
+        const rows = this.db
+          .prepare("SELECT id FROM captures ORDER BY id DESC LIMIT $excess OFFSET $limit")
+          .all({ $limit: this.maxCaptures, $excess: excess }) as { id: number }[];
+        prunedIds = rows.map((r) => r.id);
         this.stmtDeleteOld.run({ $limit: this.maxCaptures, $excess: excess });
         this.rowCount = this.maxCaptures;
       }
     })();
+    if (prunedIds.length > 0) this.onPrune?.(prunedIds);
     return id;
   }
 
@@ -593,14 +600,20 @@ export class CaptureDB {
       $rb2: compressText(params.$rb2, this.compressionEnabled),
     };
     let id = 0;
+    let prunedIds: number[] = [];
     this.db.transaction(() => {
       id = Number(this.stmtInsertVision.run(compressed as unknown as never).lastInsertRowid);
       const excess = Math.max(0, ++this.rowCount - this.maxCaptures);
       if (excess > 0) {
+        const rows = this.db
+          .prepare("SELECT id FROM captures ORDER BY id DESC LIMIT $excess OFFSET $limit")
+          .all({ $limit: this.maxCaptures, $excess: excess }) as { id: number }[];
+        prunedIds = rows.map((r) => r.id);
         this.stmtDeleteOld.run({ $limit: this.maxCaptures, $excess: excess });
         this.rowCount = this.maxCaptures;
       }
     })();
+    if (prunedIds.length > 0) this.onPrune?.(prunedIds);
     return id;
   }
 

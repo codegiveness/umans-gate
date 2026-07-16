@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 
 import { apiFetch } from "@/lib/api";
-import { API_BASE } from "@/lib/constants";
+import { API_BASE, MAX_CAPTURES } from "@/lib/constants";
 import type { CaptureSummary } from "@/types";
 
 /**
@@ -36,7 +36,7 @@ export function useCaptureList(): UseCaptureListResult {
 
   const loadList = useCallback(async () => {
     try {
-      const r = await apiFetch(`${API_BASE}/captures?limit=200`);
+      const r = await apiFetch(`${API_BASE}/captures?limit=${MAX_CAPTURES}`);
       if (!r.ok) {
         setListError(`HTTP ${r.status} ${r.statusText}`);
         setBackendReachable(false);
