@@ -16,20 +16,32 @@ const baseOpts = {
 const dummySnapshot: UsageSnapshot = {
   ok: true,
   fetchedAt: Date.now(),
+  userId: null,
   plan: "Code Max",
+  planSlug: "code_max",
   requestsLimit: null,
   requestsHardCap: null,
   requestsWindowSeconds: null,
   concurrencySoftLimit: 4,
   concurrencyHardCap: 8,
   requestsInWindow: 0,
+  weightedRequestsInWindow: 0,
   requestsRemaining: null,
+  weightedRemainingRequests: null,
   concurrentSessions: 0,
+  weightedConcurrentSessions: 0,
+  tokensIn: 0,
+  tokensOut: 0,
+  tokensCached: 0,
+  windowStartedAt: null,
+  windowResetsAt: null,
+  windowRemainingMinutes: null,
   priorityLow: false,
   boxedUntil: null,
   boxedReason: null,
   unitsDemoted: false,
   demotedUntil: null,
+  serviceMode: { current: "normal", resetsAt: null },
 };
 
 function sleep(ms: number): Promise<void> {
@@ -63,7 +75,7 @@ test("S1 happy-reservation: limit=4 mainRes=1 visionRes=1, 3 main + 1 vision fit
   g.shutdown();
 });
 
-test("S2 main-blocks-when-vision-reservation-unfilled: 3 main active, no vision; 4th main blocks for vision's slot", async () => {
+test("S2 main-borrows-idle-vision-slot: 3 main active, no vision demand; 4th main borrows vision's idle reservation", async () => {
   const g = new ConcurrencyGate({
     ...baseOpts,
     intentions: { main: 1, vision: 1 },
@@ -76,23 +88,71 @@ test("S2 main-blocks-when-vision-reservation-unfilled: 3 main active, no vision;
 
   expect(g.getStats(dummySnapshot).active).toBe(3);
 
-  // Vision has demand (0 active, 0 queued) but its reservation (1) is unfilled,
-  // so the 4th slot is held back — m4 must block until a vision acquires or a slot frees.
-  const m4Promise = g.acquire({ intention: "main" });
-  let m4Resolved = false;
-  m4Promise.then(() => {
-    m4Resolved = true;
-  });
-  await sleep(30);
-  expect(m4Resolved).toBe(false);
+  // Vision has 0 active and 0 queued — its reservation is borrowable.
+  // Main can use the 4th slot immediately instead of blocking.
+  const m4 = await g.acquire({ intention: "main" });
+  expect(g.getStats(dummySnapshot).active).toBe(4);
+  expect(g.getStats(dummySnapshot).activeByIntention).toEqual({ main: 4, vision: 0 });
 
   m1.release();
-  await sleep(10);
-  expect(m4Resolved).toBe(true);
-
-  (await m4Promise).release();
   m2.release();
   m3.release();
+  m4.release();
+  g.shutdown();
+});
+
+test("S2b vision-reservation-restored-on-demand: after main borrows vision's idle slot, releasing restores vision priority", async () => {
+  const g = new ConcurrencyGate({
+    ...baseOpts,
+    intentions: { main: 1, vision: 1 },
+  });
+  g.resize(4);
+
+  // Fill all 4 slots with main (borrowing vision's idle reservation).
+  const m1 = await g.acquire({ intention: "main" });
+  const m2 = await g.acquire({ intention: "main" });
+  const m3 = await g.acquire({ intention: "main" });
+  const m4 = await g.acquire({ intention: "main" });
+  expect(g.getStats(dummySnapshot).active).toBe(4);
+
+  // Vision request queues (at capacity).
+  const v1Promise = g.acquire({ intention: "vision" });
+  let v1Resolved = false;
+  v1Promise.then(() => {
+    v1Resolved = true;
+  });
+  await sleep(10);
+  expect(v1Resolved).toBe(false);
+
+  // Release a main → vision gets the slot (FIFO + reservation).
+  m1.release();
+  await sleep(10);
+  expect(v1Resolved).toBe(true);
+
+  (await v1Promise).release();
+  m2.release();
+  m3.release();
+  m4.release();
+  g.shutdown();
+});
+
+test("S2c main-reaches-full-hardcap-16: hardCap=16 visionRes=1, main fills all 16 slots when vision idle", async () => {
+  const g = new ConcurrencyGate({
+    ...baseOpts,
+    hardCap: 16,
+    softLimit: 16,
+    intentions: { main: 1, vision: 1 },
+  });
+  g.resize(16);
+
+  const permits: Permit[] = [];
+  for (let i = 0; i < 16; i++) {
+    permits.push(await g.acquire({ intention: "main" }));
+  }
+  expect(g.getStats(dummySnapshot).active).toBe(16);
+  expect(g.getStats(dummySnapshot).activeByIntention).toEqual({ main: 16, vision: 0 });
+
+  for (const p of permits) p.release();
   g.shutdown();
 });
 

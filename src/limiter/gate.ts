@@ -338,12 +338,20 @@ class Semaphore {
   }
 
   /** Capacity available to intention I: limit minus reserved slots of other
-   *  intentions that have not yet been filled by active permits. */
+   *  intentions that have not yet been filled by active permits.
+   *
+   *  When another intention has no demand (0 active, 0 queued), its
+   *  reservation is not counted — the slot is borrowable. This prevents
+   *  idle reservations from permanently reducing effective capacity
+   *  (e.g. vision reservation=1 with no vision traffic blocking main
+   *  from reaching the full hard cap). */
   private capacity(intention: string, effRes: Record<string, number>): number {
     let reserved = 0;
     for (const k of Object.keys(effRes)) {
       if (k === intention) continue;
       const active = this.activeByIntention[k] ?? 0;
+      const queued = this.queuedByIntention[k] ?? 0;
+      if (active + queued === 0) continue;
       const res = effRes[k] ?? 0;
       reserved += Math.max(0, res - active);
     }

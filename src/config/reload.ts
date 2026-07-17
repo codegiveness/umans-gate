@@ -152,6 +152,18 @@ const RELOAD_FIELDS: Array<{
       live.upstreamTimeoutMs = fresh.upstreamTimeoutMs;
     },
   },
+  {
+    rawKey: "experiment_rewrite_ids",
+    apply: (live, fresh) => {
+      live.experimentRewriteIds = fresh.experimentRewriteIds;
+    },
+  },
+  {
+    rawKey: "experiment_rewrite_ttl_ms",
+    apply: (live, fresh) => {
+      live.experimentRewriteTtlMs = fresh.experimentRewriteTtlMs;
+    },
+  },
 ];
 
 /**

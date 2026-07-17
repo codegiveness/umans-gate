@@ -171,6 +171,18 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     "upstream_timeout_ms",
     DEFAULT_CONFIG.upstream_timeout_ms ?? 300000,
   );
+  const experimentRewriteIds = envOrRawBool(
+    env.EXPERIMENT_REWRITE_IDS,
+    raw,
+    "experiment_rewrite_ids",
+    DEFAULT_CONFIG.experiment_rewrite_ids ?? false,
+  );
+  const experimentRewriteTtlMs = envOrRawNum(
+    env.EXPERIMENT_REWRITE_TTL_MS,
+    raw,
+    "experiment_rewrite_ttl_ms",
+    DEFAULT_CONFIG.experiment_rewrite_ttl_ms ?? 3600000,
+  );
 
   return {
     port,
@@ -234,5 +246,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     compressionEnabled,
     useWriteWorker,
     upstreamTimeoutMs,
+    experimentRewriteIds,
+    experimentRewriteTtlMs,
   };
 }

@@ -240,6 +240,8 @@ export interface ProxyConfig {
   useWriteWorker: boolean;
   /** Hard timeout for upstream requests in milliseconds. Prevents permit leaks when upstream hangs and client stays connected. */
   upstreamTimeoutMs: number;
+  experimentRewriteIds: boolean;
+  experimentRewriteTtlMs: number;
 }
 
 // Narrow config interfaces (ISP). ProxyConfig structurally satisfies each,
@@ -282,6 +284,11 @@ export interface GateConfig {
   breakerCooldownMs: ProxyConfig["breakerCooldownMs"];
   concurrencyMainReservation: ProxyConfig["concurrencyMainReservation"];
   concurrencyVisionReservation: ProxyConfig["concurrencyVisionReservation"];
+}
+
+export interface ExperimentConfig {
+  experimentRewriteIds: ProxyConfig["experimentRewriteIds"];
+  experimentRewriteTtlMs: ProxyConfig["experimentRewriteTtlMs"];
 }
 
 /** Write-behind queue flush fields used by WriteQueue. */

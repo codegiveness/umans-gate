@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-17
+
+### Added
+
+- **Experimental ID rewriting on 502/529**: a new opt-in experiment
+  (`EXPERIMENT_REWRITE_IDS`, default `false`) that detects `overloaded_error`
+  responses from the upstream and retries the request with rewritten
+  opencode session IDs and `tool_use_ids`. Uses a deterministic salt-based
+  rewrite with persistent SQLite mapping tables, automatic salt escalation on
+  repeated 502s, and a configurable TTL (`EXPERIMENT_REWRITE_TTL_MS`, default
+  1 hour). Both hot-reloadable. Eligible only for the `opencode` harness with
+  a valid session ID.
+
+### Changed
+
+- **Gate borrows idle reservation slots**: when a vision (or main) intention
+  has zero active and zero queued requests, its reserved slot is now
+  borrowable by the other intention. This prevents idle vision reservations
+  from permanently reducing effective main concurrency (e.g. main can now
+  reach the full hard cap when vision is idle). The reservation is restored
+  immediately when the owning intention has demand.
+- **Usage snapshot now drives effective limit**: `usage.onChange` syncs
+  `config.concurrencyHardCap` and `config.concurrencySoftLimit` from the
+  live `/v1/usage` snapshot in-memory, so `applyEffectiveLimit()` reads
+  authoritative upstream values instead of stale startup defaults. This
+  fixes a race where the proxy could operate at the default limit (8)
+  instead of the upstream-reported limit until an explicit config refresh.
+- **Always reconcile limits on startup**: when `UMANS_API_KEY` is set, the
+  proxy now always calls `refreshLimits()` on startup instead of only when
+  `concurrencyHardCap <= 1`. The `<= 1` heuristic was stale after the
+  default hard cap was raised to 16.
+
+### Fixed
+
+- **Burst concurrency test races**: `test/burst-concurrency.test.ts` now
+  polls `effectiveLimit` via the gate API instead of using fixed sleeps,
+  eliminating startup races that caused `peakInFlight` to exceed the
+  upstream limit during the window before the first `/v1/usage` fetch
+  completed. Hardcoded test proxy ports were removed to avoid stale-process
+  conflicts.
+
 ## [0.2.2] - 2026-07-17
 
 ### Added

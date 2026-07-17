@@ -179,6 +179,7 @@ export function migrateCaptureSchema(db: Database): void {
   db.exec("PRAGMA mmap_size = 268435456;"); // 256MB memory-mapped I/O
   db.exec("PRAGMA journal_size_limit = 67108864;"); // 64MB WAL cap
   db.exec("PRAGMA busy_timeout = 5000;"); // 5s wait on lock contention
+  db.exec("PRAGMA foreign_keys = ON;");
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS captures (
@@ -277,6 +278,68 @@ export function migrateCaptureSchema(db: Database): void {
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_vision_desc_last_accessed
       ON vision_descriptions(last_accessed_at ASC);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS id_rewrite_sessions (
+      session_id        TEXT PRIMARY KEY,
+      harness           TEXT NOT NULL,
+      salt              TEXT NOT NULL,
+      salt_version      INTEGER NOT NULL DEFAULT 1,
+      first_seen_at     INTEGER NOT NULL,
+      last_502_at       INTEGER NOT NULL,
+      consecutive_502s  INTEGER NOT NULL DEFAULT 0,
+      expires_at        INTEGER NOT NULL,
+      last_request_size INTEGER,
+      last_error_body   TEXT
+    );
+  `);
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_id_rewrite_sessions_expires
+      ON id_rewrite_sessions(expires_at ASC);
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS id_rewrite_mappings (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id     TEXT NOT NULL,
+      salt_version   INTEGER NOT NULL,
+      original_id    TEXT NOT NULL,
+      rewritten_id   TEXT NOT NULL,
+      id_type        TEXT NOT NULL,
+      created_at     INTEGER NOT NULL,
+      UNIQUE(session_id, original_id, id_type, salt_version),
+      FOREIGN KEY (session_id) REFERENCES id_rewrite_sessions(session_id) ON DELETE CASCADE
+    );
+  `);
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_id_rewrite_mappings_lookup
+      ON id_rewrite_mappings(session_id, original_id, id_type);
+  `);
+
+  // Drop id_rewrite_audit if it has the old FK constraint (ring buffer eviction breaks with FK on capture_id).
+  // Safe to drop: transient audit data, recreated without FK below.
+  const auditFkCheck = db
+    .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='id_rewrite_audit'")
+    .get() as { sql: string } | null;
+  if (auditFkCheck?.sql?.includes("FOREIGN KEY")) {
+    db.exec("DROP TABLE IF EXISTS id_rewrite_audit");
+  }
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS id_rewrite_audit (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      capture_id     INTEGER NOT NULL,
+      session_id     TEXT,
+      rewritten_at   INTEGER NOT NULL,
+      salt_version   INTEGER NOT NULL,
+      fields_rewritten TEXT NOT NULL,
+      tool_use_ids_rewritten INTEGER DEFAULT 0
+    );
+  `);
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_id_rewrite_audit_capture
+      ON id_rewrite_audit(capture_id);
   `);
 
   // Economics schema (model_pricing + daily_usage tables, usage_accounted column).
@@ -751,5 +814,142 @@ export class CaptureDB {
     cutoff: number,
   ): Array<{ key: string; description: string }> {
     return this.visionDescStore.listForWarming(limit, cutoff);
+  }
+
+  recordIdRewriteSession(params: {
+    sessionId: string;
+    harness: string;
+    salt: string;
+    ttlMs: number;
+    requestSize: number | null;
+    errorBody: string | null;
+  }): void {
+    const now = Date.now();
+    this.db
+      .prepare(
+        `INSERT INTO id_rewrite_sessions (session_id, harness, salt, salt_version, first_seen_at, last_502_at, consecutive_502s, expires_at, last_request_size, last_error_body)
+         VALUES ($sid, $harness, $salt, 1, $now, $now, 1, $exp, $rs, $eb)
+         ON CONFLICT(session_id) DO UPDATE SET
+           last_502_at = $now,
+           consecutive_502s = consecutive_502s + 1,
+           last_request_size = $rs,
+           last_error_body = $eb`,
+      )
+      .run({
+        $sid: params.sessionId,
+        $harness: params.harness,
+        $salt: params.salt,
+        $now: now,
+        $exp: now + params.ttlMs,
+        $rs: params.requestSize,
+        $eb: params.errorBody,
+      });
+  }
+
+  getIdRewriteSession(sessionId: string): {
+    salt: string;
+    saltVersion: number;
+    consecutive502s: number;
+    expiresAt: number;
+  } | null {
+    const row = this.db
+      .prepare(
+        "SELECT salt, salt_version as saltVersion, consecutive_502s as consecutive502s, expires_at as expiresAt FROM id_rewrite_sessions WHERE session_id = ?",
+      )
+      .get(sessionId) as {
+      salt: string;
+      saltVersion: number;
+      consecutive502s: number;
+      expiresAt: number;
+    } | null;
+    return row ?? null;
+  }
+
+  escalateRewriteSalt(sessionId: string, newSalt: string): void {
+    const now = Date.now();
+    this.db
+      .prepare(
+        "UPDATE id_rewrite_sessions SET salt = $salt, salt_version = salt_version + 1, last_502_at = $now WHERE session_id = $sid",
+      )
+      .run({ $sid: sessionId, $salt: newSalt, $now: now });
+  }
+
+  clearIdRewriteSession(sessionId: string): void {
+    this.db.prepare("DELETE FROM id_rewrite_mappings WHERE session_id = ?").run(sessionId);
+    this.db.prepare("DELETE FROM id_rewrite_sessions WHERE session_id = ?").run(sessionId);
+  }
+
+  getRewriteMapping(
+    sessionId: string,
+    originalId: string,
+    idType: string,
+    saltVersion: number,
+  ): string | null {
+    const row = this.db
+      .prepare(
+        "SELECT rewritten_id as rewrittenId FROM id_rewrite_mappings WHERE session_id = $sid AND original_id = $oid AND id_type = $type AND salt_version = $sv",
+      )
+      .get({
+        $sid: sessionId,
+        $oid: originalId,
+        $type: idType,
+        $sv: saltVersion,
+      }) as { rewrittenId: string } | null;
+    return row?.rewrittenId ?? null;
+  }
+
+  setRewriteMapping(params: {
+    sessionId: string;
+    originalId: string;
+    rewrittenId: string;
+    idType: string;
+    saltVersion: number;
+  }): void {
+    this.db
+      .prepare(
+        `INSERT OR IGNORE INTO id_rewrite_mappings (session_id, original_id, rewritten_id, id_type, salt_version, created_at)
+         VALUES ($sid, $oid, $rid, $type, $sv, $now)`,
+      )
+      .run({
+        $sid: params.sessionId,
+        $oid: params.originalId,
+        $rid: params.rewrittenId,
+        $type: params.idType,
+        $sv: params.saltVersion,
+        $now: Date.now(),
+      });
+  }
+
+  pruneExpiredRewriteSessions(): number {
+    const now = Date.now();
+    this.db
+      .prepare(
+        "DELETE FROM id_rewrite_mappings WHERE session_id IN (SELECT session_id FROM id_rewrite_sessions WHERE expires_at < ?)",
+      )
+      .run(now);
+    const result = this.db.prepare("DELETE FROM id_rewrite_sessions WHERE expires_at < ?").run(now);
+    return Number(result.changes);
+  }
+
+  recordIdRewriteAudit(params: {
+    captureId: number;
+    sessionId: string | null;
+    saltVersion: number;
+    fieldsRewritten: string[];
+    toolUseIdsRewritten: number;
+  }): void {
+    this.db
+      .prepare(
+        `INSERT INTO id_rewrite_audit (capture_id, session_id, rewritten_at, salt_version, fields_rewritten, tool_use_ids_rewritten)
+         VALUES ($cid, $sid, $now, $sv, $fields, $tool_count)`,
+      )
+      .run({
+        $cid: params.captureId,
+        $sid: params.sessionId,
+        $now: Date.now(),
+        $sv: params.saltVersion,
+        $fields: params.fieldsRewritten.join(","),
+        $tool_count: params.toolUseIdsRewritten,
+      });
   }
 }

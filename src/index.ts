@@ -15,6 +15,7 @@ import {
 } from "./config.js";
 import { CaptureDB } from "./db.js";
 import { syncPricing } from "./economics.js";
+import { RewriteIdExperiment } from "./experiments/rewrite-ids.js";
 import { computeRequestWeight } from "./helpers.js";
 import { ConcurrencyGate, GATE_RECONFIG_FIELDS, gateOptionsFromConfig } from "./limiter/index.js";
 import { createLogger } from "./logger.js";
@@ -354,6 +355,13 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
   }
 
   usage.onChange((snap) => {
+    // Sync in-memory config from the live snapshot so applyEffectiveLimit()
+    // reads the authoritative upstream values, not stale startup defaults.
+    // (The gate's own softLimit/hardCap are updated below; config is the source
+    // of truth for applyEffectiveLimit's base-value selection.)
+    config.concurrencyHardCap = snap.concurrencyHardCap;
+    config.concurrencySoftLimit = snap.concurrencySoftLimit;
+    gate.setHardCap(snap.concurrencyHardCap);
     gate.setSoftLimit(snap.concurrencySoftLimit);
     applyEffectiveLimit(snap);
     // Auto-derive rate limiter from usage snapshot when rate_limit_requests=0
@@ -460,6 +468,9 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     }
   }
 
+  const rewriteExperiment = config.experimentRewriteIds
+    ? new RewriteIdExperiment(db, { ttlMs: config.experimentRewriteTtlMs })
+    : null;
   const { handleProxy } = createProxyHandler(
     db,
     ws,
@@ -470,8 +481,19 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     vision,
     models,
     () => warmer?.notifyTraffic(),
+    rewriteExperiment,
   );
   let lastRawConfig: RawConfig = readConfigFile();
+
+  const rewritePruneTimer = rewriteExperiment
+    ? setInterval(() => {
+        const pruned = rewriteExperiment.pruneExpired();
+        if (pruned > 0) {
+          log.info("pruned expired ID rewrite sessions", { count: pruned });
+        }
+      }, 300000)
+    : null;
+  rewritePruneTimer?.unref?.();
 
   const reloadConfig = (): ReloadResult => {
     const oldRaw = lastRawConfig;
@@ -574,7 +596,10 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     return r;
   };
 
-  if (config.umansApiKey && config.concurrencyHardCap <= 1) {
+  // Always reconcile limits from upstream when an API key is configured.
+  // The snapshot from /v1/usage is authoritative — local config defaults are
+  // only a fallback until the first fetch completes.
+  if (config.umansApiKey) {
     void refreshLimits();
   }
 
@@ -688,6 +713,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     warmer?.stop();
     models.stop();
     usage.stop();
+    if (rewritePruneTimer) clearInterval(rewritePruneTimer);
 
     server.stop(false);
 

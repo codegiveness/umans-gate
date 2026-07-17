@@ -71,6 +71,10 @@ export interface RawConfig {
   /** Compress stored request/response bodies with zstd. Default true (on). */
   compression_enabled?: boolean;
   upstream_timeout_ms?: number;
+  /** EXPERIMENTAL: Rewrite opencode session IDs and tool_use_ids on 502 retry. Default false. */
+  experiment_rewrite_ids?: boolean;
+  /** EXPERIMENTAL: TTL in ms for id_rewrite_sessions entries. Default 3600000 (1 hour). */
+  experiment_rewrite_ttl_ms?: number;
 }
 
 /**

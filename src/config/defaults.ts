@@ -54,6 +54,8 @@ const DEFAULT_CONFIG: RawConfig = {
   vision_pending_max_batch: 50,
   compression_enabled: true,
   upstream_timeout_ms: 300000,
+  experiment_rewrite_ids: false,
+  experiment_rewrite_ttl_ms: 3600000,
 };
 
 export { DEFAULT_CONFIG };

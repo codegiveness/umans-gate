@@ -19,6 +19,7 @@ import type { ConcurrencyGate } from "./limiter/index.js";
 import { createLogger } from "./logger.js";
 
 import { STAMP_ANTHROPIC_BETA_HEADER } from "./config.js";
+import type { Harness, RewriteIdExperiment } from "./experiments/rewrite-ids.js";
 import { extractModelName } from "./models/name.js";
 import type { WriteQueue } from "./queue.js";
 import type { SlidingWindowRateLimiter } from "./rate.js";
@@ -30,6 +31,7 @@ import {
 } from "./stamp-pipeline.js";
 import type {
   CaptureConfig,
+  ExperimentConfig,
   GateConfig,
   ProtocolConfig,
   RequestMeta,
@@ -71,13 +73,105 @@ export function createProxyHandler(
   db: CaptureDB,
   ws: WsBroadcaster,
   queue: WriteQueue,
-  config: StampConfig & CaptureConfig & GateConfig & ProtocolConfig,
+  config: StampConfig & CaptureConfig & GateConfig & ProtocolConfig & ExperimentConfig,
   gate: ConcurrencyGate,
   rateRef: RateLimiterRef,
   vision: VisionHandoff | null,
   models: ModelsClient,
   onTraffic?: () => void,
+  rewriteExperiment?: RewriteIdExperiment | null,
 ) {
+  async function attemptRewriteRetry(
+    sessionId: string,
+    harness: Harness,
+    originalReqBuf: Uint8Array,
+    originalHeaders: Record<string, string>,
+    targetUrl: string,
+    req: Request,
+    cfg: ProtocolConfig & ExperimentConfig,
+    experiment: RewriteIdExperiment,
+    captureDb: CaptureDB,
+    captureId: number,
+  ): Promise<Response | null> {
+    const bodyText = decodeText(originalReqBuf);
+    let state = experiment.getOrCreateSession(
+      sessionId,
+      harness,
+      originalReqBuf.byteLength,
+      bodyText.slice(0, 500),
+    );
+
+    if (experiment.shouldEscalate(state.consecutive502s)) {
+      state = experiment.escalate(sessionId);
+      log.info("escalating ID rewrite salt", {
+        captureId,
+        sessionId,
+        newVersion: state.saltVersion,
+        consecutive502s: state.consecutive502s,
+      });
+    }
+
+    const rewriteResult = experiment.rewriteBody(bodyText, originalHeaders, sessionId, state);
+    const headerResult = experiment.rewriteHeaders(originalHeaders, sessionId, state);
+
+    if (!rewriteResult.rewritten) {
+      return null;
+    }
+
+    const retryReqBuf = textEncoder.encode(rewriteResult.body);
+    const retryHeaders = { ...headerResult.headers };
+    retryHeaders["content-length"] = String(retryReqBuf.byteLength);
+    retryHeaders["accept-encoding"] = "identity";
+
+    try {
+      const upstreamSignal = AbortSignal.any([
+        req.signal,
+        AbortSignal.timeout(cfg.upstreamTimeoutMs),
+      ]);
+      const retryResponse = await fetch(targetUrl, {
+        method: req.method,
+        headers: retryHeaders,
+        body: retryReqBuf as BodyInit,
+        protocol: cfg.upstreamProtocol as unknown as never,
+        signal: upstreamSignal,
+      });
+
+      captureDb.recordIdRewriteAudit({
+        captureId,
+        sessionId,
+        saltVersion: state.saltVersion,
+        fieldsRewritten: rewriteResult.fieldsRewritten,
+        toolUseIdsRewritten: rewriteResult.toolUseIdsRewritten,
+      });
+
+      if (retryResponse.status < 400) {
+        log.info("ID rewrite retry succeeded", {
+          captureId,
+          sessionId,
+          saltVersion: state.saltVersion,
+          status: retryResponse.status,
+        });
+        experiment.clearSession(sessionId);
+      } else if (retryResponse.status === 502 || retryResponse.status === 529) {
+        log.warn("ID rewrite retry still got 502/529", {
+          captureId,
+          sessionId,
+          saltVersion: state.saltVersion,
+          status: retryResponse.status,
+        });
+      }
+
+      return retryResponse;
+    } catch (err) {
+      log.warn("ID rewrite retry fetch failed", {
+        captureId,
+        sessionId,
+        error: (err as Error).message,
+      });
+      return null;
+    }
+  }
+
   async function handleProxy(req: Request, url: URL): Promise<Response> {
     const startedAt = Date.now();
     const path = url.pathname + url.search;
@@ -407,6 +501,58 @@ export function createProxyHandler(
         gate.record429(classify429(upstream));
       } else if (upstream.status < 400) {
         gate.recordSuccess();
+      }
+
+      // --- Experiment: ID rewriting on 502/529 overloaded_error ---
+      if (
+        config.experimentRewriteIds &&
+        rewriteExperiment &&
+        (upstream.status === 502 || upstream.status === 529) &&
+        reqBuf &&
+        reqBuf.byteLength > 0
+      ) {
+        const errBody = await upstream.text();
+        const isOverloaded = errBody.includes("overloaded_error");
+        if (isOverloaded) {
+          const { harness, sessionId } = rewriteExperiment.detectAndExtractSession(reqHeadersRaw);
+          if (rewriteExperiment.isEligible(harness, sessionId) && sessionId) {
+            log.info("502 overloaded_error detected, attempting ID rewrite retry", {
+              captureId: capId,
+              sessionId,
+              harness,
+            });
+            const retryResult = await attemptRewriteRetry(
+              sessionId,
+              harness,
+              reqBuf,
+              fwdHeaders,
+              finalTargetUrl,
+              req,
+              config,
+              rewriteExperiment,
+              db,
+              capId,
+            );
+            if (retryResult) {
+              upstream = retryResult;
+            } else {
+              upstream = new Response(errBody, {
+                status: upstream.status,
+                headers: upstream.headers,
+              });
+            }
+          } else {
+            upstream = new Response(errBody, {
+              status: upstream.status,
+              headers: upstream.headers,
+            });
+          }
+        } else {
+          upstream = new Response(errBody, {
+            status: upstream.status,
+            headers: upstream.headers,
+          });
+        }
       }
 
       const resHeadersRaw = headersToObject(upstream.headers);
