@@ -29,6 +29,8 @@ export interface RawConfig {
   models_refresh_ms?: number;
   concurrency_hard_cap?: number;
   concurrency_soft_limit?: number;
+  /** When true, effective limit = concurrency_hard_cap (16); when false (default), = concurrency_soft_limit (8). */
+  use_hard_cap?: boolean;
   /** Pro-tier rolling-window request limit. -1 = unlimited (no limiter), 0 = auto-derive from /v1/usage, >0 = explicit limit. */
   rate_limit_requests?: number;
   queue_timeout_ms?: number;

@@ -129,6 +129,12 @@ const RELOAD_FIELDS: Array<{
     },
   },
   {
+    rawKey: "use_hard_cap",
+    apply: (live, fresh) => {
+      live.useHardCap = fresh.useHardCap;
+    },
+  },
+  {
     rawKey: "compression_enabled",
     apply: (live, fresh) => {
       live.compressionEnabled = fresh.compressionEnabled;

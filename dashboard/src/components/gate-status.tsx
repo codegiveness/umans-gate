@@ -94,7 +94,7 @@ function computeStatus(stats: GateStats): {
 export function GateStatus({ stats }: { stats: GateStats | null }) {
   if (!stats) return null;
 
-  const pct = stats.hardCap > 0 ? (stats.active / stats.hardCap) * 100 : 0;
+  const pct = stats.effectiveLimit > 0 ? (stats.active / stats.effectiveLimit) * 100 : 0;
   const tierLabel = stats.tier === "unknown" ? "no key" : stats.tier;
   const status = computeStatus(stats);
 
@@ -119,12 +119,13 @@ export function GateStatus({ stats }: { stats: GateStats | null }) {
           <Tooltip>
             <TooltipTrigger render={<span className="cursor-help" />}>
               <span className={cn("font-mono", stats.breaker === "open" && "text-destructive")}>
-                {stats.active}/{stats.hardCap}
+                {stats.active}/{stats.effectiveLimit}
               </span>
-              <span className="text-muted-foreground ml-1">hard cap</span>
+              <span className="text-muted-foreground ml-1">cap</span>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              {stats.active} active · {stats.hardCap} hard cap · {stats.softLimit} soft limit
+              {stats.active} active · {stats.effectiveLimit} effective · {stats.hardCap} hard cap ·{" "}
+              {stats.softLimit} soft limit
             </TooltipContent>
           </Tooltip>
           {stats.queued > 0 && (

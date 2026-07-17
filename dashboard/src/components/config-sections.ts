@@ -157,14 +157,19 @@ const WARMER_FIELDS: FieldDef[] = [
 
 const CONCURRENCY_GATE_FIELDS: FieldDef[] = [
   {
+    key: "use_hard_cap",
+    label: "Use Hard Cap",
+    kind: "toggle",
+    description:
+      "When on, the effective concurrency limit is the hard cap (16). When off (default), the effective limit is the soft limit (8). Over-cap is impossible — the gate never grants beyond the selected limit.",
+  },
+  {
     key: "concurrency_hard_cap",
     label: "Hard Cap",
     kind: "number",
     description:
-      "Absolute maximum number of concurrent upstream requests the proxy will allow. Excess requests are queued. This value is validated against the upstream /v1/usage limit when an Umans API key is set. Must be ≥ 1. Default: 1.",
-    required: true,
-    min: 1,
-    refreshSource: true,
+      "Absolute maximum concurrent upstream requests (16). Non-configurable — derived from /v1/usage. Use the 'Use Hard Cap' toggle to switch the effective limit.",
+    disabled: true,
     umansSourced: true,
   },
   {
@@ -172,10 +177,8 @@ const CONCURRENCY_GATE_FIELDS: FieldDef[] = [
     label: "Soft Limit",
     kind: "number",
     description:
-      "Soft concurrency limit read from the upstream /v1/usage endpoint. Read-only — auto-derived from the upstream and cannot be edited directly. Use the refresh button to re-fetch from source. Default: 1.",
+      "Soft concurrency limit (8). Non-configurable — derived from /v1/usage. Use the 'Use Hard Cap' toggle to switch the effective limit.",
     disabled: true,
-    min: 1,
-    refreshSource: true,
     umansSourced: true,
   },
   {

@@ -17,6 +17,7 @@ const baseStats: GateStats = {
   active: 1,
   hardCap: 8,
   softLimit: 4,
+  effectiveLimit: 4,
   queued: 0,
   tier: "Code Max",
   breaker: "closed",

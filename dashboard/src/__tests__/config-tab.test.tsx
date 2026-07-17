@@ -153,18 +153,16 @@ describe("ConfigTab", () => {
     expect(screen.getByRole("button", { name: /Restart/i })).toBeInTheDocument();
   });
 
-  it("renders field-level refresh button on Hard Cap", async () => {
+  it("does not render field-level refresh on Hard Cap (disabled field)", async () => {
     render(<ConfigTab />);
     await flushEffects();
-    const refreshBtn = screen.getByRole("button", { name: /Refresh Hard Cap from source/i });
-    expect(refreshBtn).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Refresh Hard Cap from source/i })).toBeNull();
   });
 
-  it("renders field-level refresh button on Soft Limit", async () => {
+  it("does not render field-level refresh on Soft Limit (disabled field)", async () => {
     render(<ConfigTab />);
     await flushEffects();
-    const refreshBtn = screen.getByRole("button", { name: /Refresh Soft Limit from source/i });
-    expect(refreshBtn).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Refresh Soft Limit from source/i })).toBeNull();
   });
 
   it("does not render field-level refresh on non-concurrency fields", async () => {
@@ -383,7 +381,7 @@ describe("ConfigTab", () => {
     mockConfigResult.refreshFromSource = refreshSpy;
     render(<ConfigTab />);
     await flushEffects();
-    const refreshBtn = screen.getByRole("button", { name: /Refresh Hard Cap from source/i });
+    const refreshBtn = screen.getByRole("button", { name: /Refresh Rate Limit from source/i });
     await user.click(refreshBtn);
     await flushEffects();
     await waitFor(() => {

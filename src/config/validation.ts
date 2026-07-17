@@ -173,7 +173,12 @@ export const FIELD_RULES: FieldRule[] = [
     },
   },
   ...(
-    ["stamp_claude_code_enabled", "stamp_reasoning_effort_enabled", "compression_enabled"] as const
+    [
+      "stamp_claude_code_enabled",
+      "stamp_reasoning_effort_enabled",
+      "compression_enabled",
+      "use_hard_cap",
+    ] as const
   ).map((field) => ({
     name: field,
     errors: (n: RawConfig) =>

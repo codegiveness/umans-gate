@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-07-17
+
+### Added
+
+- **`USE_HARD_CAP` config toggle**: a new hot-reloadable boolean that
+  selects which concurrency limit is the effective operating limit.
+  When `false` (default), the effective limit is the soft limit (8);
+  when `true`, the effective limit is the hard cap (16). Toggleable at
+  runtime via the dashboard Config tab — no restart needed. The gate
+  never grants beyond the selected limit.
+- **`effectiveLimit` in `GateStats`**: the gate now reports the actual
+  current operating limit (after priorityLow/boxing adjustments) in
+  addition to `softLimit` and `hardCap`. The dashboard gate-status
+  component uses this to display `active/effectiveLimit` and compute the
+  utilization bar, giving an accurate picture of real concurrency headroom.
+
+### Changed
+
+- **Default concurrency raised**: `CONCURRENCY_HARD_CAP` default changed
+  from `1` to `16`; `CONCURRENCY_SOFT_LIMIT` default changed from `1`
+  to `8`. The effective limit defaults to the soft limit (8) unless
+  `USE_HARD_CAP=true`. Both values remain auto-sized from `/v1/usage`
+  when `UMANS_API_KEY` is set.
+- **Dashboard Config tab — Hard Cap / Soft Limit are now read-only**:
+  both fields are derived from `/v1/usage` and are no longer directly
+  editable. Field-level refresh buttons were removed from these fields.
+  Use the new "Use Hard Cap" toggle to switch the effective limit.
+- **Dashboard gate-status display**: the primary counter now shows
+  `active/effectiveLimit` (labeled "cap") instead of
+  `active/hardCap` (labeled "hard cap"). The tooltip shows all four
+  values: active, effective, hard cap, soft limit.
+- **Dashboard capture-list queue counter**: the header counter now
+  shows the count of captures in `enqueued` or `streaming` state
+  (actual in-flight) instead of the gate's `active` count, making the
+  queue depth reflect client-visible state rather than gate internals.
+
+### Fixed
+
+- **Permit leak on client abort**: when a client disconnected
+  mid-stream, the `onAbort` handler called `flushCapture()` but did
+  not call `releasePermit()`, leaving the gate's active count stuck
+  at 1 indefinitely. `onAbort` now releases the permit so the gate
+  recovers immediately after a client-side abort.
+
 ## [0.2.1] - 2026-07-17
 
 ### Added

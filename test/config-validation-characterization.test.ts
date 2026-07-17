@@ -490,8 +490,9 @@ test("char: concurrency_main_reservation — skipped when hard_cap=2 (resMax=0)"
 });
 
 test("char: concurrency_main_reservation — skipped when hard_cap undefined", () => {
-  // hard_cap defaults to 1, so resMax=-1, reservation not checked
-  expectNoErrors(validateConfig({ concurrency_main_reservation: 999 }));
+  // hard_cap defaults to 16, so resMax=14 — 999 > 14 produces an error
+  const r = validateConfig({ concurrency_main_reservation: 999 });
+  expect(r.errors).toContain("concurrency_main_reservation must be <= hard_cap - 2 (=14)");
 });
 
 test("char: concurrency_main_reservation — skipped when hard_cap not integer", () => {
@@ -547,7 +548,9 @@ test("char: concurrency_vision_reservation — skipped when hard_cap=1 (bootstra
 });
 
 test("char: concurrency_vision_reservation — skipped when hard_cap undefined", () => {
-  expectNoErrors(validateConfig({ concurrency_vision_reservation: 999 }));
+  // hard_cap defaults to 16, so resMax=14 — 999 > 14 produces an error
+  const r = validateConfig({ concurrency_vision_reservation: 999 });
+  expect(r.errors).toContain("concurrency_vision_reservation must be <= hard_cap - 2 (=14)");
 });
 
 // ============================================================================
@@ -1255,8 +1258,8 @@ test("char: normalized — omitted fields get DEFAULT_CONFIG values", () => {
   expect(r.normalized.db_path).toBe("./umans-gate.db");
   expect(r.normalized.idle_timeout).toBe(255);
   expect(r.normalized.upstream_protocol).toBe("http1.1");
-  expect(r.normalized.concurrency_hard_cap).toBe(1);
-  expect(r.normalized.concurrency_soft_limit).toBe(1);
+  expect(r.normalized.concurrency_hard_cap).toBe(16);
+  expect(r.normalized.concurrency_soft_limit).toBe(8);
   expect(r.normalized.vision_strategy).toBe("catalog");
   expect(r.normalized.vision_model).toBe("umans-flash");
 });

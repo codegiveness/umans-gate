@@ -495,6 +495,7 @@ export function createProxyHandler(
 
       const onAbort = (): void => {
         flushCapture();
+        releasePermit();
       };
 
       if (req.signal) {

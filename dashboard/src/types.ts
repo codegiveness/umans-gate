@@ -116,6 +116,7 @@ export interface GateStats {
   queued: number;
   softLimit: number;
   hardCap: number;
+  effectiveLimit: number;
   tier: "Code Pro" | "Code Max" | "unknown";
   breaker: BreakerState;
   boxed: boolean;

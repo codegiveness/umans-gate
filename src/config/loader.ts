@@ -60,8 +60,9 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   const dashboardToken = env.DASHBOARD_TOKEN ?? raw.dashboard_token ?? null;
   const usageRefreshMs = num(env.USAGE_REFRESH_MS ?? raw.usage_refresh_ms, 60000);
   const modelsRefreshMs = num(env.MODELS_REFRESH_MS ?? raw.models_refresh_ms, 3600000);
-  const concurrencyHardCap = num(env.CONCURRENCY_HARD_CAP ?? raw.concurrency_hard_cap, 1);
-  const concurrencySoftLimit = num(env.CONCURRENCY_SOFT_LIMIT ?? raw.concurrency_soft_limit, 1);
+  const concurrencyHardCap = num(env.CONCURRENCY_HARD_CAP ?? raw.concurrency_hard_cap, 16);
+  const concurrencySoftLimit = num(env.CONCURRENCY_SOFT_LIMIT ?? raw.concurrency_soft_limit, 8);
+  const useHardCap = bool(env.USE_HARD_CAP ?? raw.use_hard_cap, false);
   const rateLimitRequests = num(env.RATE_LIMIT_REQUESTS ?? raw.rate_limit_requests, 0);
   const queueTimeoutMs = num(env.QUEUE_TIMEOUT_MS ?? raw.queue_timeout_ms, 30000);
   const maxQueueDepth = num(env.MAX_QUEUE_DEPTH ?? raw.max_queue_depth, 256);
@@ -195,6 +196,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     modelsRefreshMs,
     concurrencyHardCap,
     concurrencySoftLimit,
+    useHardCap,
     rateLimitRequests,
     queueTimeoutMs,
     maxQueueDepth,

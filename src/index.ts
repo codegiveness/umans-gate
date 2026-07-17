@@ -337,16 +337,25 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
   const gate = new ConcurrencyGate(gateOptionsFromConfig(config));
   const rateRef: RateLimiterRef = { current: createRateLimiter(config.rateLimitRequests, null) };
 
-  usage.onChange((snap) => {
-    gate.setSoftLimit(snap.concurrencySoftLimit);
-    let effective = snap.concurrencySoftLimit;
-    if (snap.priorityLow) effective = Math.max(1, effective - 1);
+  function applyEffectiveLimit(snap: {
+    priorityLow: boolean;
+    boxedUntil: number | null;
+    boxedReason: string | null;
+  }): void {
     const boxed = snap.boxedUntil !== null && snap.boxedUntil > Date.now();
     if (boxed && !snap.boxedReason?.toLowerCase().startsWith("rate_limit")) {
       gate.resize(1);
-    } else {
-      gate.resize(effective);
+      return;
     }
+    const base = config.useHardCap ? config.concurrencyHardCap : config.concurrencySoftLimit;
+    let effective = base;
+    if (snap.priorityLow) effective = Math.max(1, effective - 1);
+    gate.resize(effective);
+  }
+
+  usage.onChange((snap) => {
+    gate.setSoftLimit(snap.concurrencySoftLimit);
+    applyEffectiveLimit(snap);
     // Auto-derive rate limiter from usage snapshot when rate_limit_requests=0
     if (config.rateLimitRequests === 0 && snap.requestsHardCap !== null) {
       if (rateRef.current === null) {
@@ -378,6 +387,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     config.concurrencySoftLimit = source.softLimit;
     gate.setHardCap(source.hardCap);
     gate.setSoftLimit(source.softLimit);
+    applyEffectiveLimit(usage.getSnapshot());
     ws.broadcast({ type: "gate", stats: gate.getStats(usage.getSnapshot()) });
   }
 
@@ -479,6 +489,13 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     }
     if (applied.includes("concurrency_soft_limit")) {
       gate.setSoftLimit(config.concurrencySoftLimit);
+    }
+    if (
+      applied.includes("use_hard_cap") ||
+      applied.includes("concurrency_hard_cap") ||
+      applied.includes("concurrency_soft_limit")
+    ) {
+      applyEffectiveLimit(usage.getSnapshot());
     }
 
     if (applied.includes("compression_enabled")) {

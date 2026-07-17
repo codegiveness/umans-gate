@@ -552,6 +552,7 @@ export class ConcurrencyGate {
       queued: this.semaphore.getWaiterCount(),
       softLimit: this.semaphore.getSoftLimit() / SCALE,
       hardCap: this.semaphore.getHardCap() / SCALE,
+      effectiveLimit: this.semaphore.getLimit() / SCALE,
       tier: snapshot.plan,
       breaker: this.breaker.getState(),
       boxed,

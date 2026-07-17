@@ -110,14 +110,14 @@ after a reboot or crash. Run `umans-gate service install` to register it
 as a managed service (systemd / launchd / Windows Service) that
 auto-starts on boot. See [Service Persistence](#service-persistence).
 
-### 7. Default concurrency is 1
+### 7. Default concurrency and the hard cap toggle
 
-`CONCURRENCY_HARD_CAP` and `CONCURRENCY_SOFT_LIMIT` both default to `1`,
-so the proxy serializes all upstream requests — only one in flight at a
-time, with a 1s cooldown between permits (`RELEASE_COOLDOWN_MS=1000`).
-Point multiple tools at it and they will queue. Increase both values
-(and set `UMANS_API_KEY` so the soft limit can be auto-sized from
-`/v1/usage`) if your plan allows concurrency.
+`CONCURRENCY_HARD_CAP` defaults to `16` and `CONCURRENCY_SOFT_LIMIT`
+defaults to `8`. By default (`USE_HARD_CAP=false`), the effective limit
+is the soft limit (8). Set `USE_HARD_CAP=true` to use the hard cap (16)
+as the effective limit. Both values are auto-sized from `/v1/usage` when
+`UMANS_API_KEY` is set. Use the toggle in the dashboard Config tab to
+switch between soft and hard cap at runtime — no restart needed.
 
 ## Usage Rights
 
@@ -417,8 +417,9 @@ All configuration variables have JSON equivalents using `snake_case`
 | `DASHBOARD_TOKEN` | _(empty)_ | When set, secures all dashboard API routes, `/health`, `/metrics`, and WebSocket with Bearer token auth |
 | `USAGE_REFRESH_MS` | `60000` | `/v1/usage` poll interval in ms |
 | `MODELS_REFRESH_MS` | `3600000` | `/v1/models` poll interval in ms |
-| `CONCURRENCY_HARD_CAP` | `1` | Maximum concurrent upstream requests (hard ceiling) |
-| `CONCURRENCY_SOFT_LIMIT` | `1` | Soft limit (driven by `/v1/usage`, adjustable at runtime) |
+| `CONCURRENCY_HARD_CAP` | `16` | Maximum concurrent upstream requests (hard ceiling, non-configurable — derived from `/v1/usage`) |
+| `CONCURRENCY_SOFT_LIMIT` | `8` | Soft limit (driven by `/v1/usage`, non-configurable) |
+| `USE_HARD_CAP` | `false` | When `true`, effective limit = hard cap (16); when `false`, effective limit = soft limit (8) |
 | `CONCURRENCY_MAIN_RESERVATION` | `1` | Reserved slots for main requests |
 | `CONCURRENCY_VISION_RESERVATION` | `1` | Reserved slots for vision requests |
 | `RATE_LIMIT_REQUESTS` | `0` | Pro-tier rolling-window limit. `-1` = unlimited, `0` = auto-derive from `/v1/usage`, `>0` = explicit |

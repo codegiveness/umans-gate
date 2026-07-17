@@ -162,6 +162,8 @@ export interface ProxyConfig {
   concurrencyHardCap: number;
   /** Persisted concurrency soft limit (from /v1/usage, read-only display). */
   concurrencySoftLimit: number;
+  /** When true, the effective limit is concurrencyHardCap (16); when false (default), it is concurrencySoftLimit (8). */
+  useHardCap: boolean;
   /** Pro-tier rolling window: -1 = unlimited (no limiter), 0 = auto-derive from /v1/usage, >0 = explicit limit. */
   rateLimitRequests: number;
   /** Max time a request can wait in the queue before 503, in ms. */
@@ -270,6 +272,7 @@ export interface CaptureConfig {
 export interface GateConfig {
   concurrencyHardCap: ProxyConfig["concurrencyHardCap"];
   concurrencySoftLimit: ProxyConfig["concurrencySoftLimit"];
+  useHardCap: ProxyConfig["useHardCap"];
   rateLimitRequests: ProxyConfig["rateLimitRequests"];
   queueTimeoutMs: ProxyConfig["queueTimeoutMs"];
   maxQueueDepth: ProxyConfig["maxQueueDepth"];
@@ -377,6 +380,8 @@ export interface GateStats {
   queued: number;
   softLimit: number;
   hardCap: number;
+  /** Current effective operating limit (soft or hard, adjusted for priorityLow/boxing). */
+  effectiveLimit: number;
   tier: "Code Pro" | "Code Max" | "unknown";
   breaker: BreakerState;
   boxed: boolean;

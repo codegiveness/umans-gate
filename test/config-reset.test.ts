@@ -145,15 +145,15 @@ describe("reset endpoint applies reloadConfig and preserves live dashboard_token
     };
     expect(resetJson.ok).toBe(true);
 
-    // 3. Verify the live gate now reflects the DEFAULT hardCap (1), proving
+    // 3. Verify the live gate now reflects the DEFAULT hardCap (16), proving
     //    reloadConfig was called and applied the reset value live.
     const gateAfter = (await (
       await fetch(`${proxy.baseUrl}/dashboard/api/gate`, { headers: authHeaders })
     ).json()) as {
       hardCap: number;
     };
-    // DEFAULT_CONFIG.concurrency_hard_cap is 1 (src/config/defaults.ts:20).
-    expect(gateAfter.hardCap).toBe(1);
+    // DEFAULT_CONFIG.concurrency_hard_cap is 16 (src/config/defaults.ts:20).
+    expect(gateAfter.hardCap).toBe(16);
   });
 
   test("dashboard_token (restart-required) unchanged in live config after reset", async () => {

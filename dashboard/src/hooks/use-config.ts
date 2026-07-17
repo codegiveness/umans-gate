@@ -11,6 +11,7 @@ export interface StampRawConfig {
 export interface GateRawConfig {
   concurrency_hard_cap?: number;
   concurrency_soft_limit?: number;
+  use_hard_cap?: boolean;
   concurrency_main_reservation?: number;
   concurrency_vision_reservation?: number;
   rate_limit_requests?: number;
