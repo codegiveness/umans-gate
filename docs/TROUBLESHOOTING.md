@@ -168,6 +168,81 @@ Hot-reloadable fields apply immediately via the Config tab. Fields marked
 `restartRequired` need a server restart. Use the **Restart** button in the
 dashboard, or restart manually.
 
+## Service / persistence
+
+### Proxy doesn't start after reboot
+
+The `umans-gate` command runs in the foreground — it does **not**
+auto-start on boot by itself. You need to install it as a managed
+service first:
+
+```bash
+umans-gate service install
+```
+
+This registers it with systemd (Linux), launchd (macOS), or as a
+Windows Service. Check that the service is installed and running:
+
+```bash
+umans-gate service status
+```
+
+If it was installed but not running, start it:
+
+```bash
+umans-gate service start
+```
+
+### `service install` from `npx` fails
+
+`npx umans-gate service install` will fail with a clear error — `npx`
+installs a temporary binary that won't persist across reboots. Install
+the package globally first:
+
+```bash
+npm install -g umans-gate
+umans-gate service install
+```
+
+### Linux: service starts on login but not at boot
+
+On Linux, `service install` uses a systemd user unit with
+`loginctl enable-linger` so the service starts at boot without login.
+If `enable-linger` fails (it may need root on some distros), the
+service will start when you log in instead. Enable linger manually:
+
+```bash
+loginctl enable-linger "$USER"
+```
+
+If this needs root:
+
+```bash
+sudo loginctl enable-linger "$USER"
+```
+
+### Service crashes and doesn't restart
+
+The service is configured with automatic restart:
+
+- **Linux**: `Restart=always` in the systemd unit
+- **macOS**: `KeepAlive=true` in the launchd plist
+- **Windows**: NSSM restarts the process on exit
+
+If it's not restarting, verify the service definition wasn't
+corrupted:
+
+```bash
+umans-gate service status
+umans-gate service install --force   # reinstall the service definition
+```
+
+Check the logs for crash reasons:
+
+```bash
+umans-gate service logs -f
+```
+
 ## Database issues
 
 ### Database file growing too large

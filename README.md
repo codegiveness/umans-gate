@@ -74,6 +74,11 @@ bun src/cli.ts
 > standalone binary for your platform. For development from source,
 > [Bun](https://bun.sh) ≥ 1.1.0 is required.
 
+> **Surviving reboots.** The `umans-gate` command runs in the foreground —
+> it won't restart on its own after a reboot or crash. To install it as a
+> managed service that auto-starts on boot, run `umans-gate service install`
+> (see [Service Persistence](#service-persistence)).
+
 ### Platform Support
 
 Pre-compiled binaries are published for:
@@ -140,6 +145,18 @@ installs the correct binary.
    When unset, all endpoints are open (backward compatible). Includes
    brute-force protection via sliding-window rate limiting.
 
+6. **Make it survive reboots** (optional but recommended):
+
+   ```bash
+   umans-gate service install
+   ```
+
+   The `umans-gate` command runs in the foreground and won't auto-restart
+   after a reboot or crash. `service install` registers it as a managed
+   service (systemd on Linux, launchd on macOS, Windows Service) that
+   starts on boot and restarts on crash. See
+   [Service Persistence](#service-persistence) for details.
+
 ### What It Does
 
 | Feature | Description |
@@ -197,8 +214,11 @@ rm -rf ~/.config/umans-gate
 
 ## Service Persistence
 
-`umans-gate` can install itself as a managed service that starts on boot
-and survives restarts — no external process manager required.
+By default, `umans-gate` runs in the foreground and **won't survive a
+reboot or crash** — you'd have to start it manually each time you turn
+on your computer. To make it auto-start on boot and recover from
+crashes, install it as a managed service. No external process manager
+required.
 
 ### Install as a service
 
