@@ -66,7 +66,7 @@ test("umans-glm model gets output_config effort=max", async () => {
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
   expect(parsed.max_tokens).toBe(131071);
-  expect(parsed.thinking).toBeUndefined();
+  expect(parsed.thinking).toEqual({ type: "adaptive" });
   expect(parsed.output_config).toEqual({ effort: "max" });
 });
 

@@ -150,6 +150,23 @@ export function createProxyHandler(
       }
     }
 
+    // --- Forwarded request headers: strip hop-by-hop + host ---
+    const fwdHeaders: Record<string, string> = {};
+    for (const [k, v] of Object.entries(reqHeadersRaw)) {
+      if (HOP.has(k)) continue;
+      fwdHeaders[k] = v;
+    }
+
+    // The proxy strips Content-Encoding from the upstream response and forwards
+    // decoded bodies, so it must not advertise compression. Force identity on
+    // every upstream request to stay responsible for the encoding contract.
+    fwdHeaders["accept-encoding"] = "identity";
+
+    if (stampBeta) {
+      fwdHeaders["anthropic-beta"] = STAMP_ANTHROPIC_BETA_HEADER;
+      fwdHeaders["anthropic-version"] = "2023-06-01";
+    }
+
     // --- Insert capture row (early, so vision calls can link to it) ---
     let reqBodyText = reqBuf ? decodeText(reqBuf) : "";
     const reqMeta: RequestMeta = {
@@ -162,7 +179,7 @@ export function createProxyHandler(
       $method: req.method,
       $path: path,
       $url: finalTargetUrl,
-      $rh: JSON.stringify(redactHeaders(reqHeadersRaw)),
+      $rh: JSON.stringify(redactHeaders(fwdHeaders)),
       $rb: reqBodyText,
       $rs: reqBuf ? reqBuf.byteLength : 0,
       $st: startedAt,
@@ -241,23 +258,6 @@ export function createProxyHandler(
 
     const reqSize = reqBuf ? reqBuf.byteLength : 0;
     reqMeta.request_size = reqSize;
-
-    // --- Forwarded request headers: strip hop-by-hop + host ---
-    const fwdHeaders: Record<string, string> = {};
-    for (const [k, v] of Object.entries(reqHeadersRaw)) {
-      if (HOP.has(k)) continue;
-      fwdHeaders[k] = v;
-    }
-
-    // The proxy strips Content-Encoding from the upstream response and forwards
-    // decoded bodies, so it must not advertise compression. Force identity on
-    // every upstream request to stay responsible for the encoding contract.
-    fwdHeaders["accept-encoding"] = "identity";
-
-    if (stampBeta) {
-      fwdHeaders["anthropic-beta"] = STAMP_ANTHROPIC_BETA_HEADER;
-      fwdHeaders["anthropic-version"] = "2023-06-01";
-    }
 
     // --- Weighted rate limit check (pro tier only; rate is null when unlimited) ---
     const modelName = reqModelName ?? undefined;
@@ -345,6 +345,7 @@ export function createProxyHandler(
     }
 
     let permitReleased = false;
+    let streamingStarted = false;
     const releasePermit = (): void => {
       if (permit && !permitReleased) {
         permitReleased = true;
@@ -540,10 +541,12 @@ export function createProxyHandler(
           if (req.signal) {
             req.signal.removeEventListener("abort", onAbort);
           }
+          releasePermit();
         },
       });
 
       const stream = upstream.body.pipeThrough(capture);
+      streamingStarted = true;
       return new Response(stream, {
         status: upstream.status,
         statusText: upstream.statusText,
@@ -571,7 +574,7 @@ export function createProxyHandler(
         { status: 500, headers: { "content-type": "application/json" } },
       );
     } finally {
-      releasePermit();
+      if (!streamingStarted) releasePermit();
     }
   }
 

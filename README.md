@@ -24,8 +24,121 @@ dashboard opens at `http://localhost:1945/dashboard/`. Point any
 Anthropic or OpenAI-compatible harness at the proxy URL — every
 request and response is captured automatically.
 
+## What It Does
+
+| Feature | Description |
+|---------|-------------|
+| **Capture proxy** | Intercepts all LLM API traffic (Anthropic, OpenAI-compatible) and stores it in SQLite with optional zstd compression |
+| **Stamp pipeline** | Applies TTL, `top_k`, `max_tokens`, `thinking`, `output_config`, `context_management`, and `temperature` stamps — toggled by two switches (Anthropic / OpenAI) |
+| **Vision handoff** | Replaces image blocks with text descriptions from a vision model, enabling text-only models to "see" images. Descriptions are cached (7-day TTL) with persistent SQLite storage |
+| **Concurrency gate** | Semaphore + circuit breaker with intention-based reservations, hard cap, soft limit driven by `/v1/usage`, queue timeout, and over-subscription fallback |
+| **Rate limiting** | Sliding-window weighted rate limiter for pro-tier request limits, auto-derived from `/v1/usage` or explicitly configured |
+| **Connection warmer** | Periodic `/v1/models` pings keep TLS warm, skipping when real traffic occurred recently |
+| **Usage tracking** | Fetches and reconciles `/v1/usage` to size concurrency limits, detect rate-boxing, and manage priority demotion |
+| **Live inspector** | React + shadcn/ui dashboard with WebSocket live updates |
+| **SSE rendering** | Streaming responses are captured and rendered with expandable event previews |
+| **Ring buffer storage** | Keeps the last N captures (default 200) with WAL mode SQLite |
+| **Write-behind queue** | Batched database writes to minimize blocking during streaming |
+| **Hop-by-hop header stripping** | Correct HTTP proxy behavior |
+| **Protocol flexibility** | Configurable upstream HTTP/1.1 (default) or HTTP/2 |
+
+## Important Notes
+
+Read these before you configure the proxy — they affect day-one usage and
+are easy to miss in the detailed reference below.
+
+### 1. The proxy modifies your requests
+
+When stamping is enabled (`STAMP_CLAUDE_CODE_ENABLED` or
+`STAMP_REASONING_EFFORT_ENABLED`), the proxy rewrites request bodies —
+adding `ttl`, `top_k`, `max_tokens`, `thinking`, `output_config`,
+`context_management`, `temperature`, or `reasoning_effort` — before
+forwarding upstream. **The stamped body is what gets sent upstream AND
+what gets captured**, so the inspector shows exactly what the API
+received. See [Stamp Pipeline](#stamp-pipeline).
+
+Additionally, the proxy forces `accept-encoding: identity` on every
+upstream request and strips `content-encoding` from responses —
+unconditional and not configurable, so upstream traffic is never
+compressed.
+
+### 2. Vision strategy and non-Claude Code harnesses
+
+When `VISION_STRATEGY` is `never` — or a vision-capable model under
+`catalog` — images pass through to the upstream untouched. In that case:
+
+- **Do NOT** configure the model as vision-capable on the harness side
+  (except Claude Code, which manages image caching via its own
+  `cache_control` breakpoint placement).
+- Other harnesses (e.g. custom GLM integrations) send images inline
+  without cache breakpoints, which **degrades the prompt cache hit
+  rate** because image bytes fall outside the 20-block lookback window.
+
+Additionally, the default `catalog` strategy runs in **background mode**:
+on a cache miss, the original image-bearing body is forwarded upstream
+immediately, and vision processing populates the cache for the *next*
+request. The first request with a new image is not rewritten.
+
+See [Vision Handoff](#vision-handoff).
+
+### 3. Upstream target is hardcoded
+
+The proxy always forwards to `https://api.code.umans.ai`. The OpenAI chat
+path (`chat/completions`), warmer path (`/v1/models`), and vision target
+are also hardcoded — **not configurable**. This is not a generic proxy
+you can point at an arbitrary upstream.
+
+The listen address is also hardcoded to `127.0.0.1` — the proxy only
+listens on loopback and this cannot be overridden via config.
+
+### 4. Ring buffer overwrites old captures
+
+Storage keeps only the last N captures (default `MAX_CAPTURES=200`).
+Older captures are automatically deleted. Increase `MAX_CAPTURES` in
+your config if you need a longer history.
+
+### 5. API key unlocks key features
+
+Without `UMANS_API_KEY`, the proxy still captures traffic, but these
+features stay disabled: `/v1/usage` polling, concurrency gate sizing,
+rate-limit validation, and vision handoff. Set it on first run.
+
+### 6. Foreground by default — won't survive reboots
+
+The `umans-gate` command runs in the foreground and won't auto-restart
+after a reboot or crash. Run `umans-gate service install` to register it
+as a managed service (systemd / launchd / Windows Service) that
+auto-starts on boot. See [Service Persistence](#service-persistence).
+
+### 7. Default concurrency is 1
+
+`CONCURRENCY_HARD_CAP` and `CONCURRENCY_SOFT_LIMIT` both default to `1`,
+so the proxy serializes all upstream requests — only one in flight at a
+time, with a 1s cooldown between permits (`RELEASE_COOLDOWN_MS=1000`).
+Point multiple tools at it and they will queue. Increase both values
+(and set `UMANS_API_KEY` so the soft limit can be auto-sized from
+`/v1/usage`) if your plan allows concurrency.
+
+## Usage Rights
+
+This is a **personal-use project**. The source code is published under the MIT
+license for transparency and educational purposes. While the MIT license
+technically permits commercial use and redistribution, this project is not
+actively maintained as a product and is not intended for production deployment.
+
+**This is a community contribution and is not an official Umans product.**
+It is not affiliated with, endorsed by, or supported by Umans AI. All upstream
+service names, model names, and API endpoints referenced in this codebase
+belong to their respective owners.
+
+Use it, learn from it, fork it — but don't expect official support or
+warranties of any kind.
+
 ## Table of Contents
 
+- [What It Does](#what-it-does)
+- [Important Notes](#important-notes)
+- [Usage Rights](#usage-rights)
 - [Install](#install)
 - [Quick Start](#quick-start)
 - [Updating](#updating)
@@ -74,10 +187,8 @@ bun src/cli.ts
 > standalone binary for your platform. For development from source,
 > [Bun](https://bun.sh) ≥ 1.1.0 is required.
 
-> **Surviving reboots.** The `umans-gate` command runs in the foreground —
-> it won't restart on its own after a reboot or crash. To install it as a
-> managed service that auto-starts on boot, run `umans-gate service install`
-> (see [Service Persistence](#service-persistence)).
+> **Surviving reboots.** The proxy runs in the foreground — see
+> [Important Notes §6](#6-foreground-by-default--wont-survive-reboots).
 
 ### Platform Support
 
@@ -156,25 +267,6 @@ installs the correct binary.
    service (systemd on Linux, launchd on macOS, Windows Service) that
    starts on boot and restarts on crash. See
    [Service Persistence](#service-persistence) for details.
-
-### What It Does
-
-| Feature | Description |
-|---------|-------------|
-| **Capture proxy** | Intercepts all LLM API traffic (Anthropic, OpenAI-compatible) and stores it in SQLite with optional zstd compression |
-| **Stamp pipeline** | Applies TTL, `top_k`, `max_tokens`, `thinking`, `output_config`, `context_management`, and `temperature` stamps — toggled by a single switch |
-| **Vision handoff** | Replaces image blocks with text descriptions from a vision model, enabling text-only models to "see" images. Descriptions are cached (7-day TTL) with persistent SQLite storage |
-| **Concurrency gate** | Semaphore + circuit breaker with intention-based reservations, hard cap, soft limit driven by `/v1/usage`, queue timeout, and over-subscription fallback |
-| **Rate limiting** | Sliding-window weighted rate limiter for pro-tier request limits, auto-derived from `/v1/usage` or explicitly configured |
-| **Connection warmer** | Periodic `/v1/models` pings keep TLS warm, skipping when real traffic occurred recently |
-| **Usage tracking** | Fetches and reconciles `/v1/usage` to size concurrency limits, detect rate-boxing, and manage priority demotion |
-| **Live inspector** | React + shadcn/ui dashboard with WebSocket live updates |
-| **SSE rendering** | Streaming responses are captured and rendered with expandable event previews |
-| **Ring buffer storage** | Keeps the last N captures (default 200) with WAL mode SQLite |
-| **Write-behind queue** | Batched database writes to minimize blocking during streaming |
-| **Worker-based capture** | Offloads capture writes to a worker thread for non-blocking streaming |
-| **Hop-by-hop header stripping** | Correct HTTP proxy behavior |
-| **Protocol flexibility** | Configurable upstream HTTP/1.1 (default) or HTTP/2 |
 
 ## Updating
 
@@ -390,7 +482,7 @@ Code stamp bundle to Anthropic requests:
 2. **`top_k` injection**: injects `"top_k": 20` after the `model` field
 3. **`temperature` stamping**: forces `temperature: 1.0`
 4. **`max_tokens` stamping**: `131071` for `umans-glm*` models, `32767` for others
-5. **`thinking` injection**: `{ "type": "adaptive" }` for `umans-coder`, `umans-flash`, `umans-kimi*`, `umans-qwen*`
+5. **`thinking` injection**: `{ "type": "adaptive" }` for `umans-coder`, `umans-flash`, `umans-kimi*`, `umans-qwen*`, `umans-glm*`
 6. **`output_config` injection**: `{ "effort": "high" }` for most models, `{ "effort": "max" }` for `umans-glm*`
 7. **`context_management` injection**: `{ "edits": [{ "type": "clear_thinking_20251015", "keep": "all" }] }`
 
@@ -416,6 +508,9 @@ Strategies:
 - `catalog` (default): intercept only if the model is known to lack vision support
 - `always`: intercept all images regardless of model
 - `never`: disabled
+
+> **Important:** See [Important Notes §2](#2-vision-strategy-and-non-claude-code-harnesses)
+> for the cache-hit-rate caveat when images pass through untouched.
 
 Vision calls are serialized by the concurrency gate (default concurrency=1)
 because the upstream has limited vision slots.
@@ -535,7 +630,7 @@ umans-gate/
 │   │   ├── transcode.ts          # image transcoding
 │   │   ├── wrapper.ts            # description wrapper + policy
 │   │   └── sink.ts               # vision record sink
-│   ├── workers/                  # worker-based capture pipeline
+│   ├── workers/                  # worker-based capture pipeline (disabled)
 │   └── shared/                   # extracted domain helpers
 ├── dashboard/                    # React + shadcn/ui dashboard
 ├── test/                         # bun:test test suite
@@ -579,18 +674,3 @@ testing, and release instructions.
 ## License
 
 MIT — see [LICENSE](LICENSE).
-
-## Usage Rights
-
-This is a **personal-use project**. The source code is published under the MIT
-license for transparency and educational purposes. While the MIT license
-technically permits commercial use and redistribution, this project is not
-actively maintained as a product and is not intended for production deployment.
-
-**This is a community contribution and is not an official Umans product.**
-It is not affiliated with, endorsed by, or supported by Umans AI. All upstream
-service names, model names, and API endpoints referenced in this codebase
-belong to their respective owners.
-
-Use it, learn from it, fork it — but don't expect official support or
-warranties of any kind.

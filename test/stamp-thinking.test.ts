@@ -25,7 +25,13 @@ test("stamps max_tokens for non-GLM models when enabled", () => {
 });
 
 test("stamps thinking only for matching models", () => {
-  for (const model of ["umans-coder", "umans-flash", "umans-kimi-7b", "umans-qwen-72b"]) {
+  for (const model of [
+    "umans-coder",
+    "umans-flash",
+    "umans-kimi-7b",
+    "umans-qwen-72b",
+    "umans-glm-5.2",
+  ]) {
     const body: AnthropicBody = { model, messages: [] };
     expect(stampThinking(body, { thinking: true })).toBe(true);
     expect(body.thinking).toEqual(DEFAULT_THINKING);
@@ -34,10 +40,12 @@ test("stamps thinking only for matching models", () => {
   }
 });
 
-test("does not stamp thinking for non-matching models", () => {
-  const body: AnthropicBody = { model: "umans-glm-5.2", messages: [] };
-  expect(stampThinking(body, { thinking: true })).toBe(false);
-  expect(body.thinking).toBeUndefined();
+test("stamps thinking for umans-glm* models", () => {
+  for (const model of ["umans-glm-5.2", "umans-glm-lite"]) {
+    const body: AnthropicBody = { model, messages: [] };
+    expect(stampThinking(body, { thinking: true })).toBe(true);
+    expect(body.thinking).toEqual(DEFAULT_THINKING);
+  }
 });
 
 test("stamps output_config=high for non-glm models", () => {

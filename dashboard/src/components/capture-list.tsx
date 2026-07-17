@@ -84,7 +84,10 @@ export function CaptureList({
         )}
       >
         <h2 className="text-sm font-semibold">
-          Captures <span className="text-muted-foreground">({captures.length})</span>
+          Queue/Captures{" "}
+          <span className="text-muted-foreground">
+            ({gateStats?.active ?? 0}/{captures.length})
+          </span>
         </h2>
         <div className="flex items-center gap-2">
           <Tooltip>

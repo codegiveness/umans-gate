@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-07-17
+
+### Added
+
+- **`thinking` stamp for `umans-glm*` models**: the thinking injection
+  (`{ "type": "adaptive" }`) now applies to `umans-glm*` models alongside
+  `umans-coder`, `umans-flash`, `umans-kimi*`, and `umans-qwen*`. GLM models
+  still receive `max_tokens: 131071` and `output_config: { effort: "max" }`.
+- **Dashboard capture-list queue counter**: the captures header now shows
+  `active/total` (gate active count vs. capture count) instead of just the
+  capture count, making queue depth visible at a glance.
+
+### Fixed
+
+- **Streaming permit lifecycle**: the concurrency permit was released in the
+  `finally` block even when the response was streaming. Now the permit is
+  released when the streaming response body cancels/aborts, and the `finally`
+  block only releases it if streaming never started. Prevents premature permit
+  release that could over-subscribe the concurrency gate during long streams.
+- **Forwarded headers captured correctly**: the capture row now stores the
+  forwarded (post-stamp) request headers — including `accept-encoding: identity`
+  and `anthropic-beta`/`anthropic-version` when stamp beta is active — instead
+  of the raw inbound headers. The inspector now shows exactly what was sent
+  upstream.
+
+### Changed
+
+- **README restructure**: added "What It Does" feature table, "Important Notes"
+  section (7 items covering request modification, vision strategy, hardcoded
+  upstream, ring buffer, API key, foreground default, default concurrency),
+  and "Usage Rights" clarification near the top. Moved the feature table from
+  the install section to the intro.
+
 ## [0.2.0] - 2026-07-17
 
 ### Added

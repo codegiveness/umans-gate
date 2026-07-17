@@ -24,7 +24,11 @@ export interface StampOptions {
 function modelMatchesThinkingPattern(model: unknown): boolean {
   if (typeof model !== "string") return false;
   if (model === "umans-coder" || model === "umans-flash") return true;
-  return model.startsWith("umans-kimi") || model.startsWith("umans-qwen");
+  return (
+    model.startsWith("umans-kimi") ||
+    model.startsWith("umans-qwen") ||
+    model.startsWith("umans-glm")
+  );
 }
 
 function resolveOutputConfig(model: unknown, outputConfig: OutputConfig | boolean): OutputConfig {

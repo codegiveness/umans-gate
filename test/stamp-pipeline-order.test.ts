@@ -186,11 +186,11 @@ test("all stamp steps fire in order on a single GLM Anthropic request", async ()
   expect(keys[0]).toBe("model");
   expect(keys[1]).toBe("top_k");
 
-  // --- AnthropicBody (runs second: max_tokens + output_config) ---
-  // thinking is NOT stamped for umans-glm models (only umans-coder/flash/kimi*/qwen*)
+  // --- AnthropicBody (runs second: max_tokens + thinking + output_config) ---
+  // thinking is stamped for umans-glm* models alongside umans-coder/flash/kimi*/qwen*
   expect(parsed.max_tokens).toBe(131071);
+  expect(parsed.thinking).toEqual({ type: "adaptive" });
   expect(parsed.output_config).toEqual({ effort: "max" });
-  expect(parsed.thinking).toBeUndefined();
 
   // --- ContextManagement (runs third: injects context_management) ---
   expect(parsed.context_management).toEqual({
