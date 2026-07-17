@@ -28,6 +28,10 @@ export type TranscodeErrorCode = "unsupported" | "decode_failed" | "encode_faile
 // PERF-04 test suite can assert that cache-only fast-paths never transcode.
 let transcodeCallCount = 0;
 
+// V8: reject inputs larger than 25MB before Bun.Image allocates a pixel
+// buffer (up to maxPixels). Bounds peak memory during parallel decode.
+const MAX_IMAGE_BYTES = 25_000_000;
+
 /** @internal Returns the number of transcodeImage calls since last reset. */
 export function getTranscodeCallCount(): number {
   return transcodeCallCount;
@@ -90,6 +94,12 @@ export async function transcodeImage(
   opts: TranscodeOptions = { maxDimension: 1024, quality: 85 },
 ): Promise<TranscodeResult> {
   transcodeCallCount++;
+  if (imageBytes.byteLength > MAX_IMAGE_BYTES) {
+    throw new TranscodeError(
+      "too_large",
+      `image too large: ${imageBytes.byteLength} bytes > ${MAX_IMAGE_BYTES}`,
+    );
+  }
   const img = new Bun.Image(imageBytes, { maxPixels: 50_000_000 });
   try {
     await img.metadata();

@@ -79,7 +79,6 @@ export function createProxyHandler(
   onTraffic?: () => void,
 ) {
   async function handleProxy(req: Request, url: URL): Promise<Response> {
-    onTraffic?.();
     const startedAt = Date.now();
     const path = url.pathname + url.search;
     const targetUrl = config.target + path;
@@ -306,6 +305,8 @@ export function createProxyHandler(
           ws.broadcast({ type: "state", captureId: capId, state: "streaming" });
         },
       });
+      // Fire after acquire so gate-rejected requests don't suppress the warmer.
+      onTraffic?.();
     } catch (e) {
       const err = e as GateError;
       const aborted = err.code === "aborted";

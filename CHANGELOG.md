@@ -7,6 +7,105 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-17
+
+### Added
+
+- **`saveConfigLocked()`**: async mutex-serialized wrapper around
+  `saveConfig` that prevents read-modify-write races when concurrent
+  callers (usage refresh, dashboard save) persist config at once. Now
+  exported from the public API (`src/index.ts`) and used internally by
+  the viewer and usage reconciler.
+- **WriteQueue overflow `onDrop` callback**: when the queue overflows or
+  is drained on shutdown, dropped captures are marked `failed` in the DB
+  and a `state` WS message is broadcast — the dashboard reflects the
+  real state instead of leaving entries in limbo.
+- **WriteQueue exponential-backoff flush retry**: failed `batchUpdate`
+  calls are retried with exponential backoff (1s → 30s, max 10 attempts)
+  before the batch is dropped. Prevents transient SQLite errors
+  (`SQLITE_BUSY`, disk-full) from permanently losing captures.
+- **WriteQueue `drainForShutdown()`**: on graceful shutdown, the server
+  flushes up to 3 times, then drains remaining entries via `onDrop` so
+  no captures are silently lost when the process exits.
+- **Vision inflight dedup**: the inflight cache entry is registered
+  *before* the transcode await closes the TOCTOU window, so concurrent
+  requests for the same image await one vision call instead of
+  duplicating work.
+- **Vision call timeout handling**: `AbortSignal.timeout` is now
+  combined with the caller's signal, and `TimeoutError` is mapped to a
+  new `"timeout"` status with a descriptive placeholder. Background
+  vision uses an independent timeout signal so caller cancellation
+  does not abort background processing.
+- **Vision `gate_rejected` status**: a new vision call status and
+  dashboard badge for requests rejected by the concurrency gate.
+- **Image size guard in `transcodeImage`**: rejects inputs >25 MB
+  before `Bun.Image` allocates a pixel buffer, bounding peak memory
+  during parallel decode.
+- **`fetchConcurrencyLimits` NaN guard**: malformed `/v1/usage`
+  responses with non-finite concurrency values are now rejected with
+  `malformed concurrency limits` instead of poisoning the gate.
+- **`ConcurrencyGate` NaN fail-safe**: `setHardCap`/`setSoftLimit`
+  clamp NaN or non-finite inputs to 1 with a warning, preventing the
+  semaphore from entering a broken state.
+- **15s timeout on `fetchUsageRaw`**: prevents the usage poller from
+  hanging indefinitely on a stalled upstream.
+- **`upstream_timeout_ms` hot-reloadable**: added to the reload field
+  list so it applies without a restart.
+- **`queue_max_depth`, `ws_backpressure_limit`,
+  `ws_close_on_backpressure_limit`, `vision_pending_max_batch`** marked
+  as restart-required fields (they cannot be hot-reloaded safely).
+- **Connection warmer body drain**: the warmer now consumes/cancels
+  the response body so the underlying TLS connection returns to the
+  keep-alive pool instead of being discarded.
+- **`resetConfig()` preserves `dashboard_token`** alongside
+  `umans_api_key` so a reset does not lock the user out of the dashboard.
+- **`PersistentDescriptionStore` flush retry**: failed flushes are
+  retried up to 3 times before dropping the batch (logged), preventing
+  an unbounded re-queue. TTL-expired cache reads no longer delete the
+  row (avoids a write storm on repeated lookups).
+- **Dashboard config-save response includes `applied` and
+  `restartRequired`** arrays so the frontend can show exactly which
+  fields were hot-reloaded vs require a restart.
+- 24 new test files covering: circuit-breaker reconfigure, config
+  reload orphan fields, config reset, config save mutex, persistent
+  cache close/flush-cascade/read-no-delete, queue flush retry/overflow,
+  shutdown data loss, usage boxed reason/fetch timeout/first-fetch
+  failure/NaN poisoning/priority-low clear, vision cache-only stats,
+  gate error, handoff background signal, inflight dedup, timeout,
+  transcode memory, update failure, warmer traffic timing + warmer.
+
+### Fixed
+
+- **Config save race condition**: `applyLimitsFromSource` was calling
+  synchronous `saveConfig` from an async context, causing interleaved
+  read-modify-write cycles that could overwrite concurrent changes.
+  Now uses `saveConfigLocked` with a module-level promise mutex.
+- **Usage first-fetch failure permanently stamped gate to 1**: when
+  the first `/v1/usage` fetch failed before any snapshot existed,
+  `applyFailedSnapshot` fired `onChange` with the fail-safe snapshot
+  (softLimit=1), permanently boxing the gate. Now the first-failure
+  path skips `onChange` — `getSnapshot()` still returns the fail-safe
+  for direct reads.
+- **`boxedReason` rate-limit prefix matching**: the gate resize logic
+  compared `boxedReason !== "rate_limited"` exactly, missing
+  `"rate_limit_*"` variants. Now uses a case-insensitive prefix
+  match so all rate-limit boxing variants bypass the `resize(1)` path.
+- **Vision parallel processing memory spike**: `Promise.allSettled` on
+  all kept images spawned parallel `Bun.Image` decodes, causing peak
+  memory spikes. Switched to sequential processing — the concurrency
+  gate serializes vision calls anyway.
+- **Vision `updateVisionCapture` unhandled rejection**: a DB write
+  failure during vision capture update was uncaught, crashing the
+  process. Now wrapped in try/catch with the vision row marked
+  `failed`.
+- **`onTraffic` fired on gate-rejected requests**: the warmer
+  `onTraffic` callback was called before `gate.acquire`, so
+  rejected requests reset the warmer timer unnecessarily. Now fired
+  only after successful acquire.
+- **`enqueueBackgroundVision` ignored caller signal**: used
+  `AbortSignal.any([signal])` (a no-op) instead of applying the
+  configured timeout. Now uses an independent timeout signal.
+
 ## [0.1.9] - 2026-07-17
 
 ### Added

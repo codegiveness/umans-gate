@@ -651,7 +651,7 @@ describe("PersistentDescriptionStore close & transaction safety", () => {
       return originalTransaction(fn);
     }) as unknown as typeof db.transaction;
 
-    expect(() => store.flushNow()).toThrow(boom);
+    expect(() => store.flushNow()).not.toThrow();
     expect(callCount).toBe(1);
 
     db.transaction = originalTransaction;

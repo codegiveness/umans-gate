@@ -20,9 +20,16 @@ export async function fetchConcurrencyLimits(
 ): Promise<ConcurrencyLimitResult> {
   const result = await fetchUsageRaw(target, apiKey);
   if (!result.ok) return { ok: false, error: result.error };
-  const hardCap = Math.max(1, Math.floor(Number(result.data.limits?.concurrency?.hard_cap ?? 1)));
-  const softLimit = Math.max(1, Math.floor(Number(result.data.limits?.concurrency?.limit ?? 1)));
-  return { ok: true, hardCap, softLimit };
+  const hardCap = Number(result.data.limits?.concurrency?.hard_cap ?? 1);
+  const softLimit = Number(result.data.limits?.concurrency?.limit ?? 1);
+  if (!Number.isFinite(hardCap) || !Number.isFinite(softLimit)) {
+    return { ok: false, error: "malformed concurrency limits" };
+  }
+  return {
+    ok: true,
+    hardCap: Math.max(1, Math.floor(hardCap)),
+    softLimit: Math.max(1, Math.floor(softLimit)),
+  };
 }
 
 /** One-shot fetch of /v1/usage to extract requests limits for rate_limit_requests validation.

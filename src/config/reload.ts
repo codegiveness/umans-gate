@@ -13,6 +13,9 @@ const RESTART_REQUIRED_FIELDS = new Set<keyof RawConfig>([
   "db_path",
   "idle_timeout",
   "upstream_protocol",
+  "queue_max_depth",
+  "ws_backpressure_limit",
+  "ws_close_on_backpressure_limit",
   "warmer_enabled",
   "warmer_interval_ms",
   "usage_refresh_ms",
@@ -36,6 +39,7 @@ const RESTART_REQUIRED_FIELDS = new Set<keyof RawConfig>([
   "vision_image_format",
   "vision_image_detail",
   "vision_concurrency",
+  "vision_pending_max_batch",
 ]);
 
 /**
@@ -134,6 +138,12 @@ const RELOAD_FIELDS: Array<{
     rawKey: "capture_body_max_bytes",
     apply: (live, fresh) => {
       live.captureBodyMaxBytes = fresh.captureBodyMaxBytes;
+    },
+  },
+  {
+    rawKey: "upstream_timeout_ms",
+    apply: (live, fresh) => {
+      live.upstreamTimeoutMs = fresh.upstreamTimeoutMs;
     },
   },
 ];

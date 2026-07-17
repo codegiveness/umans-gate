@@ -45,5 +45,11 @@ export {
   loadJsonConfig,
 } from "./config/env.js";
 export { loadConfig } from "./config/loader.js";
-export { readConfigFile, saveConfig, resetConfig, ensureConfigFile } from "./config/file.js";
+export {
+  readConfigFile,
+  saveConfig,
+  saveConfigLocked,
+  resetConfig,
+  ensureConfigFile,
+} from "./config/file.js";
 export { applyReloadToConfig } from "./config/reload.js";

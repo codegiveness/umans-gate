@@ -1,4 +1,7 @@
 import type { CaptureDB } from "../db.js";
+import { createLogger } from "../logger.js";
+
+const log = createLogger("vision");
 
 export interface PersistentDescriptionEntry {
   key: string;
@@ -36,6 +39,8 @@ export class PersistentDescriptionStore {
   private readonly flushIntervalMs: number;
   private readonly flushBatch: number;
   private closed = false;
+  private flushRetries = 0;
+  private static readonly MAX_FLUSH_RETRIES = 3;
 
   constructor(db: CaptureDB, ttlMs: number, maxRows: number, flushBatch = 50) {
     this.db = db;
@@ -57,7 +62,6 @@ export class PersistentDescriptionStore {
     if (!row) return null;
     const now = Date.now();
     if (now - row.created_at > this.ttlMs) {
-      this.db.deleteVisionDescription(key);
       return null;
     }
     return row.description;
@@ -101,9 +105,27 @@ export class PersistentDescriptionStore {
           });
         }
       })();
+      this.flushRetries = 0;
     } catch (err) {
-      this.pendingWrites.unshift(...batch);
-      throw err;
+      this.flushRetries += 1;
+      const keys = batch.map((pw) => pw.entry.key);
+      if (this.flushRetries >= PersistentDescriptionStore.MAX_FLUSH_RETRIES) {
+        log.warn("flush retries exhausted, dropping batch", {
+          count: batch.length,
+          keys,
+          retries: this.flushRetries,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        this.flushRetries = 0;
+      } else {
+        log.error("flush failed, re-queuing batch", {
+          count: batch.length,
+          keys,
+          retries: this.flushRetries,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        this.pendingWrites.unshift(...batch);
+      }
     }
   }
 
@@ -112,8 +134,13 @@ export class PersistentDescriptionStore {
       clearTimeout(this.flushTimer);
       this.flushTimer = null;
     }
-    this.flushNow();
-    this.closed = true;
+    try {
+      this.flushNow();
+    } catch (err) {
+      log.error("flush failed during close", { error: err });
+    } finally {
+      this.closed = true;
+    }
   }
 
   warmIntoCache(onEntry: (key: string, description: string) => void, limit: number): number {

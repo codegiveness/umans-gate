@@ -67,14 +67,57 @@ export function saveConfig(
 }
 
 /**
- * Reset config to defaults on disk, preserving `umans_api_key` so the user is
- * not locked out of the upstream. Returns the written config.
+ * Module-level promise mutex serializing concurrent saveConfig calls.
+ * Prevents the read-modify-write race between refreshLimits and dashboard
+ * saves. Each save is chained onto this promise; the .catch() on the chain
+ * prevents a single FS failure from permanently breaking the mutex.
+ */
+let saveLock: Promise<unknown> = Promise.resolve();
+
+type SaveConfigResult = {
+  ok: boolean;
+  errors: string[];
+  warnings: string[];
+  written: RawConfig | null;
+};
+
+/**
+ * Async wrapper around saveConfig that acquires the module-level mutex.
+ * Use this from any async context (refreshLimits, dashboard save handler)
+ * to prevent interleaved read-modify-write cycles. saveConfig itself stays
+ * synchronous for callers that rely on its return value synchronously.
+ */
+export async function saveConfigLocked(
+  patch: RawConfigInput,
+  ctx?: ValidationContext,
+): Promise<SaveConfigResult> {
+  let resolveResult: (r: SaveConfigResult) => void;
+  const done = new Promise<SaveConfigResult>((resolve) => {
+    resolveResult = resolve;
+  });
+  saveLock = saveLock
+    .then(() => {
+      resolveResult(saveConfig(patch, ctx));
+    })
+    .catch((err: unknown) => {
+      // Log and swallow — prevents chain breakage on FS errors.
+      console.error("[config] saveConfigLocked failed:", err);
+      resolveResult({ ok: false, errors: [String(err)], warnings: [], written: null });
+    });
+  return done;
+}
+
+/**
+ * Reset config to defaults on disk, preserving `umans_api_key` and
+ * `dashboard_token` so the user is not locked out of the upstream or the
+ * dashboard. Returns the written config.
  */
 export function resetConfig(): { ok: boolean; written: RawConfig | null } {
   const existing = readConfigFile();
   const reset: RawConfig = {
     ...DEFAULT_CONFIG,
     umans_api_key: existing.umans_api_key ?? DEFAULT_CONFIG.umans_api_key,
+    dashboard_token: existing.dashboard_token ?? DEFAULT_CONFIG.dashboard_token,
   };
   const path = resolveConfigPath();
   mkdirSync(dirname(path), { recursive: true });

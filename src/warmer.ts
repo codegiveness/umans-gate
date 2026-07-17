@@ -47,8 +47,9 @@ export class ConnectionWarmer {
   private async ping(): Promise<void> {
     if (Date.now() - this.lastTrafficAt < this.intervalMs) return;
     const url = `${this.target}${this.path}`;
+    let res: Response | null = null;
     try {
-      const res = await fetch(url, {
+      res = await fetch(url, {
         method: "GET",
         headers: { "accept-encoding": "identity" },
         protocol: this.upstreamProtocol as unknown as never,
@@ -59,6 +60,18 @@ export class ConnectionWarmer {
       }
     } catch {
       // Silent — warmer is best-effort. Next interval will retry.
+    } finally {
+      // Consume the body so the underlying TLS connection returns to the
+      // keep-alive pool. `text()` drains the stream; `body?.cancel()` is a
+      // fallback when text() is unavailable. Best-effort — swallow errors.
+      if (res) {
+        try {
+          if (res.body) await res.body.cancel().catch(() => {});
+          else await res.text().catch(() => {});
+        } catch {
+          // Swallowed — best-effort drain (see comment above).
+        }
+      }
     }
   }
 }

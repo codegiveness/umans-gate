@@ -19,10 +19,12 @@ export async function fetchUsageRaw(
 ): Promise<FetchUsageResult> {
   if (!apiKey) return { ok: false, error: "umans_api_key not set" };
   try {
+    const timeoutSignal = AbortSignal.timeout(15000);
+    const fetchSignal = signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;
     const res = await fetch(`${target}${USAGE_PATH}`, {
       method: "GET",
       headers: { authorization: `Bearer ${apiKey}` },
-      signal,
+      signal: fetchSignal,
     });
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` };
     const data = (await res.json()) as RawUsage;

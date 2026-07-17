@@ -89,12 +89,12 @@ export class UmansUsageClient {
 
   private applyFailedSnapshot(reason: string): void {
     if (this.snapshot) {
-      this.snapshot = { ...this.snapshot, ok: false, fetchedAt: Date.now() };
-    } else {
-      this.snapshot = this.getSnapshot();
-      this.snapshot.ok = false;
+      this.snapshot = { ...this.snapshot, ok: false, fetchedAt: Date.now(), priorityLow: false };
+      this.onChangeCb?.(this.snapshot);
     }
-    this.onChangeCb?.(this.snapshot);
+    // First fetch with no prior snapshot: skip onChange. failSafeSnapshot has
+    // concurrencySoftLimit:1 — firing it would stamp the gate to 1 permanently.
+    // getSnapshot() still returns the fail-safe for direct read queries.
     log.error(`fetch failed: ${reason}`);
   }
 }

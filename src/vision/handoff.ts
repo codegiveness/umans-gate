@@ -11,7 +11,7 @@
 import { flattenUsage } from "../db.js";
 import type { CaptureDB } from "../db.js";
 import { headersToObject, redactHeaders } from "../helpers.js";
-import { ConcurrencyGate } from "../limiter/index.js";
+import { ConcurrencyGate, GateError } from "../limiter/index.js";
 import { createLogger } from "../logger.js";
 import type { CaptureState, ProtocolConfig } from "../types.js";
 import { extractOpenAiNonStreaming } from "../usage/extract.js";
@@ -114,7 +114,8 @@ export interface VisionCallRecord {
     | "parse_error"
     | "empty"
     | "skipped"
-    | "aborted";
+    | "aborted"
+    | "gate_rejected";
   httpStatus: number | null;
   latencyMs: number;
   description: string;
@@ -323,22 +324,24 @@ export class VisionHandoff {
     const mutated = cloneBody(body);
 
     // 5. For each kept image: transcode → cache lookup → vision call → wrap.
-    //    Processed in parallel; the concurrency gate serializes vision calls.
+    //    Processed sequentially to bound peak memory from parallel Bun.Image
+    //    decodes (V8). The concurrency gate serializes vision calls.
     const wrappedDescriptions: string[] = [];
-    const results = await Promise.allSettled(
-      kept.map((part) => this.processImage(part, captureId, signal)),
-    );
-    for (const result of results) {
-      const r: ImageProcessResult =
-        result.status === "fulfilled"
-          ? result.value
-          : {
-              description: failurePlaceholder("generic", "unexpected error"),
-              cacheHit: false,
-              cacheMiss: false,
-              visionCall: false,
-              latencyMs: 0,
-            };
+    const results: ImageProcessResult[] = [];
+    for (const part of kept) {
+      try {
+        results.push(await this.processImage(part, captureId, signal));
+      } catch {
+        results.push({
+          description: failurePlaceholder("generic", "unexpected error"),
+          cacheHit: false,
+          cacheMiss: false,
+          visionCall: false,
+          latencyMs: 0,
+        });
+      }
+    }
+    for (const r of results) {
       wrappedDescriptions.push(r.description);
       if (r.cacheHit) stats.cacheHits++;
       if (r.cacheMiss) stats.cacheMisses++;
@@ -437,6 +440,8 @@ export class VisionHandoff {
       }
       if (cached === "") {
         this.enqueueBackgroundVision(body, apiKind, modelName, captureId, signal);
+        // Prior hits had no effect — body is unchanged, so don't report them.
+        stats.cacheHits = 0;
         return { body, changed: false, stats };
       }
       descriptions.push(wrapDescription(cached));
@@ -453,9 +458,10 @@ export class VisionHandoff {
     apiKind: ApiKind,
     modelName: string | undefined,
     captureId: number | undefined,
-    signal: AbortSignal | undefined,
+    _signal: AbortSignal | undefined,
   ): void {
-    const bgSignal = signal ? AbortSignal.any([signal]) : undefined;
+    const bgSignal =
+      this.config.timeoutMs > 0 ? AbortSignal.timeout(this.config.timeoutMs) : undefined;
     this.processBody(body, apiKind, modelName, captureId, bgSignal).catch((err) => {
       log.warn("background vision processing failed", {
         error: (err as Error).message,
@@ -593,6 +599,15 @@ export class VisionHandoff {
       };
     }
 
+    // V4: register the inflight entry BEFORE the transcode await closes the
+    // TOCTOU window. A second request for the same image will find this entry
+    // and await it instead of starting its own transcode + vision call.
+    let resolveInflight!: (v: string) => void;
+    const inflightPromise = new Promise<string>((r) => {
+      resolveInflight = r;
+    });
+    this.inflight.set(cacheKey, inflightPromise);
+
     let cacheBytes: Uint8Array;
     try {
       const result = await transcodeImage(decoded, {
@@ -615,6 +630,8 @@ export class VisionHandoff {
         description: "",
         error: errMsg,
       });
+      resolveInflight("");
+      this.inflight.delete(cacheKey);
       return {
         description: failurePlaceholder("generic", errMsg),
         cacheHit: false,
@@ -668,16 +685,9 @@ export class VisionHandoff {
       );
       return { result, stored };
     })();
-    this.inflight.set(
-      cacheKey,
-      visionPromise.then(
-        (r) => r.stored,
-        () => "",
-      ),
-    );
 
     let visionResult: Awaited<ReturnType<typeof this.callVisionRecorded>>;
-    let stored: string;
+    let stored = "";
     try {
       const r = await visionPromise;
       visionResult = r.result;
@@ -686,6 +696,7 @@ export class VisionHandoff {
       if (visionDbId) this.db?.setState(visionDbId, "failed");
       throw err;
     } finally {
+      resolveInflight(stored ?? "");
       this.inflight.delete(cacheKey);
     }
     const elapsed = Date.now() - start;
@@ -703,27 +714,31 @@ export class VisionHandoff {
         model: this.config.model ?? "",
         target: this.config.target ?? "",
       });
-      this.db?.updateVisionCapture({
-        $id: visionDbId,
-        $status:
-          visionResult.status === "ok" || visionResult.status === "cache_hit"
-            ? 200
-            : (visionResult.httpStatus ?? null),
-        $rh: visionResult.responseHeaders,
-        $rb: visionResult.responseBody,
-        $rs: Buffer.byteLength(visionResult.responseBody),
-        $ct: "application/json",
-        $sse: 0,
-        $dur: elapsed,
-        $fin: finishedAt,
-        $status_source: "upstream",
-        $gate_reason: null,
-        $vision_meta: metaJson,
-        $model: this.config.model ?? null,
-        ...flattenUsage(visionResult.usage),
-      });
+      try {
+        this.db?.updateVisionCapture({
+          $id: visionDbId,
+          $status:
+            visionResult.status === "ok" || visionResult.status === "cache_hit"
+              ? 200
+              : (visionResult.httpStatus ?? null),
+          $rh: visionResult.responseHeaders,
+          $rb: visionResult.responseBody,
+          $rs: Buffer.byteLength(visionResult.responseBody),
+          $ct: "application/json",
+          $sse: 0,
+          $dur: elapsed,
+          $fin: finishedAt,
+          $status_source: "upstream",
+          $gate_reason: null,
+          $vision_meta: metaJson,
+          $model: this.config.model ?? null,
+          ...flattenUsage(visionResult.usage),
+        });
+      } catch (err) {
+        log.error("updateVisionCapture failed", { error: err, visionDbId });
+        this.db?.setState(visionDbId, "failed");
+      }
     }
-
     this.addRecord(
       {
         captureId: captureId ?? null,
@@ -832,18 +847,28 @@ export class VisionHandoff {
 
     let permit: { release: () => void } | null = null;
     let response: Response;
+    // Combine the caller's signal with a timeout signal when timeoutMs > 0.
+    // AbortSignal.any([undefined, ...]) throws — build conditionally.
+    let fetchSignal: AbortSignal | undefined;
+    if (signal && this.config.timeoutMs > 0) {
+      fetchSignal = AbortSignal.any([signal, AbortSignal.timeout(this.config.timeoutMs)]);
+    } else if (signal) {
+      fetchSignal = signal;
+    } else if (this.config.timeoutMs > 0) {
+      fetchSignal = AbortSignal.timeout(this.config.timeoutMs);
+    }
     try {
       try {
         permit = await this.gate.acquire({
           intention: "vision",
           weight: this.config.visionWeight,
-          signal,
+          signal: fetchSignal,
         });
         response = await fetch(target, {
           method: "POST",
           headers,
           body: requestBody,
-          signal,
+          signal: fetchSignal,
         });
       } catch (err) {
         const elapsed = Date.now() - visionStart;
@@ -858,6 +883,42 @@ export class VisionHandoff {
             status: "aborted",
             httpStatus: null,
             error: "client disconnected",
+            requestBody,
+            requestHeaders,
+            responseBody: "",
+            responseHeaders: "{}",
+            usage: null,
+          };
+        }
+        if (err instanceof DOMException && err.name === "TimeoutError") {
+          log.warn(`callVision TIMEOUT after ${elapsed}ms (timeoutMs=${this.config.timeoutMs})`, {
+            model,
+            target,
+            imgSize: imageBytes.byteLength,
+          });
+          return {
+            description: failurePlaceholder("timeout", String(this.config.timeoutMs)),
+            status: "timeout",
+            httpStatus: null,
+            error: `vision model timed out after ${this.config.timeoutMs}ms`,
+            requestBody,
+            requestHeaders,
+            responseBody: "",
+            responseHeaders: "{}",
+            usage: null,
+          };
+        }
+        if (err instanceof GateError) {
+          log.warn(`callVision GATE REJECTED after ${elapsed}ms: ${err.code}`, {
+            model,
+            target,
+            imgSize: imageBytes.byteLength,
+          });
+          return {
+            description: failurePlaceholder("generic", "vision gate rejected"),
+            status: "gate_rejected",
+            httpStatus: null,
+            error: err.code,
             requestBody,
             requestHeaders,
             responseBody: "",

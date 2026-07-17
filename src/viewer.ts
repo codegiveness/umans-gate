@@ -12,7 +12,7 @@ import {
   isRawConfigInput,
   readConfigFile,
   resetConfig,
-  saveConfig,
+  saveConfigLocked,
   validateConfig,
 } from "./config.js";
 import type { RawConfigInput } from "./config.js";
@@ -350,7 +350,9 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
           }
           const body = raw as RawConfigInput;
           const snapshot = ctx.usage.getSnapshot();
-          const result = saveConfig(body, { upstreamRequestsLimit: snapshot.requestsLimit });
+          const result = await saveConfigLocked(body, {
+            upstreamRequestsLimit: snapshot.requestsLimit,
+          });
           const safe = stripApiKey(result.written);
           return Response.json({ ...result, written: safe }, { status: result.ok ? 200 : 400 });
         } catch (e) {
@@ -375,12 +377,15 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
         if (!result.ok) {
           return Response.json(result, { status: 500 });
         }
+        const reload = ctx.reloadConfig?.();
         const safe = stripApiKey(result.written);
         if (ctx.refreshLimits) {
           const limits = await ctx.refreshLimits();
           return Response.json({
             ...result,
             written: safe,
+            applied: reload?.applied ?? [],
+            restartRequired: reload?.restartRequired ?? [],
             limits: limits.ok
               ? {
                   hardCap: limits.hardCap,
@@ -392,7 +397,12 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
               : null,
           });
         }
-        return Response.json({ ...result, written: safe });
+        return Response.json({
+          ...result,
+          written: safe,
+          applied: reload?.applied ?? [],
+          restartRequired: reload?.restartRequired ?? [],
+        });
       },
     },
     {

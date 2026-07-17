@@ -228,8 +228,8 @@ describe("processBodyCacheOnly parallel behavior (PERF-04)", () => {
 
     // Should NOT have changed the body (one image missed).
     expect(result.changed).toBe(false);
-    // Should have some cache hits (the 2 cached images).
-    expect(result.stats.cacheHits).toBeGreaterThanOrEqual(1);
+    // V3: prior hits had no effect (body unchanged) → cacheHits reset to 0.
+    expect(result.stats.cacheHits).toBe(0);
 
     // Background vision should have been enqueued — wait for it.
     // Give it time to process the miss.

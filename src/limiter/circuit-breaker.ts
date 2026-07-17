@@ -19,6 +19,10 @@ export class CircuitBreaker {
     if (opts.threshold !== undefined) this.threshold = opts.threshold;
     if (opts.windowMs !== undefined) this.windowMs = opts.windowMs;
     if (opts.cooldownMs !== undefined) this.cooldownMs = opts.cooldownMs;
+    // Prune stale 429s against the (possibly new) window so the array
+    // does not retain entries that record429's filter would drop anyway.
+    // Does NOT transition breaker state — pruning is bookkeeping only.
+    this.concurrency429s = this.concurrency429s.filter((t) => Date.now() - t < this.windowMs);
   }
 
   getState(): BreakerState {

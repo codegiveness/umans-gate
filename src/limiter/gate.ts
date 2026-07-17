@@ -137,7 +137,14 @@ class Semaphore {
   }
 
   setHardCap(newHardCap: number): boolean {
-    const cap = Math.max(1, Math.floor(newHardCap)) * SCALE;
+    let safeCap = newHardCap;
+    if (!Number.isFinite(safeCap)) {
+      log.warn(
+        `[gate.ts] setHardCap(${newHardCap}) is NaN or non-finite; clamping to 1 (fail-safe)`,
+      );
+      safeCap = 1;
+    }
+    const cap = Math.max(1, Math.floor(safeCap)) * SCALE;
     if (cap === this.hardCap) return false;
     this.hardCap = cap;
     if (this.softLimit > cap) this.softLimit = cap;
@@ -156,7 +163,14 @@ class Semaphore {
   }
 
   setSoftLimit(newSoftLimit: number): boolean {
-    const v = Math.max(1, Math.floor(newSoftLimit)) * SCALE;
+    let safeLimit = newSoftLimit;
+    if (!Number.isFinite(safeLimit)) {
+      log.warn(
+        `[gate.ts] setSoftLimit(${newSoftLimit}) is NaN or non-finite; clamping to 1 (fail-safe)`,
+      );
+      safeLimit = 1;
+    }
+    const v = Math.max(1, Math.floor(safeLimit)) * SCALE;
     if (v === this.softLimit) return false;
     this.softLimit = v;
     this.assertInvariants();

@@ -11,6 +11,7 @@ import {
   readConfigFile,
   resolveConfigPath,
   saveConfig,
+  saveConfigLocked,
 } from "./config.js";
 import { CaptureDB } from "./db.js";
 import { syncPricing } from "./economics.js";
@@ -37,7 +38,13 @@ import { type BunServerWebSocket, WsBroadcaster } from "./ws.js";
 
 const log = createLogger("server");
 
-export { loadConfig, readConfigFile, saveConfig, validateConfig } from "./config.js";
+export {
+  loadConfig,
+  readConfigFile,
+  saveConfig,
+  saveConfigLocked,
+  validateConfig,
+} from "./config.js";
 export { resolveConfigDir, resolveConfigPath, ensureConfigFile } from "./config.js";
 export type {
   RawConfig,
@@ -294,11 +301,19 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
   const writeStore: CaptureStore = config.useWriteWorker
     ? new WorkerCaptureStore(config.dbPath, config.compressionEnabled)
     : db;
-  const queue = new WriteQueue(writeStore, config, (messages) => {
-    for (const msg of messages) {
-      ws.broadcast(msg);
-    }
-  });
+  const queue = new WriteQueue(
+    writeStore,
+    config,
+    (messages) => {
+      for (const msg of messages) {
+        ws.broadcast(msg);
+      }
+    },
+    (dropped) => {
+      db.setState(dropped.id, "failed");
+      ws.broadcast({ type: "state", captureId: dropped.id, state: "failed" });
+    },
+  );
   const warmer = config.warmerEnabled ? new ConnectionWarmer(config) : null;
 
   const usage = new UmansUsageClient(config);
@@ -327,7 +342,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     let effective = snap.concurrencySoftLimit;
     if (snap.priorityLow) effective = Math.max(1, effective - 1);
     const boxed = snap.boxedUntil !== null && snap.boxedUntil > Date.now();
-    if (boxed && snap.boxedReason !== "rate_limited") {
+    if (boxed && !snap.boxedReason?.toLowerCase().startsWith("rate_limit")) {
       gate.resize(1);
     } else {
       gate.resize(effective);
@@ -349,12 +364,12 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
   });
   usage.start();
 
-  function applyLimitsFromSource(
+  async function applyLimitsFromSource(
     source: { hardCap: number; softLimit: number },
     persist = false,
-  ): void {
+  ): Promise<void> {
     if (persist) {
-      saveConfig({
+      await saveConfigLocked({
         concurrency_hard_cap: source.hardCap,
         concurrency_soft_limit: source.softLimit,
       });
@@ -499,7 +514,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
   > => {
     const r = await usage.fetchLimitsFromSource();
     if (r.ok) {
-      applyLimitsFromSource({ hardCap: r.hardCap, softLimit: r.softLimit }, true);
+      await applyLimitsFromSource({ hardCap: r.hardCap, softLimit: r.softLimit }, true);
       const rl = await usage.fetchRequestsLimit();
       if (rl.ok) {
         const snap = usage.getSnapshot();
@@ -668,7 +683,21 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     }
 
     gate.shutdown();
-    await queue.flushNow();
+
+    for (let i = 0; i < 3; i++) {
+      try {
+        await queue.flushNow();
+        break;
+      } catch (err) {
+        log.warn("shutdown flush retry failed", { attempt: i + 1, error: err });
+        if (i < 2) await Bun.sleep(1000);
+      }
+    }
+    if (queue.length > 0) {
+      log.warn("marking remaining queue entries as failed on shutdown", { count: queue.length });
+      queue.drainForShutdown();
+    }
+
     if (writeStore instanceof WorkerCaptureStore) {
       await writeStore.close();
     }

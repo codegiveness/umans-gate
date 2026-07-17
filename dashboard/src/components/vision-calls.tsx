@@ -44,6 +44,7 @@ const STATUS_VARIANT: Record<string, BadgeConfig> = {
   fetch_error: { variant: "destructive" },
   parse_error: { variant: "destructive" },
   timeout: { variant: "destructive" },
+  gate_rejected: { variant: "outline" },
   skipped: { variant: "outline" },
 };
 
@@ -55,6 +56,7 @@ const STATUS_TIP: Record<string, string> = {
   fetch_error: "Network failure — could not reach upstream",
   parse_error: "Response could not be parsed",
   timeout: "Request timed out",
+  gate_rejected: "Concurrency gate rejected the request",
   skipped: "Vision processing was skipped",
 };
 
