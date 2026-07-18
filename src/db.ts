@@ -279,6 +279,10 @@ export function migrateCaptureSchema(db: Database): void {
     CREATE INDEX IF NOT EXISTS idx_vision_desc_last_accessed
       ON vision_descriptions(last_accessed_at ASC);
   `);
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_vision_desc_image_hash
+        ON vision_descriptions(image_hash);
+  `);
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS id_rewrite_sessions (

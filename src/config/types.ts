@@ -56,6 +56,20 @@ export interface RawConfig {
   vision_jpeg_quality?: number;
   vision_image_format?: "jpeg" | "png";
   vision_image_detail?: "auto" | "low" | "high";
+  /** Intent-aware vision strategy (Task 9): gates HOW to prompt the vision model once `vision_strategy` has decided to intercept. "off" = generic only, "slotted"/"crafted" = force that strategy, "auto" = triage decides per-request. */
+  vision_intent_strategy?: "off" | "slotted" | "crafted" | "auto";
+  /** Whether multi-image decomposition (DecoVQA+) is enabled. */
+  vision_decomposition_enabled?: boolean;
+  /** Timeout for the decomposition LLM call, in ms. */
+  vision_decomposition_timeout_ms?: number;
+  /** Timeout for the crafting LLM call (Strategy D), in ms. */
+  vision_crafting_timeout_ms?: number;
+  /** Max chars to extract from adjacent text blocks (VisionContext.adjacentText). */
+  vision_adjacent_text_max_chars?: number;
+  /** Number of recent user messages to include in VisionContext.recentMessages. */
+  vision_recent_messages_count?: number;
+  /** Max chars to extract from the original system prompt. */
+  vision_system_prompt_max_chars?: number;
   concurrency_main_reservation?: number;
   concurrency_vision_reservation?: number;
   /** Max captured request/response body size in bytes. 0 = unlimited. */

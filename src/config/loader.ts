@@ -111,6 +111,45 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     | "auto"
     | "low"
     | "high";
+  const visionIntentStrategy = (env.VISION_INTENT_STRATEGY ??
+    raw.vision_intent_strategy ??
+    "auto") as "off" | "slotted" | "crafted" | "auto";
+  const visionDecompositionEnabled = envOrRawBool(
+    env.VISION_DECOMPOSITION_ENABLED,
+    raw,
+    "vision_decomposition_enabled",
+    DEFAULT_CONFIG.vision_decomposition_enabled ?? true,
+  );
+  const visionDecompositionTimeoutMs = envOrRawNum(
+    env.VISION_DECOMPOSITION_TIMEOUT_MS,
+    raw,
+    "vision_decomposition_timeout_ms",
+    DEFAULT_CONFIG.vision_decomposition_timeout_ms ?? 3000,
+  );
+  const visionCraftingTimeoutMs = envOrRawNum(
+    env.VISION_CRAFTING_TIMEOUT_MS,
+    raw,
+    "vision_crafting_timeout_ms",
+    DEFAULT_CONFIG.vision_crafting_timeout_ms ?? 3000,
+  );
+  const visionAdjacentTextMaxChars = envOrRawNum(
+    env.VISION_ADJACENT_TEXT_MAX_CHARS,
+    raw,
+    "vision_adjacent_text_max_chars",
+    DEFAULT_CONFIG.vision_adjacent_text_max_chars ?? 500,
+  );
+  const visionRecentMessagesCount = envOrRawNum(
+    env.VISION_RECENT_MESSAGES_COUNT,
+    raw,
+    "vision_recent_messages_count",
+    DEFAULT_CONFIG.vision_recent_messages_count ?? 6,
+  );
+  const visionSystemPromptMaxChars = envOrRawNum(
+    env.VISION_SYSTEM_PROMPT_MAX_CHARS,
+    raw,
+    "vision_system_prompt_max_chars",
+    DEFAULT_CONFIG.vision_system_prompt_max_chars ?? 1000,
+  );
   // Derived from vision_strategy: "catalog" uses cache-first (background) mode,
   // "always" forces intercept even for vision-capable models.
   const backgroundVision = visionStrategy === "catalog";
@@ -240,6 +279,13 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     visionJpegQuality,
     visionImageFormat,
     visionImageDetail,
+    visionIntentStrategy,
+    visionDecompositionEnabled,
+    visionDecompositionTimeoutMs,
+    visionCraftingTimeoutMs,
+    visionAdjacentTextMaxChars,
+    visionRecentMessagesCount,
+    visionSystemPromptMaxChars,
     backgroundVision,
     concurrencyMainReservation,
     concurrencyVisionReservation,

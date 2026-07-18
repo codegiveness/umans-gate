@@ -36,11 +36,15 @@ export function descriptionCacheKey(
   encoderVersion: string,
   modelId: string,
   promptVersion: number,
+  contextHash?: string,
 ): string {
   const base = imageCacheKey(bytes, recipe, encoderVersion);
   const h = new Bun.CryptoHasher("sha256");
   h.update(base);
   h.update(`|pv=${promptVersion}|model=${modelId}`);
+  if (contextHash) {
+    h.update(`|ctx=${contextHash}`);
+  }
   return h.digest("hex");
 }
 
@@ -110,8 +114,16 @@ export class DescriptionCache {
     promptVersion: number,
     compute: () => string,
     isCacheable?: (value: string) => boolean,
+    contextHash?: string,
   ): string {
-    const key = descriptionCacheKey(bytes, recipe, encoderVersion, modelId, promptVersion);
+    const key = descriptionCacheKey(
+      bytes,
+      recipe,
+      encoderVersion,
+      modelId,
+      promptVersion,
+      contextHash,
+    );
     if (this.cache.has(key)) {
       const v = this.cache.get(key);
       if (v !== undefined) {
@@ -130,24 +142,112 @@ export class DescriptionCache {
       }
     }
 
+    // Image-only tier fallback (only when a contextHash is present — the
+    // context-keyed entry is a strict superset of the image-only entry).
+    // On hit, promote the value into the context tier so subsequent lookups
+    // with the same context are direct hits.
+    if (contextHash) {
+      const imageOnly = this.getImageOnly(bytes, recipe, encoderVersion, modelId, promptVersion);
+      if (imageOnly !== null) {
+        this.cache.set(key, imageOnly);
+        this.hits++;
+        return imageOnly;
+      }
+    }
+
     const value = compute();
     this.misses++;
 
     const cacheable = !isCacheable || isCacheable(value);
     if (cacheable) {
-      this.cache.set(key, value);
-      if (this.persistent) {
-        const imageHash = imageCacheKey(bytes, recipe, encoderVersion);
-        this.persistent.set({
-          key,
-          description: value,
-          imageHash,
-          model: modelId,
-          promptVersion,
-        });
-        this.persistentWrites++;
+      if (contextHash) {
+        this.storeDual(bytes, recipe, encoderVersion, modelId, promptVersion, contextHash, value);
+      } else {
+        this.cache.set(key, value);
+        if (this.persistent) {
+          const imageHash = imageCacheKey(bytes, recipe, encoderVersion);
+          this.persistent.set({
+            key,
+            description: value,
+            imageHash,
+            model: modelId,
+            promptVersion,
+          });
+          this.persistentWrites++;
+        }
       }
     }
     return value;
+  }
+
+  /**
+   * Look up the image-only tier (no contextHash). Checks the in-memory LRU
+   * first, then the persistent store. Returns null on miss. Synchronous.
+   */
+  getImageOnly(
+    bytes: Buffer | Uint8Array,
+    recipe: CompressionRecipe,
+    encoderVersion: string,
+    modelId: string,
+    promptVersion: number,
+  ): string | null {
+    const key = descriptionCacheKey(bytes, recipe, encoderVersion, modelId, promptVersion);
+    const cached = this.cache.get(key);
+    if (cached !== undefined) {
+      return cached;
+    }
+    if (this.persistent) {
+      const persisted = this.persistent.get(key);
+      if (persisted !== null) {
+        this.cache.set(key, persisted);
+        return persisted;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Write the description to BOTH the context-keyed tier and the image-only
+   * tier (in-memory + persistent). Does NOT check `isCacheable` — the caller
+   * is responsible for that gate. Synchronous.
+   */
+  storeDual(
+    bytes: Buffer | Uint8Array,
+    recipe: CompressionRecipe,
+    encoderVersion: string,
+    modelId: string,
+    promptVersion: number,
+    contextHash: string,
+    description: string,
+  ): void {
+    const ctxKey = descriptionCacheKey(
+      bytes,
+      recipe,
+      encoderVersion,
+      modelId,
+      promptVersion,
+      contextHash,
+    );
+    const imgKey = descriptionCacheKey(bytes, recipe, encoderVersion, modelId, promptVersion);
+    const imageHash = imageCacheKey(bytes, recipe, encoderVersion);
+    this.cache.set(ctxKey, description);
+    this.cache.set(imgKey, description);
+    if (this.persistent) {
+      this.persistent.set({
+        key: ctxKey,
+        description,
+        imageHash,
+        model: modelId,
+        promptVersion,
+      });
+      this.persistent.set({
+        key: imgKey,
+        description,
+        imageHash,
+        model: modelId,
+        promptVersion,
+      });
+      this.persistentWrites += 2;
+    }
   }
 }

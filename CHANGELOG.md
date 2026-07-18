@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-07-19
+
+### Added
+
+- **Intent-aware vision pipeline**: the vision handoff now triages each image
+  request into one of four strategies — `generic`, `slotted`, `crafted`, or
+  `decomposed` — based on the adjacent user text, image count, and whether the
+  image is a tool result. A new `VISION_INTENT_STRATEGY` config gates the
+  behavior: `off` (generic only), `slotted` (force slot strategy), `crafted`
+  (force crafted questions for single-image), or `auto` (default — triage
+  decides per-request). The triage function is pure and deterministic so the
+  chosen strategy seeds the cache key without fragmentation.
+- **Multi-image decomposition (DecoVQA+)**: when a multi-image request contains
+  explicit image references (e.g. "compare the first and second image"), a
+  cheap LLM call splits the user question into N per-image sub-questions, each
+  neutrally phrased to defend against Visual Sycophancy. Gated by
+  `VISION_DECOMPOSITION_ENABLED` (default `true`) with a configurable
+  `VISION_DECOMPOSITION_TIMEOUT_MS` (default 3000ms). Results are cached
+  in-memory per batch key so the same batch never pays twice. Failure is
+  always safe — any error falls back to the slotted strategy.
+- **Crafted question strategy (Strategy D)**: for single-image complex questions,
+  an LLM call reformulates the user's question into a focused, neutrally-phrased
+  image-description request. The vision model never sees raw user text, which
+  defends against Visual Sycophancy. Gated by the `crafted` triage strategy
+  with a configurable `VISION_CRAFTING_TIMEOUT_MS` (default 3000ms). Crafting
+  results are cached in-memory per input key. Failure falls back to slotted.
+- **Vision context extraction**: `ImagePart` now carries `adjacentText`,
+  `isToolResult`, `positionInBatch`, `batchSize`, and `originalSystemPrompt`.
+  These fields feed the triage function and the crafted/decomposition prompts.
+  New config fields control extraction bounds: `VISION_ADJACENT_TEXT_MAX_CHARS`
+  (default 500), `VISION_RECENT_MESSAGES_COUNT` (default 6), and
+  `VISION_SYSTEM_PROMPT_MAX_CHARS` (default 1000). All hot-reloadable.
+
+### Changed
+
+- **New DB index on `vision_descriptions(image_hash)`**: speeds up persistent
+  cache lookups for the two-tier cache hit path. Auto-applied on next startup
+  via the existing migration.
+
+### Fixed
+
+- **CI test flakiness on v0.3.1**: two timing-sensitive vision tests
+  (`vision-handoff-background-signal` and `vision-handoff-integration`) used
+  fixed sleeps that could exceed the wait window under CI runner load. Both
+  now poll for the actual condition with a 5s deadline instead of a single
+  fixed sleep, matching the existing `waitForModelsRequest` pattern.
+
 ## [0.3.1] - 2026-07-18
 
 ### Added

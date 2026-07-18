@@ -218,6 +218,20 @@ export interface ProxyConfig {
   visionImageFormat: "jpeg" | "png";
   /** OpenAI image_url detail parameter: "auto", "low", or "high". */
   visionImageDetail: "auto" | "low" | "high";
+  /** Intent-aware vision strategy (Task 9): gates HOW to prompt the vision model once `visionStrategy` has decided to intercept. */
+  visionIntentStrategy: "off" | "slotted" | "crafted" | "auto";
+  /** Whether multi-image decomposition (DecoVQA+) is enabled. */
+  visionDecompositionEnabled: boolean;
+  /** Timeout for the decomposition LLM call, in ms. */
+  visionDecompositionTimeoutMs: number;
+  /** Timeout for the crafting LLM call (Strategy D), in ms. */
+  visionCraftingTimeoutMs: number;
+  /** Max chars to extract from adjacent text blocks. */
+  visionAdjacentTextMaxChars: number;
+  /** Number of recent user messages to include in VisionContext.recentMessages. */
+  visionRecentMessagesCount: number;
+  /** Max chars to extract from the original system prompt. */
+  visionSystemPromptMaxChars: number;
   /** When true, vision cache misses forward the original body and process vision in the background. */
   backgroundVision: boolean;
   /** Reserved concurrency slots for the "main" intention (default 1). */

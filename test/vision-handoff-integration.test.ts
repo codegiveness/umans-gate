@@ -739,8 +739,14 @@ describe("Vision handoff integration", () => {
         throw e;
       });
 
-      // Wait for the first vision call to start (occupying the semaphore)
-      await sleep(300);
+      // Wait for the first vision call to start (occupying the semaphore).
+      // Poll instead of a fixed sleep — under CI load the proxy pipeline
+      // (gate acquire + body parse + transcode + vision fetch) can exceed 300ms.
+      const firstCallDeadline = Date.now() + 5000;
+      while (Date.now() < firstCallDeadline) {
+        if (visionCallCount >= 1) break;
+        await sleep(50);
+      }
       expect(visionCallCount).toBe(1);
 
       // Second request: different image, will queue waiting for the semaphore

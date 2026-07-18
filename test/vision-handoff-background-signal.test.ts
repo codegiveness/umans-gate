@@ -191,7 +191,14 @@ describe("V2: background vision signal not tied to client disconnect", () => {
         undefined,
         undefined,
       );
-      await new Promise((r) => setTimeout(r, 200));
+      // Poll for the background fetch to fire — processBody's synchronous
+      // preamble (parse + transcode + triage) can exceed a fixed sleep
+      // under CI load.
+      const deadline = Date.now() + 5000;
+      while (Date.now() < deadline) {
+        if (captured) break;
+        await new Promise((r) => setTimeout(r, 20));
+      }
       expect(captured).toBe(true);
       expect(capturedSignal).toBeUndefined();
     } finally {

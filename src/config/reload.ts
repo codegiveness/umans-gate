@@ -170,6 +170,48 @@ const RELOAD_FIELDS: Array<{
       live.experimentStripOmoReminder = fresh.experimentStripOmoReminder;
     },
   },
+  {
+    rawKey: "vision_intent_strategy",
+    apply: (live, fresh) => {
+      live.visionIntentStrategy = fresh.visionIntentStrategy;
+    },
+  },
+  {
+    rawKey: "vision_decomposition_enabled",
+    apply: (live, fresh) => {
+      live.visionDecompositionEnabled = fresh.visionDecompositionEnabled;
+    },
+  },
+  {
+    rawKey: "vision_decomposition_timeout_ms",
+    apply: (live, fresh) => {
+      live.visionDecompositionTimeoutMs = fresh.visionDecompositionTimeoutMs;
+    },
+  },
+  {
+    rawKey: "vision_crafting_timeout_ms",
+    apply: (live, fresh) => {
+      live.visionCraftingTimeoutMs = fresh.visionCraftingTimeoutMs;
+    },
+  },
+  {
+    rawKey: "vision_adjacent_text_max_chars",
+    apply: (live, fresh) => {
+      live.visionAdjacentTextMaxChars = fresh.visionAdjacentTextMaxChars;
+    },
+  },
+  {
+    rawKey: "vision_recent_messages_count",
+    apply: (live, fresh) => {
+      live.visionRecentMessagesCount = fresh.visionRecentMessagesCount;
+    },
+  },
+  {
+    rawKey: "vision_system_prompt_max_chars",
+    apply: (live, fresh) => {
+      live.visionSystemPromptMaxChars = fresh.visionSystemPromptMaxChars;
+    },
+  },
 ];
 
 /**

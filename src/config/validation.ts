@@ -83,6 +83,11 @@ export const INT_FIELDS: (keyof RawConfig)[] = [
   "ws_backpressure_limit",
   "vision_pending_max_batch",
   "upstream_timeout_ms",
+  "vision_decomposition_timeout_ms",
+  "vision_crafting_timeout_ms",
+  "vision_adjacent_text_max_chars",
+  "vision_recent_messages_count",
+  "vision_system_prompt_max_chars",
 ];
 
 /**
@@ -476,6 +481,60 @@ export const FIELD_RULES: FieldRule[] = [
       n.vision_image_detail !== undefined &&
       !["auto", "low", "high"].includes(n.vision_image_detail)
         ? ["vision_image_detail must be 'auto', 'low', or 'high'"]
+        : [],
+  },
+  {
+    name: "vision_intent_strategy",
+    errors: (n) =>
+      n.vision_intent_strategy !== undefined &&
+      !["off", "slotted", "crafted", "auto"].includes(n.vision_intent_strategy)
+        ? ["vision_intent_strategy must be 'off', 'slotted', 'crafted', or 'auto'"]
+        : [],
+  },
+  ...(["vision_decomposition_enabled"] as const).map((field) => ({
+    name: field,
+    errors: (n: RawConfig) =>
+      n[field] !== undefined && typeof n[field] !== "boolean" ? [`${field} must be a boolean`] : [],
+  })),
+  {
+    name: "vision_decomposition_timeout_ms",
+    errors: (n) =>
+      n.vision_decomposition_timeout_ms !== undefined &&
+      (!Number.isInteger(n.vision_decomposition_timeout_ms) ||
+        n.vision_decomposition_timeout_ms < 100)
+        ? ["vision_decomposition_timeout_ms must be an integer >= 100"]
+        : [],
+  },
+  {
+    name: "vision_crafting_timeout_ms",
+    errors: (n) =>
+      n.vision_crafting_timeout_ms !== undefined &&
+      (!Number.isInteger(n.vision_crafting_timeout_ms) || n.vision_crafting_timeout_ms < 100)
+        ? ["vision_crafting_timeout_ms must be an integer >= 100"]
+        : [],
+  },
+  {
+    name: "vision_adjacent_text_max_chars",
+    errors: (n) =>
+      n.vision_adjacent_text_max_chars !== undefined &&
+      (!Number.isInteger(n.vision_adjacent_text_max_chars) || n.vision_adjacent_text_max_chars < 0)
+        ? ["vision_adjacent_text_max_chars must be a non-negative integer"]
+        : [],
+  },
+  {
+    name: "vision_recent_messages_count",
+    errors: (n) =>
+      n.vision_recent_messages_count !== undefined &&
+      (!Number.isInteger(n.vision_recent_messages_count) || n.vision_recent_messages_count < 0)
+        ? ["vision_recent_messages_count must be a non-negative integer"]
+        : [],
+  },
+  {
+    name: "vision_system_prompt_max_chars",
+    errors: (n) =>
+      n.vision_system_prompt_max_chars !== undefined &&
+      (!Number.isInteger(n.vision_system_prompt_max_chars) || n.vision_system_prompt_max_chars < 0)
+        ? ["vision_system_prompt_max_chars must be a non-negative integer"]
         : [],
   },
   {
