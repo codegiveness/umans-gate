@@ -133,6 +133,38 @@ const STAMP_FIELDS: FieldDef[] = [
   },
 ];
 
+const ID_REWRITE_FIELDS: FieldDef[] = [
+  {
+    key: "experiment_rewrite_ids",
+    label: "ID Rewrite",
+    kind: "toggle",
+    experimental: true,
+    description:
+      "Parent toggle for the ID rewrite experiment. When on, umans-gate rewrites the x-session-id header and all tool_use_ids (call_*/toolu_*) in the request body when the upstream returns 502/529 with 'overloaded_error', then retries with the rewritten IDs. The rewrites use a per-session salt (stored in SQLite) that escalates on consecutive 502s. This experiment does NOT touch cache_control — existing breakpoints are preserved. Eligible only when the harness is opencode (detected via user-agent). Default: off.",
+  },
+  {
+    key: "experiment_rewrite_ttl_ms",
+    label: "Salt TTL",
+    kind: "number",
+    min: 60000,
+    suffix: "ms",
+    experimental: true,
+    description:
+      "Child of experiment_rewrite_ids — only takes effect when the parent toggle is on. Controls how long umans-gate retains the per-session salt mapping in the id_rewrite_sessions SQLite table after the last 502. When the TTL expires, the next 502 starts a fresh salt chain instead of escalating. Default: 3,600,000 ms (1 hour).",
+  },
+];
+
+const OMO_INTEGRATION_FIELDS: FieldDef[] = [
+  {
+    key: "experiment_strip_omo_reminder",
+    label: "Strip Category+Skill Reminder",
+    kind: "toggle",
+    experimental: true,
+    description:
+      "When on, strips oh-my-openagent's Category+Skill Reminder synthetic injection from the first user message before forwarding upstream. This injection (added by the category-skill-reminder hook in oh-my-openagent v4.18.x) splices a 486-byte text block into messages[0] on turn 2, invalidating the prompt cache prefix and causing 0% hit rate for 1-2 turns. Stripping it preserves cache stability. Enable if you use oh-my-openagent and observe cache hit drops on turn 2.",
+  },
+];
+
 const WARMER_FIELDS: FieldDef[] = [
   {
     key: "warmer_enabled",
@@ -395,6 +427,16 @@ export const GROUPS: GroupDef[] = [
         title: "Request Stamp",
         description: "Optional request-body stamping for Anthropic and OpenAI-compatible routes.",
         fields: STAMP_FIELDS,
+      },
+      {
+        title: "ID Rewrite",
+        description: "Experimental 502/529 retry with rewritten session/tool_use IDs.",
+        fields: ID_REWRITE_FIELDS,
+      },
+      {
+        title: "oh-my-openagent",
+        description: "Client-side mitigations for oh-my-openagent harness behaviors.",
+        fields: OMO_INTEGRATION_FIELDS,
       },
     ],
   },

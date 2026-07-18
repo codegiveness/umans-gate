@@ -164,6 +164,12 @@ const RELOAD_FIELDS: Array<{
       live.experimentRewriteTtlMs = fresh.experimentRewriteTtlMs;
     },
   },
+  {
+    rawKey: "experiment_strip_omo_reminder",
+    apply: (live, fresh) => {
+      live.experimentStripOmoReminder = fresh.experimentStripOmoReminder;
+    },
+  },
 ];
 
 /**

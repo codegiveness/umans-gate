@@ -1309,3 +1309,37 @@ test("char: cross-field — both reservations exceed hard_cap-2 simultaneously",
   expect(r.errors).toContain("concurrency_main_reservation must be <= hard_cap - 2 (=3)");
   expect(r.errors).toContain("concurrency_vision_reservation must be <= hard_cap - 2 (=3)");
 });
+// ============================================================================
+// experiment_strip_omo_reminder
+// ============================================================================
+
+test("char: experiment_strip_omo_reminder — boolean true passes", () => {
+  expectNoErrors(validateConfig({ experiment_strip_omo_reminder: true }));
+});
+
+test("char: experiment_strip_omo_reminder — boolean false passes", () => {
+  expectNoErrors(validateConfig({ experiment_strip_omo_reminder: false }));
+});
+
+test("char: experiment_strip_omo_reminder — undefined passes (default applied)", () => {
+  expectNoErrors(validateConfig({ experiment_strip_omo_reminder: undefined }));
+});
+
+test("char: experiment_strip_omo_reminder — string fails", () => {
+  expectSingleError(
+    validateConfig({ experiment_strip_omo_reminder: "yes" as unknown as boolean }),
+    "experiment_strip_omo_reminder must be a boolean",
+  );
+});
+
+test("char: experiment_strip_omo_reminder — number fails", () => {
+  expectSingleError(
+    validateConfig({ experiment_strip_omo_reminder: 1 as unknown as boolean }),
+    "experiment_strip_omo_reminder must be a boolean",
+  );
+});
+
+test("char: normalized — experiment_strip_omo_reminder defaults to false", () => {
+  const r = validateConfig({});
+  expect(r.normalized.experiment_strip_omo_reminder).toBe(false);
+});

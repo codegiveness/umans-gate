@@ -242,6 +242,8 @@ export interface ProxyConfig {
   upstreamTimeoutMs: number;
   experimentRewriteIds: boolean;
   experimentRewriteTtlMs: number;
+  /** When true, strips oh-my-openagent's [Category+Skill Reminder] injection from the first user message before forwarding upstream. */
+  experimentStripOmoReminder: boolean;
 }
 
 // Narrow config interfaces (ISP). ProxyConfig structurally satisfies each,
@@ -259,6 +261,7 @@ export interface StampConfig {
   stampClaudeCode: ProxyConfig["stampClaudeCode"];
   stampReasoningEffort: ProxyConfig["stampReasoningEffort"];
   openaiPath: ProxyConfig["openaiPath"];
+  experimentStripOmoReminder: ProxyConfig["experimentStripOmoReminder"];
 }
 
 /** Capture-related fields used by the proxy for body truncation + DB path. */
@@ -289,6 +292,7 @@ export interface GateConfig {
 export interface ExperimentConfig {
   experimentRewriteIds: ProxyConfig["experimentRewriteIds"];
   experimentRewriteTtlMs: ProxyConfig["experimentRewriteTtlMs"];
+  experimentStripOmoReminder: ProxyConfig["experimentStripOmoReminder"];
 }
 
 /** Write-behind queue flush fields used by WriteQueue. */

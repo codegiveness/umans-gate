@@ -178,6 +178,7 @@ export const FIELD_RULES: FieldRule[] = [
       "stamp_reasoning_effort_enabled",
       "compression_enabled",
       "use_hard_cap",
+      "experiment_strip_omo_reminder",
     ] as const
   ).map((field) => ({
     name: field,

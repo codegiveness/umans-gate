@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-07-18
+
+### Added
+
+- **Experimental `EXPERIMENT_STRIP_OMO_REMINDER` strip step**: a new opt-in
+  experiment (`EXPERIMENT_STRIP_OMO_REMINDER`, default `false`) that removes
+  oh-my-openagent's `[Category+Skill Reminder]` synthetic text block from
+  `messages[0].content` on Anthropic requests before forwarding upstream. The
+  injection (added by the `category-skill-reminder` hook in
+  oh-my-openagent v4.18.x) splices a ~486-byte text block into the first
+  user message on turn 2, invalidating the Anthropic prompt cache prefix
+  and dropping cache hit rate to ~0% for 1-2 turns. Stripping it preserves
+  cache stability. The step runs after all other stamp steps, is idempotent,
+  preserves all other content blocks and `cache_control` breakpoints, and
+  scans only the first message. Hot-reloadable.
+
+### Changed
+
+- **Dashboard Config tab: new experiment groups**: the Config tab now shows
+  two new groups under the Stamp section — "ID Rewrite" (surfaces the
+  existing `experiment_rewrite_ids` and `experiment_rewrite_ttl_ms` fields
+  with descriptions) and "oh-my-openagent" (surfaces the new
+  `experiment_strip_omo_reminder` toggle). Both groups are marked
+  experimental. The `ExperimentRawConfig` type was added to the dashboard's
+  config hook so these fields round-trip through save/reload.
+
 ## [0.3.0] - 2026-07-17
 
 ### Added

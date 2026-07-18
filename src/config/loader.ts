@@ -183,6 +183,12 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     "experiment_rewrite_ttl_ms",
     DEFAULT_CONFIG.experiment_rewrite_ttl_ms ?? 3600000,
   );
+  const experimentStripOmoReminder = envOrRawBool(
+    env.EXPERIMENT_STRIP_OMO_REMINDER,
+    raw,
+    "experiment_strip_omo_reminder",
+    DEFAULT_CONFIG.experiment_strip_omo_reminder ?? false,
+  );
 
   return {
     port,
@@ -248,5 +254,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     upstreamTimeoutMs,
     experimentRewriteIds,
     experimentRewriteTtlMs,
+    experimentStripOmoReminder,
   };
 }

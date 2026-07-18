@@ -75,6 +75,8 @@ export interface RawConfig {
   experiment_rewrite_ids?: boolean;
   /** EXPERIMENTAL: TTL in ms for id_rewrite_sessions entries. Default 3600000 (1 hour). */
   experiment_rewrite_ttl_ms?: number;
+  /** EXPERIMENTAL: Strip oh-my-openagent's [Category+Skill Reminder] injection from request bodies before forwarding upstream. Default false. */
+  experiment_strip_omo_reminder?: boolean;
 }
 
 /**

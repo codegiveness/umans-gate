@@ -14,6 +14,7 @@ import {
   STAMP_THINKING_VALUE,
   STAMP_TOP_K_VALUE,
 } from "./config.js";
+import { stripOmoReminder } from "./experiments/strip-omo-reminder.js";
 import { textDecoder } from "./helpers.js";
 import { createLogger } from "./logger.js";
 import { isGlmModel, resolveEffortForModel } from "./model-policy.js";
@@ -193,6 +194,37 @@ export const TemperatureStep: StampStep = {
   },
 };
 
+// ─── Post-stamp experiment steps ─────────────────────────────────────────
+
+/**
+ * Strip oh-my-openagent's [Category+Skill Reminder] injection from
+ * messages[0].content on Anthropic requests. Runs AFTER all stamp steps so
+ * the cleaned body is what gets captured and forwarded upstream. Gated on
+ * config.experimentStripOmoReminder — user must explicitly opt in.
+ */
+export const StripOmoReminderStep: StampStep = {
+  label: "strip-omo-reminder",
+  applies(ctx) {
+    return ctx.config.experimentStripOmoReminder && !ctx.isOpenAi;
+  },
+  apply(body, ctx) {
+    if (body === null || typeof body !== "object") return false;
+    const cleaned = stripOmoReminder(body as AnthropicBody);
+    if (cleaned === body) return false;
+    // Mutate the original body in place so the caller sees the cleaned
+    // shape when it re-serializes. stripOmoReminder is pure (returns a new
+    // object); we copy the changed fields back to keep the pipeline contract
+    // consistent with the other in-place steps.
+    const b = body as AnthropicBody;
+    if (cleaned.messages !== b.messages) b.messages = cleaned.messages;
+    log.info("stripped oh-my-openagent [Category+Skill Reminder] block", {
+      method: ctx.method,
+      path: ctx.url.pathname,
+    });
+    return true;
+  },
+};
+
 // ─── Pipeline ─────────────────────────────────────────────────────────────
 
 /** Ordered stamp steps applied to every request body before forwarding. */
@@ -203,4 +235,5 @@ export const STAMP_PIPELINE: StampStep[] = [
   OpenAiReasoningStep,
   TopKStep,
   TemperatureStep,
+  StripOmoReminderStep,
 ];

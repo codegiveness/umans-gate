@@ -56,6 +56,7 @@ const DEFAULT_CONFIG: RawConfig = {
   upstream_timeout_ms: 300000,
   experiment_rewrite_ids: false,
   experiment_rewrite_ttl_ms: 3600000,
+  experiment_strip_omo_reminder: false,
 };
 
 export { DEFAULT_CONFIG };

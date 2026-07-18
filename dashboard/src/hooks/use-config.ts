@@ -66,7 +66,17 @@ export interface ServerRawConfig {
   has_dashboard_token?: boolean;
 }
 
-export type RawConfig = StampRawConfig & GateRawConfig & VisionRawConfig & ServerRawConfig;
+export interface ExperimentRawConfig {
+  experiment_rewrite_ids?: boolean;
+  experiment_rewrite_ttl_ms?: number;
+  experiment_strip_omo_reminder?: boolean;
+}
+
+export type RawConfig = StampRawConfig &
+  GateRawConfig &
+  VisionRawConfig &
+  ServerRawConfig &
+  ExperimentRawConfig;
 
 export interface ValidationResult {
   ok: boolean;
