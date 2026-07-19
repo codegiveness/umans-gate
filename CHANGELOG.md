@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-07-19
+
+### Fixed
+
+- **README: corrected the hot-reload blanket claim for `vision_*` fields**.
+  The Hot Reload and Restart section previously stated that all `vision_*`
+  fields require a server restart. This was inaccurate for the 7 intent-aware
+  vision fields introduced in v0.3.2 (`vision_intent_strategy`,
+  `vision_decomposition_enabled`, `vision_decomposition_timeout_ms`,
+  `vision_crafting_timeout_ms`, `vision_adjacent_text_max_chars`,
+  `vision_recent_messages_count`, `vision_system_prompt_max_chars`), which
+  are hot-reloadable per `src/config/reload.ts` and marked
+  `restartRequired: false` in the dashboard Config tab. The README now lists
+  these 7 fields explicitly as hot-reloadable and qualifies the restart claim
+  as applying to "most other `vision_*` fields."
+
 ## [0.3.3] - 2026-07-19
 
 ### Fixed

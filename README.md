@@ -462,9 +462,13 @@ hardcoded — not configurable.
 
 The dashboard's Config tab can save changes and trigger a hot reload
 via `POST /dashboard/api/config/reload`. Hot-reloadable fields (e.g.
-`stamp_claude_code_enabled`, `breaker_*`, `rate_limit_*`)
-apply live; fields marked `restartRequired` (e.g. `port`, `db_path`,
-`upstream_protocol`, `vision_*`) require a server restart.
+`stamp_claude_code_enabled`, `breaker_*`, `rate_limit_*`, and the 7
+intent-aware vision fields — `vision_intent_strategy`,
+`vision_decomposition_enabled`, `vision_decomposition_timeout_ms`,
+`vision_crafting_timeout_ms`, `vision_adjacent_text_max_chars`,
+`vision_recent_messages_count`, `vision_system_prompt_max_chars`)
+apply live; other fields marked `restartRequired` (e.g. `port`, `db_path`,
+`upstream_protocol`, and most other `vision_*` fields) require a server restart.
 
 The dashboard also has a **Restart** button (`POST /dashboard/api/restart`)
 that calls `process.exit(0)`. When running as a managed service
