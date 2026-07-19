@@ -124,16 +124,23 @@ For OpenAI-compatible requests, `stamp-reasoning.ts` handles
 ### 3. Vision Handoff
 
 ```
-proxy.ts → vision/handoff.ts → detect images → transcode → vision model → cache → replace blocks
+proxy.ts → vision/handoff.ts → detect images → extract context → triage strategy
+  → [transcode → vision model] → cache → replace blocks
 ```
 
 When `vision_strategy` is `catalog` or `always`:
 
-1. `detect.ts` finds image blocks in Anthropic or OpenAI request bodies
-2. Images are transcoded to PNG/JPEG (`transcode.ts`) with max dimension
-3. Each image is sent to the vision model (`umans-flash`) via the concurrency gate
-4. Descriptions are cached in-memory (`cache.ts`) and persistently (`persistent-cache.ts`)
-5. Image blocks are replaced with text descriptions (`wrapper.ts`)
+1. `detect.ts` finds image blocks in Anthropic or OpenAI request bodies and
+   extracts context (`adjacentText`, `isToolResult`, `positionInBatch`,
+   `batchSize`, `originalSystemPrompt`)
+2. `triage.ts` deterministically routes the request to one of four strategies
+   (`generic`, `slotted`, `crafted`, `decomposed`) based on the extracted context
+3. Images are transcoded to PNG/JPEG (`transcode.ts`) with max dimension
+4. Each image is sent to the vision model (`umans-flash`) via the concurrency gate
+   with a strategy-appropriate prompt (crafted/decomposed may make a preceding
+   LLM call to reformulate the question, cached in-memory)
+5. Descriptions are cached in-memory (`cache.ts`) and persistently (`persistent-cache.ts`)
+6. Image blocks are replaced with text descriptions (`wrapper.ts`)
 
 Vision calls are serialized by a `ConcurrencyGate` with configurable
 concurrency (default: 1) because the upstream has limited vision slots.

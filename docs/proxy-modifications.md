@@ -133,17 +133,34 @@ Each entry lists: **what** it does, **where** in the code, **when** it applies
   and the description text
   replaces the image block. Descriptions are cached (7-day TTL) to avoid
   re-describing the same image.
-- **Where**: `src/vision/handoff.ts:172-364` (`processBody`), called at
+- **Where**: the `processBody` method in `src/vision/handoff.ts`, called at
   `src/proxy.ts:161`.
 - **When**: Both routes, gated by `config.visionStrategy !== "never"`.
   - `always`: intercept all images
   - `catalog`: intercept only if model is known to not support vision
   - `never`: disabled
+- **Intent-aware prompting**: once interception is decided, a deterministic triage
+  function (`src/vision/triage.ts`) routes the request to one of four strategies
+  based on adjacent user text, image count, and tool-result status:
+  - `generic`: plain OCR prompt (the original behavior)
+  - `slotted`: structured prompt including the user's adjacent question
+  - `crafted`: an LLM call reformulates the question into a neutral, focused
+    image-description request (single-image, Strategy D)
+  - `decomposed`: an LLM call splits a multi-image question into per-image
+    sub-questions (DecoVQA+ pattern)
+  Gated by `vision_intent_strategy` (default `auto` — triage decides per-request).
+  Crafting and decomposition results are cached in-memory; any failure falls back
+  to the `slotted` strategy.
 - **Config**:
   - `vision_strategy` JSON (default: `catalog`)
   - `vision_model` (default: `umans-flash`)
   - `vision_concurrency` (default: `1` — serializes vision calls)
   - `vision_max_images`, `vision_timeout_ms`, `vision_cache_size`, etc.
+  - `vision_intent_strategy` (default: `auto`)
+  - `vision_decomposition_enabled` (default: `true`)
+  - `vision_decomposition_timeout_ms`, `vision_crafting_timeout_ms` (default: `3000`)
+  - `vision_adjacent_text_max_chars`, `vision_recent_messages_count`,
+    `vision_system_prompt_max_chars` (context extraction bounds)
 - **Rationale**: Some models (e.g. `umans-glm-5.2`) do not support vision
   directly. Converting images to text descriptions enables them to "see" images
   via a vision proxy model. Text is also KV-cacheable (image bytes are not),
