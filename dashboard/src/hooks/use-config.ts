@@ -51,6 +51,16 @@ export interface VisionRawConfig {
   vision_system_prompt_max_chars?: number;
 }
 
+export interface UsageHistoryRawConfig {
+  usage_history_enabled?: boolean;
+  /** Days to retain raw `usage_samples` rows before downsampling into
+   *  `usage_daily`. Default 7. Hot-reloadable. The dashboard uses this to
+   *  decide whether the per-day timeline renders from raw samples (recent)
+   *  or from daily + events (old, ticket 06). */
+  usage_raw_retention_days?: number;
+  usage_gap_threshold_minutes?: number;
+}
+
 export interface ServerRawConfig {
   port?: number;
   max_captures?: number;
@@ -83,6 +93,7 @@ export type RawConfig = StampRawConfig &
   GateRawConfig &
   VisionRawConfig &
   ServerRawConfig &
+  UsageHistoryRawConfig &
   ExperimentRawConfig;
 
 export interface ValidationResult {

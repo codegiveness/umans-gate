@@ -28,6 +28,14 @@ export function todayUtc(): string {
   return toDayUtc(new Date());
 }
 
+/** Whole-day age of `dayUtc` relative to today (UTC). 0 = today, 1 = yesterday.
+ *  Always an integer (floor of the fractional day). Negative if `dayUtc` is
+ *  in the future. */
+export function dayAgeDays(dayUtc: string): number {
+  const today = todayUtc();
+  return Math.floor((utcMidnight(today).getTime() - utcMidnight(dayUtc).getTime()) / MS_PER_DAY);
+}
+
 export type RangePreset = "7d" | "30d" | "90d" | "1y" | "all";
 
 export const RANGE_PRESETS: ReadonlyArray<{ value: RangePreset; label: string }> = [

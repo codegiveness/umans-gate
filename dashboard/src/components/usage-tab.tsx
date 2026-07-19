@@ -18,11 +18,18 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { UsageHeatmap } from "@/components/usage-heatmap";
 import { UsageTimeline } from "@/components/usage-timeline";
+import { UsageTimelineOld } from "@/components/usage-timeline-old";
+import { useConfig } from "@/hooks/use-config";
 import { useUsageDaily } from "@/hooks/use-usage-daily";
 import { useUsageDay } from "@/hooks/use-usage-day";
 import { useUsageHistory } from "@/hooks/use-usage-history";
-import { type RangePreset, addDays, presetRange, todayUtc } from "@/lib/usage-heatmap";
+import { type RangePreset, addDays, dayAgeDays, presetRange, todayUtc } from "@/lib/usage-heatmap";
+import { findDailyRow } from "@/lib/usage-timeline-old";
 import type { UsageSampleRow } from "@/types";
+
+/** Default raw-sample retention (days) when the config endpoint hasn't
+ *  loaded or doesn't surface the field. Matches the backend default. */
+const DEFAULT_RAW_RETENTION_DAYS = 7;
 
 function fmtTime(ms: number): string {
   return new Date(ms).toLocaleTimeString(undefined, {
@@ -62,9 +69,12 @@ export function UsageTab() {
     refresh: dailyRefresh,
   } = useUsageDaily(presetWindow.from, presetWindow.to);
 
+  const { config } = useConfig();
+  const rawRetentionDays = config?.usage_raw_retention_days ?? DEFAULT_RAW_RETENTION_DAYS;
+
   const { samples, loading, error, refresh } = useUsageHistory("today");
 
-  // Timeline data for the selected day (ticket 05).
+  // Timeline data for the selected day (ticket 05 recent + ticket 06 old).
   const {
     samples: daySamples,
     events: dayEvents,
@@ -73,6 +83,16 @@ export function UsageTab() {
     error: dayError,
     refresh: dayRefresh,
   } = useUsageDay(selectedDay);
+
+  // Ticket 06: day-age switch. Old days (>retention) render from daily +
+  // events with a dashed step-function; recent days render from raw samples
+  // (ticket 05).
+  const selectedDayAge = useMemo(() => dayAgeDays(selectedDay), [selectedDay]);
+  const isOldDay = selectedDayAge > rawRetentionDays;
+  const selectedDailyRow = useMemo(
+    () => findDailyRow(daily30Day, selectedDay),
+    [daily30Day, selectedDay],
+  );
 
   const handleSelectPreset = (p: RangePreset) => {
     setPreset(p);
@@ -180,14 +200,25 @@ export function UsageTab() {
             </Button>
           </div>
 
-          <UsageTimeline
-            dayUtc={selectedDay}
-            samples={daySamples}
-            events={dayEvents}
-            daily30Day={daily30Day}
-            loading={dayLoading}
-            error={dayError}
-          />
+          {isOldDay ? (
+            <UsageTimelineOld
+              dayUtc={selectedDay}
+              daily={selectedDailyRow}
+              events={dayEvents}
+              daily30Day={daily30Day}
+              loading={dayLoading}
+              error={dayError}
+            />
+          ) : (
+            <UsageTimeline
+              dayUtc={selectedDay}
+              samples={daySamples}
+              events={dayEvents}
+              daily30Day={daily30Day}
+              loading={dayLoading}
+              error={dayError}
+            />
+          )}
 
           <TodaySamplesSection
             samples={samples}

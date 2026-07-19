@@ -81,6 +81,21 @@ vi.mock("@/hooks/use-usage-day", () => ({
   }),
 }));
 
+vi.mock("@/hooks/use-config", () => ({
+  useConfig: () => ({
+    config: { usage_raw_retention_days: 7 },
+    loading: false,
+    error: null,
+    reload: () => Promise.resolve(null),
+    save: () => Promise.resolve(null),
+    validate: () => Promise.resolve(null),
+    reloadFromDisk: () => Promise.resolve(null),
+    refreshFromSource: () => Promise.resolve(null),
+    restart: () => Promise.resolve(null),
+    resetToDefault: () => Promise.resolve(null),
+  }),
+}));
+
 describe("UsageTab", () => {
   it("renders the Usage heading", async () => {
     render(<UsageTab />);
