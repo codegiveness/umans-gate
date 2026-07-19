@@ -26,6 +26,8 @@ export interface RawConfig {
   /** Optional bearer token for dashboard API authentication. When set, all dashboard API requests must include `Authorization: Bearer <token>`. */
   dashboard_token?: string;
   usage_refresh_ms?: number;
+  /** When true, persists coalesced /v1/usage snapshots to the usage_samples table for the Usage dashboard tab. Hot-reloadable. */
+  usage_history_enabled?: boolean;
   models_refresh_ms?: number;
   concurrency_hard_cap?: number;
   concurrency_soft_limit?: number;

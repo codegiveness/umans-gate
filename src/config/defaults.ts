@@ -16,6 +16,7 @@ const DEFAULT_CONFIG: RawConfig = {
   umans_api_key: "",
   dashboard_token: "",
   usage_refresh_ms: 60000,
+  usage_history_enabled: true,
   models_refresh_ms: 3600000,
   concurrency_hard_cap: 16,
   concurrency_soft_limit: 8,

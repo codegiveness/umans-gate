@@ -210,6 +210,40 @@ export interface EconomicsDailyRow {
   pricing_known: number;
 }
 
+/** One coalesced /v1/usage sample row (ticket 01: raw samples storage). */
+export interface UsageSampleRow {
+  id: number;
+  fetched_at: number;
+  ok: number;
+  user_id: string | null;
+  plan: string;
+  plan_slug: string | null;
+  requests_limit: number | null;
+  requests_hard_cap: number | null;
+  requests_window_seconds: number | null;
+  concurrency_soft_limit: number;
+  concurrency_hard_cap: number;
+  requests_in_window: number;
+  weighted_requests_in_window: number;
+  requests_remaining: number | null;
+  weighted_remaining_requests: number | null;
+  concurrent_sessions: number;
+  weighted_concurrent_sessions: number;
+  tokens_in: number;
+  tokens_out: number;
+  tokens_cached: number;
+  window_started_at: number | null;
+  window_resets_at: number | null;
+  window_remaining_minutes: number | null;
+  priority_low: number;
+  boxed_until: number | null;
+  boxed_reason: string | null;
+  units_demoted: number;
+  demoted_until: number | null;
+  service_mode_current: string;
+  service_mode_resets_at: number | null;
+}
+
 export interface EconomicsMonthSummary {
   year: number;
   month: number;

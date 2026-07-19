@@ -27,6 +27,7 @@ import { summary } from "./helpers.js";
 import type { ConcurrencyGate } from "./limiter/index.js";
 import type { ModelsClient } from "./models.js";
 import type { ProxyConfig } from "./types.js";
+import type { UsageHistoryStore } from "./usage-history/index.js";
 import type { UmansUsageClient } from "./usage.js";
 import type { VisionHandoff } from "./vision/handoff.js";
 import type { WsBroadcaster } from "./ws.js";
@@ -74,6 +75,7 @@ export interface CreateViewerRouterOptions {
   config: ProxyConfig;
   gate: ConcurrencyGate;
   usage: UmansUsageClient;
+  usageHistory: UsageHistoryStore | null;
   vision: VisionHandoff | null;
   models: ModelsClient | null;
   authFailureLimiter?: AuthFailureLimiter;
@@ -188,6 +190,7 @@ interface ViewerRouteContext {
   config: ProxyConfig;
   gate: ConcurrencyGate;
   usage: UmansUsageClient;
+  usageHistory: UsageHistoryStore | null;
   vision: VisionHandoff | null;
   models: ModelsClient | null;
   reloadConfig: (() => ReloadResult) | null;
@@ -225,6 +228,7 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
     config,
     gate,
     usage,
+    usageHistory,
     vision,
     models,
     authFailureLimiter,
@@ -277,6 +281,16 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
       method: "GET",
       pattern: `${VIEWER}/api/usage`,
       handler: (ctx) => Response.json(ctx.usage.getSnapshot()),
+    },
+    {
+      method: "GET",
+      pattern: `${VIEWER}/api/usage/samples`,
+      handler: (ctx) => {
+        const dateParam = ctx.url.searchParams.get("date") ?? "today";
+        const date = dateParam === "today" ? new Date().toISOString().slice(0, 10) : dateParam;
+        if (!ctx.usageHistory) return Response.json([]);
+        return Response.json(ctx.usageHistory.getSamplesForDate(date));
+      },
     },
     {
       method: "GET",
@@ -554,6 +568,7 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
       config,
       gate,
       usage,
+      usageHistory,
       vision,
       models,
       reloadConfig: reloadConfig ?? null,

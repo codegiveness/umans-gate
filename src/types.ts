@@ -156,6 +156,8 @@ export interface ProxyConfig {
   dashboardToken: string | null;
   /** Polling interval for /v1/usage reconciliation, in ms. */
   usageRefreshMs: number;
+  /** When true, persists coalesced /v1/usage snapshots to usage_samples for the Usage dashboard tab. Hot-reloadable. */
+  usageHistoryEnabled: boolean;
   /** Polling interval for /v1/models fetch (model weights + listing), in ms. */
   modelsRefreshMs: number;
   /** Persisted concurrency hard cap (from /v1/usage, editable for robustness testing). */

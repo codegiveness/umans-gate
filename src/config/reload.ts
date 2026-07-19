@@ -57,6 +57,12 @@ const RELOAD_FIELDS: Array<{
     },
   },
   {
+    rawKey: "usage_history_enabled",
+    apply: (live, fresh) => {
+      live.usageHistoryEnabled = fresh.usageHistoryEnabled;
+    },
+  },
+  {
     rawKey: "stamp_reasoning_effort_enabled",
     apply: (live, fresh) => {
       live.stampReasoningEffort = fresh.stampReasoningEffort;

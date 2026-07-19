@@ -17,7 +17,7 @@ export class UmansUsageClient {
   private readonly target: string;
   private readonly apiKey: string | null;
   private readonly refreshMs: number;
-  private onChangeCb: ((s: UsageSnapshot) => void) | null = null;
+  private onChangeCbs: Array<(s: UsageSnapshot) => void> = [];
 
   constructor(config: Pick<ProxyConfig, "target" | "umansApiKey" | "usageRefreshMs">) {
     this.target = config.target.replace(/\/+$/, "");
@@ -26,7 +26,7 @@ export class UmansUsageClient {
   }
 
   onChange(cb: (s: UsageSnapshot) => void): void {
-    this.onChangeCb = cb;
+    this.onChangeCbs.push(cb);
   }
 
   start(): void {
@@ -84,13 +84,26 @@ export class UmansUsageClient {
     const lastSoftLimit = this.snapshot?.concurrencySoftLimit ?? 1;
     const snap = buildSnapshot(raw, ok, lastHardCap, lastSoftLimit);
     this.snapshot = snap;
-    this.onChangeCb?.(snap);
+    for (const cb of this.onChangeCbs) {
+      try {
+        cb(snap);
+      } catch (err) {
+        log.error(`onChange callback failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
   }
-
   private applyFailedSnapshot(reason: string): void {
     if (this.snapshot) {
       this.snapshot = { ...this.snapshot, ok: false, fetchedAt: Date.now(), priorityLow: false };
-      this.onChangeCb?.(this.snapshot);
+      for (const cb of this.onChangeCbs) {
+        try {
+          cb(this.snapshot);
+        } catch (err) {
+          log.error(
+            `onChange callback failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      }
     }
     // First fetch with no prior snapshot: skip onChange. failSafeSnapshot has
     // concurrencySoftLimit:1 — firing it would stamp the gate to 1 permanently.

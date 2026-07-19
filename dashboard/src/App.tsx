@@ -32,6 +32,9 @@ const PerformanceMeter = lazy(() =>
 const EconomicsTab = lazy(() =>
   import("@/components/economics-tab").then((m) => ({ default: m.EconomicsTab })),
 );
+const UsageTab = lazy(() =>
+  import("@/components/usage-tab").then((m) => ({ default: m.UsageTab })),
+);
 const VisionCalls = lazy(() =>
   import("@/components/vision-calls").then((m) => ({ default: m.VisionCalls })),
 );
@@ -123,6 +126,11 @@ export function App() {
                       tip="Daily usage accumulation and cost tracking"
                     />
                     <TabTriggerWithTip
+                      value="usage"
+                      label="Usage"
+                      tip="Raw /v1/usage samples polled from upstream"
+                    />
+                    <TabTriggerWithTip
                       value="models"
                       label="Models"
                       tip="Upstream model catalog with pricing"
@@ -198,6 +206,11 @@ export function App() {
                 >
                   <Suspense fallback={<TabPanelFallback />}>
                     <EconomicsTab />
+                  </Suspense>
+                </TabsContent>
+                <TabsContent value="usage" className="min-h-0 flex-1 overflow-hidden" keepMounted>
+                  <Suspense fallback={<TabPanelFallback />}>
+                    <UsageTab />
                   </Suspense>
                 </TabsContent>
                 <TabsContent value="config" className="min-h-0 flex-1 overflow-hidden" keepMounted>

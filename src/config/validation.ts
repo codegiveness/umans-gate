@@ -184,6 +184,7 @@ export const FIELD_RULES: FieldRule[] = [
       "compression_enabled",
       "use_hard_cap",
       "experiment_strip_omo_reminder",
+      "usage_history_enabled",
     ] as const
   ).map((field) => ({
     name: field,

@@ -26,6 +26,7 @@ import { WriteQueue } from "./queue.js";
 import type { CaptureStore } from "./queue.js";
 import { SlidingWindowRateLimiter } from "./rate.js";
 import type { ProxyConfig } from "./types.js";
+import { UsageHistoryStore } from "./usage-history/index.js";
 import { UmansUsageClient } from "./usage.js";
 import { createViewerRouter } from "./viewer.js";
 import { DescriptionCache } from "./vision/cache.js";
@@ -63,6 +64,8 @@ export { ConnectionWarmer } from "./warmer.js";
 export { ConcurrencyGate } from "./limiter/index.js";
 export { SlidingWindowRateLimiter } from "./rate.js";
 export { UmansUsageClient } from "./usage.js";
+export { UsageHistoryStore } from "./usage-history/index.js";
+export type { UsageSampleRow } from "./usage-history/index.js";
 export type {
   ProxyConfig,
   CaptureConfig,
@@ -274,6 +277,7 @@ export interface ProxyServer {
   warmer: ConnectionWarmer | null;
   gate: ConcurrencyGate;
   usage: UmansUsageClient;
+  usageHistory: UsageHistoryStore | null;
   models: ModelsClient;
   rate: SlidingWindowRateLimiter | null;
   config: ProxyConfig;
@@ -318,6 +322,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
   const warmer = config.warmerEnabled ? new ConnectionWarmer(config) : null;
 
   const usage = new UmansUsageClient(config);
+  const usageHistory = config.usageHistoryEnabled ? new UsageHistoryStore({ db: db.rawDb }) : null;
   const models = new ModelsClient({
     target: config.target,
     refreshMs: config.modelsRefreshMs,
@@ -376,6 +381,18 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     }
     ws.broadcast({ type: "gate", stats: gate.getStats(snap) });
   });
+  if (usageHistory) {
+    usage.onChange((snap) => {
+      if (!config.usageHistoryEnabled) return;
+      try {
+        usageHistory.handleSnapshot(snap);
+      } catch (err) {
+        log.error("usage history write failed", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    });
+  }
   gate.onStatsChange(() => {
     ws.broadcast({ type: "gate", stats: gate.getStats(usage.getSnapshot()) });
   });
@@ -620,6 +637,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     config,
     gate,
     usage,
+    usageHistory,
     vision,
     models,
     authFailureLimiter,
@@ -780,6 +798,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     warmer,
     gate,
     usage,
+    usageHistory,
     models,
     rate: rateRef.current,
     config,
