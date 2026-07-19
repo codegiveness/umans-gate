@@ -10,6 +10,7 @@ const mockRow = vi.hoisted(() => {
     id: 1,
     fetched_at: Date.now(),
     ok: 1,
+    user_id: null,
     plan: "Code Pro",
     plan_slug: "code-pro",
     requests_limit: null,
@@ -58,6 +59,15 @@ const mockUseUsageHistory = vi.hoisted(() =>
 
 vi.mock("@/hooks/use-usage-history", () => ({
   useUsageHistory: mockUseUsageHistory,
+}));
+
+vi.mock("@/hooks/use-usage-daily", () => ({
+  useUsageDaily: () => ({
+    rows: [],
+    loading: false,
+    error: null,
+    refresh: () => {},
+  }),
 }));
 
 describe("UsageTab", () => {

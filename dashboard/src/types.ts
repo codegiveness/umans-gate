@@ -284,6 +284,68 @@ export interface UsageEventRow {
   service_mode_resets_at: number | null;
 }
 
+/** One row per UTC day (ticket 03: daily aggregate). Per decision 08:
+ *  two-snapshot model (trigger-moment + day-total) + two-dimension activity. */
+export interface UsageDailyRow {
+  day_utc: string;
+  day_completeness:
+    | "full"
+    | "partial_start"
+    | "partial_end"
+    | "partial_both"
+    | "missing"
+    | "incomplete_window";
+  first_activity_utc: number | null;
+  last_activity_utc: number | null;
+  accumulated_active_minutes: number | null;
+  utc_clock_span_minutes: number | null;
+  first_activity_utc_hour: number | null;
+  last_activity_utc_hour: number | null;
+  active_minutes_by_utc_hour: string | null;
+  tokens_in_total: number | null;
+  tokens_out_total: number | null;
+  tokens_cached_total: number | null;
+  requests_in_window_peak: number | null;
+  requests_in_window_avg: number | null;
+  cache_hit_rate_avg: number | null;
+  concurrent_sessions_peak: number | null;
+  concurrent_sessions_avg: number | null;
+  weighted_concurrent_sessions_peak: number | null;
+  weighted_concurrent_sessions_avg: number | null;
+  at_first_priority_event_concurrent_sessions: number | null;
+  at_first_priority_event_weighted_concurrent_sessions: number | null;
+  at_first_priority_event_requests_in_window: number | null;
+  at_first_priority_event_weighted_requests_in_window: number | null;
+  at_first_priority_event_requests_remaining: number | null;
+  at_first_priority_event_requests_limit: number | null;
+  at_first_priority_event_tokens_in: number | null;
+  at_first_priority_event_tokens_out: number | null;
+  at_first_priority_event_tokens_cached: number | null;
+  at_first_priority_event_cache_hit_rate: number | null;
+  at_first_service_mode_event_concurrent_sessions: number | null;
+  at_first_service_mode_event_weighted_concurrent_sessions: number | null;
+  at_first_service_mode_event_requests_in_window: number | null;
+  at_first_service_mode_event_weighted_requests_in_window: number | null;
+  at_first_service_mode_event_requests_remaining: number | null;
+  at_first_service_mode_event_requests_limit: number | null;
+  at_first_service_mode_event_tokens_in: number | null;
+  at_first_service_mode_event_tokens_out: number | null;
+  at_first_service_mode_event_tokens_cached: number | null;
+  at_first_service_mode_event_cache_hit_rate: number | null;
+  priority_low_minutes: number | null;
+  boxed_minutes: number | null;
+  units_demoted_minutes: number | null;
+  service_mode_non_normal_minutes: number | null;
+  priority_events_count: number | null;
+  service_mode_events_count: number | null;
+  priority_ban_total_duration_ms: number | null;
+  service_mode_ban_total_duration_ms: number | null;
+  concurrency_hard_cap: number | null;
+  requests_limit: number | null;
+  requests_hard_cap: number | null;
+  downsampled_at: number;
+}
+
 export interface EconomicsMonthSummary {
   year: number;
   month: number;
