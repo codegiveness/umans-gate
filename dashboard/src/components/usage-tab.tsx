@@ -1,4 +1,4 @@
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { AlertCircle, ArrowLeft, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +17,9 @@ import {
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { UsageHeatmap } from "@/components/usage-heatmap";
+import { UsageTimeline } from "@/components/usage-timeline";
 import { useUsageDaily } from "@/hooks/use-usage-daily";
+import { useUsageDay } from "@/hooks/use-usage-day";
 import { useUsageHistory } from "@/hooks/use-usage-history";
 import { type RangePreset, addDays, presetRange, todayUtc } from "@/lib/usage-heatmap";
 import type { UsageSampleRow } from "@/types";
@@ -35,7 +37,8 @@ export function UsageTab() {
   // `zoomRange` is set by the brush; null = use the preset window.
   const [zoomRange, setZoomRange] = useState<{ from: string; to: string } | null>(null);
   // The currently selected day (drill-down trigger for ticket 05's timeline).
-  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  // Defaults to today so the timeline is visible on first render.
+  const [selectedDay, setSelectedDay] = useState<string>(() => todayUtc());
 
   // The heatmap fetches the preset window. For "all" we use a wide window
   // (2 years) since the daily table is small (~730 rows max for 2y).
@@ -61,6 +64,16 @@ export function UsageTab() {
 
   const { samples, loading, error, refresh } = useUsageHistory("today");
 
+  // Timeline data for the selected day (ticket 05).
+  const {
+    samples: daySamples,
+    events: dayEvents,
+    daily30Day,
+    loading: dayLoading,
+    error: dayError,
+    refresh: dayRefresh,
+  } = useUsageDay(selectedDay);
+
   const handleSelectPreset = (p: RangePreset) => {
     setPreset(p);
     setZoomRange(null);
@@ -71,10 +84,12 @@ export function UsageTab() {
   };
 
   const handleSelectDay = (dayUtc: string) => {
-    // Drill-down into ticket 05's timeline happens in a future ticket. For
-    // now we surface the selection via the selectedDay badge so the UI
-    // confirms the click registered.
     setSelectedDay(dayUtc);
+  };
+
+  const handleBackToToday = () => {
+    // Reset to today so the timeline view returns to the default day.
+    setSelectedDay(todayUtc());
   };
   return (
     <div className="flex h-full flex-col">
@@ -87,19 +102,36 @@ export function UsageTab() {
             </Badge>
           ) : null}
         </div>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
-              {loading ? (
-                <Spinner className="mr-1.5 size-3.5" />
-              ) : (
-                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-              )}
-              Refresh
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">Reload usage samples</TooltipContent>
-        </Tooltip>
+        <div className="flex items-center gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="sm" onClick={dayRefresh} disabled={dayLoading}>
+                {dayLoading ? (
+                  <Spinner className="mr-1.5 size-3.5" />
+                ) : (
+                  <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                Refresh timeline
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              Reload usage samples + events for the selected day
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
+                {loading ? (
+                  <Spinner className="mr-1.5 size-3.5" />
+                ) : (
+                  <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                Refresh samples
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Reload today's usage samples</TooltipContent>
+          </Tooltip>
+        </div>
       </header>
 
       <ScrollArea className="min-h-0 flex-1">
@@ -135,6 +167,27 @@ export function UsageTab() {
               </Button>
             </div>
           ) : null}
+
+          <div className="flex items-center justify-between">
+            <Button
+              size="xs"
+              variant="ghost"
+              onClick={handleBackToToday}
+              disabled={selectedDay === todayUtc()}
+            >
+              <ArrowLeft className="size-3" />
+              Back to today
+            </Button>
+          </div>
+
+          <UsageTimeline
+            dayUtc={selectedDay}
+            samples={daySamples}
+            events={dayEvents}
+            daily30Day={daily30Day}
+            loading={dayLoading}
+            error={dayError}
+          />
 
           <TodaySamplesSection
             samples={samples}

@@ -70,6 +70,17 @@ vi.mock("@/hooks/use-usage-daily", () => ({
   }),
 }));
 
+vi.mock("@/hooks/use-usage-day", () => ({
+  useUsageDay: () => ({
+    samples: [],
+    events: [],
+    daily30Day: null,
+    loading: false,
+    error: null,
+    refresh: () => {},
+  }),
+}));
+
 describe("UsageTab", () => {
   it("renders the Usage heading", async () => {
     render(<UsageTab />);
