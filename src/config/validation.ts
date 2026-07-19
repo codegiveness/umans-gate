@@ -56,7 +56,9 @@ export const INT_FIELDS: (keyof RawConfig)[] = [
   "idle_timeout",
   "warmer_interval_ms",
   "usage_refresh_ms",
-  "models_refresh_ms",
+  "usage_refresh_ms",
+  "usage_raw_retention_days",
+  "usage_gap_threshold_minutes",
   "concurrency_hard_cap",
   "concurrency_soft_limit",
   "rate_limit_requests",
@@ -226,6 +228,22 @@ export const FIELD_RULES: FieldRule[] = [
       n.usage_refresh_ms !== undefined &&
       (!Number.isInteger(n.usage_refresh_ms) || n.usage_refresh_ms < 1000)
         ? ["usage_refresh_ms must be an integer >= 1000"]
+        : [],
+  },
+  {
+    name: "usage_raw_retention_days",
+    errors: (n) =>
+      n.usage_raw_retention_days !== undefined &&
+      (!Number.isInteger(n.usage_raw_retention_days) || n.usage_raw_retention_days < 1)
+        ? ["usage_raw_retention_days must be an integer >= 1"]
+        : [],
+  },
+  {
+    name: "usage_gap_threshold_minutes",
+    errors: (n) =>
+      n.usage_gap_threshold_minutes !== undefined &&
+      (!Number.isInteger(n.usage_gap_threshold_minutes) || n.usage_gap_threshold_minutes < 5)
+        ? ["usage_gap_threshold_minutes must be an integer >= 5"]
         : [],
   },
   {

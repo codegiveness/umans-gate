@@ -87,6 +87,62 @@ export interface UsageEventRow {
   service_mode_resets_at: number | null;
 }
 
+/** One row per UTC day (ticket 03). Per decision 08: two-snapshot model
+ *  (trigger-moment + day-total) + two-dimension activity. */
+export interface UsageDailyRow {
+  day_utc: string;
+  day_completeness: string;
+  first_activity_utc: number | null;
+  last_activity_utc: number | null;
+  accumulated_active_minutes: number | null;
+  utc_clock_span_minutes: number | null;
+  first_activity_utc_hour: number | null;
+  last_activity_utc_hour: number | null;
+  active_minutes_by_utc_hour: string | null;
+  tokens_in_total: number | null;
+  tokens_out_total: number | null;
+  tokens_cached_total: number | null;
+  requests_in_window_peak: number | null;
+  requests_in_window_avg: number | null;
+  cache_hit_rate_avg: number | null;
+  concurrent_sessions_peak: number | null;
+  concurrent_sessions_avg: number | null;
+  weighted_concurrent_sessions_peak: number | null;
+  weighted_concurrent_sessions_avg: number | null;
+  at_first_priority_event_concurrent_sessions: number | null;
+  at_first_priority_event_weighted_concurrent_sessions: number | null;
+  at_first_priority_event_requests_in_window: number | null;
+  at_first_priority_event_weighted_requests_in_window: number | null;
+  at_first_priority_event_requests_remaining: number | null;
+  at_first_priority_event_requests_limit: number | null;
+  at_first_priority_event_tokens_in: number | null;
+  at_first_priority_event_tokens_out: number | null;
+  at_first_priority_event_tokens_cached: number | null;
+  at_first_priority_event_cache_hit_rate: number | null;
+  at_first_service_mode_event_concurrent_sessions: number | null;
+  at_first_service_mode_event_weighted_concurrent_sessions: number | null;
+  at_first_service_mode_event_requests_in_window: number | null;
+  at_first_service_mode_event_weighted_requests_in_window: number | null;
+  at_first_service_mode_event_requests_remaining: number | null;
+  at_first_service_mode_event_requests_limit: number | null;
+  at_first_service_mode_event_tokens_in: number | null;
+  at_first_service_mode_event_tokens_out: number | null;
+  at_first_service_mode_event_tokens_cached: number | null;
+  at_first_service_mode_event_cache_hit_rate: number | null;
+  priority_low_minutes: number | null;
+  boxed_minutes: number | null;
+  units_demoted_minutes: number | null;
+  service_mode_non_normal_minutes: number | null;
+  priority_events_count: number | null;
+  service_mode_events_count: number | null;
+  priority_ban_total_duration_ms: number | null;
+  service_mode_ban_total_duration_ms: number | null;
+  concurrency_hard_cap: number | null;
+  requests_limit: number | null;
+  requests_hard_cap: number | null;
+  downsampled_at: number;
+}
+
 /** Discriminated inputs for recordEvent (OCP: new tuple kinds add a new
  *  variant, they don't branch existing logic). */
 export type EventTransition = "onset" | "resolved" | "morph";
@@ -391,5 +447,230 @@ export class UsageHistoryStore {
          ORDER BY id DESC`,
       )
       .all({ $start: startMs, $end: endMs }) as UsageEventRow[];
+  }
+
+  /** Return samples for a UTC-day range [from, to] inclusive. Ascending by fetched_at. */
+  getSampleRange(from: string, to: string): UsageSampleRow[] {
+    const startMs = Date.parse(`${from}T00:00:00.000Z`);
+    const toMs = Date.parse(`${to}T00:00:00.000Z`);
+    if (Number.isNaN(startMs) || Number.isNaN(toMs)) return [];
+    const endMs = toMs + 24 * 60 * 60 * 1000;
+    return this.db
+      .prepare(
+        `SELECT * FROM usage_samples
+         WHERE fetched_at >= $start AND fetched_at < $end
+         ORDER BY fetched_at ASC`,
+      )
+      .all({ $start: startMs, $end: endMs }) as UsageSampleRow[];
+  }
+
+  /** Return events for a UTC-day range [from, to] inclusive. Ascending by onset_at. */
+  getEventsForDateRange(from: string, to: string): UsageEventRow[] {
+    const startMs = Date.parse(`${from}T00:00:00.000Z`);
+    const toMs = Date.parse(`${to}T00:00:00.000Z`);
+    if (Number.isNaN(startMs) || Number.isNaN(toMs)) return [];
+    const endMs = toMs + 24 * 60 * 60 * 1000;
+    return this.db
+      .prepare(
+        `SELECT * FROM usage_events
+         WHERE onset_at >= $start AND onset_at < $end
+         ORDER BY onset_at ASC`,
+      )
+      .all({ $start: startMs, $end: endMs }) as UsageEventRow[];
+  }
+
+  /** Return daily aggregates for a UTC-day range [from, to] inclusive. Ascending by day_utc. */
+  getDailyRange(from: string, to: string): UsageDailyRow[] {
+    return this.db
+      .prepare(
+        `SELECT * FROM usage_daily
+         WHERE day_utc >= $from AND day_utc <= $to
+         ORDER BY day_utc ASC`,
+      )
+      .all({ $from: from, $to: to }) as UsageDailyRow[];
+  }
+
+  /** Return a single daily row by UTC date (YYYY-MM-DD), or null. */
+  getDailyRow(dayUtc: string): UsageDailyRow | null {
+    const row = this.db
+      .prepare("SELECT * FROM usage_daily WHERE day_utc = $day")
+      .get({ $day: dayUtc }) as UsageDailyRow | null;
+    return row ?? null;
+  }
+
+  /** Insert or replace a daily aggregate row. Idempotent by day_utc PK. */
+  upsertDailyRow(row: UsageDailyRow): void {
+    const bindings: Record<string, string | number | null> = {
+      $day_utc: row.day_utc,
+      $day_completeness: row.day_completeness,
+      $first_activity_utc: row.first_activity_utc,
+      $last_activity_utc: row.last_activity_utc,
+      $accumulated_active_minutes: row.accumulated_active_minutes,
+      $utc_clock_span_minutes: row.utc_clock_span_minutes,
+      $first_activity_utc_hour: row.first_activity_utc_hour,
+      $last_activity_utc_hour: row.last_activity_utc_hour,
+      $active_minutes_by_utc_hour: row.active_minutes_by_utc_hour,
+      $tokens_in_total: row.tokens_in_total,
+      $tokens_out_total: row.tokens_out_total,
+      $tokens_cached_total: row.tokens_cached_total,
+      $requests_in_window_peak: row.requests_in_window_peak,
+      $requests_in_window_avg: row.requests_in_window_avg,
+      $cache_hit_rate_avg: row.cache_hit_rate_avg,
+      $concurrent_sessions_peak: row.concurrent_sessions_peak,
+      $concurrent_sessions_avg: row.concurrent_sessions_avg,
+      $weighted_concurrent_sessions_peak: row.weighted_concurrent_sessions_peak,
+      $weighted_concurrent_sessions_avg: row.weighted_concurrent_sessions_avg,
+      $at_first_priority_event_concurrent_sessions: row.at_first_priority_event_concurrent_sessions,
+      $at_first_priority_event_weighted_concurrent_sessions:
+        row.at_first_priority_event_weighted_concurrent_sessions,
+      $at_first_priority_event_requests_in_window: row.at_first_priority_event_requests_in_window,
+      $at_first_priority_event_weighted_requests_in_window:
+        row.at_first_priority_event_weighted_requests_in_window,
+      $at_first_priority_event_requests_remaining: row.at_first_priority_event_requests_remaining,
+      $at_first_priority_event_requests_limit: row.at_first_priority_event_requests_limit,
+      $at_first_priority_event_tokens_in: row.at_first_priority_event_tokens_in,
+      $at_first_priority_event_tokens_out: row.at_first_priority_event_tokens_out,
+      $at_first_priority_event_tokens_cached: row.at_first_priority_event_tokens_cached,
+      $at_first_priority_event_cache_hit_rate: row.at_first_priority_event_cache_hit_rate,
+      $at_first_service_mode_event_concurrent_sessions:
+        row.at_first_service_mode_event_concurrent_sessions,
+      $at_first_service_mode_event_weighted_concurrent_sessions:
+        row.at_first_service_mode_event_weighted_concurrent_sessions,
+      $at_first_service_mode_event_requests_in_window:
+        row.at_first_service_mode_event_requests_in_window,
+      $at_first_service_mode_event_weighted_requests_in_window:
+        row.at_first_service_mode_event_weighted_requests_in_window,
+      $at_first_service_mode_event_requests_remaining:
+        row.at_first_service_mode_event_requests_remaining,
+      $at_first_service_mode_event_requests_limit: row.at_first_service_mode_event_requests_limit,
+      $at_first_service_mode_event_tokens_in: row.at_first_service_mode_event_tokens_in,
+      $at_first_service_mode_event_tokens_out: row.at_first_service_mode_event_tokens_out,
+      $at_first_service_mode_event_tokens_cached: row.at_first_service_mode_event_tokens_cached,
+      $at_first_service_mode_event_cache_hit_rate: row.at_first_service_mode_event_cache_hit_rate,
+      $priority_low_minutes: row.priority_low_minutes,
+      $boxed_minutes: row.boxed_minutes,
+      $units_demoted_minutes: row.units_demoted_minutes,
+      $service_mode_non_normal_minutes: row.service_mode_non_normal_minutes,
+      $priority_events_count: row.priority_events_count,
+      $service_mode_events_count: row.service_mode_events_count,
+      $priority_ban_total_duration_ms: row.priority_ban_total_duration_ms,
+      $service_mode_ban_total_duration_ms: row.service_mode_ban_total_duration_ms,
+      $concurrency_hard_cap: row.concurrency_hard_cap,
+      $requests_limit: row.requests_limit,
+      $requests_hard_cap: row.requests_hard_cap,
+      $downsampled_at: row.downsampled_at,
+    };
+    this.db
+      .prepare(
+        `INSERT OR REPLACE INTO usage_daily (
+          day_utc, day_completeness,
+          first_activity_utc, last_activity_utc,
+          accumulated_active_minutes, utc_clock_span_minutes,
+          first_activity_utc_hour, last_activity_utc_hour,
+          active_minutes_by_utc_hour,
+          tokens_in_total, tokens_out_total, tokens_cached_total,
+          requests_in_window_peak, requests_in_window_avg,
+          cache_hit_rate_avg,
+          concurrent_sessions_peak, concurrent_sessions_avg,
+          weighted_concurrent_sessions_peak, weighted_concurrent_sessions_avg,
+          at_first_priority_event_concurrent_sessions,
+          at_first_priority_event_weighted_concurrent_sessions,
+          at_first_priority_event_requests_in_window,
+          at_first_priority_event_weighted_requests_in_window,
+          at_first_priority_event_requests_remaining,
+          at_first_priority_event_requests_limit,
+          at_first_priority_event_tokens_in,
+          at_first_priority_event_tokens_out,
+          at_first_priority_event_tokens_cached,
+          at_first_priority_event_cache_hit_rate,
+          at_first_service_mode_event_concurrent_sessions,
+          at_first_service_mode_event_weighted_concurrent_sessions,
+          at_first_service_mode_event_requests_in_window,
+          at_first_service_mode_event_weighted_requests_in_window,
+          at_first_service_mode_event_requests_remaining,
+          at_first_service_mode_event_requests_limit,
+          at_first_service_mode_event_tokens_in,
+          at_first_service_mode_event_tokens_out,
+          at_first_service_mode_event_tokens_cached,
+          at_first_service_mode_event_cache_hit_rate,
+          priority_low_minutes, boxed_minutes, units_demoted_minutes,
+          service_mode_non_normal_minutes,
+          priority_events_count, service_mode_events_count,
+          priority_ban_total_duration_ms, service_mode_ban_total_duration_ms,
+          concurrency_hard_cap, requests_limit, requests_hard_cap,
+          downsampled_at
+        ) VALUES (
+          $day_utc, $day_completeness,
+          $first_activity_utc, $last_activity_utc,
+          $accumulated_active_minutes, $utc_clock_span_minutes,
+          $first_activity_utc_hour, $last_activity_utc_hour,
+          $active_minutes_by_utc_hour,
+          $tokens_in_total, $tokens_out_total, $tokens_cached_total,
+          $requests_in_window_peak, $requests_in_window_avg,
+          $cache_hit_rate_avg,
+          $concurrent_sessions_peak, $concurrent_sessions_avg,
+          $weighted_concurrent_sessions_peak, $weighted_concurrent_sessions_avg,
+          $at_first_priority_event_concurrent_sessions,
+          $at_first_priority_event_weighted_concurrent_sessions,
+          $at_first_priority_event_requests_in_window,
+          $at_first_priority_event_weighted_requests_in_window,
+          $at_first_priority_event_requests_remaining,
+          $at_first_priority_event_requests_limit,
+          $at_first_priority_event_tokens_in,
+          $at_first_priority_event_tokens_out,
+          $at_first_priority_event_tokens_cached,
+          $at_first_priority_event_cache_hit_rate,
+          $at_first_service_mode_event_concurrent_sessions,
+          $at_first_service_mode_event_weighted_concurrent_sessions,
+          $at_first_service_mode_event_requests_in_window,
+          $at_first_service_mode_event_weighted_requests_in_window,
+          $at_first_service_mode_event_requests_remaining,
+          $at_first_service_mode_event_requests_limit,
+          $at_first_service_mode_event_tokens_in,
+          $at_first_service_mode_event_tokens_out,
+          $at_first_service_mode_event_tokens_cached,
+          $at_first_service_mode_event_cache_hit_rate,
+          $priority_low_minutes, $boxed_minutes, $units_demoted_minutes,
+          $service_mode_non_normal_minutes,
+          $priority_events_count, $service_mode_events_count,
+          $priority_ban_total_duration_ms, $service_mode_ban_total_duration_ms,
+          $concurrency_hard_cap, $requests_limit, $requests_hard_cap,
+          $downsampled_at
+        )`,
+      )
+      .run(bindings);
+  }
+
+  /** Delete usage_samples rows in a UTC-day range [from, to] inclusive. */
+  deleteSamplesInRange(from: string, to: string): number {
+    const startMs = Date.parse(`${from}T00:00:00.000Z`);
+    const toMs = Date.parse(`${to}T00:00:00.000Z`);
+    if (Number.isNaN(startMs) || Number.isNaN(toMs)) return 0;
+    const endMs = toMs + 24 * 60 * 60 * 1000;
+    const info = this.db
+      .prepare("DELETE FROM usage_samples WHERE fetched_at >= $start AND fetched_at < $end")
+      .run({ $start: startMs, $end: endMs });
+    return Number(info.changes);
+  }
+
+  /** Delete usage_samples rows older than cutoffMs (ms epoch). Returns deleted count. */
+  deleteSamplesOlderThan(cutoffMs: number): number {
+    const info = this.db
+      .prepare("DELETE FROM usage_samples WHERE fetched_at < $cutoff")
+      .run({ $cutoff: cutoffMs });
+    return Number(info.changes);
+  }
+
+  /** Return distinct UTC days (YYYY-MM-DD) present in usage_samples older than cutoffMs. */
+  getSampleDaysOlderThan(cutoffMs: number): string[] {
+    const rows = this.db
+      .prepare(
+        `SELECT DISTINCT strftime('%Y-%m-%d', fetched_at / 1000, 'unixepoch') AS day
+         FROM usage_samples
+         WHERE fetched_at < $cutoff AND day IS NOT NULL
+         ORDER BY day ASC`,
+      )
+      .all({ $cutoff: cutoffMs }) as { day: string }[];
+    return rows.map((r) => r.day);
   }
 }

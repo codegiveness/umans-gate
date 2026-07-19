@@ -63,6 +63,18 @@ const RELOAD_FIELDS: Array<{
     },
   },
   {
+    rawKey: "usage_raw_retention_days",
+    apply: (live, fresh) => {
+      live.usageRawRetentionDays = fresh.usageRawRetentionDays;
+    },
+  },
+  {
+    rawKey: "usage_gap_threshold_minutes",
+    apply: (live, fresh) => {
+      live.usageGapThresholdMinutes = fresh.usageGapThresholdMinutes;
+    },
+  },
+  {
     rawKey: "stamp_reasoning_effort_enabled",
     apply: (live, fresh) => {
       live.stampReasoningEffort = fresh.stampReasoningEffort;

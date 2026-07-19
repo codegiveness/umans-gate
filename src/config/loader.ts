@@ -65,6 +65,14 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     "usage_history_enabled",
     DEFAULT_CONFIG.usage_history_enabled ?? true,
   );
+  const usageRawRetentionDays = num(
+    env.USAGE_RAW_RETENTION_DAYS ?? raw.usage_raw_retention_days,
+    DEFAULT_CONFIG.usage_raw_retention_days ?? 7,
+  );
+  const usageGapThresholdMinutes = num(
+    env.USAGE_GAP_THRESHOLD_MINUTES ?? raw.usage_gap_threshold_minutes,
+    DEFAULT_CONFIG.usage_gap_threshold_minutes ?? 60,
+  );
   const modelsRefreshMs = num(env.MODELS_REFRESH_MS ?? raw.models_refresh_ms, 3600000);
   const concurrencyHardCap = num(env.CONCURRENCY_HARD_CAP ?? raw.concurrency_hard_cap, 16);
   const concurrencySoftLimit = num(env.CONCURRENCY_SOFT_LIMIT ?? raw.concurrency_soft_limit, 8);
@@ -257,6 +265,8 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     dashboardToken,
     usageRefreshMs,
     usageHistoryEnabled,
+    usageRawRetentionDays,
+    usageGapThresholdMinutes,
     modelsRefreshMs,
     concurrencyHardCap,
     concurrencySoftLimit,

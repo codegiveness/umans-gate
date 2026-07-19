@@ -17,6 +17,8 @@ const DEFAULT_CONFIG: RawConfig = {
   dashboard_token: "",
   usage_refresh_ms: 60000,
   usage_history_enabled: true,
+  usage_raw_retention_days: 7,
+  usage_gap_threshold_minutes: 60,
   models_refresh_ms: 3600000,
   concurrency_hard_cap: 16,
   concurrency_soft_limit: 8,

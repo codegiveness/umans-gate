@@ -28,6 +28,7 @@ import type { ConcurrencyGate } from "./limiter/index.js";
 import type { ModelsClient } from "./models.js";
 import type { ProxyConfig } from "./types.js";
 import type { UsageHistoryStore } from "./usage-history/index.js";
+import { addDays, downsampleRange } from "./usage-history/index.js";
 import type { UmansUsageClient } from "./usage.js";
 import type { VisionHandoff } from "./vision/handoff.js";
 import type { WsBroadcaster } from "./ws.js";
@@ -300,6 +301,35 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
         const date = dateParam === "today" ? new Date().toISOString().slice(0, 10) : dateParam;
         if (!ctx.usageHistory) return Response.json([]);
         return Response.json(ctx.usageHistory.getEventsForDate(date));
+      },
+    },
+    {
+      method: "GET",
+      pattern: `${VIEWER}/api/usage/daily`,
+      handler: (ctx) => {
+        if (!ctx.usageHistory) return Response.json([]);
+        const today = new Date().toISOString().slice(0, 10);
+        const fromParam = ctx.url.searchParams.get("from") ?? addDays(today, -29);
+        const toParam = ctx.url.searchParams.get("to") ?? today;
+        return Response.json(ctx.usageHistory.getDailyRange(fromParam, toParam));
+      },
+    },
+    {
+      method: "POST",
+      pattern: `${VIEWER}/api/usage/downsample`,
+      handler: (ctx) => {
+        if (!ctx.usageHistory) return Response.json({ ok: true, rows: [] });
+        const today = new Date().toISOString().slice(0, 10);
+        const fromParam =
+          ctx.url.searchParams.get("from") ??
+          addDays(today, -Math.max(ctx.config.usageRawRetentionDays, 1));
+        const toParam = ctx.url.searchParams.get("to") ?? today;
+        const rows = downsampleRange(ctx.usageHistory, fromParam, toParam, {
+          gapThresholdMinutes: ctx.config.usageGapThresholdMinutes,
+          retentionDays: ctx.config.usageRawRetentionDays,
+          force: true,
+        });
+        return Response.json({ ok: true, rows });
       },
     },
     {

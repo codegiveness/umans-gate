@@ -26,7 +26,15 @@ import { WriteQueue } from "./queue.js";
 import type { CaptureStore } from "./queue.js";
 import { SlidingWindowRateLimiter } from "./rate.js";
 import type { ProxyConfig } from "./types.js";
-import { UsageEventDetector, UsageHistoryStore } from "./usage-history/index.js";
+import {
+  UsageEventDetector,
+  UsageHistoryStore,
+  addDays,
+  dayUtcOf,
+  downsampleRange,
+  msUntilNextUtcMidnight,
+  pruneOldSamples,
+} from "./usage-history/index.js";
 import { UmansUsageClient } from "./usage.js";
 import { createViewerRouter } from "./viewer.js";
 import { DescriptionCache } from "./vision/cache.js";
@@ -411,6 +419,38 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
   });
   usage.start();
 
+  // Daily downsampling job (ticket 03). Per decision 09: run once at startup
+  // for self-healing, then on a UTC-midnight timer.
+  let downsampleTimer: ReturnType<typeof setTimeout> | ReturnType<typeof setInterval> | null = null;
+  function runDailyDownsample(): void {
+    if (!usageHistory) return;
+    try {
+      const today = dayUtcOf(Date.now());
+      const from = addDays(today, -config.usageRawRetentionDays);
+      downsampleRange(usageHistory, from, today, {
+        gapThresholdMinutes: config.usageGapThresholdMinutes,
+        retentionDays: config.usageRawRetentionDays,
+      });
+      pruneOldSamples(usageHistory, config.usageRawRetentionDays);
+    } catch (err) {
+      log.error("daily downsample failed", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+  if (usageHistory) {
+    runDailyDownsample();
+    const scheduleNextMidnight = (): void => {
+      downsampleTimer = setTimeout(() => {
+        runDailyDownsample();
+        downsampleTimer = setInterval(runDailyDownsample, 24 * 60 * 60 * 1000);
+        downsampleTimer.unref?.();
+      }, msUntilNextUtcMidnight());
+      downsampleTimer.unref?.();
+    };
+    scheduleNextMidnight();
+  }
+
   async function applyLimitsFromSource(
     source: { hardCap: number; softLimit: number },
     persist = false,
@@ -752,6 +792,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     models.stop();
     usage.stop();
     if (rewritePruneTimer) clearInterval(rewritePruneTimer);
+    if (downsampleTimer) clearTimeout(downsampleTimer as ReturnType<typeof setTimeout>);
 
     server.stop(false);
 

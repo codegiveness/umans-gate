@@ -27,7 +27,12 @@ export interface RawConfig {
   dashboard_token?: string;
   usage_refresh_ms?: number;
   /** When true, persists coalesced /v1/usage snapshots to the usage_samples table for the Usage dashboard tab. Hot-reloadable. */
+  /** When true, persists coalesced /v1/usage snapshots to the usage_samples table for the Usage dashboard tab. Hot-reloadable. */
   usage_history_enabled?: boolean;
+  /** Raw usage_samples retention in days. Older rows are pruned by the daily downsampling job. Hot-reloadable. */
+  usage_raw_retention_days?: number;
+  /** Gap threshold in minutes for marking a UTC day as incomplete_window. Hot-reloadable. */
+  usage_gap_threshold_minutes?: number;
   models_refresh_ms?: number;
   concurrency_hard_cap?: number;
   concurrency_soft_limit?: number;

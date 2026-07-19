@@ -158,6 +158,10 @@ export interface ProxyConfig {
   usageRefreshMs: number;
   /** When true, persists coalesced /v1/usage snapshots to usage_samples for the Usage dashboard tab. Hot-reloadable. */
   usageHistoryEnabled: boolean;
+  /** Raw usage_samples retention in days. Hot-reloadable. */
+  usageRawRetentionDays: number;
+  /** Gap threshold (minutes) for marking a UTC day as incomplete_window. Hot-reloadable. */
+  usageGapThresholdMinutes: number;
   /** Polling interval for /v1/models fetch (model weights + listing), in ms. */
   modelsRefreshMs: number;
   /** Persisted concurrency hard cap (from /v1/usage, editable for robustness testing). */
