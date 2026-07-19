@@ -311,15 +311,18 @@ export class UsageHistoryStore {
     }
   }
 
-  /** Subscribe hook — call on every UmansUsageClient onChange fire. */
-  handleSnapshot(snap: UsageSnapshot): void {
+  /** Subscribe hook — call on every UmansUsageClient onChange fire.
+   *  Returns `true` when a new sample row was written, `false` when the
+   *  snapshot was coalesced or skipped. The return value lets the caller
+   *  fire a WS dirty-notification only on actual writes (ticket 07). */
+  handleSnapshot(snap: UsageSnapshot): boolean {
     // Only coalesce successful snapshots — failed ones are ambient state
     // changes the user may want to see, but the ticket specifies coalescing
     // on ok=true. First-ever sample always writes.
-    if (!snap.ok) return;
+    if (!snap.ok) return false;
     const key = ambientKey(snap);
     if (this.lastKey !== null && this.lastKey === key) {
-      return;
+      return false;
     }
     this.lastKey = key;
     this.stmtInsert.run({
@@ -354,6 +357,7 @@ export class UsageHistoryStore {
       $service_mode_resets_at: snap.serviceMode.resetsAt,
     });
     log.info(`wrote usage sample at ${snap.fetchedAt}`);
+    return true;
   }
 
   /** Return samples for a UTC day (YYYY-MM-DD). Most-recent-first. */

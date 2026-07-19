@@ -136,3 +136,69 @@ slash-command's first request misses the cache established by the parent
 conversation. Not a proxy behavior; the proxy forwards whatever headers
 the harness sends. See ADR 0003.
 _Avoid_: session cache, per-session cache.
+
+### Usage History
+
+**Priority tuple**:
+The composite priority state `{ priorityLow, boxedUntil, boxedReason,
+unitsDemoted, demotedUntil }` derived from a `/v1/usage` snapshot. The
+usage-history event detector emits exactly one `usage_events` row per
+tuple change (not per field) — so "entered priority-low AND boxed AND
+demoted in a single poll" is one onset event, not three. A change is
+detected by structural equality of the whole tuple.
+_Avoid_: priority state, priority fields, priority flags.
+
+**Service_mode tuple**:
+The composite service-mode state `{ current, resetsAt }` derived from a
+`/v1/usage` snapshot. Like the priority tuple, one event per tuple change:
+entering non-normal service_mode is one onset, regardless of how many
+fields flipped. `current = "normal"` with `resetsAt = null` is the
+all-clear state.
+_Avoid_: service state, service flags, mode tuple.
+
+**Dimension A (accumulated active hours)**:
+Sum of minutes between non-byte-identical adjacent `usage_samples` rows
+within the configured gap threshold — i.e. actual activity time,
+excluding idle-coalesce gaps where nothing changed. Stored on the
+`usage_daily` row as `accumulated_active_minutes` and bucketed by UTC hour
+in `active_minutes_by_utc_hour`. Bot-detection theory: "humans work ≤8h,
+bots work 24h." Distinct from Dimension B.
+_Avoid_: active hours, activity minutes, working hours.
+
+**Dimension B (UTC clock span)**:
+The wall-clock span of activity within a UTC day, computed as
+`last_activity_utc − first_activity_utc`. Stored on the `usage_daily` row
+as `utc_clock_span_minutes` (plus `first_activity_utc_hour` and
+`last_activity_utc_hour` for at-a-glance visibility). Bot-detection
+theory: "umans simplistically computes span, assumes span > 8h = bot."
+Distinct from Dimension A: a human working 08:00–12:00 + 23:00–01:00
+has Dimension A = 7h but Dimension B = 16h (on day N, if split at UTC
+midnight).
+_Avoid_: clock span, activity span, wall-clock hours.
+
+**day_completeness**:
+The completeness flag on a `usage_daily` row describing how completely
+the UTC day was observed by the proxy. Values: `full` (proxy ran the
+whole day with no mid-day gaps above `usage_gap_threshold_minutes` between
+non-byte-identical adjacent samples), `partial_start` (first sample's UTC
+hour > 0 — proxy started mid-day), `partial_end` (last sample's UTC hour
+< 23 — proxy stopped mid-day), `partial_both` (both), `missing` (proxy
+was down all day — backfilled with NULL activity fields so the long-term
+calendar shows a clear "no data" marker), `incomplete_window` (a mid-day
+gap above the threshold existed between non-identical adjacent samples).
+Used to filter or annotate partial days in the heatmap so they aren't
+treated as valid full-day pattern data points.
+_Avoid_: completeness flag, day quality, coverage.
+
+**cacheHitRate (history variant)**:
+The aggregate cache-hit metric stored on `usage_samples` and
+`usage_events` rows, computed as
+`tokensCached / (tokensIn + tokensOut + tokensCached)`, stored as a real
+number 0–1 (null when the denominator is zero). Distinct from the
+existing `cached_pct` (which uses `total_input_tokens` as the denominator
+and is a per-capture metric on the Performance tab, not a `/v1/usage`-
+derived metric). The history variant uses the upstream `/v1/usage` token
+counters (`tokens_in`, `tokens_out`, `tokens_cached`), not per-request
+capture data, so it reflects account-level cache efficiency at the
+moment of the poll.
+_Avoid_: cache hit rate (without qualifier), hit ratio, cache efficiency.

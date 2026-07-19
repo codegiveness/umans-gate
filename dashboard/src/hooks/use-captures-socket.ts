@@ -1,6 +1,12 @@
 import { useEffect, useRef } from "react";
 
 import { getDashboardToken } from "@/lib/api";
+import {
+  USAGE_EVENT_EVENT,
+  USAGE_SAMPLE_EVENT,
+  type UsageEventWsDetail,
+  type UsageSampleWsDetail,
+} from "@/lib/constants";
 import type { CaptureState, CaptureSummary, GateStats, WsMessage } from "@/types";
 
 function buildWsUrl(): string {
@@ -88,6 +94,19 @@ export function useCapturesSocket({
       new: (msg) => onCaptureUpsertRef.current(msg.capture, true),
       update: (msg) => onCaptureUpsertRef.current(msg.capture, false),
       prune: (msg) => onCapturePruneRef.current(msg.ids),
+      "usage-sample": (msg) => {
+        const detail: UsageSampleWsDetail = { dayUtc: msg.dayUtc, fetchedAt: msg.fetchedAt };
+        window.dispatchEvent(new CustomEvent(USAGE_SAMPLE_EVENT, { detail }));
+      },
+      "usage-event": (msg) => {
+        const detail: UsageEventWsDetail = {
+          dayUtc: msg.dayUtc,
+          tupleKind: msg.tupleKind,
+          transition: msg.transition,
+          fetchedAt: msg.fetchedAt,
+        };
+        window.dispatchEvent(new CustomEvent(USAGE_EVENT_EVENT, { detail }));
+      },
     };
 
     function connect() {

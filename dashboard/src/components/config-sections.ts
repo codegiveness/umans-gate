@@ -375,6 +375,36 @@ const CREDENTIALS_FIELDS: FieldDef[] = [
   },
 ];
 
+const USAGE_HISTORY_FIELDS: FieldDef[] = [
+  {
+    key: "usage_history_enabled",
+    label: "Usage History",
+    kind: "toggle",
+    description:
+      "When on, every /v1/usage poll is persisted to SQLite (usage_samples + usage_events + usage_daily tables) and the Usage tab visualizes the history. When off, no history is written and the tab shows no data. Hot-reloadable. Default: on.",
+  },
+  {
+    key: "usage_raw_retention_days",
+    label: "Raw Retention",
+    kind: "number",
+    description:
+      "Days to retain raw `usage_samples` rows before the downsampling job folds them into a `usage_daily` aggregate and deletes the raw rows. Controls the zoom-in resolution window for the timeline drill-down. Must be ≥ 1. Default: 7.",
+    required: true,
+    min: 1,
+    suffix: "d",
+  },
+  {
+    key: "usage_gap_threshold_minutes",
+    label: "Gap Threshold",
+    kind: "number",
+    description:
+      "Minutes between adjacent non-byte-identical samples above which a UTC day is flagged `day_completeness = incomplete_window`. Tune to your machine's sleep behavior so legitimate idle-coalesce gaps (identical adjacent samples) aren't false-positive flagged. Must be ≥ 5. Default: 60.",
+    required: true,
+    min: 5,
+    suffix: "min",
+  },
+];
+
 export interface SectionDef {
   title: string;
   description: string;
@@ -416,6 +446,12 @@ export const GROUPS: GroupDef[] = [
         title: "Concurrency & Gate",
         description: "Concurrency limits, reservations, and rate limiting.",
         fields: CONCURRENCY_GATE_FIELDS,
+      },
+      {
+        title: "Usage History",
+        description:
+          "Persistent /v1/usage history for the Usage tab (heatmap + timeline). All three knobs are hot-reloadable.",
+        fields: USAGE_HISTORY_FIELDS,
       },
     ],
   },

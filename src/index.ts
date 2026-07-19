@@ -394,7 +394,14 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     usage.onChange((snap) => {
       if (!config.usageHistoryEnabled) return;
       try {
-        usageHistory.handleSnapshot(snap);
+        const written = usageHistory.handleSnapshot(snap);
+        if (written) {
+          ws.broadcast({
+            type: "usage-sample",
+            dayUtc: dayUtcOf(snap.fetchedAt),
+            fetchedAt: snap.fetchedAt,
+          });
+        }
       } catch (err) {
         log.error("usage history write failed", {
           error: err instanceof Error ? err.message : String(err),
@@ -406,7 +413,26 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     usage.onChange((snap) => {
       if (!config.usageHistoryEnabled) return;
       try {
-        usageEvents.handleSnapshot(snap);
+        const emissions = usageEvents.handleSnapshot(snap);
+        const dayUtc = dayUtcOf(snap.fetchedAt);
+        if (emissions.priority) {
+          ws.broadcast({
+            type: "usage-event",
+            dayUtc,
+            tupleKind: "priority",
+            transition: emissions.priority,
+            fetchedAt: snap.fetchedAt,
+          });
+        }
+        if (emissions.service_mode) {
+          ws.broadcast({
+            type: "usage-event",
+            dayUtc,
+            tupleKind: "service_mode",
+            transition: emissions.service_mode,
+            fetchedAt: snap.fetchedAt,
+          });
+        }
       } catch (err) {
         log.error("usage events write failed", {
           error: err instanceof Error ? err.message : String(err),

@@ -23,6 +23,7 @@ import { useConfig } from "@/hooks/use-config";
 import { useUsageDaily } from "@/hooks/use-usage-daily";
 import { useUsageDay } from "@/hooks/use-usage-day";
 import { useUsageHistory } from "@/hooks/use-usage-history";
+import { useUsageWs } from "@/hooks/use-usage-ws";
 import { type RangePreset, addDays, dayAgeDays, presetRange, todayUtc } from "@/lib/usage-heatmap";
 import { findDailyRow } from "@/lib/usage-timeline-old";
 import type { UsageSampleRow } from "@/types";
@@ -111,6 +112,33 @@ export function UsageTab() {
     // Reset to today so the timeline view returns to the default day.
     setSelectedDay(todayUtc());
   };
+
+  // Live WS refresh (ticket 07): on a usage-sample/usage-event broadcast,
+  // re-fetch the affected view. The heatmap refreshes for any day (events
+  // affect the daily degradation burden; samples affect the heatmap only
+  // after downsampling, but refresh is cheap). The timeline + today-list
+  // refresh only when the message is for the currently-selected day.
+  const todayStr = useMemo(() => todayUtc(), []);
+  useUsageWs({
+    onSample: (detail) => {
+      // Heatmap is always relevant (a new sample means today's activity).
+      dailyRefresh();
+      if (detail.dayUtc === selectedDay) {
+        dayRefresh();
+      }
+      if (detail.dayUtc === todayStr) {
+        refresh();
+      }
+    },
+    onEvent: (detail) => {
+      // Events affect both the heatmap (degradation burden) and the
+      // selected day's timeline if it matches.
+      dailyRefresh();
+      if (detail.dayUtc === selectedDay) {
+        dayRefresh();
+      }
+    },
+  });
   return (
     <div className="flex h-full flex-col">
       <header className="flex items-center justify-between border-b border-border bg-card px-4 py-3">

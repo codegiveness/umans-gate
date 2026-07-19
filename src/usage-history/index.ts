@@ -5,7 +5,7 @@ export {
   USAGE_EVENTS_DDL,
   USAGE_SAMPLES_DDL,
 } from "./schema.js";
-export { UsageEventDetector, type RecordEventAccessor } from "./events.js";
+export { UsageEventDetector, type DetectorEmissions, type RecordEventAccessor } from "./events.js";
 export {
   type DayCompleteness,
   computeDailyRow,

@@ -90,6 +90,14 @@ function sameServiceMode(a: ServiceModeTuple, b: ServiceModeTuple): boolean {
   return a.current === b.current && a.resetsAt === b.resetsAt;
 }
 
+/** Result of a single handleSnapshot pass: which tuples transitioned and how.
+ *  Empty when nothing fired. The caller uses this to broadcast WS dirty
+ *  notifications (ticket 07). */
+export interface DetectorEmissions {
+  priority?: EventTransition;
+  service_mode?: EventTransition;
+}
+
 export class UsageEventDetector {
   private readonly store: RecordEventAccessor;
   private lastPriority: PriorityTuple | null = null;
@@ -99,10 +107,11 @@ export class UsageEventDetector {
     this.store = store;
   }
 
-  /** Subscribe hook — call on every UmansUsageClient onChange fire. */
-  handleSnapshot(snap: UsageSnapshot): void {
+  /** Subscribe hook — call on every UmansUsageClient onChange fire.
+   *  Returns the transitions that fired this pass (empty when none). */
+  handleSnapshot(snap: UsageSnapshot): DetectorEmissions {
     // Failed snapshots: skip (same rule as samples writer).
-    if (!snap.ok) return;
+    if (!snap.ok) return {};
 
     const currentPriority = priorityTupleOf(snap);
     const currentServiceMode = serviceModeTupleOf(snap);
@@ -111,27 +120,31 @@ export class UsageEventDetector {
     if (this.lastPriority === null || this.lastServiceMode === null) {
       this.lastPriority = currentPriority;
       this.lastServiceMode = currentServiceMode;
-      return;
+      return {};
     }
     const prevPriority = this.lastPriority;
     const prevServiceMode = this.lastServiceMode;
 
+    const emissions: DetectorEmissions = {};
+
     if (!samePriority(currentPriority, prevPriority)) {
-      this.emitPriorityEvent(snap, currentPriority, prevPriority);
+      emissions.priority = this.emitPriorityEvent(snap, currentPriority, prevPriority);
       this.lastPriority = currentPriority;
     }
 
     if (!sameServiceMode(currentServiceMode, prevServiceMode)) {
-      this.emitServiceModeEvent(snap, currentServiceMode, prevServiceMode);
+      emissions.service_mode = this.emitServiceModeEvent(snap, currentServiceMode, prevServiceMode);
       this.lastServiceMode = currentServiceMode;
     }
+
+    return emissions;
   }
 
   private emitPriorityEvent(
     snap: UsageSnapshot,
     current: PriorityTuple,
     prev: PriorityTuple,
-  ): void {
+  ): EventTransition {
     const prevDefault = isDefaultPriority(prev);
     const currentDefault = isDefaultPriority(current);
     let transition: EventTransition;
@@ -152,13 +165,14 @@ export class UsageEventDetector {
       previousEventId,
     });
     log.info(`priority ${transition} at ${snap.fetchedAt}`);
+    return transition;
   }
 
   private emitServiceModeEvent(
     snap: UsageSnapshot,
     current: ServiceModeTuple,
     prev: ServiceModeTuple,
-  ): void {
+  ): EventTransition {
     const prevDefault = isDefaultServiceMode(prev);
     const currentDefault = isDefaultServiceMode(current);
     let transition: EventTransition;
@@ -178,5 +192,6 @@ export class UsageEventDetector {
       previousEventId,
     });
     log.info(`service_mode ${transition} at ${snap.fetchedAt}`);
+    return transition;
   }
 }

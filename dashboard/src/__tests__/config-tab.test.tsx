@@ -52,6 +52,9 @@ const baseConfig = {
   vision_image_format: "png",
   vision_image_detail: "high",
   vision_pending_max_batch: 50,
+  usage_history_enabled: true,
+  usage_raw_retention_days: 7,
+  usage_gap_threshold_minutes: 60,
 };
 
 const mockConfigResult = {

@@ -154,7 +154,18 @@ export type WsMessage =
   | { type: "gate"; stats: GateStats }
   | { type: "clear" }
   | { type: "vision-clear" }
-  | { type: "prune"; ids: number[] };
+  | { type: "prune"; ids: number[] }
+  // Usage-history dirty notifications (ticket 07). Dashboard re-fetches the
+  // relevant view via HTTP on receipt — the WS message carries no ambient
+  // payload, only enough to know which view to refresh.
+  | { type: "usage-sample"; dayUtc: string; fetchedAt: number }
+  | {
+      type: "usage-event";
+      dayUtc: string;
+      tupleKind: "priority" | "service_mode";
+      transition: "onset" | "resolved" | "morph";
+      fetchedAt: number;
+    };
 
 export interface ServiceMode {
   current: string;
