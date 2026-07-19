@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-07-19
+
+### Fixed
+
+- **Dashboard Config tab: added 7 intent-aware vision fields**. The v0.3.2
+  release added `vision_intent_strategy`, `vision_decomposition_enabled`,
+  `vision_decomposition_timeout_ms`, `vision_crafting_timeout_ms`,
+  `vision_adjacent_text_max_chars`, `vision_recent_messages_count`, and
+  `vision_system_prompt_max_chars` to the backend (all hot-reloadable), but
+  the dashboard Config tab was not updated to expose them — contradicting the
+  README's "Dashboard-first" configuration guidance. All 7 fields now appear in
+  the Vision section with descriptions, validation, and hot-reload support.
+  The `VisionRawConfig` type in `dashboard/src/hooks/use-config.ts` was
+  extended accordingly.
+- **`docs/proxy-modifications.md`: stale `src/proxy.ts:161` reference**.
+  The vision interception entry pointed at the wrong line in `proxy.ts`
+  (the vision call is at lines 308-309, not 161). Replaced the brittle line
+  number with a stable symbol reference to `processBody` /
+  `processBodyCacheOnly` and documented the new intent-aware prompting
+  pipeline.
+- **`docs/ARCHITECTURE.md`: vision flow diagram missed the triage step**.
+  The pipeline diagram and numbered list were updated to reflect the
+  context-extraction and triage-routing steps added in v0.3.2.
+
 ## [0.3.2] - 2026-07-19
 
 ### Added

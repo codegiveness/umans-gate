@@ -133,8 +133,9 @@ Each entry lists: **what** it does, **where** in the code, **when** it applies
   and the description text
   replaces the image block. Descriptions are cached (7-day TTL) to avoid
   re-describing the same image.
-- **Where**: the `processBody` method in `src/vision/handoff.ts`, called at
-  `src/proxy.ts:161`.
+- **Where**: the `processBody` and `processBodyCacheOnly` methods in
+  `src/vision/handoff.ts`, called from the proxy request handler in
+  `src/proxy.ts` (background-vision path and foreground path, respectively).
 - **When**: Both routes, gated by `config.visionStrategy !== "never"`.
   - `always`: intercept all images
   - `catalog`: intercept only if model is known to not support vision

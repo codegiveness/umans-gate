@@ -42,6 +42,13 @@ export interface VisionRawConfig {
   vision_image_format?: "jpeg" | "png";
   vision_image_detail?: "auto" | "low" | "high";
   vision_pending_max_batch?: number;
+  vision_intent_strategy?: "off" | "slotted" | "crafted" | "auto";
+  vision_decomposition_enabled?: boolean;
+  vision_decomposition_timeout_ms?: number;
+  vision_crafting_timeout_ms?: number;
+  vision_adjacent_text_max_chars?: number;
+  vision_recent_messages_count?: number;
+  vision_system_prompt_max_chars?: number;
 }
 
 export interface ServerRawConfig {

@@ -198,4 +198,73 @@ export const VISION_TUNING_FIELDS: FieldDef[] = [
     restartRequired: true,
     min: 1,
   },
+  {
+    key: "vision_intent_strategy",
+    label: "Intent Strategy",
+    kind: "select",
+    description:
+      'Controls how the vision model is prompted once interception is decided. "off" uses a generic OCR prompt for all images. "slotted" includes the user\'s adjacent question in the prompt. "crafted" makes an LLM call to reformulate single-image questions into a neutral, focused image-description request (Strategy D). "auto" lets a deterministic triage function pick the best strategy per request based on adjacent text, image count, and tool-result status. Default: auto.',
+    options: [
+      { value: "off", label: "Off (generic only)" },
+      { value: "slotted", label: "Slotted" },
+      { value: "crafted", label: "Crafted" },
+      { value: "auto", label: "Auto (triage decides)" },
+    ],
+    restartRequired: false,
+  },
+  {
+    key: "vision_decomposition_enabled",
+    label: "Decomposition Enabled",
+    kind: "boolean",
+    description:
+      "When on, multi-image requests with explicit image references are split into per-image sub-questions via a cheap LLM call (DecoVQA+ pattern). Each sub-question is neutrally phrased to defend against Visual Sycophancy. Results are cached in-memory per batch key. Any failure falls back to the slotted strategy. Default: true.",
+    restartRequired: false,
+  },
+  {
+    key: "vision_decomposition_timeout_ms",
+    label: "Decomposition Timeout",
+    kind: "number",
+    description:
+      "Timeout for the decomposition LLM call in milliseconds. Must be ≥ 100. If the call times out, the request falls back to the slotted strategy. Default: 3,000 ms.",
+    restartRequired: false,
+    min: 100,
+    suffix: "ms",
+  },
+  {
+    key: "vision_crafting_timeout_ms",
+    label: "Crafting Timeout",
+    kind: "number",
+    description:
+      "Timeout for the crafting LLM call (Strategy D) in milliseconds. Must be ≥ 100. If the call times out, the request falls back to the slotted strategy. Default: 3,000 ms.",
+    restartRequired: false,
+    min: 100,
+    suffix: "ms",
+  },
+  {
+    key: "vision_adjacent_text_max_chars",
+    label: "Adjacent Text Max Chars",
+    kind: "number",
+    description:
+      "Maximum number of characters to extract from text blocks adjacent to an image block, used as context for triage and crafted/decomposed prompts. 0 disables extraction. Default: 500.",
+    restartRequired: false,
+    min: 0,
+  },
+  {
+    key: "vision_recent_messages_count",
+    label: "Recent Messages Count",
+    kind: "number",
+    description:
+      "Number of recent user messages to include in the vision context (VisionContext.recentMessages). 0 disables inclusion. Default: 6.",
+    restartRequired: false,
+    min: 0,
+  },
+  {
+    key: "vision_system_prompt_max_chars",
+    label: "System Prompt Max Chars",
+    kind: "number",
+    description:
+      "Maximum number of characters to extract from the original system prompt for vision context. 0 disables extraction. Default: 1,000.",
+    restartRequired: false,
+    min: 0,
+  },
 ];
