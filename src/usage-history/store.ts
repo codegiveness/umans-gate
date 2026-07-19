@@ -1,9 +1,11 @@
-// UsageHistoryStore — persists coalesced /v1/usage snapshots to usage_samples.
+// UsageHistoryStore — persists coalesced /v1/usage snapshots to usage_samples
+// and composite tuple transitions to usage_events.
 //
 // SRP: this module owns only persistent usage history. It subscribes to
 // UmansUsageClient.onChange() (DIP: depends on the callback interface, not on
-// the aggregator's internals) and writes a row when the ambient snapshot body
-// differs from the last-written sample.
+// the aggregator's internals) and writes a sample row when the ambient snapshot
+// body differs from the last-written sample, plus an event row when a
+// priority or service_mode tuple transition is reported by the detector.
 
 import type { Database } from "bun:sqlite";
 import { createLogger } from "../logger.js";
@@ -43,6 +45,69 @@ export interface UsageSampleRow {
   demoted_until: number | null;
   service_mode_current: string;
   service_mode_resets_at: number | null;
+}
+
+/** One composite tuple transition row (ticket 02). Carries full ambient
+ *  context at the moment of transition per decision 05. */
+export interface UsageEventRow {
+  id: number;
+  onset_at: number;
+  transition: "onset" | "resolved" | "morph";
+  tuple_kind: "priority" | "service_mode";
+  previous_event_id: number | null;
+  fetched_at: number;
+  ok: number;
+  user_id: string | null;
+  plan: string;
+  plan_slug: string | null;
+  requests_limit: number | null;
+  requests_hard_cap: number | null;
+  requests_window_seconds: number | null;
+  concurrency_soft_limit: number;
+  concurrency_hard_cap: number;
+  requests_in_window: number;
+  weighted_requests_in_window: number;
+  requests_remaining: number | null;
+  weighted_remaining_requests: number | null;
+  concurrent_sessions: number;
+  weighted_concurrent_sessions: number;
+  tokens_in: number;
+  tokens_out: number;
+  tokens_cached: number;
+  cache_hit_rate: number | null;
+  window_started_at: number | null;
+  window_resets_at: number | null;
+  window_remaining_minutes: number | null;
+  priority_low: number;
+  boxed_until: number | null;
+  boxed_reason: string | null;
+  units_demoted: number;
+  demoted_until: number | null;
+  service_mode_current: string;
+  service_mode_resets_at: number | null;
+}
+
+/** Discriminated inputs for recordEvent (OCP: new tuple kinds add a new
+ *  variant, they don't branch existing logic). */
+export type EventTransition = "onset" | "resolved" | "morph";
+export type TupleKind = "priority" | "service_mode";
+
+export interface RecordEventInput {
+  snap: UsageSnapshot;
+  transition: EventTransition;
+  tupleKind: TupleKind;
+  /** Id of the open onset/morph this event closes (resolved/morph).
+   *  NULL for onset. */
+  previousEventId: number | null;
+}
+
+/** Derived cache hit rate per spec:
+ *  cacheHitRate = tokensCached / (tokensIn + tokensOut + tokensCached).
+ *  Null when the denominator is zero (no traffic to measure). */
+export function deriveCacheHitRate(snap: UsageSnapshot): number | null {
+  const denom = snap.tokensIn + snap.tokensOut + snap.tokensCached;
+  if (denom === 0) return null;
+  return snap.tokensCached / denom;
 }
 
 /** Canonical ambient-comparison key: all snapshot fields except fetched_at.
@@ -87,6 +152,7 @@ export class UsageHistoryStore {
   private readonly db: Database;
   private readonly stmtInsert: ReturnType<Database["prepare"]>;
   private readonly stmtLast: ReturnType<Database["prepare"]>;
+  private readonly stmtInsertEvent: ReturnType<Database["prepare"]>;
   private lastKey: string | null = null;
 
   constructor(opts: UsageHistoryStoreOptions) {
@@ -120,6 +186,35 @@ export class UsageHistoryStore {
       )`,
     );
     this.stmtLast = this.db.prepare("SELECT * FROM usage_samples ORDER BY id DESC LIMIT 1");
+    this.stmtInsertEvent = this.db.prepare(
+      `INSERT INTO usage_events (
+        onset_at, transition, tuple_kind, previous_event_id,
+        fetched_at, ok, user_id, plan, plan_slug,
+        requests_limit, requests_hard_cap, requests_window_seconds,
+        concurrency_soft_limit, concurrency_hard_cap,
+        requests_in_window, weighted_requests_in_window,
+        requests_remaining, weighted_remaining_requests,
+        concurrent_sessions, weighted_concurrent_sessions,
+        tokens_in, tokens_out, tokens_cached, cache_hit_rate,
+        window_started_at, window_resets_at, window_remaining_minutes,
+        priority_low, boxed_until, boxed_reason,
+        units_demoted, demoted_until,
+        service_mode_current, service_mode_resets_at
+      ) VALUES (
+        $onset_at, $transition, $tuple_kind, $previous_event_id,
+        $fetched_at, $ok, $user_id, $plan, $plan_slug,
+        $requests_limit, $requests_hard_cap, $requests_window_seconds,
+        $concurrency_soft_limit, $concurrency_hard_cap,
+        $requests_in_window, $weighted_requests_in_window,
+        $requests_remaining, $weighted_remaining_requests,
+        $concurrent_sessions, $weighted_concurrent_sessions,
+        $tokens_in, $tokens_out, $tokens_cached, $cache_hit_rate,
+        $window_started_at, $window_resets_at, $window_remaining_minutes,
+        $priority_low, $boxed_until, $boxed_reason,
+        $units_demoted, $demoted_until,
+        $service_mode_current, $service_mode_resets_at
+      )`,
+    );
     // Seed the in-memory last-key from the most-recent row so that a restart
     // does not produce a duplicate sample for an unchanged upstream.
     const last = this.stmtLast.get() as UsageSampleRow | null;
@@ -217,5 +312,84 @@ export class UsageHistoryStore {
          ORDER BY id DESC`,
       )
       .all({ $start: startMs, $end: endMs }) as UsageSampleRow[];
+  }
+
+  /** Persist a composite tuple transition event row.
+   *  Returns the inserted row id so the detector can chain previous_event_id. */
+  recordEvent(input: RecordEventInput): number {
+    const { snap, transition, tupleKind, previousEventId } = input;
+    const cacheHitRate = deriveCacheHitRate(snap);
+    const info = this.stmtInsertEvent.run({
+      $onset_at: snap.fetchedAt,
+      $transition: transition,
+      $tuple_kind: tupleKind,
+      $previous_event_id: previousEventId,
+      $fetched_at: snap.fetchedAt,
+      $ok: snap.ok ? 1 : 0,
+      $user_id: snap.userId,
+      $plan: snap.plan,
+      $plan_slug: snap.planSlug,
+      $requests_limit: snap.requestsLimit,
+      $requests_hard_cap: snap.requestsHardCap,
+      $requests_window_seconds: snap.requestsWindowSeconds,
+      $concurrency_soft_limit: snap.concurrencySoftLimit,
+      $concurrency_hard_cap: snap.concurrencyHardCap,
+      $requests_in_window: snap.requestsInWindow,
+      $weighted_requests_in_window: snap.weightedRequestsInWindow,
+      $requests_remaining: snap.requestsRemaining,
+      $weighted_remaining_requests: snap.weightedRemainingRequests,
+      $concurrent_sessions: snap.concurrentSessions,
+      $weighted_concurrent_sessions: snap.weightedConcurrentSessions,
+      $tokens_in: snap.tokensIn,
+      $tokens_out: snap.tokensOut,
+      $tokens_cached: snap.tokensCached,
+      $cache_hit_rate: cacheHitRate,
+      $window_started_at: snap.windowStartedAt,
+      $window_resets_at: snap.windowResetsAt,
+      $window_remaining_minutes: snap.windowRemainingMinutes,
+      $priority_low: snap.priorityLow ? 1 : 0,
+      $boxed_until: snap.boxedUntil,
+      $boxed_reason: snap.boxedReason,
+      $units_demoted: snap.unitsDemoted ? 1 : 0,
+      $demoted_until: snap.demotedUntil,
+      $service_mode_current: snap.serviceMode.current,
+      $service_mode_resets_at: snap.serviceMode.resetsAt,
+    });
+    const id = Number(info.lastInsertRowid);
+    log.info(`wrote usage event id=${id} ${tupleKind}/${transition} at ${snap.fetchedAt}`);
+    return id;
+  }
+
+  /** Return the most recent event of a given tuple_kind that is still "open"
+   *  (i.e. has no resolved/morph row pointing at it via previous_event_id).
+   *  Used by the detector to chain previous_event_id on resolved/morph transitions. */
+  getOpenEventForTuple(tupleKind: TupleKind): UsageEventRow | null {
+    const row = this.db
+      .prepare(
+        `SELECT e.* FROM usage_events e
+         WHERE e.tuple_kind = $kind
+           AND e.id NOT IN (
+             SELECT previous_event_id FROM usage_events
+             WHERE previous_event_id IS NOT NULL
+           )
+         ORDER BY e.id DESC
+         LIMIT 1`,
+      )
+      .get({ $kind: tupleKind }) as UsageEventRow | null;
+    return row ?? null;
+  }
+
+  /** Return events for a UTC day (YYYY-MM-DD). Most-recent-first. */
+  getEventsForDate(date: string): UsageEventRow[] {
+    const startMs = Date.parse(`${date}T00:00:00.000Z`);
+    if (Number.isNaN(startMs)) return [];
+    const endMs = startMs + 24 * 60 * 60 * 1000;
+    return this.db
+      .prepare(
+        `SELECT * FROM usage_events
+         WHERE onset_at >= $start AND onset_at < $end
+         ORDER BY id DESC`,
+      )
+      .all({ $start: startMs, $end: endMs }) as UsageEventRow[];
   }
 }

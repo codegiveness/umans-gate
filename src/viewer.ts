@@ -294,6 +294,16 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
     },
     {
       method: "GET",
+      pattern: `${VIEWER}/api/usage/events`,
+      handler: (ctx) => {
+        const dateParam = ctx.url.searchParams.get("date") ?? "today";
+        const date = dateParam === "today" ? new Date().toISOString().slice(0, 10) : dateParam;
+        if (!ctx.usageHistory) return Response.json([]);
+        return Response.json(ctx.usageHistory.getEventsForDate(date));
+      },
+    },
+    {
+      method: "GET",
       pattern: `${VIEWER}/api/models`,
       handler: (ctx) => {
         if (!ctx.models) return Response.json({ models: [], fetched_at: 0, ok: false });

@@ -19,6 +19,20 @@ export interface CombinedMockHandle {
   totalRequests: number;
   samples: number[];
   setLimit(n: number): void;
+  setPriority(state: {
+    low?: boolean;
+    boxedUntil?: number | null;
+    reason?: string | null;
+  }): void;
+  setServiceMode(state: {
+    current?: string;
+    resetsAt?: number | null;
+  }): void;
+  setTokens(state: {
+    tokensIn?: number;
+    tokensOut?: number;
+    tokensCached?: number;
+  }): void;
   close(): Promise<void>;
 }
 
@@ -35,6 +49,9 @@ interface RawUsage {
     requests_in_window: number;
     remaining_requests: number | null;
     concurrent_sessions: number;
+    tokens_in: number;
+    tokens_out: number;
+    tokens_cached: number;
     priority: {
       low: boolean;
       boxed_until: number | null;
@@ -57,6 +74,15 @@ export function startCombinedMock(config: CombinedMockConfig): CombinedMockHandl
   let totalRequests = 0;
   const samples: number[] = [];
 
+  let priorityLow = false;
+  let boxedUntil: number | null = null;
+  let boxedReason: string | null = null;
+  let serviceModeCurrent = "normal";
+  let serviceModeResetsAt: number | null = null;
+  let tokensIn = 0;
+  let tokensOut = 0;
+  let tokensCached = 0;
+
   const buildUsage = (): RawUsage => ({
     plan: { display_name: config.planName ?? "Code Pro" },
     limits: {
@@ -70,8 +96,11 @@ export function startCombinedMock(config: CombinedMockConfig): CombinedMockHandl
       requests_in_window: 0,
       remaining_requests: null,
       concurrent_sessions: 0,
-      priority: { low: false, boxed_until: null, reason: null },
-      service_mode: { current: "normal", resets_at: null },
+      tokens_in: tokensIn,
+      tokens_out: tokensOut,
+      tokens_cached: tokensCached,
+      priority: { low: priorityLow, boxed_until: boxedUntil, reason: boxedReason },
+      service_mode: { current: serviceModeCurrent, resets_at: serviceModeResetsAt },
     },
   });
 
@@ -110,8 +139,7 @@ export function startCombinedMock(config: CombinedMockConfig): CombinedMockHandl
                       id,
                       object: "chat.completion.chunk",
                       choices: [{ delta: { content: "ok" } }],
-                    })}
-\n\n`,
+                    })}\n\n`,
                   ),
                 );
                 controller.enqueue(enc.encode("data: [DONE]\n\n"));
@@ -160,6 +188,28 @@ export function startCombinedMock(config: CombinedMockConfig): CombinedMockHandl
       if (hardCap === limit) {
         hardCap = n;
       }
+    },
+    setPriority(state: {
+      low?: boolean;
+      boxedUntil?: number | null;
+      reason?: string | null;
+    }) {
+      if (state.low !== undefined) priorityLow = state.low;
+      if (state.boxedUntil !== undefined) boxedUntil = state.boxedUntil;
+      if (state.reason !== undefined) boxedReason = state.reason;
+    },
+    setServiceMode(state: { current?: string; resetsAt?: number | null }) {
+      if (state.current !== undefined) serviceModeCurrent = state.current;
+      if (state.resetsAt !== undefined) serviceModeResetsAt = state.resetsAt;
+    },
+    setTokens(state: {
+      tokensIn?: number;
+      tokensOut?: number;
+      tokensCached?: number;
+    }) {
+      if (state.tokensIn !== undefined) tokensIn = state.tokensIn;
+      if (state.tokensOut !== undefined) tokensOut = state.tokensOut;
+      if (state.tokensCached !== undefined) tokensCached = state.tokensCached;
     },
     close(): Promise<void> {
       return new Promise((resolve) => {

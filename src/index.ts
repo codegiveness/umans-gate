@@ -26,7 +26,7 @@ import { WriteQueue } from "./queue.js";
 import type { CaptureStore } from "./queue.js";
 import { SlidingWindowRateLimiter } from "./rate.js";
 import type { ProxyConfig } from "./types.js";
-import { UsageHistoryStore } from "./usage-history/index.js";
+import { UsageEventDetector, UsageHistoryStore } from "./usage-history/index.js";
 import { UmansUsageClient } from "./usage.js";
 import { createViewerRouter } from "./viewer.js";
 import { DescriptionCache } from "./vision/cache.js";
@@ -64,8 +64,8 @@ export { ConnectionWarmer } from "./warmer.js";
 export { ConcurrencyGate } from "./limiter/index.js";
 export { SlidingWindowRateLimiter } from "./rate.js";
 export { UmansUsageClient } from "./usage.js";
-export { UsageHistoryStore } from "./usage-history/index.js";
-export type { UsageSampleRow } from "./usage-history/index.js";
+export { UsageEventDetector, UsageHistoryStore } from "./usage-history/index.js";
+export type { UsageEventRow, UsageSampleRow } from "./usage-history/index.js";
 export type {
   ProxyConfig,
   CaptureConfig,
@@ -323,6 +323,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
 
   const usage = new UmansUsageClient(config);
   const usageHistory = config.usageHistoryEnabled ? new UsageHistoryStore({ db: db.rawDb }) : null;
+  const usageEvents = usageHistory ? new UsageEventDetector(usageHistory) : null;
   const models = new ModelsClient({
     target: config.target,
     refreshMs: config.modelsRefreshMs,
@@ -388,6 +389,18 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
         usageHistory.handleSnapshot(snap);
       } catch (err) {
         log.error("usage history write failed", {
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    });
+  }
+  if (usageEvents) {
+    usage.onChange((snap) => {
+      if (!config.usageHistoryEnabled) return;
+      try {
+        usageEvents.handleSnapshot(snap);
+      } catch (err) {
+        log.error("usage events write failed", {
           error: err instanceof Error ? err.message : String(err),
         });
       }
