@@ -18,6 +18,7 @@ import { stripOmoReminder } from "./experiments/strip-omo-reminder.js";
 import { textDecoder } from "./helpers.js";
 import { createLogger } from "./logger.js";
 import { isGlmModel, resolveEffortForModel } from "./model-policy.js";
+import { restampBreakpoints } from "./restamp-breakpoints.js";
 import { stampReasoning } from "./stamp-reasoning.js";
 import { stampTemperature } from "./stamp-temperature.js";
 import { stampThinking } from "./stamp-thinking.js";
@@ -74,6 +75,33 @@ export function parseJsonBody(
 
 // ─── Concrete steps ───────────────────────────────────────────────────────
 
+/**
+ * Restamp cache_control breakpoints to Layout B (system[0] + last user message)
+ * before any other stamping. Runs first so `CacheTtlStep` stamps `ttl` on the
+ * restamped breakpoints. Part of the Claude Code stamp bundle — gated on
+ * `stampClaudeCode && !isOpenAi`. See ADR 0002.
+ */
+export const RestampBreakpointsStep: StampStep = {
+  label: "restamp-breakpoints",
+  applies(ctx) {
+    return ctx.config.stampClaudeCode && !ctx.isOpenAi;
+  },
+  apply(body, ctx) {
+    if (body === null || typeof body !== "object") return false;
+    const cleaned = restampBreakpoints(body as AnthropicBody);
+    if (cleaned === body) return false;
+    // Copy changed fields back to the original body in place (same contract
+    // as the other in-place steps). restampBreakpoints is pure.
+    const b = body as AnthropicBody;
+    if (cleaned.system !== b.system) b.system = cleaned.system;
+    if (cleaned.messages !== b.messages) b.messages = cleaned.messages;
+    log.info("restamped breakpoints to Layout B (system + last user)", {
+      method: ctx.method,
+      path: ctx.url.pathname,
+    });
+    return true;
+  },
+};
 export const CacheTtlStep: StampStep = {
   label: "ttl",
   applies(ctx) {
@@ -229,6 +257,7 @@ export const StripOmoReminderStep: StampStep = {
 
 /** Ordered stamp steps applied to every request body before forwarding. */
 export const STAMP_PIPELINE: StampStep[] = [
+  RestampBreakpointsStep,
   CacheTtlStep,
   AnthropicBodyStep,
   ContextManagementStep,

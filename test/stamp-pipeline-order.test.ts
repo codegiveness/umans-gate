@@ -10,6 +10,7 @@ import {
   CacheTtlStep,
   ContextManagementStep,
   OpenAiReasoningStep,
+  RestampBreakpointsStep,
   STAMP_PIPELINE,
   type StampContext,
   TopKStep,
@@ -63,12 +64,28 @@ test("STAMP_PIPELINE has at least 5 steps", () => {
   expect(STAMP_PIPELINE.length).toBeGreaterThanOrEqual(5);
 });
 
-test("STAMP_PIPELINE order is CacheTtl, AnthropicBody, ContextManagement, OpenAiReasoning, TopK", () => {
-  expect(STAMP_PIPELINE[0]).toBe(CacheTtlStep);
-  expect(STAMP_PIPELINE[1]).toBe(AnthropicBodyStep);
-  expect(STAMP_PIPELINE[2]).toBe(ContextManagementStep);
-  expect(STAMP_PIPELINE[3]).toBe(OpenAiReasoningStep);
-  expect(STAMP_PIPELINE[4]).toBe(TopKStep);
+test("STAMP_PIPELINE order is RestampBreakpoints, CacheTtl, AnthropicBody, ContextManagement, OpenAiReasoning, TopK", () => {
+  expect(STAMP_PIPELINE[0]).toBe(RestampBreakpointsStep);
+  expect(STAMP_PIPELINE[1]).toBe(CacheTtlStep);
+  expect(STAMP_PIPELINE[2]).toBe(AnthropicBodyStep);
+  expect(STAMP_PIPELINE[3]).toBe(ContextManagementStep);
+  expect(STAMP_PIPELINE[4]).toBe(OpenAiReasoningStep);
+  expect(STAMP_PIPELINE[5]).toBe(TopKStep);
+});
+
+test("RestampBreakpointsStep.applies is true for Anthropic requests with stampClaudeCode enabled", () => {
+  const ctx = makeCtx({ isOpenAi: false });
+  expect(RestampBreakpointsStep.applies(ctx)).toBe(true);
+});
+
+test("RestampBreakpointsStep.applies is false for OpenAI requests", () => {
+  const ctx = makeCtx({ isOpenAi: true });
+  expect(RestampBreakpointsStep.applies(ctx)).toBe(false);
+});
+
+test("RestampBreakpointsStep.applies is false when stampClaudeCode is false (disabled)", () => {
+  const ctx = makeCtx({ config: { ...makeCtx().config, stampClaudeCode: false } });
+  expect(RestampBreakpointsStep.applies(ctx)).toBe(false);
 });
 
 test("CacheTtlStep.applies is true for Anthropic requests with stampClaudeCode enabled", () => {
@@ -197,7 +214,68 @@ test("all stamp steps fire in order on a single GLM Anthropic request", async ()
     edits: [{ type: "clear_thinking_20251015", keep: "all" }],
   });
 
-  // --- TTL (runs first: stamps cache_control ephemeral blocks with ttl) ---
+  // --- TTL (runs after restamp: stamps cache_control ephemeral blocks with ttl) ---
   expect(parsed.system[0].cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
   expect(parsed.messages[0].content[0].cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
+});
+
+test("restamp converts tip-riding breakpoints to Layout B and TTL step stamps the new last-user breakpoint", async () => {
+  // Input has tip-riding breakpoints: sys[0] + assistant tool_use + user tool_result.
+  // Restamp should strip the tip breakpoints and place one on the last user block.
+  // TTL step should then stamp ttl:"1h" on both system[0] and the new last-user breakpoint.
+  const body = JSON.stringify({
+    model: "umans-glm-5.2",
+    max_tokens: 50,
+    system: [{ type: "text", text: "You are helpful.", cache_control: { type: "ephemeral" } }],
+    messages: [
+      { role: "user", content: [{ type: "text", text: "first user" }] },
+      {
+        role: "assistant",
+        content: [
+          { type: "text", text: "reply" },
+          {
+            type: "tool_use",
+            id: "t1",
+            name: "n",
+            input: {},
+            cache_control: { type: "ephemeral" },
+          },
+        ],
+      },
+      {
+        role: "user",
+        content: [
+          {
+            type: "tool_result",
+            tool_use_id: "t1",
+            content: "r",
+            cache_control: { type: "ephemeral" },
+          },
+        ],
+      },
+    ],
+  });
+
+  raw.getLastRequest(); // clear any previous
+  await fetch(`${proxy.baseUrl}/v1/messages`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "anthropic-version": "2023-06-01" },
+    body,
+  }).catch(() => {});
+  await sleep(150);
+  const r = raw.getLastRequest();
+  expect(r).not.toBeNull();
+  const parsed = JSON.parse(r!.body);
+
+  // --- Restamp ran first: stripped tip breakpoints, placed one on last user block ---
+  // system[0] breakpoint preserved
+  expect(parsed.system[0].cache_control?.type).toBe("ephemeral");
+  // assistant tool_use block breakpoint stripped
+  expect(parsed.messages[1].content[1].cache_control).toBeUndefined();
+  // user tool_result block (now the last user block) got a new breakpoint
+  expect(parsed.messages[2].content[0].cache_control?.type).toBe("ephemeral");
+
+  // --- TTL ran second: stamped ttl:"1h" on both restamped breakpoints ---
+  expect(parsed.system[0].cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
+  expect(parsed.messages[2].content[0].cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
 });
