@@ -56,7 +56,7 @@ export const INT_FIELDS: (keyof RawConfig)[] = [
   "idle_timeout",
   "warmer_interval_ms",
   "usage_refresh_ms",
-  "usage_refresh_ms",
+  "models_refresh_ms",
   "usage_raw_retention_days",
   "usage_gap_threshold_minutes",
   "concurrency_hard_cap",

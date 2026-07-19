@@ -452,7 +452,8 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     if (!usageHistory) return;
     try {
       const today = dayUtcOf(Date.now());
-      const from = addDays(today, -config.usageRawRetentionDays);
+      const earliest = usageHistory.getEarliestSampleDay();
+      const from = earliest ?? addDays(today, -config.usageRawRetentionDays);
       downsampleRange(usageHistory, from, today, {
         gapThresholdMinutes: config.usageGapThresholdMinutes,
         retentionDays: config.usageRawRetentionDays,

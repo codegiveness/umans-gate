@@ -85,8 +85,7 @@ export function enumerateDays(from: string, to: string): string[] {
   return out;
 }
 
-/** Activity-density bucket: 0 (none) → 3 (high). 4-step scale.
- /** Activity-density bucket: 0 (none) → 4 (high). 5-step scale.
+/** Activity-density bucket: 0 (none) → 4 (high). 5-step scale.
  *  Thresholds (in active minutes): 0, 1-60, 61-180, 181-360, 361+.
  *  Null activity (missing day) → 0. */
 export function activityLevel(row: UsageDailyRow | undefined): 0 | 1 | 2 | 3 | 4 {

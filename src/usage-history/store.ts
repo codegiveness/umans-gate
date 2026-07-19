@@ -468,6 +468,14 @@ export class UsageHistoryStore {
       .all({ $start: startMs, $end: endMs }) as UsageSampleRow[];
   }
 
+  getEarliestSampleDay(): string | null {
+    const row = this.db
+      .prepare("SELECT fetched_at FROM usage_samples ORDER BY fetched_at ASC LIMIT 1")
+      .get() as { fetched_at: number } | null;
+    if (!row) return null;
+    return new Date(row.fetched_at).toISOString().slice(0, 10);
+  }
+
   /** Return events for a UTC-day range [from, to] inclusive. Ascending by onset_at. */
   getEventsForDateRange(from: string, to: string): UsageEventRow[] {
     const startMs = Date.parse(`${from}T00:00:00.000Z`);
