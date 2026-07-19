@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-07-20
+
+### Added
+
+- **Usage History tab**. A new dashboard tab surfaces long-run usage trends
+  sampled from `/v1/usage`. Built across seven tickets (01–07):
+  - **Ticket 01**: coalesced `/v1/usage` history fetch with a ring-buffer
+    sample store (`usage_samples`), gated by `usage_history_enabled`.
+  - **Ticket 02**: `usage_events` table + priority/service-mode tuple
+    detector with a `GET /dashboard/api/usage/events` endpoint for
+    transition logging.
+  - **Ticket 03**: `usage_daily` downsampled rows with gap detection and
+    self-healing across retention boundaries (days older than
+    `usage_raw_retention_days` are pruned after a daily row is written).
+  - **Ticket 04**: dual-channel calendar heatmap (activity density + cache
+    hit rate) with brush-to-zoom day selection.
+  - **Ticket 05**: 5-lane timeline drill-down (concurrency, requests,
+    token flow, cache hit rate, degradation state) with ban-onset vertical
+    lines spanning all lanes.
+  - **Ticket 06**: old-day timeline rendered from `usage_daily` +
+    `usage_events` using a hybrid step-function with dashed held-constant
+    segments and accurate degradation bands.
+  - **Ticket 07**: WebSocket live updates (`usage-sample`, `usage-event`),
+    config hot-reload for the three usage-history knobs, and a CONTEXT.md
+    glossary.
+- **Config tab: Usage History section** exposing `usage_history_enabled`,
+  `usage_raw_retention_days`, and `usage_gap_threshold_minutes` — all
+  hot-reloadable.
+
+### Fixed
+
+- **Stamp: restamp `cache_control` breakpoints to Layout B**. The stamp
+  pipeline now reorders `cache_control` breakpoints to the canonical
+  Layout B ordering before stamping, so restamped requests are stable
+  across re-sends.
+- **Usage history: self-healing data loss across retention boundaries**.
+  `runDailyDownsample` previously downsampled from `today-retention` to
+  `today`, which left days older than the retention cutoff without a
+  daily row before pruning their raw samples — silent data loss when the
+  proxy was down across a retention boundary. Fixed by using
+  `getEarliestSampleDay()` as the `from` date so every day with samples
+  gets its daily row written before pruning.
+- **Config validation: restored `models_refresh_ms` to integer
+  validation**. A duplicate `usage_refresh_ms` entry in `INT_FIELDS`
+  (introduced in ticket 03) had silently replaced `models_refresh_ms`,
+  removing its integer validation. Removed the duplicate and restored
+  `models_refresh_ms`.
+
 ## [0.3.4] - 2026-07-19
 
 ### Fixed
