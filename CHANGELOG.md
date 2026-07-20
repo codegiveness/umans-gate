@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.6] - 2026-07-20
+
+### Added
+
+- **TTFT-watchdog gated retry experiment** (off by default,
+  `experiment_ttft_watchdog=false`). Detects stuck-on-first-byte upstream
+  fetches within a configurable threshold (`ttft_timeout_ms`, default 60s)
+  and retries with gating:
+  - Manual first-chunk read races the watchdog; wrapped `ReadableStream`
+    preserves the existing `TransformStream` capture path (no first chunk
+    lost).
+  - Retry decision gated by breaker state, gate saturation, auto-disable
+    state, and attempt cap — suppresses retry when upstream is degraded.
+  - Same-key retry (attempt 2) reuses the permit and is
+    rate-limiter-exempt.
+  - Rewrite-id escalation (attempt 3) extends `attemptRewriteRetry` with
+    optional `ttftController` + `forceEscalate` params (existing 502/529
+    path unchanged).
+  - Auto-disable: feature self-disables after
+    `ttft_retry_failure_threshold` consecutive retry failures within
+    `ttft_retry_failure_window_ms`; only config reload re-enables.
+  - Cooldown between retries (`ttft_retry_cooldown_ms`).
+  - Response headers: `X-Proxy-Retry-Attempt`, `X-Proxy-TTFT-Exceeded`,
+    `X-Proxy-Breaker-State`.
+  - Invariants preserved: single-release permit, breaker untouched on
+    TTFT timeout, rate limiter charged once, `classify429` unchanged.
+  - 7 new config fields (all hot-reloadable, not in `RESTART_REQUIRED`
+    or `GATE_RECONFIG`). ADR 0004 + CONTEXT.md glossary entries added.
+  - 27 new tests (end-to-end via `startProxy` + mock upstream, plus
+    unit tests for `TtftWatchdogState`). Full suite: 1120 pass, 0 fail.
+
+### Changed
+
+- **Dashboard timestamps now render in UTC** instead of the browser's
+  local timezone. `fmtDate` and `fmtDateTime` were replaced by
+  `fmtUtcTime` (`HH:mm:ss`) and `fmtUtcDateTime` (`MMM d, yyyy, HH:mm:ss`)
+  using `Intl.DateTimeFormat` pinned to `timeZone: "UTC"`. All
+  dashboard components that previously rendered local times — capture
+  detail, capture row, gate status, models tab, usage tab, usage
+  timeline (current + old), vision calls — now use the UTC variants.
+  This makes timestamps consistent across machines in different
+  timezones and matches the UTC convention used in server-side logs.
+  Added dashboard unit tests pinning the UTC formatting against a known
+  epoch-ms.
+
 ## [0.3.5] - 2026-07-20
 
 ### Added
