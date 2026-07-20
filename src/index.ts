@@ -16,6 +16,7 @@ import {
 import { CaptureDB } from "./db.js";
 import { syncPricing } from "./economics.js";
 import { RewriteIdExperiment } from "./experiments/rewrite-ids.js";
+import { TtftWatchdogState } from "./experiments/ttft-watchdog-state.js";
 import { computeRequestWeight } from "./helpers.js";
 import { ConcurrencyGate, GATE_RECONFIG_FIELDS, gateOptionsFromConfig } from "./limiter/index.js";
 import { createLogger } from "./logger.js";
@@ -575,6 +576,10 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
   const rewriteExperiment = config.experimentRewriteIds
     ? new RewriteIdExperiment(db, { ttlMs: config.experimentRewriteTtlMs })
     : null;
+  const ttftState = new TtftWatchdogState(() => ({
+    failureThreshold: config.ttftRetryFailureThreshold,
+    failureWindowMs: config.ttftRetryFailureWindowMs,
+  }));
   const { handleProxy } = createProxyHandler(
     db,
     ws,
@@ -586,6 +591,8 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     models,
     () => warmer?.notifyTraffic(),
     rewriteExperiment,
+    ttftState,
+    () => gate.getStats(usage.getSnapshot()),
   );
   let lastRawConfig: RawConfig = readConfigFile();
 
@@ -630,6 +637,12 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
 
     if (applied.includes("rate_limit_requests")) {
       rateRef.current = createRateLimiter(config.rateLimitRequests, usage.getSnapshot());
+    }
+
+    // Reset auto-disable state when the TTFT watchdog master toggle is reloaded,
+    // so re-enabling the feature gives it a fresh chance (full logic in ticket 04).
+    if (applied.includes("experiment_ttft_watchdog")) {
+      ttftState.reset();
     }
 
     ws.broadcast({ type: "gate", stats: gate.getStats(usage.getSnapshot()) });

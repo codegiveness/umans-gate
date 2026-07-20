@@ -274,6 +274,36 @@ For completeness, these are explicitly NOT touched:
 
 ---
 
+## TTFT-watchdog gated retry (experimental)
+
+- **What**: When enabled, each upstream fetch gets a first-byte watchdog. If
+  no chunk arrives within `ttft_timeout_ms` (default 60s), the fetch is
+  aborted and a gated retry may follow. The retry ladder: (1) original
+  fetch with watchdog, (2) same-key retry if gated, (3) rewrite-id
+  escalation if eligible. The feature auto-disables itself after
+  `ttft_retry_failure_threshold` consecutive retry-also-failed events
+  within `ttft_retry_failure_window_ms`.
+- **Where**: `src/proxy.ts` (retry loop), `src/experiments/ttft-watchdog-state.ts`
+  (auto-disable state). See ADR 0004 (`docs/adr/0004-ttft-watchdog-gated-retry.md`)
+  for the full decision record.
+- **When**: Only when `experiment_ttft_watchdog: true` (default: false). Applies
+  to streaming (SSE) responses only.
+- **Config**: `experiment_ttft_watchdog`, `ttft_timeout_ms`,
+  `ttft_retry_max_attempts`, `ttft_retry_gate_saturation_pct`,
+  `ttft_retry_failure_window_ms`, `ttft_retry_failure_threshold`,
+  `ttft_retry_cooldown_ms`. All hot-reloadable.
+- **Response headers** (on final response when feature is on):
+  - `X-Proxy-Retry-Attempt: <n>` — 0 = no retry, 1 = same-key retry, 2 = rewrite escalation.
+  - `X-Proxy-TTFT-Exceeded: 1` — present when the watchdog fired.
+  - `X-Proxy-Breaker-State: <closed|half_open|open>` — breaker state at response time.
+- **Rationale**: Detects stuck-on-first-byte fetches early (within 60s, not
+  5min) and retries without doubling load on a systemically degraded upstream
+  (breaker/gate-saturation gating). Self-falsifying: auto-disables when
+  retries consistently also fail. See ADR 0004 for rejected alternatives
+  (blind retry, cooldown-only, replace-absolute-timeout).
+
+---
+
 ## Optimization decisions
 
 This section documents which optimizations were benchmarked and whether

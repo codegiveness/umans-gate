@@ -242,6 +242,48 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     "experiment_strip_omo_reminder",
     DEFAULT_CONFIG.experiment_strip_omo_reminder ?? false,
   );
+  const experimentTtftWatchdog = envOrRawBool(
+    env.EXPERIMENT_TTFT_WATCHDOG,
+    raw,
+    "experiment_ttft_watchdog",
+    DEFAULT_CONFIG.experiment_ttft_watchdog ?? false,
+  );
+  const ttftTimeoutMs = envOrRawNum(
+    env.TTFT_TIMEOUT_MS,
+    raw,
+    "ttft_timeout_ms",
+    DEFAULT_CONFIG.ttft_timeout_ms ?? 60000,
+  );
+  const ttftRetryMaxAttempts = envOrRawNum(
+    env.TTFT_RETRY_MAX_ATTEMPTS,
+    raw,
+    "ttft_retry_max_attempts",
+    DEFAULT_CONFIG.ttft_retry_max_attempts ?? 2,
+  );
+  const ttftRetryGateSaturationPct = envOrRawNum(
+    env.TTFT_RETRY_GATE_SATURATION_PCT,
+    raw,
+    "ttft_retry_gate_saturation_pct",
+    DEFAULT_CONFIG.ttft_retry_gate_saturation_pct ?? 80,
+  );
+  const ttftRetryFailureWindowMs = envOrRawNum(
+    env.TTFT_RETRY_FAILURE_WINDOW_MS,
+    raw,
+    "ttft_retry_failure_window_ms",
+    DEFAULT_CONFIG.ttft_retry_failure_window_ms ?? 300000,
+  );
+  const ttftRetryFailureThreshold = envOrRawNum(
+    env.TTFT_RETRY_FAILURE_THRESHOLD,
+    raw,
+    "ttft_retry_failure_threshold",
+    DEFAULT_CONFIG.ttft_retry_failure_threshold ?? 3,
+  );
+  const ttftRetryCooldownMs = envOrRawNum(
+    env.TTFT_RETRY_COOLDOWN_MS,
+    raw,
+    "ttft_retry_cooldown_ms",
+    DEFAULT_CONFIG.ttft_retry_cooldown_ms ?? 30000,
+  );
 
   return {
     port,
@@ -318,5 +360,12 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     experimentRewriteIds,
     experimentRewriteTtlMs,
     experimentStripOmoReminder,
+    experimentTtftWatchdog,
+    ttftTimeoutMs,
+    ttftRetryMaxAttempts,
+    ttftRetryGateSaturationPct,
+    ttftRetryFailureWindowMs,
+    ttftRetryFailureThreshold,
+    ttftRetryCooldownMs,
   };
 }

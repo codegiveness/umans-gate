@@ -97,6 +97,20 @@ export interface RawConfig {
   experiment_rewrite_ttl_ms?: number;
   /** EXPERIMENTAL: Strip oh-my-openagent's [Category+Skill Reminder] injection from request bodies before forwarding upstream. Default false. */
   experiment_strip_omo_reminder?: boolean;
+  /** EXPERIMENTAL: Master toggle for TTFT-watchdog gated retry. When true, upstream fetches get a first-byte watchdog that aborts stalled connections within ttft_timeout_ms. Default false. */
+  experiment_ttft_watchdog?: boolean;
+  /** Watchdog threshold in ms. If no first byte arrives within this window, the fetch is aborted. Default 60000 (60s). */
+  ttft_timeout_ms?: number;
+  /** Cap on total upstream attempts. 2 = original + 1 same-key retry. 3 = original + 1 same-key retry + 1 rewrite-id escalation (when eligible). Default 2. */
+  ttft_retry_max_attempts?: number;
+  /** Suppress retry when gate active count >= this percentage of the soft limit. Default 80. */
+  ttft_retry_gate_saturation_pct?: number;
+  /** Window in ms for counting consecutive retry-also-failed events before auto-disable. Default 300000 (5 min). */
+  ttft_retry_failure_window_ms?: number;
+  /** Consecutive retry-also-failed events within the window that trigger auto-disable. Default 3. */
+  ttft_retry_failure_threshold?: number;
+  /** Cooldown between retries in ms. Default 30000 (30s). */
+  ttft_retry_cooldown_ms?: number;
 }
 
 /**

@@ -275,6 +275,20 @@ export interface ProxyConfig {
   experimentRewriteTtlMs: number;
   /** When true, strips oh-my-openagent's [Category+Skill Reminder] injection from the first user message before forwarding upstream. */
   experimentStripOmoReminder: boolean;
+  /** EXPERIMENTAL: Master toggle for TTFT-watchdog gated retry. */
+  experimentTtftWatchdog: boolean;
+  /** Watchdog threshold in ms — abort stalled fetches after this duration. */
+  ttftTimeoutMs: number;
+  /** Cap on total upstream attempts (2 = original + 1 retry, 3 = + rewrite escalation). */
+  ttftRetryMaxAttempts: number;
+  /** Suppress retry when gate active >= this percentage of soft limit. */
+  ttftRetryGateSaturationPct: number;
+  /** Window in ms for counting consecutive retry failures before auto-disable. */
+  ttftRetryFailureWindowMs: number;
+  /** Consecutive retry failures within window that trigger auto-disable. */
+  ttftRetryFailureThreshold: number;
+  /** Cooldown between retries in ms. */
+  ttftRetryCooldownMs: number;
 }
 
 // Narrow config interfaces (ISP). ProxyConfig structurally satisfies each,
@@ -324,6 +338,13 @@ export interface ExperimentConfig {
   experimentRewriteIds: ProxyConfig["experimentRewriteIds"];
   experimentRewriteTtlMs: ProxyConfig["experimentRewriteTtlMs"];
   experimentStripOmoReminder: ProxyConfig["experimentStripOmoReminder"];
+  experimentTtftWatchdog: ProxyConfig["experimentTtftWatchdog"];
+  ttftTimeoutMs: ProxyConfig["ttftTimeoutMs"];
+  ttftRetryMaxAttempts: ProxyConfig["ttftRetryMaxAttempts"];
+  ttftRetryGateSaturationPct: ProxyConfig["ttftRetryGateSaturationPct"];
+  ttftRetryFailureWindowMs: ProxyConfig["ttftRetryFailureWindowMs"];
+  ttftRetryFailureThreshold: ProxyConfig["ttftRetryFailureThreshold"];
+  ttftRetryCooldownMs: ProxyConfig["ttftRetryCooldownMs"];
 }
 
 /** Write-behind queue flush fields used by WriteQueue. */

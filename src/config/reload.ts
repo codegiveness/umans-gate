@@ -189,6 +189,48 @@ const RELOAD_FIELDS: Array<{
     },
   },
   {
+    rawKey: "experiment_ttft_watchdog",
+    apply: (live, fresh) => {
+      live.experimentTtftWatchdog = fresh.experimentTtftWatchdog;
+    },
+  },
+  {
+    rawKey: "ttft_timeout_ms",
+    apply: (live, fresh) => {
+      live.ttftTimeoutMs = fresh.ttftTimeoutMs;
+    },
+  },
+  {
+    rawKey: "ttft_retry_max_attempts",
+    apply: (live, fresh) => {
+      live.ttftRetryMaxAttempts = fresh.ttftRetryMaxAttempts;
+    },
+  },
+  {
+    rawKey: "ttft_retry_gate_saturation_pct",
+    apply: (live, fresh) => {
+      live.ttftRetryGateSaturationPct = fresh.ttftRetryGateSaturationPct;
+    },
+  },
+  {
+    rawKey: "ttft_retry_failure_window_ms",
+    apply: (live, fresh) => {
+      live.ttftRetryFailureWindowMs = fresh.ttftRetryFailureWindowMs;
+    },
+  },
+  {
+    rawKey: "ttft_retry_failure_threshold",
+    apply: (live, fresh) => {
+      live.ttftRetryFailureThreshold = fresh.ttftRetryFailureThreshold;
+    },
+  },
+  {
+    rawKey: "ttft_retry_cooldown_ms",
+    apply: (live, fresh) => {
+      live.ttftRetryCooldownMs = fresh.ttftRetryCooldownMs;
+    },
+  },
+  {
     rawKey: "vision_intent_strategy",
     apply: (live, fresh) => {
       live.visionIntentStrategy = fresh.visionIntentStrategy;
