@@ -7,12 +7,13 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { badgeInfo, badgeSuccess } from "@/lib/badge-colors";
 import {
   fmtCachePct,
-  fmtDate,
   fmtSize,
   fmtTime,
   fmtTokensCompact,
   fmtTps,
   fmtTtft,
+  fmtUtcDateTime,
+  fmtUtcTime,
 } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { CaptureSummary } from "@/types";
@@ -175,13 +176,13 @@ export function CaptureRowItem({
           <RowTip
             tip={
               c.started_at
-                ? `Started ${new Date(c.started_at).toLocaleString()}${
-                    c.finished_at ? ` · finished ${new Date(c.finished_at).toLocaleString()}` : ""
-                  }`
+                ? `Started ${fmtUtcDateTime(c.started_at)}${
+                    c.finished_at ? ` · finished ${fmtUtcDateTime(c.finished_at)}` : ""
+                  } · All times shown in UTC`
                 : "Start time not recorded"
             }
           >
-            <span className="text-muted-foreground/60">{fmtDate(c.started_at)}</span>
+            <span className="text-muted-foreground/60">{fmtUtcTime(c.started_at)}</span>
           </RowTip>
         </span>
       </div>

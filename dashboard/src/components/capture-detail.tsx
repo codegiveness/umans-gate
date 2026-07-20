@@ -11,7 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { badgeSuccess } from "@/lib/badge-colors";
-import { extractCacheTtl, fmtDate, fmtSize, fmtTime } from "@/lib/format";
+import { extractCacheTtl, fmtSize, fmtTime, fmtUtcDateTime, fmtUtcTime } from "@/lib/format";
 import type { CaptureDetail } from "@/types";
 
 const HeadersViewer = lazy(() =>
@@ -233,12 +233,10 @@ export function CaptureDetailPanel({
           )}
           <Tooltip>
             <TooltipTrigger render={<span className="inline-flex font-mono tabular-nums" />}>
-              <span>{fmtDate(capture.started_at)}</span>
+              <span>{fmtUtcTime(capture.started_at)}</span>
             </TooltipTrigger>
             <TooltipContent side="top">
-              {capture.started_at
-                ? new Date(capture.started_at).toLocaleString()
-                : "Not yet recorded"}
+              {capture.started_at ? fmtUtcDateTime(capture.started_at) : "Not yet recorded"}
             </TooltipContent>
           </Tooltip>
           {capture.state === "streaming" && (

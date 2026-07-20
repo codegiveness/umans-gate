@@ -38,7 +38,7 @@ vi.mock("@/hooks/use-captures", () => ({
         request_size: 1024,
         response_size: 2048,
         duration_ms: 150,
-        started_at: "2026-01-01T00:00:00Z",
+        started_at: Date.parse("2026-01-01T00:00:00Z"),
         ttft_ms: 50,
         tps: 10,
         total_input_tokens: 100,

@@ -16,6 +16,7 @@ import {
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
+import { fmtUtcTime } from "@/lib/format";
 import type { UsageDailyRow, UsageEventRow, UsageSampleRow } from "@/types";
 
 /** Compute cache hit rate from a sample row. Null when all three token
@@ -155,12 +156,6 @@ function buildDegradationBands(
   };
 }
 
-/** Format an epoch ms as HH:mm (UTC). Used for XAxis ticks. */
-function fmtTime(ms: number): string {
-  const d = new Date(ms);
-  return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
-}
-
 export interface UsageTimelineProps {
   dayUtc: string;
   samples: UsageSampleRow[] | null;
@@ -274,7 +269,7 @@ function ConcurrencyLane({ samples, onsets }: ConcurrencyLaneProps): JSX.Element
             <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="2 2" opacity={0.4} />
             <XAxis
               dataKey="ts"
-              tickFormatter={fmtTime}
+              tickFormatter={(ts) => fmtUtcTime(ts).slice(0, 5)}
               tick={{ fontSize: 10 }}
               stroke="hsl(var(--muted-foreground))"
             />
@@ -284,7 +279,10 @@ function ConcurrencyLane({ samples, onsets }: ConcurrencyLaneProps): JSX.Element
               stroke="hsl(var(--muted-foreground))"
               allowDecimals={false}
             />
-            <Tooltip labelFormatter={(v) => fmtTime(Number(v))} contentStyle={{ fontSize: 11 }} />
+            <Tooltip
+              labelFormatter={(v) => fmtUtcTime(Number(v)).slice(0, 5)}
+              contentStyle={{ fontSize: 11 }}
+            />
             <ReferenceLine y={hardCap} stroke="hsl(var(--destructive))" strokeDasharray="4 4" />
             {onsets.map((ts) => (
               <ReferenceLine
@@ -358,7 +356,7 @@ function RequestsLane({ samples, onsets }: LaneProps): JSX.Element {
             <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="2 2" opacity={0.4} />
             <XAxis
               dataKey="ts"
-              tickFormatter={fmtTime}
+              tickFormatter={(ts) => fmtUtcTime(ts).slice(0, 5)}
               tick={{ fontSize: 10 }}
               stroke="hsl(var(--muted-foreground))"
             />
@@ -368,7 +366,10 @@ function RequestsLane({ samples, onsets }: LaneProps): JSX.Element {
               stroke="hsl(var(--muted-foreground))"
               allowDecimals={false}
             />
-            <Tooltip labelFormatter={(v) => fmtTime(Number(v))} contentStyle={{ fontSize: 11 }} />
+            <Tooltip
+              labelFormatter={(v) => fmtUtcTime(Number(v)).slice(0, 5)}
+              contentStyle={{ fontSize: 11 }}
+            />
             {last.limit !== null ? (
               <ReferenceLine
                 y={last.limit}
@@ -457,7 +458,7 @@ function TokenFlowLane({ samples, onsets }: LaneProps): JSX.Element {
             <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="2 2" opacity={0.4} />
             <XAxis
               dataKey="ts"
-              tickFormatter={fmtTime}
+              tickFormatter={(ts) => fmtUtcTime(ts).slice(0, 5)}
               tick={{ fontSize: 10 }}
               stroke="hsl(var(--muted-foreground))"
             />
@@ -467,7 +468,10 @@ function TokenFlowLane({ samples, onsets }: LaneProps): JSX.Element {
               stroke="hsl(var(--muted-foreground))"
               allowDecimals={false}
             />
-            <Tooltip labelFormatter={(v) => fmtTime(Number(v))} contentStyle={{ fontSize: 11 }} />
+            <Tooltip
+              labelFormatter={(v) => fmtUtcTime(Number(v)).slice(0, 5)}
+              contentStyle={{ fontSize: 11 }}
+            />
             {onsets.map((ts) => (
               <ReferenceLine
                 key={`tokens-onset-${ts}`}
@@ -548,7 +552,7 @@ function CacheHitRateLane({ samples, onsets, thirtyDayAvg }: CacheHitRateLanePro
             <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="2 2" opacity={0.4} />
             <XAxis
               dataKey="ts"
-              tickFormatter={fmtTime}
+              tickFormatter={(ts) => fmtUtcTime(ts).slice(0, 5)}
               tick={{ fontSize: 10 }}
               stroke="hsl(var(--muted-foreground))"
             />
@@ -559,7 +563,7 @@ function CacheHitRateLane({ samples, onsets, thirtyDayAvg }: CacheHitRateLanePro
               tickFormatter={(v: number) => `${Math.round(v)}%`}
             />
             <Tooltip
-              labelFormatter={(v) => fmtTime(Number(v))}
+              labelFormatter={(v) => fmtUtcTime(Number(v)).slice(0, 5)}
               contentStyle={{ fontSize: 11 }}
               formatter={(value) =>
                 typeof value === "number"
@@ -642,7 +646,7 @@ function DegradationLane({ samples, onsets, bands }: DegradationLaneProps): JSX.
           <AreaChart data={data} margin={{ top: 2, right: 8, bottom: 0, left: 8 }}>
             <XAxis
               dataKey="ts"
-              tickFormatter={fmtTime}
+              tickFormatter={(ts) => fmtUtcTime(ts).slice(0, 5)}
               tick={{ fontSize: 10 }}
               stroke="hsl(var(--muted-foreground))"
             />

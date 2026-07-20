@@ -73,6 +73,27 @@ _Avoid_: fresh tokens, new tokens.
 
 ### Architecture
 
+**TTFT watchdog**:
+A wall-clock timer started at fetch initiation; fires if no first chunk
+arrives from `upstream.body` within `ttft_timeout_ms`. Distinct from the
+absolute `upstream_timeout_ms` (5-min ceiling on the whole fetch lifecycle)
+and from the semantic `ttft_ms` metric (first `content_block_delta` for
+Anthropic, first non-empty delta for OpenAI — computed post-hoc from parsed
+SSE). The watchdog races the existing `firstChunkSent` flag in the
+`TransformStream.transform` callback — same perception, no dual concept. When
+the watchdog fires, the fetch is aborted (distinguishable from client-abort
+and absolute-timeout) and a gated retry may follow.
+_Avoid_: first-byte timeout, stream timeout (those belong to LiteLLM/kiro).
+
+**TTFT retry**:
+A retry triggered by TTFT-watchdog timeout, as distinct from a 502/529
+rewrite-id retry. The retry reuses the original permit (single-release
+contract preserved) and is exempt from the rate limiter (the original token
+was already consumed). Gated by upstream-load signals: breaker state, gate
+saturation, and recent retry-failure rate. When the gate suppresses retry,
+the client gets a 504.
+_Avoid_: stream retry, first-byte retry.
+
 **Stop gate**:
 The concurrency admission layer in `src/limiter/` — `ConcurrencyGate` (a
 semaphore) composed with a `CircuitBreaker`. Acquires a permit before

@@ -43,19 +43,31 @@ export function fmtCachePct(
   return `${pct.toFixed(0)}%`;
 }
 
-export function fmtDate(ts: number | null | undefined): string {
-  return ts ? new Date(ts).toLocaleTimeString([], { hour12: false }) : "";
-}
-
-export function fmtDateTime(ts: number | null | undefined): string {
+/** Compact UTC clock time: `HH:mm:ss` (24-hour). Empty for nullish/zero. */
+export function fmtUtcTime(ts: number | null | undefined): string {
   if (!ts) return "";
-  return new Date(ts).toLocaleString([], {
-    month: "short",
-    day: "numeric",
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "UTC",
     hour: "2-digit",
     minute: "2-digit",
+    second: "2-digit",
     hour12: false,
-  });
+  }).format(ts);
+}
+
+/** Full UTC date-time: `MMM d, yyyy, HH:mm:ss` (24-hour). Empty for nullish/zero. */
+export function fmtUtcDateTime(ts: number | null | undefined): string {
+  if (!ts) return "";
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "UTC",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(ts);
 }
 
 function escapeHtml(s: string | null | undefined): string {

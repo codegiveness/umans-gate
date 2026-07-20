@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { badgeGold, badgeInfo, badgeSuccess, badgeWarning } from "@/lib/badge-colors";
-import { fmtDateTime } from "@/lib/format";
+import { fmtUtcDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { GateStats } from "@/types";
 import { ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
@@ -195,16 +195,18 @@ export function GateStatus({ stats }: { stats: GateStats | null }) {
                 <p className="text-muted-foreground">reason: {stats.boxedReason}</p>
               )}
               {stats.boxed && stats.boxedUntil !== null && (
-                <p className="text-muted-foreground">boxed until {fmtDateTime(stats.boxedUntil)}</p>
+                <p className="text-muted-foreground">
+                  boxed until {fmtUtcDateTime(stats.boxedUntil)}
+                </p>
               )}
               {stats.demotedUntil !== null && (
                 <p className="text-muted-foreground">
-                  demoted until {fmtDateTime(stats.demotedUntil)}
+                  demoted until {fmtUtcDateTime(stats.demotedUntil)}
                 </p>
               )}
               {stats.serviceMode.resetsAt !== null && (
                 <p className="text-muted-foreground">
-                  resets at {fmtDateTime(stats.serviceMode.resetsAt)}
+                  resets at {fmtUtcDateTime(stats.serviceMode.resetsAt)}
                 </p>
               )}
             </div>

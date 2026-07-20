@@ -24,6 +24,7 @@ import { useUsageDaily } from "@/hooks/use-usage-daily";
 import { useUsageDay } from "@/hooks/use-usage-day";
 import { useUsageHistory } from "@/hooks/use-usage-history";
 import { useUsageWs } from "@/hooks/use-usage-ws";
+import { fmtUtcTime } from "@/lib/format";
 import { type RangePreset, addDays, dayAgeDays, presetRange, todayUtc } from "@/lib/usage-heatmap";
 import { findDailyRow } from "@/lib/usage-timeline-old";
 import type { UsageSampleRow } from "@/types";
@@ -31,14 +32,6 @@ import type { UsageSampleRow } from "@/types";
 /** Default raw-sample retention (days) when the config endpoint hasn't
  *  loaded or doesn't surface the field. Matches the backend default. */
 const DEFAULT_RAW_RETENTION_DAYS = 7;
-
-function fmtTime(ms: number): string {
-  return new Date(ms).toLocaleTimeString(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
-}
 
 export function UsageTab() {
   const [preset, setPreset] = useState<RangePreset>("30d");
@@ -344,7 +337,7 @@ function SamplesTable({ samples }: { samples: UsageSampleRow[] }): JSX.Element {
         {samples.map((row) => (
           <TableRow key={row.id}>
             <TableCell className="tabular-nums whitespace-nowrap">
-              {fmtTime(row.fetched_at)}
+              {fmtUtcTime(row.fetched_at)}
             </TableCell>
             <TableCell className="whitespace-nowrap">
               {row.plan}

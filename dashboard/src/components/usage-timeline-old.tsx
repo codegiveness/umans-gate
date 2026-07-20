@@ -15,6 +15,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { thirtyDayAvg } from "@/components/usage-timeline";
+import { fmtUtcTime } from "@/lib/format";
 import {
   type EventMarker,
   type RealBand,
@@ -25,12 +26,6 @@ import {
   dayStartMs,
 } from "@/lib/usage-timeline-old";
 import type { UsageDailyRow, UsageEventRow } from "@/types";
-
-/** Format an epoch ms as HH:mm (UTC). */
-function fmtTime(ms: number): string {
-  const d = new Date(ms);
-  return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
-}
 
 export interface UsageTimelineOldProps {
   dayUtc: string;
@@ -242,7 +237,7 @@ function ConcurrencyLaneOld(props: OldLaneSharedProps & { markers: EventMarker[]
               dataKey="ts"
               type="number"
               domain={[startMs, endMs]}
-              tickFormatter={fmtTime}
+              tickFormatter={(ts) => fmtUtcTime(ts).slice(0, 5)}
               tick={{ fontSize: 10 }}
               stroke="hsl(var(--muted-foreground))"
             />
@@ -252,7 +247,10 @@ function ConcurrencyLaneOld(props: OldLaneSharedProps & { markers: EventMarker[]
               stroke="hsl(var(--muted-foreground))"
               allowDecimals={false}
             />
-            <Tooltip labelFormatter={(v) => fmtTime(Number(v))} contentStyle={{ fontSize: 11 }} />
+            <Tooltip
+              labelFormatter={(v) => fmtUtcTime(Number(v)).slice(0, 5)}
+              contentStyle={{ fontSize: 11 }}
+            />
             <ReferenceLine y={hardCap} stroke="hsl(var(--destructive))" strokeDasharray="4 4" />
             {markers.map((m) => (
               <ReferenceLine
@@ -354,7 +352,7 @@ function RequestsLaneOld(props: OldLaneSharedProps): JSX.Element {
               dataKey="ts"
               type="number"
               domain={[startMs, endMs]}
-              tickFormatter={fmtTime}
+              tickFormatter={(ts) => fmtUtcTime(ts).slice(0, 5)}
               tick={{ fontSize: 10 }}
               stroke="hsl(var(--muted-foreground))"
             />
@@ -364,7 +362,10 @@ function RequestsLaneOld(props: OldLaneSharedProps): JSX.Element {
               stroke="hsl(var(--muted-foreground))"
               allowDecimals={false}
             />
-            <Tooltip labelFormatter={(v) => fmtTime(Number(v))} contentStyle={{ fontSize: 11 }} />
+            <Tooltip
+              labelFormatter={(v) => fmtUtcTime(Number(v)).slice(0, 5)}
+              contentStyle={{ fontSize: 11 }}
+            />
             {limit > 0 ? (
               <ReferenceLine y={limit} stroke="hsl(var(--destructive))" strokeDasharray="4 4" />
             ) : null}
@@ -468,7 +469,7 @@ function TokenFlowLaneOld(props: OldLaneSharedProps): JSX.Element {
               dataKey="ts"
               type="number"
               domain={[startMs, endMs]}
-              tickFormatter={fmtTime}
+              tickFormatter={(ts) => fmtUtcTime(ts).slice(0, 5)}
               tick={{ fontSize: 10 }}
               stroke="hsl(var(--muted-foreground))"
             />
@@ -478,7 +479,10 @@ function TokenFlowLaneOld(props: OldLaneSharedProps): JSX.Element {
               stroke="hsl(var(--muted-foreground))"
               allowDecimals={false}
             />
-            <Tooltip labelFormatter={(v) => fmtTime(Number(v))} contentStyle={{ fontSize: 11 }} />
+            <Tooltip
+              labelFormatter={(v) => fmtUtcTime(Number(v)).slice(0, 5)}
+              contentStyle={{ fontSize: 11 }}
+            />
             {events.map((e) => (
               <ReferenceLine
                 key={`tokens-marker-${e.id}`}
@@ -571,7 +575,7 @@ function CacheHitRateLaneOld(
               dataKey="ts"
               type="number"
               domain={[startMs, endMs]}
-              tickFormatter={fmtTime}
+              tickFormatter={(ts) => fmtUtcTime(ts).slice(0, 5)}
               tick={{ fontSize: 10 }}
               stroke="hsl(var(--muted-foreground))"
             />
@@ -582,7 +586,7 @@ function CacheHitRateLaneOld(
               tickFormatter={(v: number) => `${Math.round(v)}%`}
             />
             <Tooltip
-              labelFormatter={(v) => fmtTime(Number(v))}
+              labelFormatter={(v) => fmtUtcTime(Number(v)).slice(0, 5)}
               contentStyle={{ fontSize: 11 }}
               formatter={(value) =>
                 typeof value === "number"
@@ -656,7 +660,7 @@ function DegradationLaneOld(props: {
               dataKey="ts"
               type="number"
               domain={[startMs, endMs]}
-              tickFormatter={fmtTime}
+              tickFormatter={(ts) => fmtUtcTime(ts).slice(0, 5)}
               tick={{ fontSize: 10 }}
               stroke="hsl(var(--muted-foreground))"
             />

@@ -9,6 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useModels } from "@/hooks/use-models";
+import { fmtUtcDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ModelEntry } from "@/types";
 
@@ -87,7 +88,7 @@ export function ModelsTab() {
               ))}
               {data && data.fetched_at > 0 && (
                 <p className="col-span-full pt-2 text-center text-xs text-muted-foreground">
-                  Last fetched {new Date(data.fetched_at).toLocaleString()}
+                  Last fetched {fmtUtcDateTime(data.fetched_at)}
                 </p>
               )}
             </div>

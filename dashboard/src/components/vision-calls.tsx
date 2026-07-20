@@ -9,7 +9,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useVisionCalls } from "@/hooks/use-vision-calls";
 import { badgeInfo, badgeSuccess } from "@/lib/badge-colors";
-import { fmtDate, fmtSize, fmtTime } from "@/lib/format";
+import { fmtSize, fmtTime, fmtUtcTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { VisionCallRecord } from "@/types/vision";
 
@@ -182,7 +182,7 @@ function VisionCallCard({ record }: { record: VisionCallRecord }) {
               <span className="text-xs text-muted-foreground">capture #{record.captureId}</span>
             )}
           </div>
-          <span className="text-xs text-muted-foreground">{fmtDate(record.timestamp)}</span>
+          <span className="text-xs text-muted-foreground">{fmtUtcTime(record.timestamp)}</span>
         </div>
 
         <div className="flex items-center gap-3 text-sm flex-wrap">
