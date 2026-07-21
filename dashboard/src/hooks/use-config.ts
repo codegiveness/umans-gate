@@ -77,6 +77,8 @@ export interface ServerRawConfig {
   ws_backpressure_limit?: number;
   ws_close_on_backpressure_limit?: boolean;
   compression_enabled?: boolean;
+  /** Hard timeout for upstream requests in ms. Prevents permit leaks when upstream hangs and client stays connected. Hot-reloadable. */
+  upstream_timeout_ms?: number;
   /** Runtime flag: true when the resolved config has an API key (env or file). Read-only — not saved. */
   has_api_key?: boolean;
   /** Runtime flag: true when the resolved config has a dashboard token. Read-only — not saved. */
@@ -87,6 +89,20 @@ export interface ExperimentRawConfig {
   experiment_rewrite_ids?: boolean;
   experiment_rewrite_ttl_ms?: number;
   experiment_strip_omo_reminder?: boolean;
+  /** EXPERIMENTAL: Master toggle for TTFT-watchdog gated retry. Hot-reloadable. */
+  experiment_ttft_watchdog?: boolean;
+  /** Watchdog threshold in ms — abort stalled fetches after this duration. Hot-reloadable. */
+  ttft_timeout_ms?: number;
+  /** Cap on total upstream attempts (2 = original + 1 retry, 3 = + rewrite escalation). Hot-reloadable. */
+  ttft_retry_max_attempts?: number;
+  /** Suppress retry when gate active >= this percentage of soft limit. Hot-reloadable. */
+  ttft_retry_gate_saturation_pct?: number;
+  /** Window in ms for counting consecutive retry failures before auto-disable. Hot-reloadable. */
+  ttft_retry_failure_window_ms?: number;
+  /** Consecutive retry failures within window that trigger auto-disable. Hot-reloadable. */
+  ttft_retry_failure_threshold?: number;
+  /** Cooldown between retries in ms. Hot-reloadable. */
+  ttft_retry_cooldown_ms?: number;
 }
 
 export type RawConfig = StampRawConfig &

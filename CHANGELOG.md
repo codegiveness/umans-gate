@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.7] - 2026-07-21
+
+### Added
+
+- **Upstream timeout config field in dashboard.** `upstream_timeout_ms`
+  is now exposed in the dashboard's Server section (with validation:
+  integer ≥ 1000ms) and serialized through the dashboard config save
+  path. The field was already used by the proxy but was not previously
+  editable from the UI.
+
+- **TTFT Watchdog config section in dashboard.** Seven new
+  experimental fields (`experiment_ttft_watchdog`, `ttft_timeout_ms`,
+  `ttft_retry_max_attempts`, `ttft_retry_gate_saturation_pct`,
+  `ttft_retry_failure_window_ms`, `ttft_retry_failure_threshold`,
+  `ttft_retry_cooldown_ms`) are now editable in the dashboard under a
+  new "TTFT Watchdog" group, with server-side validation rules covering
+  type, minimum, and range constraints for each field.
+
+### Fixed
+
+- **Permit leak when upstream hangs after the first chunk.** When the
+  upstream sent some data and then stalled while the client stayed
+  connected, the concurrency permit was never released — `active`
+  climbed to the cap and stayed there until process restart, and
+  captures remained stuck in `state="streaming"` with no terminal
+  status. Root cause: `onAbort` listened only on `req.signal` (which
+  does NOT abort in this scenario on Bun 1.3.14), and
+  `TransformStream.flush()` did not fire on abnormal termination.
+  Fixed by:
+  - **Part A** — also listening on the upstream signal
+    (`AbortSignal.any([req.signal, ttftController?, timeout])`) so
+    timeout/client-abort propagated to the fetch also triggers
+    `flushCapture` + `releasePermit`.
+  - **Part B** — fixing the already-aborted `req.signal` branch to
+    release the permit immediately (previously only flushed the
+    capture).
+  - **Part C** — adding a per-request watchdog timer
+    (`upstream_timeout_ms + 5s`) as a safety net that fires if none of
+    the other release paths run. Catches pathological cases where the
+    stream errors but no signal aborts.
+  - The rewrite-id retry path (`attemptRewriteRetry`) now returns the
+    upstream signal alongside the response so callers can attach the
+    same release listener for retries as for the primary fetch.
+  - Regression test `test/permit-leak-upstream-hang.test.ts` exercises
+    the exact failure mode (chunk1 sent, then hang).
+
 ## [0.3.6] - 2026-07-20
 
 ### Added

@@ -55,6 +55,14 @@ const baseConfig = {
   usage_history_enabled: true,
   usage_raw_retention_days: 7,
   usage_gap_threshold_minutes: 60,
+  upstream_timeout_ms: 300000,
+  experiment_ttft_watchdog: false,
+  ttft_timeout_ms: 60000,
+  ttft_retry_max_attempts: 2,
+  ttft_retry_gate_saturation_pct: 80,
+  ttft_retry_failure_window_ms: 300000,
+  ttft_retry_failure_threshold: 3,
+  ttft_retry_cooldown_ms: 30000,
 };
 
 const mockConfigResult = {

@@ -98,7 +98,7 @@ export function createProxyHandler(
     captureId: number,
     ttftController?: AbortController | null,
     forceEscalate?: boolean,
-  ): Promise<Response | null> {
+  ): Promise<{ response: Response; signal: AbortSignal } | null> {
     const bodyText = decodeText(originalReqBuf);
     let state = experiment.getOrCreateSession(
       sessionId,
@@ -124,6 +124,15 @@ export function createProxyHandler(
     if (!rewriteResult.rewritten) {
       return null;
     }
+    // Construct the same upstream signal shape as the non-rewrite fetch path
+    // so the caller can attach abort listeners to it for permit release.
+    const upstreamSignal: AbortSignal = ttftController
+      ? AbortSignal.any([
+          req.signal,
+          ttftController.signal,
+          AbortSignal.timeout(cfg.upstreamTimeoutMs),
+        ])
+      : AbortSignal.any([req.signal, AbortSignal.timeout(cfg.upstreamTimeoutMs)]);
 
     const retryReqBuf = textEncoder.encode(rewriteResult.body);
     const retryHeaders = { ...headerResult.headers };
@@ -131,13 +140,6 @@ export function createProxyHandler(
     retryHeaders["accept-encoding"] = "identity";
 
     try {
-      const upstreamSignal = ttftController
-        ? AbortSignal.any([
-            req.signal,
-            ttftController.signal,
-            AbortSignal.timeout(cfg.upstreamTimeoutMs),
-          ])
-        : AbortSignal.any([req.signal, AbortSignal.timeout(cfg.upstreamTimeoutMs)]);
       const retryResponse = await fetch(targetUrl, {
         method: req.method,
         headers: retryHeaders,
@@ -171,7 +173,7 @@ export function createProxyHandler(
         });
       }
 
-      return retryResponse;
+      return { response: retryResponse, signal: upstreamSignal };
     } catch (err) {
       log.warn("ID rewrite retry fetch failed", {
         captureId,
@@ -450,7 +452,14 @@ export function createProxyHandler(
 
     let permitReleased = false;
     let streamingStarted = false;
+    let flushCaptureRef: (() => void) | null = null;
+    const watchdogTimer = setTimeout(() => {
+      log.warn("permit_watchdog_fired", { captureId: capId });
+      flushCaptureRef?.();
+      releasePermit();
+    }, config.upstreamTimeoutMs + 5_000);
     const releasePermit = (): void => {
+      clearTimeout(watchdogTimer);
       if (permit && !permitReleased) {
         permitReleased = true;
         permit.release();
@@ -628,6 +637,7 @@ export function createProxyHandler(
       // Hoisted out of the loop so the streaming path below can read the
       // final response + headers set on the successful attempt.
       let upstream: Response = new Response(null, { status: 502 });
+      let upstreamSignal: AbortSignal | null = null;
       let bodyToPipe: ReadableStream<Uint8Array> | null = null;
       let upstreamOutHeaders: Record<string, string> = {};
       let upstreamResHeadersJson = "[]";
@@ -672,7 +682,7 @@ export function createProxyHandler(
               headers: errHeaders,
             });
           }
-          let rewriteResponse: Response | null = null;
+          let rewriteResponse: { response: Response; signal: AbortSignal } | null = null;
           try {
             rewriteResponse = await attemptRewriteRetry(
               rewriteSession.sessionId,
@@ -729,7 +739,8 @@ export function createProxyHandler(
           // Fetch resolved — skip the 502/529 rewrite-id path (already rewrote)
           // and proceed to the manual first-chunk read below using the same
           // ttftController (still armed if the timer hasn't fired).
-          upstream = rewriteResponse;
+          upstream = rewriteResponse.response;
+          upstreamSignal = rewriteResponse.signal;
           // Jump past the 502/529 block by setting a flag the code below
           // checks. We use the existing `upstream` variable; the next section
           // is the 429 classification + 502/529 rewrite path — both skipped
@@ -738,7 +749,7 @@ export function createProxyHandler(
         } else {
           let fetchErr: Error | null = null;
           try {
-            const upstreamSignal = ttftController
+            upstreamSignal = ttftController
               ? AbortSignal.any([
                   req.signal,
                   ttftController.signal,
@@ -849,7 +860,8 @@ export function createProxyHandler(
                   capId,
                 );
                 if (retryResult) {
-                  upstream = retryResult;
+                  upstream = retryResult.response;
+                  upstreamSignal = retryResult.signal;
                 } else {
                   upstream = new Response(errBody, {
                     status: upstream.status,
@@ -1088,6 +1100,7 @@ export function createProxyHandler(
           // Non-critical: capture persistence failure must not block permit release
         }
       };
+      flushCaptureRef = flushCapture;
 
       const onAbort = (): void => {
         flushCapture();
@@ -1097,8 +1110,16 @@ export function createProxyHandler(
       if (req.signal) {
         if (req.signal.aborted) {
           flushCapture();
+          releasePermit();
         } else {
           req.signal.addEventListener("abort", onAbort, { once: true });
+        }
+      }
+      if (upstreamSignal) {
+        if (upstreamSignal.aborted) {
+          onAbort();
+        } else {
+          upstreamSignal.addEventListener("abort", onAbort, { once: true });
         }
       }
 
@@ -1137,6 +1158,9 @@ export function createProxyHandler(
           flushCapture();
           if (req.signal) {
             req.signal.removeEventListener("abort", onAbort);
+          }
+          if (upstreamSignal) {
+            upstreamSignal.removeEventListener("abort", onAbort);
           }
           releasePermit();
         },

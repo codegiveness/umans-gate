@@ -85,6 +85,12 @@ export const INT_FIELDS: (keyof RawConfig)[] = [
   "ws_backpressure_limit",
   "vision_pending_max_batch",
   "upstream_timeout_ms",
+  "ttft_timeout_ms",
+  "ttft_retry_max_attempts",
+  "ttft_retry_gate_saturation_pct",
+  "ttft_retry_failure_window_ms",
+  "ttft_retry_failure_threshold",
+  "ttft_retry_cooldown_ms",
   "vision_decomposition_timeout_ms",
   "vision_crafting_timeout_ms",
   "vision_adjacent_text_max_chars",
@@ -186,6 +192,7 @@ export const FIELD_RULES: FieldRule[] = [
       "compression_enabled",
       "use_hard_cap",
       "experiment_strip_omo_reminder",
+      "experiment_ttft_watchdog",
       "usage_history_enabled",
     ] as const
   ).map((field) => ({
@@ -617,6 +624,66 @@ export const FIELD_RULES: FieldRule[] = [
       n.vision_pending_max_batch !== undefined &&
       (!Number.isInteger(n.vision_pending_max_batch) || n.vision_pending_max_batch < 1)
         ? ["vision_pending_max_batch must be a positive integer"]
+        : [],
+  },
+  {
+    name: "upstream_timeout_ms",
+    errors: (n) =>
+      n.upstream_timeout_ms !== undefined &&
+      (!Number.isInteger(n.upstream_timeout_ms) || n.upstream_timeout_ms < 1000)
+        ? ["upstream_timeout_ms must be an integer >= 1000"]
+        : [],
+  },
+  {
+    name: "ttft_timeout_ms",
+    errors: (n) =>
+      n.ttft_timeout_ms !== undefined &&
+      (!Number.isInteger(n.ttft_timeout_ms) || n.ttft_timeout_ms < 1000)
+        ? ["ttft_timeout_ms must be an integer >= 1000"]
+        : [],
+  },
+  {
+    name: "ttft_retry_max_attempts",
+    errors: (n) =>
+      n.ttft_retry_max_attempts !== undefined &&
+      (!Number.isInteger(n.ttft_retry_max_attempts) ||
+        n.ttft_retry_max_attempts < 1 ||
+        n.ttft_retry_max_attempts > 3)
+        ? ["ttft_retry_max_attempts must be an integer between 1 and 3"]
+        : [],
+  },
+  {
+    name: "ttft_retry_gate_saturation_pct",
+    errors: (n) =>
+      n.ttft_retry_gate_saturation_pct !== undefined &&
+      (!Number.isInteger(n.ttft_retry_gate_saturation_pct) ||
+        n.ttft_retry_gate_saturation_pct < 1 ||
+        n.ttft_retry_gate_saturation_pct > 100)
+        ? ["ttft_retry_gate_saturation_pct must be an integer between 1 and 100"]
+        : [],
+  },
+  {
+    name: "ttft_retry_failure_window_ms",
+    errors: (n) =>
+      n.ttft_retry_failure_window_ms !== undefined &&
+      (!Number.isInteger(n.ttft_retry_failure_window_ms) || n.ttft_retry_failure_window_ms < 1000)
+        ? ["ttft_retry_failure_window_ms must be an integer >= 1000"]
+        : [],
+  },
+  {
+    name: "ttft_retry_failure_threshold",
+    errors: (n) =>
+      n.ttft_retry_failure_threshold !== undefined &&
+      (!Number.isInteger(n.ttft_retry_failure_threshold) || n.ttft_retry_failure_threshold < 1)
+        ? ["ttft_retry_failure_threshold must be a positive integer"]
+        : [],
+  },
+  {
+    name: "ttft_retry_cooldown_ms",
+    errors: (n) =>
+      n.ttft_retry_cooldown_ms !== undefined &&
+      (!Number.isInteger(n.ttft_retry_cooldown_ms) || n.ttft_retry_cooldown_ms < 0)
+        ? ["ttft_retry_cooldown_ms must be an integer >= 0"]
         : [],
   },
 ];

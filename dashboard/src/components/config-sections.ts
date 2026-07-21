@@ -112,6 +112,16 @@ const SERVER_FIELDS: FieldDef[] = [
     description:
       "When on, stored request/response bodies are compressed with zstd to reduce SQLite database size. Hot-reloadable — changes take effect immediately without restart. Default: on.",
   },
+  {
+    key: "upstream_timeout_ms",
+    label: "Upstream Timeout",
+    kind: "number",
+    description:
+      "Hard timeout for upstream requests in milliseconds. Prevents permit leaks when the upstream hangs and the client stays connected. Must be ≥ 1,000. Default: 300,000 ms (5 min).",
+    required: true,
+    min: 1000,
+    suffix: "ms",
+  },
 ];
 
 const STAMP_FIELDS: FieldDef[] = [
@@ -162,6 +172,83 @@ const OMO_INTEGRATION_FIELDS: FieldDef[] = [
     experimental: true,
     description:
       "When on, strips oh-my-openagent's Category+Skill Reminder synthetic injection from the first user message before forwarding upstream. This injection (added by the category-skill-reminder hook in oh-my-openagent v4.18.x) splices a 486-byte text block into messages[0] on turn 2, invalidating the prompt cache prefix and causing 0% hit rate for 1-2 turns. Stripping it preserves cache stability. Enable if you use oh-my-openagent and observe cache hit drops on turn 2.",
+  },
+];
+
+const TTFT_WATCHDOG_FIELDS: FieldDef[] = [
+  {
+    key: "experiment_ttft_watchdog",
+    label: "TTFT Watchdog",
+    kind: "toggle",
+    experimental: true,
+    description:
+      "Master toggle for the TTFT (time-to-first-token) watchdog. When on, upstream fetches get a first-byte watchdog that aborts stalled connections within ttft_timeout_ms, then retries (same-key, then rewrite-escalation if eligible). When off (default), the only active guard is the upstream_timeout_ms absolute timeout — no retry, no rewrite. Enable if the upstream intermittently hangs after accepting a request without ever sending the first byte.",
+  },
+  {
+    key: "ttft_timeout_ms",
+    label: "TTFT Timeout",
+    kind: "number",
+    experimental: true,
+    description:
+      "Watchdog threshold in milliseconds — if no first byte arrives within this window, the fetch is aborted and the retry decision runs. Must be ≥ 1,000. Default: 60,000 ms (1 min).",
+    required: true,
+    min: 1000,
+    suffix: "ms",
+  },
+  {
+    key: "ttft_retry_max_attempts",
+    label: "Max Attempts",
+    kind: "number",
+    experimental: true,
+    description:
+      "Cap on total upstream attempts. 1 = original only (no retry). 2 = original + 1 same-key retry. 3 = original + 1 same-key retry + 1 rewrite-id escalation (when eligible). Must be between 1 and 3. Default: 2.",
+    required: true,
+    min: 1,
+    max: 3,
+  },
+  {
+    key: "ttft_retry_gate_saturation_pct",
+    label: "Gate Saturation",
+    kind: "number",
+    experimental: true,
+    description:
+      "Suppress retry when the gate active count is at or above this percentage of the soft limit. Prevents retries from deepening an already-saturated concurrency gate. Must be between 1 and 100. Default: 80 (%).",
+    required: true,
+    min: 1,
+    max: 100,
+    suffix: "%",
+  },
+  {
+    key: "ttft_retry_failure_threshold",
+    label: "Failure Threshold",
+    kind: "number",
+    experimental: true,
+    description:
+      "Consecutive retry-also-failed events within the failure window that trigger permanent auto-disable of the watchdog (until config reload). Must be ≥ 1. Default: 3.",
+    required: true,
+    min: 1,
+  },
+  {
+    key: "ttft_retry_failure_window_ms",
+    label: "Failure Window",
+    kind: "number",
+    experimental: true,
+    description:
+      "Sliding window in milliseconds during which consecutive retry failures are counted toward the auto-disable threshold. Must be ≥ 1,000. Default: 300,000 ms (5 min).",
+    required: true,
+    min: 1000,
+    suffix: "ms",
+  },
+  {
+    key: "ttft_retry_cooldown_ms",
+    label: "Retry Cooldown",
+    kind: "number",
+    experimental: true,
+    description:
+      "Delay in milliseconds between retry attempts. Allows the upstream a brief recovery window before the next attempt. Must be ≥ 0. Default: 30,000 ms (30 s).",
+    required: true,
+    min: 0,
+    suffix: "ms",
   },
 ];
 
@@ -473,6 +560,12 @@ export const GROUPS: GroupDef[] = [
         title: "oh-my-openagent",
         description: "Client-side mitigations for oh-my-openagent harness behaviors.",
         fields: OMO_INTEGRATION_FIELDS,
+      },
+      {
+        title: "TTFT Watchdog",
+        description:
+          "Experimental first-byte watchdog with gated retry. Aborts stalled upstream fetches and retries (same-key, then rewrite-escalation).",
+        fields: TTFT_WATCHDOG_FIELDS,
       },
     ],
   },

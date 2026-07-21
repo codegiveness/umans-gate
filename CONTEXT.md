@@ -105,6 +105,45 @@ and `gate_reason` set, and are excluded from `cached_pct` by the
 computation.
 _Avoid_: limiter, circuit breaker (those are components), admission control.
 
+**Permit**:
+The concurrency slot lease returned by `ConcurrencyGate.acquire()`. A
+permit is acquired before forwarding upstream and must be released exactly
+once. Release paths (all idempotent via `permitReleased` flag):
+1. `TransformStream.flush()` — normal stream completion.
+2. `onAbort` listener on `req.signal` — client disconnect.
+3. `onAbort` listener on `upstreamSignal` — upstream timeout/client-abort
+   propagated to the fetch signal (`AbortSignal.any([req.signal,
+   ttftController?.signal, AbortSignal.timeout(upstreamTimeoutMs)])`).
+   Fires when the upstream hangs after the Response has been returned to
+   Bun.serve (the `req.signal` alone does not abort in this case).
+4. `finally` block if streaming never started (`!streamingStarted`).
+5. Per-request watchdog timer — safety net that fires at
+   `upstream_timeout_ms + 5s` if none of the above fired. Catches
+   pathological cases where the stream errors but no signal aborts.
+A permit has a `weight` (scaled by `SCALE=1000`) and an `intention`
+(`"main"` or `"vision"`). Releases are batched and deferred by
+`release_cooldown_ms` (default 1000ms) — the slot counter decrements after
+the cooldown timer fires, not immediately on `release()`.
+_Avoid_: slot lease, concurrency token, gate ticket.
+
+**Permit leak**:
+A bug where a permit is acquired but never released, causing the gate's
+`active` counter to stay elevated permanently (until process restart).
+Distinct from a slow release (the cooldown delay): a leak means
+`releasePermit()` was never called at all. Symptoms: `active` exceeds
+the true in-flight count, and captures remain stuck in `state="streaming"`
+with no terminal status. Root cause: when the upstream sends some data
+then hangs (post-return), `AbortSignal.timeout(upstreamTimeoutMs)` aborts
+the `upstreamSignal`, but `req.signal` does NOT abort (the client is still
+connected). On Bun 1.3.14, `TransformStream.flush()` does not fire on
+abnormal termination, and `TransformStream.cancel()` is not called
+(contradicts WHATWG spec but empirically confirmed). Before the fix,
+`onAbort` listened only on `req.signal`, so the permit leaked. Fixed by
+also listening on `upstreamSignal` (Part A), fixing the already-aborted
+`req.signal` branch (Part B), and adding a per-request watchdog timer
+(Part C).
+_Avoid_: slot leak, concurrency leak, stuck slot.
+
 **Breakpoint repositioning**:
 A harness-side behavior (opencode) where `cache_control` breakpoints are
 placed on the rolling message tip — the last assistant `tool_use` and last
