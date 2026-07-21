@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
+  checkForUpdate,
   computeSha256,
   downloadAndReplaceStandaloneBinary,
   parseSha256Sums,
+  performUpdate,
 } from "../src/updater.js";
 
 test("parseSha256Sums returns the digest for a matching asset name", () => {
@@ -128,5 +130,109 @@ describe("downloadAndReplaceStandaloneBinary checksum verification", () => {
     mockFetch(actualDigest, actualDigest);
     await expect(downloadAndReplaceStandaloneBinary("2.0.0")).resolves.toBeUndefined();
     expect(exitCode).toBeNull();
+  });
+});
+
+describe("version fetch fallback and error surfacing", () => {
+  let originalFetch: typeof fetch;
+  let originalExit: typeof process.exit;
+  let originalConsoleLog: typeof console.log;
+  let originalConsoleError: typeof console.error;
+  let logs: string[];
+  let errors: string[];
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+    originalExit = process.exit;
+    originalConsoleLog = console.log;
+    originalConsoleError = console.error;
+    logs = [];
+    errors = [];
+    console.log = (...args: unknown[]) => logs.push(args.join(" "));
+    console.error = (...args: unknown[]) => errors.push(args.join(" "));
+    process.exit = ((code?: number | string | null | undefined) => {
+      throw new Error(`process.exit(${typeof code === "number" ? code : 0})`);
+    }) as typeof process.exit;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    process.exit = originalExit;
+    console.log = originalConsoleLog;
+    console.error = originalConsoleError;
+  });
+
+  test("checkForUpdate uses npm registry when GitHub is rate-limited", async () => {
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const url = input.toString();
+      if (url.includes("registry.npmjs.org")) {
+        return Response.json({ version: "1.2.3" });
+      }
+      if (url.includes("api.github.com")) {
+        return new Response("rate limit exceeded", { status: 403 });
+      }
+      return new Response("not found", { status: 404 });
+    }) as unknown as typeof fetch;
+
+    await checkForUpdate("1.0.0");
+    expect(logs.join("\n")).toContain("1.0.0 → 1.2.3");
+  });
+
+  test("checkForUpdate surfaces combined error when both sources fail", async () => {
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const url = input.toString();
+      if (url.includes("registry.npmjs.org")) {
+        return new Response("server error", { status: 500 });
+      }
+      if (url.includes("api.github.com")) {
+        return new Response("rate limit exceeded", { status: 403 });
+      }
+      return new Response("not found", { status: 404 });
+    }) as unknown as typeof fetch;
+
+    await expect(checkForUpdate("1.0.0")).rejects.toThrow("process.exit(1)");
+    const joined = errors.join("\n");
+    expect(joined).toContain("Could not fetch latest version.");
+    expect(joined).toContain("npm registry");
+    expect(joined).toContain("GitHub");
+  });
+
+  test("checkForUpdate surfaces rate-limit reset time from GitHub", async () => {
+    const resetTs = Math.floor(Date.now() / 1000) + 3600;
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const url = input.toString();
+      if (url.includes("registry.npmjs.org")) {
+        return new Response("", { status: 502 });
+      }
+      if (url.includes("api.github.com")) {
+        return new Response("rate limited", {
+          status: 403,
+          headers: { "x-ratelimit-reset": String(resetTs) },
+        });
+      }
+      return new Response("not found", { status: 404 });
+    }) as unknown as typeof fetch;
+
+    await expect(checkForUpdate("1.0.0")).rejects.toThrow("process.exit(1)");
+    expect(errors.join("\n")).toContain("rate limit resets at");
+  });
+
+  test("performUpdate surfaces error when both sources fail", async () => {
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const url = input.toString();
+      if (url.includes("registry.npmjs.org")) {
+        return new Response("", { status: 503 });
+      }
+      if (url.includes("api.github.com")) {
+        return new Response("rate limited", { status: 403 });
+      }
+      return new Response("not found", { status: 404 });
+    }) as unknown as typeof fetch;
+
+    await expect(performUpdate("1.0.0")).rejects.toThrow("process.exit(1)");
+    const joined = errors.join("\n");
+    expect(joined).toContain("Could not fetch latest version.");
+    expect(joined).toContain("npm registry");
+    expect(joined).toContain("GitHub");
   });
 });

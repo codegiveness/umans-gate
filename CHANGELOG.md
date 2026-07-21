@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.8] - 2026-07-21
+
+### Fixed
+
+- **`umans-gate update` failed with "Could not fetch latest version from
+  GitHub" when the GitHub API was rate-limited.** The unauthenticated
+  GitHub API limit (60/hour, shared across an IP) was easily exhausted,
+  and the updater had no fallback. The version check now:
+
+  - Queries the npm registry (`https://registry.npmjs.org/umans-gate/latest`)
+    first — not rate-limited, and authoritative for npm installs.
+  - Falls back to GitHub Releases (still needed for standalone-binary
+    version checks).
+  - Surfaces the actual error reason on failure instead of a generic
+    message — including the rate-limit reset time when GitHub returns
+    403/429.
+
+  The same rate-limit-aware error surfacing was applied to
+  `downloadAndReplaceStandaloneBinary` for the standalone-binary update
+  path.
+
 ## [0.3.7] - 2026-07-21
 
 ### Added

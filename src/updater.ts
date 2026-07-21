@@ -18,6 +18,8 @@ import { dirname, join } from "node:path";
 
 const GITHUB_API = "https://api.github.com/repos/codegiveness/umans-gate/releases/latest";
 
+const NPM_REGISTRY = "https://registry.npmjs.org/umans-gate/latest";
+
 const SHA256SUMS_ASSET = "SHA256SUMS";
 
 /**
@@ -55,30 +57,115 @@ interface GithubRelease {
   assets: Array<{ name: string; browser_download_url: string; size: number }>;
 }
 
-/** Fetch latest version from GitHub Releases. */
-async function fetchLatestVersion(): Promise<string | null> {
+/** Result of attempting to fetch the latest version. */
+interface VersionFetchResult {
+  version: string | null;
+  /** Human-readable explanation when `version` is null. */
+  error: string | null;
+}
+
+/** Fetch latest version from the npm registry. */
+async function fetchVersionFromNpm(): Promise<VersionFetchResult> {
   try {
-    const resp = await fetch(GITHUB_API, {
-      headers: { "User-Agent": "umans-gate-updater" },
+    const resp = await fetch(NPM_REGISTRY, {
+      headers: { Accept: "application/json" },
     });
-    if (!resp.ok) return null;
-    const data = (await resp.json()) as GithubRelease;
-    return data.tag_name.replace(/^v/, "");
-  } catch {
-    return null;
+    if (!resp.ok) {
+      return { version: null, error: `npm registry returned HTTP ${resp.status}` };
+    }
+    const data = (await resp.json()) as { version?: string };
+    if (typeof data.version !== "string" || !data.version) {
+      return { version: null, error: "npm registry response missing version field" };
+    }
+    return { version: data.version, error: null };
+  } catch (e) {
+    return {
+      version: null,
+      error: `npm registry unreachable: ${e instanceof Error ? e.message : String(e)}`,
+    };
   }
 }
 
-/** Fetch the full release data including assets. */
-async function fetchLatestRelease(): Promise<GithubRelease | null> {
+/** Fetch latest version from GitHub Releases. */
+async function fetchVersionFromGithub(): Promise<VersionFetchResult> {
   try {
     const resp = await fetch(GITHUB_API, {
       headers: { "User-Agent": "umans-gate-updater" },
     });
-    if (!resp.ok) return null;
-    return (await resp.json()) as GithubRelease;
-  } catch {
-    return null;
+    if (!resp.ok) {
+      if (resp.status === 403 || resp.status === 429) {
+        const reset = resp.headers.get("x-ratelimit-reset");
+        const hint = reset
+          ? ` (rate limit resets at ${new Date(Number(reset) * 1000).toISOString()})`
+          : "";
+        return {
+          version: null,
+          error: `GitHub API rate-limited (HTTP ${resp.status})${hint}`,
+        };
+      }
+      return { version: null, error: `GitHub API returned HTTP ${resp.status}` };
+    }
+    const data = (await resp.json()) as GithubRelease;
+    return { version: data.tag_name.replace(/^v/, ""), error: null };
+  } catch (e) {
+    return {
+      version: null,
+      error: `GitHub API unreachable: ${e instanceof Error ? e.message : String(e)}`,
+    };
+  }
+}
+
+/**
+ * Fetch the latest published version.
+ *
+ * Tries the npm registry first (authoritative for npm installs, not
+ * rate-limited). Falls back to GitHub Releases so standalone-binary
+ * updates can still resolve a version when npm is unreachable.
+ *
+ * Returns `{ version, error }` so callers can surface the real reason
+ * on failure instead of a generic message.
+ */
+async function fetchLatestVersion(): Promise<VersionFetchResult> {
+  const npmResult = await fetchVersionFromNpm();
+  if (npmResult.version) return npmResult;
+
+  const ghResult = await fetchVersionFromGithub();
+  if (ghResult.version) return ghResult;
+
+  return {
+    version: null,
+    error: `npm registry: ${npmResult.error}; GitHub: ${ghResult.error}`,
+  };
+}
+
+/** Fetch the full release data including assets. */
+async function fetchLatestRelease(): Promise<{
+  release: GithubRelease | null;
+  error: string | null;
+}> {
+  try {
+    const resp = await fetch(GITHUB_API, {
+      headers: { "User-Agent": "umans-gate-updater" },
+    });
+    if (!resp.ok) {
+      if (resp.status === 403 || resp.status === 429) {
+        const reset = resp.headers.get("x-ratelimit-reset");
+        const hint = reset
+          ? ` (rate limit resets at ${new Date(Number(reset) * 1000).toISOString()})`
+          : "";
+        return {
+          release: null,
+          error: `GitHub API rate-limited (HTTP ${resp.status})${hint}`,
+        };
+      }
+      return { release: null, error: `GitHub API returned HTTP ${resp.status}` };
+    }
+    return { release: (await resp.json()) as GithubRelease, error: null };
+  } catch (e) {
+    return {
+      release: null,
+      error: `GitHub API unreachable: ${e instanceof Error ? e.message : String(e)}`,
+    };
   }
 }
 
@@ -142,9 +229,10 @@ function platformAssetName(): string | null {
  * The service must be stopped before calling this (done by the CLI update command).
  */
 export async function downloadAndReplaceStandaloneBinary(_latestVersion: string): Promise<void> {
-  const release = await fetchLatestRelease();
+  const { release, error } = await fetchLatestRelease();
   if (!release) {
     console.error("Could not fetch release assets from GitHub.");
+    if (error) console.error(`Reason: ${error}`);
     process.exit(1);
   }
 
@@ -250,9 +338,10 @@ export async function downloadAndReplaceStandaloneBinary(_latestVersion: string)
 /** Check for available update without installing. Prints result and exits. */
 export async function checkForUpdate(currentVersion: string): Promise<void> {
   console.log("Checking for updates...");
-  const latest = await fetchLatestVersion();
+  const { version: latest, error } = await fetchLatestVersion();
   if (!latest) {
-    console.error("Could not fetch latest version from GitHub.");
+    console.error("Could not fetch latest version.");
+    if (error) console.error(`Reason: ${error}`);
     process.exit(1);
   }
 
@@ -270,9 +359,10 @@ export async function checkForUpdate(currentVersion: string): Promise<void> {
 /** Perform the update based on install method. */
 export async function performUpdate(currentVersion: string): Promise<void> {
   console.log("Checking for updates...");
-  const latest = await fetchLatestVersion();
+  const { version: latest, error } = await fetchLatestVersion();
   if (!latest) {
-    console.error("Could not fetch latest version from GitHub.");
+    console.error("Could not fetch latest version.");
+    if (error) console.error(`Reason: ${error}`);
     process.exit(1);
   }
 
