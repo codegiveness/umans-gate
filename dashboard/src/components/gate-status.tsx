@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { badgeGold, badgeInfo, badgeSuccess, badgeWarning } from "@/lib/badge-colors";
-import { fmtUtcDateTime } from "@/lib/format";
+import { badgeGold, badgeInfo, badgeSuccess, badgeWarning, budgetTier } from "@/lib/badge-colors";
+import { fmtDurationUntil, fmtUtcDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { GateStats } from "@/types";
 import { AlertTriangle, ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
@@ -192,6 +192,48 @@ export function GateStatus({ stats }: { stats: GateStats | null }) {
               </TooltipTrigger>
               <TooltipContent side="bottom" className="max-w-[240px]">
                 Last usage fetch failed — rate limit counters may be inaccurate
+              </TooltipContent>
+            </Tooltip>
+          )}
+          {stats.usageOk && stats.priorityBudgetSummary && (
+            <Tooltip>
+              <TooltipTrigger render={<span className="inline-flex" />}>
+                {(() => {
+                  const tier = budgetTier(stats.priorityBudgetSummary);
+                  const label = `${stats.priorityBudgetSummary.category} ${stats.priorityBudgetSummary.usedPct}%`;
+                  if (tier === "red") {
+                    return <Badge variant="destructive">{label}</Badge>;
+                  }
+                  return (
+                    <Badge
+                      variant="secondary"
+                      className={tier === "amber" ? badgeWarning : badgeInfo}
+                    >
+                      {label}
+                    </Badge>
+                  );
+                })()}
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[260px]">
+                <div className="space-y-1">
+                  <p>{stats.priorityBudgetSummary.label}</p>
+                  <p className="text-muted-foreground">
+                    {stats.priorityBudgetSummary.models.join(", ")}
+                  </p>
+                  <p className="text-muted-foreground">
+                    {stats.priorityBudgetSummary.usedPct}% used
+                  </p>
+                  <p className="text-muted-foreground">mode: {stats.priorityBudgetSummary.mode}</p>
+                  {stats.priorityBudgetSummary.overBudgetToday && (
+                    <p className="text-muted-foreground">over budget today</p>
+                  )}
+                  {(() => {
+                    const resetText = fmtDurationUntil(stats.priorityBudgetSummary.resetsAt);
+                    return resetText ? (
+                      <p className="text-muted-foreground">resets in {resetText}</p>
+                    ) : null;
+                  })()}
+                </div>
               </TooltipContent>
             </Tooltip>
           )}

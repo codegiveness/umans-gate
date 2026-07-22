@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { UsageTab } from "@/components/usage-tab";
 import { flushEffects } from "@/test/utils";
-import type { UsageSampleRow } from "@/types";
+import type { PriorityBudgetEntry, UsageSampleRow } from "@/types";
 
 const mockRow = vi.hoisted(() => {
   const row: UsageSampleRow = {
@@ -57,6 +57,26 @@ const mockUseUsageHistory = vi.hoisted(() =>
   })),
 );
 
+type UseUsageResult = {
+  data: import("@/types").UsageSnapshot | null;
+  loading: boolean;
+  error: string | null;
+  refresh: () => void;
+};
+
+const mockUseUsage = vi.hoisted(() =>
+  vi.fn<() => UseUsageResult>(() => ({
+    data: null,
+    loading: false,
+    error: null,
+    refresh: () => {},
+  })),
+);
+
+vi.mock("@/hooks/use-usage", () => ({
+  useUsage: mockUseUsage,
+}));
+
 vi.mock("@/hooks/use-usage-history", () => ({
   useUsageHistory: mockUseUsageHistory,
 }));
@@ -96,6 +116,53 @@ vi.mock("@/hooks/use-config", () => ({
   }),
 }));
 
+function makeBudgetEntry(overrides: Partial<PriorityBudgetEntry> = {}): PriorityBudgetEntry {
+  return {
+    category: "frontier",
+    label: "Frontier models",
+    models: ["umans-glm-5", "umans-glm-coder"],
+    usedPct: 50,
+    overBudgetToday: false,
+    mode: "priority",
+    resetsAt: null,
+    ...overrides,
+  };
+}
+
+function snapshotWith(entries: PriorityBudgetEntry[]): import("@/types").UsageSnapshot {
+  return {
+    ok: true,
+    fetchedAt: Date.now(),
+    userId: null,
+    plan: "Code Pro",
+    planSlug: "code-pro",
+    requestsLimit: null,
+    requestsHardCap: null,
+    requestsWindowSeconds: null,
+    concurrencySoftLimit: 8,
+    concurrencyHardCap: 16,
+    requestsInWindow: 0,
+    weightedRequestsInWindow: 0,
+    requestsRemaining: null,
+    weightedRemainingRequests: null,
+    concurrentSessions: 0,
+    weightedConcurrentSessions: 0,
+    tokensIn: 0,
+    tokensOut: 0,
+    tokensCached: 0,
+    windowStartedAt: null,
+    windowResetsAt: null,
+    windowRemainingMinutes: null,
+    priorityLow: false,
+    boxedUntil: null,
+    boxedReason: null,
+    unitsDemoted: false,
+    demotedUntil: null,
+    serviceMode: { current: "normal", resetsAt: null },
+    priorityBudget: entries,
+  };
+}
+
 describe("UsageTab", () => {
   it("renders the Usage heading", async () => {
     render(<UsageTab />);
@@ -132,5 +199,103 @@ describe("UsageTab", () => {
     render(<UsageTab />);
     await flushEffects();
     expect(screen.getByText(/Something went wrong/i)).toBeInTheDocument();
+  });
+
+  describe("priority budget cards", () => {
+    it("renders one card per priorityBudget entry, including 0%", async () => {
+      mockUseUsage.mockReturnValueOnce({
+        data: snapshotWith([
+          makeBudgetEntry({ label: "Frontier models", usedPct: 0, models: ["umans-glm-5"] }),
+          makeBudgetEntry({ label: "Standard models", usedPct: 42, models: ["umans-flash"] }),
+        ]),
+        loading: false,
+        error: null,
+        refresh: () => {},
+      });
+      render(<UsageTab />);
+      await flushEffects();
+      expect(screen.getByText("Frontier models")).toBeInTheDocument();
+      expect(screen.getByText("Standard models")).toBeInTheDocument();
+      expect(screen.getByText("0%")).toBeInTheDocument();
+      expect(screen.getByText("42%")).toBeInTheDocument();
+      expect(screen.getByText(/umans-glm-5/i)).toBeInTheDocument();
+      expect(screen.getByText(/umans-flash/i)).toBeInTheDocument();
+    });
+
+    it("renders mode badge as lowercase gold badge", async () => {
+      mockUseUsage.mockReturnValueOnce({
+        data: snapshotWith([makeBudgetEntry({ mode: "Priority" })]),
+        loading: false,
+        error: null,
+        refresh: () => {},
+      });
+      const { container } = render(<UsageTab />);
+      await flushEffects();
+      const goldBadge = container.querySelector('[data-variant="secondary"].bg-yellow-100');
+      expect(goldBadge).not.toBeNull();
+      expect(goldBadge?.textContent).toBe("priority");
+    });
+
+    it("renders reset line when overBudgetToday and resetsAt non-null", async () => {
+      const resetsAt = Date.now() + 90 * 60 * 1000;
+      mockUseUsage.mockReturnValueOnce({
+        data: snapshotWith([makeBudgetEntry({ overBudgetToday: true, usedPct: 100, resetsAt })]),
+        loading: false,
+        error: null,
+        refresh: () => {},
+      });
+      render(<UsageTab />);
+      await flushEffects();
+      expect(screen.getByText(/resets in/i)).toBeInTheDocument();
+    });
+
+    it("renders muted reset line when not over budget and resetsAt non-null", async () => {
+      const resetsAt = Date.now() + 90 * 60 * 1000;
+      mockUseUsage.mockReturnValueOnce({
+        data: snapshotWith([makeBudgetEntry({ overBudgetToday: false, usedPct: 50, resetsAt })]),
+        loading: false,
+        error: null,
+        refresh: () => {},
+      });
+      render(<UsageTab />);
+      await flushEffects();
+      expect(screen.getByText(/resets in/i)).toBeInTheDocument();
+    });
+
+    it("omits reset line when resetsAt is null", async () => {
+      mockUseUsage.mockReturnValueOnce({
+        data: snapshotWith([makeBudgetEntry({ resetsAt: null, overBudgetToday: false })]),
+        loading: false,
+        error: null,
+        refresh: () => {},
+      });
+      render(<UsageTab />);
+      await flushEffects();
+      expect(screen.queryByText(/resets in/i)).not.toBeInTheDocument();
+    });
+
+    it("renders no cards when priorityBudget is empty", async () => {
+      mockUseUsage.mockReturnValueOnce({
+        data: snapshotWith([]),
+        loading: false,
+        error: null,
+        refresh: () => {},
+      });
+      render(<UsageTab />);
+      await flushEffects();
+      expect(screen.queryByText("Frontier models")).not.toBeInTheDocument();
+    });
+
+    it("renders no cards when useUsage data is null", async () => {
+      mockUseUsage.mockReturnValueOnce({
+        data: null,
+        loading: false,
+        error: null,
+        refresh: () => {},
+      });
+      render(<UsageTab />);
+      await flushEffects();
+      expect(screen.queryByText("Frontier models")).not.toBeInTheDocument();
+    });
   });
 });

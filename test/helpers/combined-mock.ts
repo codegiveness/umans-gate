@@ -33,7 +33,18 @@ export interface CombinedMockHandle {
     tokensOut?: number;
     tokensCached?: number;
   }): void;
+  setPriorityBudget(entries: RawPriorityBudgetEntry[] | null): void;
   close(): Promise<void>;
+}
+
+export interface RawPriorityBudgetEntry {
+  category: string;
+  label: string;
+  models: string[];
+  used_pct: number;
+  over_budget_today: boolean;
+  mode: string;
+  resets_at: string | number | null;
 }
 
 interface RawUsage {
@@ -61,6 +72,7 @@ interface RawUsage {
       current: string;
       resets_at: number | null;
     };
+    priority_budget?: RawPriorityBudgetEntry[];
   };
 }
 
@@ -82,6 +94,7 @@ export function startCombinedMock(config: CombinedMockConfig): CombinedMockHandl
   let tokensIn = 0;
   let tokensOut = 0;
   let tokensCached = 0;
+  let priorityBudget: RawPriorityBudgetEntry[] | null = null;
 
   const buildUsage = (): RawUsage => ({
     plan: { display_name: config.planName ?? "Code Pro" },
@@ -101,6 +114,7 @@ export function startCombinedMock(config: CombinedMockConfig): CombinedMockHandl
       tokens_cached: tokensCached,
       priority: { low: priorityLow, boxed_until: boxedUntil, reason: boxedReason },
       service_mode: { current: serviceModeCurrent, resets_at: serviceModeResetsAt },
+      ...(priorityBudget !== null ? { priority_budget: priorityBudget } : {}),
     },
   });
 
@@ -210,6 +224,9 @@ export function startCombinedMock(config: CombinedMockConfig): CombinedMockHandl
       if (state.tokensIn !== undefined) tokensIn = state.tokensIn;
       if (state.tokensOut !== undefined) tokensOut = state.tokensOut;
       if (state.tokensCached !== undefined) tokensCached = state.tokensCached;
+    },
+    setPriorityBudget(entries: RawPriorityBudgetEntry[] | null) {
+      priorityBudget = entries;
     },
     close(): Promise<void> {
       return new Promise((resolve) => {

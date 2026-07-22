@@ -39,6 +39,26 @@ const validRawResponse = {
     tokens_cached: 50000,
     priority: { low: false, boxed_until: null, reason: null },
     service_mode: { current: "interactive", resets_at: null },
+    priority_budget: [
+      {
+        category: "frontier",
+        label: "Frontier models",
+        models: ["umans-coder", "umans-glm-5.2", "umans-kimi-k2.7"],
+        used_pct: 11,
+        over_budget_today: false,
+        mode: "interactive",
+        resets_at: null,
+      },
+      {
+        category: "standard",
+        label: "Standard models",
+        models: ["umans-flash"],
+        used_pct: 80,
+        over_budget_today: true,
+        mode: "batch",
+        resets_at: "2026-07-16T12:00:00Z",
+      },
+    ],
   },
 };
 
@@ -235,6 +255,35 @@ test("failSafeSnapshot sets service_mode to normal", () => {
   const snap = failSafeSnapshot();
   expect(snap.serviceMode.current).toBe("normal");
   expect(snap.serviceMode.resetsAt).toBeNull();
+});
+
+test("buildSnapshot maps priority_budget to priorityBudget", () => {
+  const snap = buildSnapshot(validRawResponse, true, 8, 4);
+  expect(snap.priorityBudget).toHaveLength(2);
+  const [frontier, standard] = snap.priorityBudget;
+  expect(frontier.category).toBe("frontier");
+  expect(frontier.label).toBe("Frontier models");
+  expect(frontier.models).toEqual(["umans-coder", "umans-glm-5.2", "umans-kimi-k2.7"]);
+  expect(frontier.usedPct).toBe(11);
+  expect(frontier.overBudgetToday).toBe(false);
+  expect(frontier.mode).toBe("interactive");
+  expect(frontier.resetsAt).toBeNull();
+  expect(standard.category).toBe("standard");
+  expect(standard.overBudgetToday).toBe(true);
+  expect(standard.mode).toBe("batch");
+  expect(standard.resetsAt).toBe(Date.parse("2026-07-16T12:00:00Z"));
+});
+
+test("buildSnapshot defaults priority_budget to [] when absent", () => {
+  const { priority_budget: _, ...usageWithoutBudget } = validRawResponse.usage;
+  const raw = { ...validRawResponse, usage: usageWithoutBudget };
+  const snap = buildSnapshot(raw, true, 8, 4);
+  expect(snap.priorityBudget).toEqual([]);
+});
+
+test("failSafeSnapshot returns priorityBudget: []", () => {
+  const snap = failSafeSnapshot();
+  expect(snap.priorityBudget).toEqual([]);
 });
 
 test("buildSnapshot converts ISO date strings to epoch ms", () => {

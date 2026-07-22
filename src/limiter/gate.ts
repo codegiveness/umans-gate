@@ -588,6 +588,7 @@ export class ConcurrencyGate {
       watchdog_disabled: false,
       watchdog_consecutive_failures: 0,
       watchdog_failure_window_started_at: null,
+      priorityBudgetSummary: null,
     };
   }
 

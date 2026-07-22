@@ -161,4 +161,51 @@ describe("Integration: usage WS broadcast (ticket 07)", () => {
       }
     }
   });
+
+  test("type:gate broadcast carries priorityBudgetSummary when upstream returns priority_budget", async () => {
+    upstream.setPriorityBudget([
+      {
+        category: "frontier",
+        label: "Frontier",
+        models: ["umans-glm-5.2"],
+        used_pct: 87,
+        over_budget_today: false,
+        mode: "normal",
+        resets_at: null,
+      },
+      {
+        category: "sonnet",
+        label: "Sonnet",
+        models: ["umans-sonnet"],
+        used_pct: 42,
+        over_budget_today: false,
+        mode: "normal",
+        resets_at: null,
+      },
+    ]);
+    const msg = await waitForMsg(
+      ws,
+      (m) =>
+        m.type === "gate" &&
+        (m.stats as Record<string, unknown>)?.priorityBudgetSummary !== undefined,
+      5000,
+    );
+    const stats = msg.stats as Record<string, unknown>;
+    const summary = stats.priorityBudgetSummary as Record<string, unknown> | null;
+    expect(summary).not.toBeNull();
+    expect(summary?.category).toBe("frontier");
+    expect(summary?.usedPct).toBe(87);
+  });
+
+  test("type:gate broadcast carries priorityBudgetSummary: null when upstream omits priority_budget", async () => {
+    upstream.setPriorityBudget(null);
+    const msg = await waitForMsg(
+      ws,
+      (m) =>
+        m.type === "gate" && (m.stats as Record<string, unknown>)?.priorityBudgetSummary === null,
+      5000,
+    );
+    const stats = msg.stats as Record<string, unknown>;
+    expect(stats.priorityBudgetSummary).toBeNull();
+  });
 });

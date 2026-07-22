@@ -31,6 +31,7 @@ import type { ProxyConfig } from "./types.js";
 import type { UsageHistoryStore } from "./usage-history/index.js";
 import { addDays, downsampleRange } from "./usage-history/index.js";
 import type { UmansUsageClient } from "./usage.js";
+import { selectMostUrgentBudget } from "./usage/budget.js";
 import type { VisionHandoff } from "./vision/handoff.js";
 import type { WsBroadcaster } from "./ws.js";
 
@@ -281,13 +282,15 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
       method: "GET",
       pattern: `${VIEWER}/api/gate`,
       handler: (ctx) => {
-        const stats = ctx.gate.getStats(ctx.usage.getSnapshot());
+        const snap = ctx.usage.getSnapshot();
+        const stats = ctx.gate.getStats(snap);
         const wd = ctx.ttftState.getStats();
         return Response.json({
           ...stats,
           watchdog_disabled: wd.disabled,
           watchdog_consecutive_failures: wd.consecutiveFailures,
           watchdog_failure_window_started_at: wd.windowStartedAt,
+          priorityBudgetSummary: selectMostUrgentBudget(snap.priorityBudget),
         });
       },
     },

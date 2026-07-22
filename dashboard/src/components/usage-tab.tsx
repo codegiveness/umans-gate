@@ -20,14 +20,16 @@ import { UsageHeatmap } from "@/components/usage-heatmap";
 import { UsageTimeline } from "@/components/usage-timeline";
 import { UsageTimelineOld } from "@/components/usage-timeline-old";
 import { useConfig } from "@/hooks/use-config";
+import { useUsage } from "@/hooks/use-usage";
 import { useUsageDaily } from "@/hooks/use-usage-daily";
 import { useUsageDay } from "@/hooks/use-usage-day";
 import { useUsageHistory } from "@/hooks/use-usage-history";
 import { useUsageWs } from "@/hooks/use-usage-ws";
-import { fmtUtcTime } from "@/lib/format";
+import { badgeGold, budgetTier } from "@/lib/badge-colors";
+import { fmtDurationUntil, fmtUtcTime } from "@/lib/format";
 import { type RangePreset, addDays, dayAgeDays, presetRange, todayUtc } from "@/lib/usage-heatmap";
 import { findDailyRow } from "@/lib/usage-timeline-old";
-import type { UsageSampleRow } from "@/types";
+import type { PriorityBudgetEntry, UsageSampleRow } from "@/types";
 
 /** Default raw-sample retention (days) when the config endpoint hasn't
  *  loaded or doesn't surface the field. Matches the backend default. */
@@ -65,6 +67,8 @@ export function UsageTab() {
 
   const { config } = useConfig();
   const rawRetentionDays = config?.usage_raw_retention_days ?? DEFAULT_RAW_RETENTION_DAYS;
+
+  const { data: usageSnap } = useUsage();
 
   const { samples, loading, error, refresh } = useUsageHistory("today");
 
@@ -177,6 +181,10 @@ export function UsageTab() {
 
       <ScrollArea className="min-h-0 flex-1">
         <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col gap-4 p-4">
+          {usageSnap?.priorityBudget?.length ? (
+            <PriorityBudgetCards entries={usageSnap.priorityBudget} />
+          ) : null}
+
           {dailyError ? (
             <div className="flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-destructive">
               <AlertCircle className="h-3.5 w-3.5" />
@@ -258,6 +266,57 @@ interface TodaySamplesSectionProps {
   loading: boolean;
   error: string | null;
   onRefresh: () => void;
+}
+
+const TIER_BAR_CLASS: Record<"blue" | "amber" | "red", string> = {
+  blue: "bg-primary",
+  amber: "bg-amber-500",
+  red: "bg-destructive",
+};
+
+function PriorityBudgetCards({ entries }: { entries: PriorityBudgetEntry[] }): JSX.Element {
+  return (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {entries.map((entry) => {
+        const tier = budgetTier(entry);
+        const barClass = TIER_BAR_CLASS[tier];
+        const resets = fmtDurationUntil(entry.resetsAt);
+        return (
+          <Card key={entry.category}>
+            <CardContent className="px-4 py-3">
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold">{entry.label}</h3>
+                <Badge variant="secondary" size="sm" className={badgeGold}>
+                  {entry.mode.toLowerCase()}
+                </Badge>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className={`h-full rounded-full transition-all ${barClass}`}
+                  style={{ width: `${Math.min(entry.usedPct, 100)}%` }}
+                />
+              </div>
+              <div className="mt-1.5 flex items-center justify-between gap-2">
+                <span
+                  className={`text-xs tabular-nums ${entry.overBudgetToday ? "text-destructive" : ""}`}
+                >
+                  {entry.usedPct}%
+                </span>
+                {entry.overBudgetToday && resets ? (
+                  <span className="text-xs text-destructive">resets in {resets}</span>
+                ) : resets ? (
+                  <span className="text-xs text-muted-foreground">resets in {resets}</span>
+                ) : null}
+              </div>
+              {entry.models.length > 0 ? (
+                <p className="mt-1.5 text-xs text-muted-foreground">{entry.models.join(", ")}</p>
+              ) : null}
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
 }
 
 function TodaySamplesSection({

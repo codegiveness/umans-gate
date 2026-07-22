@@ -55,6 +55,20 @@ export function fmtUtcTime(ts: number | null | undefined): string {
   }).format(ts);
 }
 
+export function fmtDurationUntil(ts: number | null): string {
+  if (!ts) return "";
+  const ms = ts - Date.now();
+  const abs = Math.abs(ms);
+  if (abs < 5000) return "now";
+  if (ms <= 0) return "";
+  const totalMinutes = Math.floor(ms / 60000);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}h`;
+  return `${minutes}m`;
+}
+
 /** Full UTC date-time: `MMM d, yyyy, HH:mm:ss` (24-hour). Empty for nullish/zero. */
 export function fmtUtcDateTime(ts: number | null | undefined): string {
   if (!ts) return "";

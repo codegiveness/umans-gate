@@ -44,6 +44,7 @@ const baseStats: GateStats = {
   watchdog_disabled: false,
   watchdog_consecutive_failures: 0,
   watchdog_failure_window_started_at: null,
+  priorityBudgetSummary: null,
 };
 
 describe("GateStatus service mode", () => {
@@ -126,5 +127,131 @@ describe("GateStatus service mode", () => {
     const { container } = render(<GateStatus stats={baseStats} />);
     await flushEffects();
     expect(container).not.toHaveTextContent("watchdog off");
+  });
+});
+
+describe("GateStatus priority budget badge", () => {
+  const budget = (overrides: Partial<GateStats["priorityBudgetSummary"]> = null) => {
+    if (overrides === null) return null;
+    return {
+      category: "frontier",
+      label: "Frontier models",
+      models: ["umans-glm-5.2", "umans-o3"],
+      usedPct: 11,
+      overBudgetToday: false,
+      mode: "standard",
+      resetsAt: 1893456000000,
+      ...overrides,
+    };
+  };
+
+  it("renders blue badge when usedPct below 80 and not over budget", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          priorityBudgetSummary: budget({ usedPct: 11, overBudgetToday: false }),
+        }}
+      />,
+    );
+    await flushEffects();
+    expect(container).toHaveTextContent("frontier 11%");
+    const badges = container.querySelectorAll("[data-slot='badge']");
+    const badgeTexts = Array.from(badges).map((b) => b.textContent?.trim() ?? "");
+    expect(badgeTexts).toContain("frontier 11%");
+    const budgetBadge = Array.from(badges).find((b) => b.textContent?.trim() === "frontier 11%");
+    expect(budgetBadge?.className).toContain("bg-blue");
+  });
+
+  it("renders amber badge when usedPct at 85 and not over budget", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          priorityBudgetSummary: budget({ usedPct: 85, overBudgetToday: false }),
+        }}
+      />,
+    );
+    await flushEffects();
+    expect(container).toHaveTextContent("frontier 85%");
+    const badges = container.querySelectorAll("[data-slot='badge']");
+    const budgetBadge = Array.from(badges).find((b) => b.textContent?.trim() === "frontier 85%");
+    expect(budgetBadge?.className).toContain("bg-amber");
+  });
+
+  it("renders red badge when overBudgetToday is true", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          priorityBudgetSummary: budget({ usedPct: 50, overBudgetToday: true }),
+        }}
+      />,
+    );
+    await flushEffects();
+    expect(container).toHaveTextContent("frontier 50%");
+    const badges = container.querySelectorAll("[data-slot='badge']");
+    const budgetBadge = Array.from(badges).find((b) => b.textContent?.trim() === "frontier 50%");
+    expect(budgetBadge?.className).toContain("text-destructive");
+  });
+
+  it("does not render budget badge when priorityBudgetSummary is null", async () => {
+    const { container } = render(<GateStatus stats={baseStats} />);
+    await flushEffects();
+    const badges = container.querySelectorAll("[data-slot='badge']");
+    const badgeTexts = Array.from(badges).map((b) => b.textContent?.trim() ?? "");
+    expect(badgeTexts.some((t) => t.includes("frontier"))).toBe(false);
+  });
+
+  it("does not render budget badge when usage is stale", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          usageOk: false,
+          priorityBudgetSummary: budget({ usedPct: 11 }),
+        }}
+      />,
+    );
+    await flushEffects();
+    expect(container).toHaveTextContent("usage: stale");
+    const badges = container.querySelectorAll("[data-slot='badge']");
+    const badgeTexts = Array.from(badges).map((b) => b.textContent?.trim() ?? "");
+    expect(badgeTexts.some((t) => t.includes("frontier"))).toBe(false);
+  });
+
+  it("tooltip includes models, mode, and reset time when resetsAt is non-null", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          priorityBudgetSummary: budget({
+            models: ["umans-glm-5.2", "umans-o3"],
+            mode: "standard",
+            resetsAt: 1893456000000,
+          }),
+        }}
+      />,
+    );
+    await flushEffects();
+    expect(container).toHaveTextContent("Frontier models");
+    expect(container).toHaveTextContent("umans-glm-5.2");
+    expect(container).toHaveTextContent("umans-o3");
+    expect(container).toHaveTextContent("mode: standard");
+    expect(container).toHaveTextContent("resets in");
+  });
+
+  it("omits reset time line when resetsAt is null", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          priorityBudgetSummary: budget({ resetsAt: null }),
+        }}
+      />,
+    );
+    await flushEffects();
+    expect(container).toHaveTextContent("Frontier models");
+    expect(container).not.toHaveTextContent("resets in");
   });
 });

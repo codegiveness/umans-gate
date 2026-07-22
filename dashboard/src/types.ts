@@ -155,6 +155,7 @@ export interface GateStats {
   watchdog_disabled: boolean;
   watchdog_consecutive_failures: number;
   watchdog_failure_window_started_at: number | null;
+  priorityBudgetSummary: PriorityBudgetSummary | null;
 }
 
 export type WsMessage =
@@ -188,6 +189,26 @@ export interface ServiceMode {
   resetsAt: number | null;
 }
 
+export interface PriorityBudgetEntry {
+  category: string;
+  label: string;
+  models: string[];
+  usedPct: number;
+  overBudgetToday: boolean;
+  mode: string;
+  resetsAt: number | null;
+}
+
+export interface PriorityBudgetSummary {
+  category: string;
+  label: string;
+  models: string[];
+  usedPct: number;
+  overBudgetToday: boolean;
+  mode: string;
+  resetsAt: number | null;
+}
+
 /** Snapshot of /v1/usage response (enriched subset). */
 export interface UsageSnapshot {
   ok: boolean;
@@ -218,6 +239,7 @@ export interface UsageSnapshot {
   unitsDemoted: boolean;
   demotedUntil: number | null;
   serviceMode: ServiceMode;
+  priorityBudget: PriorityBudgetEntry[];
 }
 
 export interface EconomicsDailyRow {

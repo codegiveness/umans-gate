@@ -1,7 +1,17 @@
 // Raw upstream /v1/usage response parsing + snapshot construction.
 // Pure functions: no I/O, no mutation. Reusable by aggregator + reconciler.
 
-import type { UsageSnapshot } from "../types.js";
+import type { PriorityBudgetEntry, UsageSnapshot } from "../types.js";
+
+export interface RawPriorityBudgetEntry {
+  category: string;
+  label: string;
+  models: string[];
+  used_pct: number;
+  over_budget_today: boolean;
+  mode: string;
+  resets_at: string | number | null;
+}
 
 /** Raw shape of the upstream /v1/usage response.
  *  Date fields (boxed_until, demoted_until, resets_at, window.started_at,
@@ -46,6 +56,7 @@ export interface RawUsage {
       current?: string;
       resets_at?: string | number | null;
     };
+    priority_budget?: RawPriorityBudgetEntry[];
   };
 }
 
@@ -67,6 +78,19 @@ function toEpochMs(v: string | number | null | undefined): number | null {
   if (typeof v === "number") return v;
   const ms = Date.parse(v);
   return Number.isNaN(ms) ? null : ms;
+}
+
+function mapPriorityBudget(raw: RawPriorityBudgetEntry[] | undefined): PriorityBudgetEntry[] {
+  if (!raw) return [];
+  return raw.map((e) => ({
+    category: e.category,
+    label: e.label,
+    models: e.models,
+    usedPct: e.used_pct,
+    overBudgetToday: e.over_budget_today,
+    mode: e.mode,
+    resetsAt: toEpochMs(e.resets_at),
+  }));
 }
 
 /** Build a UsageSnapshot from a parsed raw response.
@@ -112,6 +136,7 @@ export function buildSnapshot(
       current: raw.usage?.service_mode?.current ?? "normal",
       resetsAt: toEpochMs(raw.usage?.service_mode?.resets_at),
     },
+    priorityBudget: mapPriorityBudget(raw.usage?.priority_budget),
   };
 }
 
@@ -147,5 +172,6 @@ export function failSafeSnapshot(): UsageSnapshot {
     unitsDemoted: false,
     demotedUntil: null,
     serviceMode: { current: "normal", resetsAt: null },
+    priorityBudget: [],
   };
 }

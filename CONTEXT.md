@@ -302,3 +302,23 @@ counters (`tokens_in`, `tokens_out`, `tokens_cached`), not per-request
 capture data, so it reflects account-level cache efficiency at the
 moment of the poll.
 _Avoid_: cache hit rate (without qualifier), hit ratio, cache efficiency.
+
+**Priority budget**:
+An upstream account-level usage budget category (e.g. "frontier"),
+returned by `/v1/usage` as an array entry with `category`, `label`,
+`models[]`, `used_pct`, `over_budget_today`, `mode`, and `resets_at`.
+Distinct from the proxy's internal rate-limiting gate: the upstream
+enforces the budget, the proxy only surfaces it for display. Not
+persisted in `usage_samples` or `usage_events`; served live on
+`UsageSnapshot.priorityBudget` and summarized as
+`GateStats.priorityBudgetSummary`.
+_Avoid_: budget tier, spending cap, model budget.
+
+**Most urgent budget**:
+The single `priority_budget` entry selected for the compact GateStatus
+badge via `selectMostUrgentBudget()` (`src/usage/budget.ts`): over-budget
+entries first (highest `used_pct` among them), otherwise highest
+`used_pct` overall. Hidden when the array is empty or all entries
+report `used_pct = 0`. The Usage tab shows all entries regardless; only
+the header badge uses the selection.
+_Avoid_: top budget, worst budget, active budget.

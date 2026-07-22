@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { fmtUtcDateTime, fmtUtcTime } from "@/lib/format";
+import { fmtDurationUntil, fmtUtcDateTime, fmtUtcTime } from "@/lib/format";
 
 // Pinned epoch-ms: 2026-01-15T14:32:05.000Z (UTC).
 // UTC hour = 14. In several common local timezones this lands at a
@@ -29,6 +29,37 @@ describe("fmtUtcTime", () => {
     // 2026-01-15T03:05:09.000Z
     const ts = Date.UTC(2026, 0, 15, 3, 5, 9);
     expect(fmtUtcTime(ts)).toBe("03:05:09");
+  });
+});
+
+describe("fmtDurationUntil", () => {
+  it("formats future timestamp with hours and minutes", () => {
+    const now = Date.now();
+    expect(fmtDurationUntil(now + 3 * 60 * 60 * 1000 + 15 * 60 * 1000)).toBe("3h 15m");
+  });
+
+  it("formats future timestamp with minutes only", () => {
+    const now = Date.now();
+    expect(fmtDurationUntil(now + 42 * 60 * 1000)).toBe("42m");
+  });
+
+  it("returns 'now' for near-zero future timestamps", () => {
+    const now = Date.now();
+    expect(fmtDurationUntil(now + 1000)).toBe("now");
+    expect(fmtDurationUntil(now - 1000)).toBe("now");
+  });
+
+  it("returns empty string for past timestamps", () => {
+    const now = Date.now();
+    expect(fmtDurationUntil(now - 60 * 1000)).toBe("");
+  });
+
+  it("returns empty string for null", () => {
+    expect(fmtDurationUntil(null)).toBe("");
+  });
+
+  it("returns empty string for 0", () => {
+    expect(fmtDurationUntil(0)).toBe("");
   });
 });
 

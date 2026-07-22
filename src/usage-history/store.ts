@@ -307,6 +307,7 @@ export class UsageHistoryStore {
           current: last.service_mode_current,
           resetsAt: last.service_mode_resets_at,
         },
+        priorityBudget: [],
       });
     }
   }

@@ -37,6 +37,7 @@ import {
   pruneOldSamples,
 } from "./usage-history/index.js";
 import { UmansUsageClient } from "./usage.js";
+import { selectMostUrgentBudget } from "./usage/budget.js";
 import { createViewerRouter } from "./viewer.js";
 import { DescriptionCache } from "./vision/cache.js";
 import type { VisionLookup } from "./vision/detect.js";
@@ -581,13 +582,15 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     failureWindowMs: config.ttftRetryFailureWindowMs,
   }));
   function buildGateStats(snap?: UsageSnapshot): GateStats {
-    const base = gate.getStats(snap ?? usage.getSnapshot());
+    const effective = snap ?? usage.getSnapshot();
+    const base = gate.getStats(effective);
     const wd = ttftState.getStats();
     return {
       ...base,
       watchdog_disabled: wd.disabled,
       watchdog_consecutive_failures: wd.consecutiveFailures,
       watchdog_failure_window_started_at: wd.windowStartedAt,
+      priorityBudgetSummary: selectMostUrgentBudget(effective.priorityBudget),
     };
   }
   const { handleProxy } = createProxyHandler(
