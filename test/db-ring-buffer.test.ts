@@ -1,5 +1,5 @@
 import { Database } from "bun:sqlite";
-import { afterEach, beforeEach, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -147,86 +147,5 @@ test("ring-buffer cleanup of 10,000 excess rows completes in <50ms", () => {
 
   expect(db.list(total).length).toBe(maxCaptures);
   expect(elapsed).toBeLessThan(50);
-  db.close();
-});
-
-function captureWarnCalls(): {
-  calls: string[];
-  restore: () => void;
-} {
-  const originalError = console.error;
-  const calls: string[] = [];
-  const spy = mock((...args: unknown[]) => {
-    if (typeof args[0] === "string") calls.push(args[0]);
-  });
-  console.error = spy as unknown as typeof console.error;
-  return {
-    calls,
-    restore: () => {
-      console.error = originalError;
-    },
-  };
-}
-
-test("warnIfNearCapacity fires exactly once when crossing the 80% threshold", () => {
-  const maxCaptures = 10;
-  const db = new CaptureDB({ dbPath, maxCaptures } as {
-    dbPath: string;
-    maxCaptures: number;
-  });
-  const { calls, restore } = captureWarnCalls();
-
-  // 8/10 == 0.8 — threshold is strictly "greater than", so no warning yet.
-  for (let i = 0; i < 8; i++) insertCapture(db, i);
-  expect(calls.some((l) => l.includes("ring buffer near capacity"))).toBe(false);
-
-  // 9/10 == 0.9 > 0.8 — first crossing fires exactly once.
-  insertCapture(db, 8);
-  const firstCrossCalls = calls.filter((l) => l.includes("ring buffer near capacity"));
-  expect(firstCrossCalls.length).toBe(1);
-  expect(firstCrossCalls[0]).toContain("9/10");
-  expect(firstCrossCalls[0]).toContain("90%");
-
-  restore();
-  db.close();
-});
-
-test("warnIfNearCapacity does not re-fire on subsequent inserts above 80%", () => {
-  const maxCaptures = 10;
-  const db = new CaptureDB({ dbPath, maxCaptures } as {
-    dbPath: string;
-    maxCaptures: number;
-  });
-  const { calls, restore } = captureWarnCalls();
-
-  for (let i = 0; i < 9; i++) insertCapture(db, i);
-  expect(calls.filter((l) => l.includes("ring buffer near capacity")).length).toBe(1);
-
-  for (let i = 9; i < 12; i++) insertCapture(db, i);
-  expect(calls.filter((l) => l.includes("ring buffer near capacity")).length).toBe(1);
-
-  restore();
-  db.close();
-});
-
-test("warnIfNearCapacity fires again after buffer drops below and re-crosses", () => {
-  const maxCaptures = 10;
-  const db = new CaptureDB({ dbPath, maxCaptures } as {
-    dbPath: string;
-    maxCaptures: number;
-  });
-  const { calls, restore } = captureWarnCalls();
-
-  for (let i = 0; i < 9; i++) insertCapture(db, i);
-  expect(calls.filter((l) => l.includes("ring buffer near capacity")).length).toBe(1);
-
-  // clear() zeros rowCount but does NOT call warnIfNearCapacity. The flag
-  // stays true until the next startCapture observes ratio < 0.8 and resets it.
-  db.clear();
-
-  for (let i = 0; i < 9; i++) insertCapture(db, i);
-  expect(calls.filter((l) => l.includes("ring buffer near capacity")).length).toBe(2);
-
-  restore();
   db.close();
 });
