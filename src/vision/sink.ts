@@ -229,6 +229,8 @@ export class WsBroadcastVisionSink implements VisionRecordSink {
         is_vision: true,
         status_source: "upstream",
         gate_reason: null,
+        retry_attempt: null,
+        ttft_exceeded: null,
       } satisfies CaptureSummary,
     };
     this.ws.broadcast(msg);

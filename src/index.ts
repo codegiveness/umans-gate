@@ -26,7 +26,7 @@ import { type RateLimiterRef, createProxyHandler } from "./proxy.js";
 import { WriteQueue } from "./queue.js";
 import type { CaptureStore } from "./queue.js";
 import { SlidingWindowRateLimiter } from "./rate.js";
-import type { ProxyConfig } from "./types.js";
+import type { GateStats, ProxyConfig, UsageSnapshot } from "./types.js";
 import {
   UsageEventDetector,
   UsageHistoryStore,
@@ -389,7 +389,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
         rateRef.current = createRateLimiter(config.rateLimitRequests, snap);
       }
     }
-    ws.broadcast({ type: "gate", stats: gate.getStats(snap) });
+    ws.broadcast({ type: "gate", stats: buildGateStats(snap) });
   });
   if (usageHistory) {
     usage.onChange((snap) => {
@@ -442,7 +442,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     });
   }
   gate.onStatsChange(() => {
-    ws.broadcast({ type: "gate", stats: gate.getStats(usage.getSnapshot()) });
+    ws.broadcast({ type: "gate", stats: buildGateStats() });
   });
   usage.start();
 
@@ -494,7 +494,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     gate.setHardCap(source.hardCap);
     gate.setSoftLimit(source.softLimit);
     applyEffectiveLimit(usage.getSnapshot());
-    ws.broadcast({ type: "gate", stats: gate.getStats(usage.getSnapshot()) });
+    ws.broadcast({ type: "gate", stats: buildGateStats() });
   }
 
   const persistentStore = config.visionPersistentCache
@@ -580,6 +580,16 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     failureThreshold: config.ttftRetryFailureThreshold,
     failureWindowMs: config.ttftRetryFailureWindowMs,
   }));
+  function buildGateStats(snap?: UsageSnapshot): GateStats {
+    const base = gate.getStats(snap ?? usage.getSnapshot());
+    const wd = ttftState.getStats();
+    return {
+      ...base,
+      watchdog_disabled: wd.disabled,
+      watchdog_consecutive_failures: wd.consecutiveFailures,
+      watchdog_failure_window_started_at: wd.windowStartedAt,
+    };
+  }
   const { handleProxy } = createProxyHandler(
     db,
     ws,
@@ -592,7 +602,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     () => warmer?.notifyTraffic(),
     rewriteExperiment,
     ttftState,
-    () => gate.getStats(usage.getSnapshot()),
+    () => buildGateStats(),
   );
   let lastRawConfig: RawConfig = readConfigFile();
 
@@ -645,7 +655,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
       ttftState.reset();
     }
 
-    ws.broadcast({ type: "gate", stats: gate.getStats(usage.getSnapshot()) });
+    ws.broadcast({ type: "gate", stats: buildGateStats() });
 
     return {
       ok: true,
@@ -691,7 +701,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
           config.rateLimitRequests = -1;
           rateRef.current = null;
         }
-        ws.broadcast({ type: "gate", stats: gate.getStats(snap) });
+        ws.broadcast({ type: "gate", stats: buildGateStats(snap) });
         return {
           ok: true,
           hardCap: r.hardCap,
@@ -734,6 +744,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     vision,
     models,
     authFailureLimiter,
+    ttftState,
     reloadConfig,
     refreshLimits,
     restart: () => {

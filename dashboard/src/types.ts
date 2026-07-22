@@ -1,4 +1,4 @@
-export type CaptureState = "enqueued" | "streaming" | "done";
+export type CaptureState = "enqueued" | "streaming" | "cooling_down" | "done";
 
 export interface CaptureSummary {
   id: number;
@@ -27,6 +27,12 @@ export interface CaptureSummary {
   is_vision: boolean;
   status_source: "upstream" | "gate" | null;
   gate_reason: string | null;
+  retry_attempt: number | null;
+  ttft_exceeded: number | null;
+  /** Transient (WS-only) — retry attempt ordinal during in-flight retry. Cleared on refresh. */
+  retryAttempt?: number;
+  /** Transient (WS-only) — epoch ms when cooldown ends. Cleared on refresh. */
+  cooldownEndsAt?: number;
 }
 
 export interface PerformanceStatsRow {
@@ -145,12 +151,22 @@ export interface GateStats {
   windowStartedAt: number | null;
   windowResetsAt: number | null;
   windowRemainingMinutes: number | null;
+  /** TTFT watchdog auto-disable state. */
+  watchdog_disabled: boolean;
+  watchdog_consecutive_failures: number;
+  watchdog_failure_window_started_at: number | null;
 }
 
 export type WsMessage =
   | { type: "new"; capture: CaptureSummary }
   | { type: "update"; capture: CaptureSummary }
-  | { type: "state"; captureId: number; state: CaptureState }
+  | {
+      type: "state";
+      captureId: number;
+      state: CaptureState;
+      retryAttempt?: number;
+      cooldownEndsAt?: number;
+    }
   | { type: "gate"; stats: GateStats }
   | { type: "clear" }
   | { type: "vision-clear" }

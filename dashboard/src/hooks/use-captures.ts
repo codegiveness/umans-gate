@@ -66,12 +66,17 @@ export function useCaptures(): UseCapturesResult {
     onVisionClear: () => {
       setCaptures((prev) => prev.filter((c) => !c.is_vision));
     },
-    onCaptureState: (captureId, state) => {
+    onCaptureState: (captureId, state, retryAttempt, cooldownEndsAt) => {
       setCaptures((prev) => {
         const i = prev.findIndex((c) => c.id === captureId);
         if (i < 0) return prev;
         const next = prev.slice();
-        next[i] = { ...next[i], state };
+        next[i] = {
+          ...next[i],
+          state,
+          ...(retryAttempt !== undefined ? { retryAttempt } : {}),
+          ...(cooldownEndsAt !== undefined ? { cooldownEndsAt } : {}),
+        };
         return next;
       });
     },

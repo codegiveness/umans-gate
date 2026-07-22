@@ -47,6 +47,8 @@ export interface FieldDef {
   refreshSource?: boolean;
   /** when true, field max bounds are sourced from /v1/usage and an "Umans API" badge is shown */
   umansSourced?: boolean;
+  /** optional tooltip text shown next to the field label via an info icon */
+  tooltip?: string;
 }
 
 const SERVER_FIELDS: FieldDef[] = [

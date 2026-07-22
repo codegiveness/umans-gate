@@ -71,6 +71,27 @@ which is why no cache hit rate formula using `total_input_tokens` as the
 denominator can reach 100%.
 _Avoid_: fresh tokens, new tokens.
 
+### Stamping
+
+**Stamp policy**:
+The per-model tuning values applied to a request body by the stamp
+pipeline: `max_tokens`, `effort` ("high" or "max"), `thinking` (whether
+to inject `{ type: "adaptive" }`), and `top_k` (null or a number).
+Distinct from model capabilities (upstream-reported, e.g.
+`max_completion_tokens`, `reasoning.supported`) — stamp values are
+proxy-specific tuning that may differ from upstream limits. Resolved
+via `resolveStampPolicy(modelName, catalog)`, which looks up the
+model in the parsed catalog's `stamps` field.
+_Avoid_: stamp config, stamp values, model tuning.
+
+**Stamp overlay**:
+The local declarative table mapping model-family patterns (e.g.
+`"umans-glm*"`) to stamp policies, merged into `ParsedModelInfo` at
+`parseModelInfoResponse()` time. The overlay owns the proxy-specific
+tuning; the upstream `/v1/models/info` owns the capabilities. Adding
+a new model family is a single row in the overlay, not a code change.
+_Avoid_: stamp table, stamp mapping, model overrides.
+
 ### Architecture
 
 **TTFT watchdog**:
@@ -93,6 +114,25 @@ was already consumed). Gated by upstream-load signals: breaker state, gate
 saturation, and recent retry-failure rate. When the gate suppresses retry,
 the client gets a 504.
 _Avoid_: stream retry, first-byte retry.
+
+**Attempt**:
+A single upstream fetch within a TTFT-retry lifecycle. Attempt 1 is the
+original fetch; attempt 2 is the same-key retry; attempt 3 is the
+rewrite-id escalation (when eligible). The WS `retryAttempt` field
+counts retries, not attempts — `retryAttempt: 1` = attempt 2 in flight.
+Distinct from "request" (the client-initiated operation, which may
+span multiple attempts under one capture row).
+_Avoid_: try, fetch number, run.
+
+**Retry state**:
+The live phase of a TTFT-retry lifecycle as seen by the dashboard:
+`cooldown` (between attempts, waiting out `ttft_retry_cooldown_ms`),
+`retry N` (attempt N+1 fetch in flight), `retried` (terminal — the
+request completed after at least one retry). Surfaced as per-row
+indicators matching NN/g's "Indicator" pattern (conditional, contextual,
+passive). Distinct from the final `x-proxy-retry-attempt` /
+`x-proxy-ttft-exceeded` headers, which arrive only with the response.
+_Avoid_: retry status, retry phase.
 
 **Stop gate**:
 The concurrency admission layer in `src/limiter/` — `ConcurrencyGate` (a

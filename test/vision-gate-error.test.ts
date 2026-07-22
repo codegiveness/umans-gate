@@ -20,22 +20,24 @@ import { GateError } from "../src/limiter/types.js";
 import { DescriptionCache } from "../src/vision/cache.js";
 import { type VisionConfig, VisionHandoff } from "../src/vision/handoff.js";
 
-/** Type-safe accessor to call the private callVisionRecorded method. */
+/** Type-safe accessor to call the private callVisionRecorded method on VisionImageProcessor. */
 interface VisionHandoffInternals {
-  callVisionRecorded(
-    imageBytes: Uint8Array,
-    signal?: AbortSignal,
-  ): Promise<{
-    status: string;
-    error: string | null;
-    description: string;
-    httpStatus: number | null;
-    requestBody: string;
-    requestHeaders: string;
-    responseBody: string;
-    responseHeaders: string;
-    usage: unknown;
-  }>;
+  imageProcessor: {
+    callVisionRecorded(
+      imageBytes: Uint8Array,
+      signal?: AbortSignal,
+    ): Promise<{
+      status: string;
+      error: string | null;
+      description: string;
+      httpStatus: number | null;
+      requestBody: string;
+      requestHeaders: string;
+      responseBody: string;
+      responseHeaders: string;
+      usage: unknown;
+    }>;
+  };
 }
 
 function makeConfig(overrides: Partial<VisionConfig> = {}): VisionConfig {
@@ -98,7 +100,9 @@ describe("V7: classify GateError separately from fetch errors", () => {
 
     try {
       const internals = handoff as unknown as VisionHandoffInternals;
-      const result = await internals.callVisionRecorded(new Uint8Array([1, 2, 3, 4]));
+      const result = await internals.imageProcessor.callVisionRecorded(
+        new Uint8Array([1, 2, 3, 4]),
+      );
       expect(result.status).toBe("gate_rejected");
       expect(result.error).toContain("circuit_open");
     } finally {
@@ -124,7 +128,9 @@ describe("V7: classify GateError separately from fetch errors", () => {
 
     try {
       const internals = handoff as unknown as VisionHandoffInternals;
-      const result = await internals.callVisionRecorded(new Uint8Array([1, 2, 3, 4]));
+      const result = await internals.imageProcessor.callVisionRecorded(
+        new Uint8Array([1, 2, 3, 4]),
+      );
       expect(result.status).toBe("gate_rejected");
       expect(result.error).toContain("queue_full");
     } finally {
@@ -150,7 +156,9 @@ describe("V7: classify GateError separately from fetch errors", () => {
 
     try {
       const internals = handoff as unknown as VisionHandoffInternals;
-      const result = await internals.callVisionRecorded(new Uint8Array([1, 2, 3, 4]));
+      const result = await internals.imageProcessor.callVisionRecorded(
+        new Uint8Array([1, 2, 3, 4]),
+      );
       expect(result.status).toBe("gate_rejected");
       expect(result.error).toContain("timeout");
     } finally {
@@ -171,7 +179,9 @@ describe("V7: classify GateError separately from fetch errors", () => {
 
     try {
       const internals = handoff as unknown as VisionHandoffInternals;
-      const result = await internals.callVisionRecorded(new Uint8Array([1, 2, 3, 4]));
+      const result = await internals.imageProcessor.callVisionRecorded(
+        new Uint8Array([1, 2, 3, 4]),
+      );
       expect(result.status).toBe("fetch_error");
       expect(result.error).toContain("network error");
     } finally {
@@ -196,7 +206,7 @@ describe("V7: classify GateError separately from fetch errors", () => {
 
     try {
       const internals = handoff as unknown as VisionHandoffInternals;
-      await internals.callVisionRecorded(new Uint8Array([1, 2, 3, 4]));
+      await internals.imageProcessor.callVisionRecorded(new Uint8Array([1, 2, 3, 4]));
       // releaseCooldownMs is 0; the active count should still be 0 because
       // acquire threw, so the finally block's permit?.release() was a no-op
       // and no permit was ever granted against the gate's intention counter.

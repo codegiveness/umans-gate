@@ -128,7 +128,11 @@ describe("vision update failure (V10)", () => {
     expect(okRecord?.description).toBe("A red pixel.");
 
     // (5) inflight entry was cleaned up (finally block still ran).
-    const inflight = (handoff as unknown as { inflight: Map<string, unknown> }).inflight;
+    const inflight = (
+      handoff as unknown as {
+        imageProcessor: { inflight: Map<string, unknown> };
+      }
+    ).imageProcessor.inflight;
     expect(inflight.size).toBe(0);
 
     visionServer.stop(true);

@@ -14,6 +14,8 @@ export const VISION_GENERAL_FIELDS: FieldDef[] = [
     ],
     restartRequired: true,
     required: true,
+    tooltip:
+      "When strategy is 'catalog' (default), vision processing runs in background mode: the first request with a new image is forwarded upstream untouched, and the cache is populated for the next request. Switch to 'always' to intercept synchronously (adds latency to first-image requests).",
   },
   {
     key: "vision_model",

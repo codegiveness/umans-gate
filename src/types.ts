@@ -8,8 +8,10 @@ export type UpstreamProtocol = "http2" | "http1.1";
 /** HTTP protocol for incoming connections (always http1.1 without TLS). */
 export type IncomingProtocol = "http1.1";
 
-/** Capture state lifecycle. */
-export type CaptureState = "enqueued" | "streaming" | "done" | "failed";
+/** Capture state lifecycle. `cooling_down` is a transient WS-only state —
+ *  the DB never persists it (the DB state column stays `streaming` during
+ *  cooldown). It is broadcast so the dashboard can show a `cooldown` badge. */
+export type CaptureState = "enqueued" | "streaming" | "cooling_down" | "done" | "failed";
 
 /** A full capture row from the database. */
 export interface CaptureRow {
@@ -50,6 +52,8 @@ export interface CaptureRow {
   parent_capture_id: number | null;
   status_source: string | null;
   gate_reason: string | null;
+  retry_attempt: number | null;
+  ttft_exceeded: number | null;
 }
 
 /** Summary of a capture (no body data) — used in list view and WS broadcasts. */
@@ -90,6 +94,10 @@ export interface CaptureSummary {
   status_source: "upstream" | "gate" | null;
   /** Human-readable explanation when the proxy generated the HTTP status. */
   gate_reason: string | null;
+  /** Final retry attempt count (0 = no retry, 1 = same-key, 2 = rewrite escalation). */
+  retry_attempt: number | null;
+  /** 1 if the TTFT watchdog fired on any attempt, 0 otherwise. Null if not applicable. */
+  ttft_exceeded: number | null;
 }
 
 /** Request metadata captured at proxy time. */
@@ -114,13 +122,21 @@ export interface ResponseMeta {
   $gate_reason: string | null;
   $usage?: UsageMetrics | null;
   $model?: string | null;
+  $retry_attempt?: number | null;
+  $ttft_exceeded?: number | null;
 }
 
 /** WebSocket message types broadcast to connected inspector clients. */
 export type WsMessage =
   | { type: "new"; capture: CaptureSummary }
   | { type: "update"; capture: CaptureSummary }
-  | { type: "state"; captureId: number; state: CaptureState }
+  | {
+      type: "state";
+      captureId: number;
+      state: CaptureState;
+      retryAttempt?: number;
+      cooldownEndsAt?: number;
+    }
   | { type: "gate"; stats: GateStats }
   | { type: "clear" }
   | { type: "vision-clear" }
@@ -473,4 +489,8 @@ export interface GateStats {
   windowStartedAt: number | null;
   windowResetsAt: number | null;
   windowRemainingMinutes: number | null;
+  /** TTFT watchdog auto-disable state. */
+  watchdog_disabled: boolean;
+  watchdog_consecutive_failures: number;
+  watchdog_failure_window_started_at: number | null;
 }

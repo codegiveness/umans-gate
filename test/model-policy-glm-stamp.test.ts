@@ -1,34 +1,69 @@
 import { describe, expect, it } from "bun:test";
-import { isGlmModel, resolveEffortForModel } from "../src/model-policy.js";
+import type { ParsedModelInfo } from "../src/model-info-parser.js";
+import { matchStampOverlay, resolveStampPolicy } from "../src/stamp-catalog.js";
 
-describe("isGlmModel", () => {
-  it("returns true for umans-glm family", () => {
-    expect(isGlmModel("umans-glm-foo")).toBe(true);
+function makeEntry(name: string): ParsedModelInfo {
+  return {
+    name,
+    display_name: "",
+    description: "",
+    base_model: { name: "", provider: undefined, family: undefined, oss_base: undefined },
+    capabilities: {
+      max_completion_tokens: 0,
+      recommended_max_tokens: 0,
+      context_window: 0,
+      supports_vision: false,
+      supports_tools: false,
+      reasoning: { supported: false, can_disable: false, levels: [], default_level: null },
+    },
+    benchmarks: {},
+    weights: { precision: undefined, hf_url: undefined },
+    stage: undefined,
+    lifecycle: undefined,
+    stamps: matchStampOverlay(name),
+  };
+}
+
+describe("resolveStampPolicy", () => {
+  it("resolves GLM models to max-effort policy from catalog", () => {
+    const catalog = new Map<string, ParsedModelInfo>([
+      ["umans-glm-foo", makeEntry("umans-glm-foo")],
+    ]);
+    const p = resolveStampPolicy("umans-glm-foo", catalog);
+    expect(p.max_tokens).toBe(131071);
+    expect(p.effort).toBe("max");
+    expect(p.thinking).toBe(true);
+    expect(p.top_k).toBe(20);
   });
 
-  it("returns false for non-GLM models", () => {
-    expect(isGlmModel("claude-sonnet")).toBe(false);
+  it("resolves non-GLM models to high-effort policy from catalog", () => {
+    const catalog = new Map<string, ParsedModelInfo>([
+      ["claude-sonnet", makeEntry("claude-sonnet")],
+    ]);
+    const p = resolveStampPolicy("claude-sonnet", catalog);
+    expect(p.max_tokens).toBe(32767);
+    expect(p.effort).toBe("high");
+    expect(p.thinking).toBe(false);
+    expect(p.top_k).toBe(null);
   });
 
-  it("returns false for undefined", () => {
-    expect(isGlmModel(undefined)).toBe(false);
-  });
-});
-
-describe("resolveEffortForModel", () => {
-  it("resolves GLM models to 'max' when enabled", () => {
-    expect(resolveEffortForModel("umans-glm-foo", true)).toBe("max");
-  });
-
-  it("resolves non-GLM models to 'high' when enabled", () => {
-    expect(resolveEffortForModel("claude-sonnet", true)).toBe("high");
+  it("falls back to pattern match when model is absent from catalog", () => {
+    const catalog = new Map<string, ParsedModelInfo>();
+    const p = resolveStampPolicy("umans-glm-foo", catalog);
+    expect(p.max_tokens).toBe(131071);
+    expect(p.effort).toBe("max");
+    expect(p.thinking).toBe(true);
+    expect(p.top_k).toBe(20);
   });
 
-  it("returns undefined when disabled", () => {
-    expect(resolveEffortForModel("any", false)).toBe(undefined);
-  });
-
-  it("returns undefined for undefined model when disabled", () => {
-    expect(resolveEffortForModel(undefined, false)).toBe(undefined);
+  it("falls back to STAMP_OVERLAY['*'] when modelName is undefined", () => {
+    const catalog = new Map<string, ParsedModelInfo>([
+      ["umans-glm-foo", makeEntry("umans-glm-foo")],
+    ]);
+    const p = resolveStampPolicy(undefined, catalog);
+    expect(p.max_tokens).toBe(32767);
+    expect(p.effort).toBe("high");
+    expect(p.thinking).toBe(false);
+    expect(p.top_k).toBe(null);
   });
 });

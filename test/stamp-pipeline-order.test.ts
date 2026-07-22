@@ -56,6 +56,7 @@ function makeCtx(overrides: Partial<StampContext> = {}): StampContext {
     url: new URL("http://localhost/v1/messages"),
     method: "POST",
     modelName: undefined,
+    catalog: new Map(),
     ...overrides,
   };
 }

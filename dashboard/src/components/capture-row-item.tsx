@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { badgeInfo, badgeSuccess } from "@/lib/badge-colors";
+import { badgeInfo, badgeSuccess, badgeWarning } from "@/lib/badge-colors";
 import {
   fmtCachePct,
   fmtSize,
@@ -52,6 +52,24 @@ function fmtAge(ms: number): string {
 }
 
 /**
+ * Cooldown countdown for in-flight TTFT retries. Ticks every 1s showing whole
+ * seconds remaining until `cooldownEndsAt`. Returns null when not cooling down.
+ */
+function useCooldownCountdown(
+  cooldownEndsAt: number | undefined,
+  isActive: boolean,
+): number | null {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!isActive || cooldownEndsAt == null) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [isActive, cooldownEndsAt]);
+  if (!isActive || cooldownEndsAt == null) return null;
+  return Math.max(0, Math.ceil((cooldownEndsAt - now) / 1000));
+}
+
+/**
  * Minimal tooltip wrapper for inline elements in capture rows. Keeps the
  * tooltip content shape consistent: a bold label + optional muted detail.
  */
@@ -79,8 +97,9 @@ export function CaptureRowItem({
   optionId,
   onActivate,
 }: CaptureRowItemProps) {
-  const isRunning = c.state === "enqueued" || c.state === "streaming";
+  const isRunning = c.state === "enqueued" || c.state === "streaming" || c.state === "cooling_down";
   const liveAge = useLiveAge(c.started_at, isRunning);
+  const cooldownSeconds = useCooldownCountdown(c.cooldownEndsAt, c.state === "cooling_down");
 
   return (
     <div
@@ -133,10 +152,26 @@ export function CaptureRowItem({
             </Badge>
           </RowTip>
         )}
-        {c.state === "streaming" && (
+        {c.state === "cooling_down" && c.cooldownEndsAt != null && cooldownSeconds != null && (
+          <RowTip tip="Cooldown — waiting before retrying the upstream fetch">
+            <Badge variant="secondary" size="sm" className={cn(badgeWarning, "tabular-nums")}>
+              cooldown {cooldownSeconds}s
+            </Badge>
+          </RowTip>
+        )}
+        {(c.state === "streaming" || c.state === "cooling_down") && (
           <RowTip tip="Running — upstream is streaming the response">
             <Badge variant="secondary" size="sm" className={badgeSuccess}>
               running
+            </Badge>
+          </RowTip>
+        )}
+        {c.state === "streaming" && c.retryAttempt != null && c.retryAttempt > 0 && (
+          <RowTip
+            tip={`Retry attempt ${c.retryAttempt} in flight — TTFT watchdog fired and the request is being retried`}
+          >
+            <Badge variant="secondary" size="sm" className="tabular-nums">
+              retry {c.retryAttempt}
             </Badge>
           </RowTip>
         )}
@@ -144,6 +179,15 @@ export function CaptureRowItem({
           <RowTip tip="SSE — upstream response is a stream">
             <Badge variant="secondary" size="sm">
               SSE
+            </Badge>
+          </RowTip>
+        )}
+        {c.state === "done" && c.retry_attempt != null && c.retry_attempt > 0 && (
+          <RowTip
+            tip={`Retried — request was retried ${c.retry_attempt} time(s) by the TTFT watchdog`}
+          >
+            <Badge variant="secondary" size="sm">
+              retried
             </Badge>
           </RowTip>
         )}

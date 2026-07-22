@@ -38,6 +38,8 @@ export function summary(row: CaptureRow): CaptureSummary {
     is_vision: !!row.is_vision,
     status_source: (row.status_source as "upstream" | "gate" | null) ?? null,
     gate_reason: row.gate_reason ?? null,
+    retry_attempt: row.retry_attempt ?? null,
+    ttft_exceeded: row.ttft_exceeded ?? null,
   };
 }
 
@@ -76,6 +78,8 @@ export function newSummary(
     is_vision: false,
     status_source: null,
     gate_reason: null,
+    retry_attempt: null,
+    ttft_exceeded: null,
   };
 }
 
@@ -114,5 +118,7 @@ export function buildSummary(
     is_vision: false,
     status_source: res.$status_source,
     gate_reason: res.$gate_reason,
+    retry_attempt: res.$retry_attempt ?? null,
+    ttft_exceeded: res.$ttft_exceeded ?? null,
   };
 }

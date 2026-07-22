@@ -3,8 +3,8 @@
 // Places `top_k` immediately after `model` for consistent wire ordering.
 // Preserves any existing `top_k` value already set by the caller.
 
-import { isGlmModel } from "./model-policy.js";
 import { extractModelName } from "./models/name.js";
+import { type StampPolicy, matchStampOverlay } from "./stamp-catalog.js";
 
 /**
  * Body shape we mutate — has a `model` and optional `top_k` at top level.
@@ -21,16 +21,24 @@ interface RequestBody {
  * If `top_k` already exists on the body, it is preserved (not overwritten).
  * Mutates the body in place. Returns true if the body was changed.
  *
+ * Skipped when the resolved policy has `top_k === null` (defense in depth —
+ * guard also in TopKStep.applies()).
+ *
  * Key ordering: JSON.stringify emits string keys in insertion order. To place
  * `top_k` immediately after `model`, we rebuild the object as a new record
  * with model first, then top_k, then the remaining keys — guaranteeing wire
  * ordering matches the UMANS API convention and the benchmark harness.
+ *
+ * When `policy` is omitted, the policy is resolved from the body's `model`
+ * field via the local overlay (kept for unit-test ergonomics — the pipeline
+ * always supplies this).
  */
-export function stampTopK(body: unknown, topK: number): boolean {
+export function stampTopK(body: unknown, topK: number, policy?: StampPolicy): boolean {
   if (typeof body !== "object" || body === null || Array.isArray(body)) return false;
   const model = extractModelName(body);
   if (model === undefined) return false;
-  if (!isGlmModel(model)) return false; // defense in depth — guard also in TopKStep.applies()
+  const resolvedPolicy = policy ?? matchStampOverlay(model);
+  if (resolvedPolicy.top_k === null) return false;
   const b = body as RequestBody;
   if (b.top_k !== undefined) return false; // caller already set — respect it
 

@@ -23,6 +23,7 @@ import {
   getMonthSummary,
   getPricingTable,
 } from "./economics.js";
+import type { TtftWatchdogState } from "./experiments/ttft-watchdog-state.js";
 import { summary } from "./helpers.js";
 import type { ConcurrencyGate } from "./limiter/index.js";
 import type { ModelsClient } from "./models.js";
@@ -80,6 +81,7 @@ export interface CreateViewerRouterOptions {
   vision: VisionHandoff | null;
   models: ModelsClient | null;
   authFailureLimiter?: AuthFailureLimiter;
+  ttftState: TtftWatchdogState;
   reloadConfig?: () => ReloadResult;
   refreshLimits?: () => Promise<
     | {
@@ -194,6 +196,7 @@ interface ViewerRouteContext {
   usageHistory: UsageHistoryStore | null;
   vision: VisionHandoff | null;
   models: ModelsClient | null;
+  ttftState: TtftWatchdogState;
   reloadConfig: (() => ReloadResult) | null;
   refreshLimits:
     | (() => Promise<
@@ -233,6 +236,7 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
     vision,
     models,
     authFailureLimiter,
+    ttftState,
     reloadConfig,
     refreshLimits,
     restart,
@@ -276,7 +280,16 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
     {
       method: "GET",
       pattern: `${VIEWER}/api/gate`,
-      handler: (ctx) => Response.json(ctx.gate.getStats(ctx.usage.getSnapshot())),
+      handler: (ctx) => {
+        const stats = ctx.gate.getStats(ctx.usage.getSnapshot());
+        const wd = ctx.ttftState.getStats();
+        return Response.json({
+          ...stats,
+          watchdog_disabled: wd.disabled,
+          watchdog_consecutive_failures: wd.consecutiveFailures,
+          watchdog_failure_window_started_at: wd.windowStartedAt,
+        });
+      },
     },
     {
       method: "GET",
@@ -611,6 +624,7 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
       usageHistory,
       vision,
       models,
+      ttftState,
       reloadConfig: reloadConfig ?? null,
       refreshLimits: refreshLimits ?? null,
       restart: restart ?? null,

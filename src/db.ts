@@ -56,6 +56,8 @@ export interface UpdateParams {
   $gate_reason: string | null;
   $usage?: UsageMetrics | null;
   $model?: string | null;
+  $retry_attempt?: number | null;
+  $ttft_exceeded?: number | null;
 }
 
 interface VisionInsertParams {
@@ -220,6 +222,10 @@ export function migrateCaptureSchema(db: Database): void {
   addColumnIfMissing(db, "status_source", "TEXT");
   // Human-readable explanation when the proxy (gate) generated the HTTP status.
   addColumnIfMissing(db, "gate_reason", "TEXT");
+  // TTFT retry visibility: retry count (0=no retry, 1=same-key, 2=rewrite escalation)
+  // and whether the watchdog fired on any attempt.
+  addColumnIfMissing(db, "retry_attempt", "INTEGER");
+  addColumnIfMissing(db, "ttft_exceeded", "INTEGER");
 
   // Token-usage columns: split DDL on ';', strip SQL comments, exec each individually so
   // SQLite doesn't halt on the first "duplicate column" error when an existing DB is reopened.
@@ -417,7 +423,9 @@ export class CaptureDB {
         ttft_ms                = $ttft_ms,
         tps                    = $tps,
         usage_missing          = $usage_missing,
-        metrics_extracted_at   = $metrics_extracted_at
+        metrics_extracted_at   = $metrics_extracted_at,
+        retry_attempt          = $retry_attempt,
+        ttft_exceeded          = $ttft_exceeded
       WHERE id = $id
     `);
     this.stmtDeleteOld = this.db.prepare(
@@ -432,7 +440,7 @@ export class CaptureDB {
               ttft_ms, tps, input_tokens, output_tokens,
               cache_creation_tokens, cache_read_tokens,
               total_input_tokens, total_output_tokens, is_vision,
-              status_source, gate_reason
+              status_source, gate_reason, retry_attempt, ttft_exceeded
        FROM captures ORDER BY id DESC LIMIT ?`,
     );
     this.stmtCount = this.db.prepare("SELECT COUNT(*) AS c FROM captures");

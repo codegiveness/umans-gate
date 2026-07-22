@@ -4,7 +4,7 @@ import { badgeGold, badgeInfo, badgeSuccess, badgeWarning } from "@/lib/badge-co
 import { fmtUtcDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { GateStats } from "@/types";
-import { ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
+import { AlertTriangle, ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
 
 const tierBadgeClass: Record<GateStats["tier"], string | undefined> = {
   "Code Max": badgeGold,
@@ -156,6 +156,20 @@ export function GateStatus({ stats }: { stats: GateStats | null }) {
               {BREAKER_DESC[stats.breaker] ?? stats.breaker}
             </TooltipContent>
           </Tooltip>
+          {stats.watchdog_disabled && (
+            <Tooltip>
+              <TooltipTrigger render={<span className="inline-flex" />}>
+                <Badge variant="secondary" className={badgeWarning}>
+                  <AlertTriangle aria-hidden className="h-3 w-3" />
+                  watchdog off
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[280px]">
+                TTFT watchdog auto-disabled after {stats.watchdog_consecutive_failures} consecutive
+                retry failures. Upstream stalls will no longer be retried.
+              </TooltipContent>
+            </Tooltip>
+          )}
           {stats.boxed && (
             <Tooltip>
               <TooltipTrigger render={<span className="inline-flex" />}>

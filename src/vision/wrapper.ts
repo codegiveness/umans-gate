@@ -2,7 +2,7 @@
 // Mirrors umans-dash's label format so upstream KV-cache prefixes remain stable.
 // All output text is byte-identical for identical inputs — no dynamic metadata.
 
-import type { ImagePart } from "./detect.js";
+import type { ApiKind, ImagePart } from "./detect.js";
 
 /** Reason a vision analysis failed. Constrained to safe, non-leaky tokens. */
 export type FailureReason = "timeout" | "http_status" | "parse" | "empty" | "generic" | "aborted";
@@ -85,4 +85,97 @@ export function applyMaxImagesPolicy(
         `[Image omitted: not delivered to model — do not describe or reference it. (overflow ${i + 1})]`,
     );
   return { kept, overflow };
+}
+
+/**
+ * Wrap a description with its `[Image N:\n...]` label when the batch contains
+ * multiple images. For single-image batches (or when `positions` is absent),
+ * the description is returned as-is — the description is already wrapped by
+ * `wrapDescription` in `processImage`, so we must NOT double-wrap.
+ */
+function wrapWithPosition(
+  descriptions: string[],
+  descIdx: number,
+  positions?: Array<{ positionInBatch: number; batchSize: number }>,
+): string {
+  const desc = descriptions[descIdx];
+  const pos = positions?.[descIdx];
+  if (pos && pos.batchSize > 1) {
+    return `[Image ${pos.positionInBatch}:\n${desc}]`;
+  }
+  return desc;
+}
+
+function replaceInContentArray(
+  content: unknown[],
+  apiKind: ApiKind,
+  descriptions: string[],
+  overflow: string[],
+  cursor: { descIdx: number; overflowIdx: number },
+  positions?: Array<{ positionInBatch: number; batchSize: number }>,
+): void {
+  for (let i = 0; i < content.length; i++) {
+    const part = content[i];
+    if (typeof part !== "object" || part === null) continue;
+    const p = part as { type?: unknown; content?: unknown };
+
+    if (apiKind === "openai" && p.type === "image_url") {
+      if (cursor.descIdx < descriptions.length) {
+        content[i] = {
+          type: "text",
+          text: wrapWithPosition(descriptions, cursor.descIdx, positions),
+        };
+        cursor.descIdx++;
+      }
+    } else if (apiKind === "anthropic" && p.type === "image") {
+      if (cursor.descIdx < descriptions.length) {
+        content[i] = {
+          type: "text",
+          text: wrapWithPosition(descriptions, cursor.descIdx, positions),
+          cache_control: { type: "ephemeral" },
+        };
+        cursor.descIdx++;
+      }
+    } else if (apiKind === "anthropic" && p.type === "tool_result" && Array.isArray(p.content)) {
+      replaceInContentArray(p.content, apiKind, descriptions, overflow, cursor, positions);
+    }
+  }
+}
+
+/**
+ * Replace image blocks in `body` (already cloned) with text blocks carrying
+ * the wrapped descriptions. OpenAI image_url parts and Anthropic image blocks
+ * are both replaced in-place; overflow placeholders are appended after the
+ * last replaced block of the relevant message so the model still sees them
+ * in conversation order.
+ */
+export function replaceImageBlocks(
+  body: unknown,
+  apiKind: ApiKind,
+  descriptions: string[],
+  overflow: string[],
+  positions?: Array<{ positionInBatch: number; batchSize: number }>,
+): void {
+  if (typeof body !== "object" || body === null) return;
+  const messages = (body as { messages?: unknown }).messages;
+  if (!Array.isArray(messages)) return;
+
+  const cursor = { descIdx: 0, overflowIdx: 0 };
+  const overflowText = overflow.length > 0 ? overflow.join("\n") : "";
+
+  for (const msg of messages) {
+    if (typeof msg !== "object" || msg === null) continue;
+    const content = (msg as { content?: unknown }).content;
+    if (!Array.isArray(content)) continue;
+    replaceInContentArray(content, apiKind, descriptions, overflow, cursor, positions);
+
+    if (
+      overflowText &&
+      cursor.descIdx >= descriptions.length &&
+      cursor.overflowIdx < overflow.length
+    ) {
+      content.push({ type: "text", text: overflowText });
+      cursor.overflowIdx = overflow.length;
+    }
+  }
 }

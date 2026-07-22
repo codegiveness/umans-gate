@@ -14,9 +14,11 @@ import { ConcurrencyGate } from "../src/limiter/index.js";
 import { DescriptionCache } from "../src/vision/cache.js";
 import { type VisionConfig, VisionHandoff } from "../src/vision/handoff.js";
 
-/** Type-safe accessor to call the private callVisionRecorded method. */
+/** Type-safe accessor to call the private callVisionRecorded method on VisionImageProcessor. */
 interface VisionHandoffInternals {
-  callVisionRecorded(imageBytes: Uint8Array, signal?: AbortSignal): Promise<unknown>;
+  imageProcessor: {
+    callVisionRecorded(imageBytes: Uint8Array, signal?: AbortSignal): Promise<unknown>;
+  };
 }
 
 function makeConfig(overrides: Partial<VisionConfig> = {}): VisionConfig {
@@ -85,7 +87,9 @@ describe("BUG-01: permit released in finally when post-fetch processing throws",
     try {
       const internals = handoff as unknown as VisionHandoffInternals;
       // The call should reject because .text() throws synchronously.
-      await expect(internals.callVisionRecorded(new Uint8Array([1, 2, 3, 4]))).rejects.toThrow();
+      await expect(
+        internals.imageProcessor.callVisionRecorded(new Uint8Array([1, 2, 3, 4])),
+      ).rejects.toThrow();
 
       // release() is called synchronously, but the gate defers the actual
       // active-count decrement via setTimeout(fn, releaseCooldownMs). With
@@ -115,7 +119,9 @@ describe("BUG-01: permit released in finally when post-fetch processing throws",
 
     try {
       const internals = handoff as unknown as VisionHandoffInternals;
-      const result = (await internals.callVisionRecorded(new Uint8Array([1, 2, 3, 4]))) as {
+      const result = (await internals.imageProcessor.callVisionRecorded(
+        new Uint8Array([1, 2, 3, 4]),
+      )) as {
         status: string;
       };
       expect(result.status).toBe("ok");
@@ -138,7 +144,9 @@ describe("BUG-01: permit released in finally when post-fetch processing throws",
 
     try {
       const internals = handoff as unknown as VisionHandoffInternals;
-      const result = (await internals.callVisionRecorded(new Uint8Array([1, 2, 3, 4]))) as {
+      const result = (await internals.imageProcessor.callVisionRecorded(
+        new Uint8Array([1, 2, 3, 4]),
+      )) as {
         status: string;
       };
       expect(result.status).toBe("fetch_error");

@@ -121,18 +121,30 @@ switch between soft and hard cap at runtime — no restart needed.
 
 ## Usage Rights
 
-This is a **personal-use project**. The source code is published under the MIT
-license for transparency and educational purposes. While the MIT license
-technically permits commercial use and redistribution, this project is not
-actively maintained as a product and is not intended for production deployment.
+This is a **personal-use project** with architecture modeled on production
+patterns but single-maintainer support. The source code is published under the MIT license
+for transparency and educational purposes.
+
+The codebase implements patterns you'd find in production systems: circuit
+breakers with half-open probing, permit-leak protection via release cooldowns,
+WAL-mode SQLite with a ring buffer, sliding-window rate limiting, and
+brute-force protection on dashboard authentication. None of that changes the
+support posture below.
+
+**Single-maintainer support.** There is no guaranteed response time for
+issues, pull requests, or questions. There is no backward-compatibility
+commitment across versions: config shapes, flags, and APIs may change
+between releases without a deprecation cycle. There is no production
+support tier and no SLA. Security vulnerabilities are the one exception:
+see [SECURITY.md](SECURITY.md) for the 48-hour acknowledgment SLA that
+applies to confirmed vulnerability reports only.
 
 **This is a community contribution and is not an official Umans product.**
 It is not affiliated with, endorsed by, or supported by Umans AI. All upstream
 service names, model names, and API endpoints referenced in this codebase
 belong to their respective owners.
 
-Use it, learn from it, fork it — but don't expect official support or
-warranties of any kind.
+Use it, learn from it, fork it, but don't expect SLA-backed support.
 
 ## Table of Contents
 

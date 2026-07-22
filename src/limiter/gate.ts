@@ -585,6 +585,9 @@ export class ConcurrencyGate {
       windowStartedAt: snapshot.windowStartedAt,
       windowResetsAt: snapshot.windowResetsAt,
       windowRemainingMinutes: snapshot.windowRemainingMinutes,
+      watchdog_disabled: false,
+      watchdog_consecutive_failures: 0,
+      watchdog_failure_window_started_at: null,
     };
   }
 

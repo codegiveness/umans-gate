@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.9] - 2026-07-22
+
+### Added
+
+- **TTFT-retry visibility in the dashboard.** The proxy's background
+  retry activities (cooldown, same-key retry, rewrite escalation,
+  auto-disable) are now visible live in the dashboard:
+
+  - **In-flight `cooldown <Ns>` badge** on the capture row — shows a
+    live countdown when the TTFT watchdog has fired and the proxy is
+    waiting out the retry cooldown. Amber, tabular-nums, updates every
+    second.
+  - **In-flight `retry <N>` badge** — shows the retry ordinal
+    (`retry 1` = same-key retry, `retry 2` = rewrite escalation) while
+    the retry fetch is in flight.
+  - **Persistent `retried` badge** on completed captures that involved
+    at least one retry. Survives page refresh (persisted in two new
+    `captures` table columns: `retry_attempt INTEGER` and
+    `ttft_exceeded INTEGER`).
+  - **Global auto-disable banner** — a dismissible amber warning banner
+    appears at the top of the dashboard when the TTFT watchdog
+    auto-disables after N consecutive retry failures. Explains what
+    happened, what it means, and how to re-enable. A persistent amber
+    indicator remains in the gate-status area after dismissal.
+    Auto-clears when the watchdog is re-enabled via config reload.
+
+  WebSocket `state` messages gain `cooling_down` state with
+  `retryAttempt` and `cooldownEndsAt` fields (transient, WS-only — not
+  persisted to DB). The `gate` WS message and `GET /dashboard/api/gate`
+  REST endpoint gain `watchdog_disabled`,
+  `watchdog_consecutive_failures`, and
+  `watchdog_failure_window_started_at` fields.
+
+### Changed
+
+- **Catalog-driven stamp policy (ADR-0006).** Per-model stamp tuning
+  (`max_tokens`, `effort`, `thinking`, `top_k`) is now resolved via a
+  declarative overlay table (`STAMP_OVERLAY` in `stamp-catalog.ts`)
+  keyed by model-family pattern, merged into `ParsedModelInfo` at parse
+  time. Adding a new model family is a single row in the overlay, not a
+  code change. The old `isGlmModel()` / `modelMatchesThinkingPattern()`
+  prefix matchers and the `STAMP_MAX_TOKENS_GLM_VALUE` /
+  `STAMP_OUTPUT_CONFIG_GLM_VALUE` / `STAMP_REASONING_EFFORT_GLM_VALUE`
+  constants have been removed.
+
+- **Vision handoff decomposition (ADR-0005).** The per-image lifecycle
+  (transcode + cache + vision call + inflight dedup + DB + sink) is
+  extracted from `VisionHandoff` into a new `VisionImageProcessor`
+  class. `VisionHandoff` retains orchestration (catalog gate, signal
+  detection, image extraction, batch triage, body rewriting).
+
 ## [0.3.8] - 2026-07-21
 
 ### Fixed

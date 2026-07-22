@@ -62,6 +62,8 @@ function makeCapture(overrides: Partial<CaptureSummary> = {}): CaptureSummary {
     is_vision: false,
     status_source: null,
     gate_reason: null,
+    retry_attempt: null,
+    ttft_exceeded: null,
     ...overrides,
   };
 }
@@ -323,5 +325,104 @@ describe("CaptureList listbox keyboard navigation", () => {
     expect(screen.getByText("running")).toBeInTheDocument();
     expect(pathRow).toHaveTextContent(/claude-sonnet-4/);
     expect(within(option).getByText(/ttft 245ms/)).toBeInTheDocument();
+  });
+
+  it("renders retried badge when state=done and retry_attempt > 0", async () => {
+    const captures = [makeCapture({ id: 1, state: "done", retry_attempt: 1 })];
+
+    render(<CaptureList captures={captures} selectedId={null} onSelect={vi.fn()} {...baseProps} />);
+    await flushEffects();
+
+    const option = screen.getByRole("option");
+    expect(within(option).getByText("retried")).toBeInTheDocument();
+  });
+
+  it("does NOT render retried badge when retry_attempt is 0", async () => {
+    const captures = [makeCapture({ id: 1, state: "done", retry_attempt: 0 })];
+
+    render(<CaptureList captures={captures} selectedId={null} onSelect={vi.fn()} {...baseProps} />);
+    await flushEffects();
+
+    const option = screen.getByRole("option");
+    expect(within(option).queryByText("retried")).not.toBeInTheDocument();
+  });
+
+  it("does NOT render retried badge when retry_attempt is null", async () => {
+    const captures = [makeCapture({ id: 1, state: "done", retry_attempt: null })];
+
+    render(<CaptureList captures={captures} selectedId={null} onSelect={vi.fn()} {...baseProps} />);
+    await flushEffects();
+
+    const option = screen.getByRole("option");
+    expect(within(option).queryByText("retried")).not.toBeInTheDocument();
+  });
+
+  it("does NOT render retried badge while still running even if retry_attempt > 0", async () => {
+    const captures = [makeCapture({ id: 1, state: "streaming", retry_attempt: 1 })];
+
+    render(<CaptureList captures={captures} selectedId={null} onSelect={vi.fn()} {...baseProps} />);
+    await flushEffects();
+
+    const option = screen.getByRole("option");
+    expect(within(option).queryByText("retried")).not.toBeInTheDocument();
+  });
+
+  it("renders cooldown badge when state=cooling_down and cooldownEndsAt is set", async () => {
+    const captures = [
+      makeCapture({
+        id: 1,
+        state: "cooling_down",
+        cooldownEndsAt: Date.now() + 5000,
+      }),
+    ];
+
+    render(<CaptureList captures={captures} selectedId={null} onSelect={vi.fn()} {...baseProps} />);
+    await flushEffects();
+
+    const option = screen.getByRole("option");
+    expect(within(option).getByText(/cooldown \d+s/)).toBeInTheDocument();
+  });
+
+  it("renders retry badge when state=streaming and retryAttempt > 0", async () => {
+    const captures = [
+      makeCapture({
+        id: 1,
+        state: "streaming",
+        retryAttempt: 1,
+      }),
+    ];
+
+    render(<CaptureList captures={captures} selectedId={null} onSelect={vi.fn()} {...baseProps} />);
+    await flushEffects();
+
+    const option = screen.getByRole("option");
+    expect(within(option).getByText("retry 1")).toBeInTheDocument();
+  });
+
+  it("does NOT render retry badge when state=streaming and retryAttempt is absent", async () => {
+    const captures = [makeCapture({ id: 1, state: "streaming" })];
+
+    render(<CaptureList captures={captures} selectedId={null} onSelect={vi.fn()} {...baseProps} />);
+    await flushEffects();
+
+    const option = screen.getByRole("option");
+    expect(within(option).queryByText(/^retry \d+$/)).not.toBeInTheDocument();
+  });
+
+  it("keeps running badge visible when state=cooling_down", async () => {
+    const captures = [
+      makeCapture({
+        id: 1,
+        state: "cooling_down",
+        cooldownEndsAt: Date.now() + 5000,
+      }),
+    ];
+
+    render(<CaptureList captures={captures} selectedId={null} onSelect={vi.fn()} {...baseProps} />);
+    await flushEffects();
+
+    const option = screen.getByRole("option");
+    expect(within(option).getByText("running")).toBeInTheDocument();
+    expect(within(option).getByText(/cooldown \d+s/)).toBeInTheDocument();
   });
 });

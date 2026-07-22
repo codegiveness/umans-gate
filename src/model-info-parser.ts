@@ -6,6 +6,8 @@
 // This module does the type-guarded extraction once into a normalized
 // ParsedModelInfo; each caller projects to its own interface.
 
+import { type StampPolicy, matchStampOverlay } from "./stamp-catalog.js";
+
 /** Tristate vision support as encoded by the upstream API. */
 export type VisionSupport = boolean | "via-handoff";
 
@@ -43,6 +45,13 @@ export interface ParsedModelInfo {
   };
   stage: string | undefined;
   lifecycle: { playground_start_date: string | undefined } | undefined;
+  /**
+   * Stamp tuning resolved from the local `STAMP_OVERLAY` (ADR-0006).
+   * Populated by matching the model name against overlay patterns; not
+   * derived from upstream fields. The stamp pipeline reads this instead
+   * of calling `isGlmModel()` / `modelMatchesThinkingPattern()`.
+   */
+  stamps: StampPolicy;
 }
 
 /** Untyped shape of a single entry as received from upstream. */
@@ -103,8 +112,9 @@ export function parseModelInfoResponse(body: unknown): Map<string, ParsedModelIn
     const levels = Array.isArray(reasoning.levels)
       ? reasoning.levels.filter((l) => typeof l === "string")
       : [];
+    const name = typeof v.name === "string" ? v.name : key;
     out.set(key, {
-      name: typeof v.name === "string" ? v.name : key,
+      name,
       display_name: typeof v.display_name === "string" ? v.display_name : "",
       description: typeof v.description === "string" ? v.description : "",
       base_model: {
@@ -143,6 +153,7 @@ export function parseModelInfoResponse(body: unknown): Map<string, ParsedModelIn
                 : undefined,
           }
         : undefined,
+      stamps: matchStampOverlay(name),
     });
   }
   return out;

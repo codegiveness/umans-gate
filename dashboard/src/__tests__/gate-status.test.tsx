@@ -41,6 +41,9 @@ const baseStats: GateStats = {
   windowStartedAt: null,
   windowResetsAt: null,
   windowRemainingMinutes: null,
+  watchdog_disabled: false,
+  watchdog_consecutive_failures: 0,
+  watchdog_failure_window_started_at: null,
 };
 
 describe("GateStatus service mode", () => {
@@ -107,5 +110,21 @@ describe("GateStatus service mode", () => {
     await flushEffects();
     expect(container).toHaveTextContent("low");
     expect(container).not.toHaveTextContent("high");
+  });
+
+  it("renders watchdog off badge when watchdog_disabled", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{ ...baseStats, watchdog_disabled: true, watchdog_consecutive_failures: 3 }}
+      />,
+    );
+    await flushEffects();
+    expect(container).toHaveTextContent("watchdog off");
+  });
+
+  it("does not render watchdog off badge when watchdog not disabled", async () => {
+    const { container } = render(<GateStatus stats={baseStats} />);
+    await flushEffects();
+    expect(container).not.toHaveTextContent("watchdog off");
   });
 });

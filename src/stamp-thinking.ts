@@ -1,11 +1,5 @@
-import {
-  STAMP_MAX_TOKENS_GLM_VALUE,
-  STAMP_MAX_TOKENS_VALUE,
-  STAMP_OUTPUT_CONFIG_GLM_VALUE,
-  STAMP_OUTPUT_CONFIG_VALUE,
-} from "./config.js";
-import { isGlmModel } from "./model-policy.js";
 import { extractModelName } from "./models/name.js";
+import { type StampPolicy, matchStampOverlay } from "./stamp-catalog.js";
 import type { AnthropicBody, OutputConfig, ThinkingConfig } from "./types.js";
 
 const DEFAULT_THINKING: ThinkingConfig = {
@@ -13,33 +7,18 @@ const DEFAULT_THINKING: ThinkingConfig = {
 };
 
 export interface StampOptions {
-  /** Inject `max_tokens` resolved from model (131071 for GLM, 32767 for others) when true. */
+  /** Inject `max_tokens` resolved from policy when true. */
   maxTokens?: boolean;
-  /** Inject `thinking` block when true. */
+  /** Inject `thinking` block when policy allows it. */
   thinking?: ThinkingConfig | boolean;
   /** Inject `output_config` block when true. */
   outputConfig?: OutputConfig | boolean;
-}
-
-function modelMatchesThinkingPattern(model: unknown): boolean {
-  if (typeof model !== "string") return false;
-  if (model === "umans-coder" || model === "umans-flash") return true;
-  return (
-    model.startsWith("umans-kimi") ||
-    model.startsWith("umans-qwen") ||
-    model.startsWith("umans-glm")
-  );
-}
-
-function resolveOutputConfig(model: unknown, outputConfig: OutputConfig | boolean): OutputConfig {
-  if (typeof outputConfig === "object" && outputConfig !== null) return outputConfig;
-  if (typeof model === "string" && isGlmModel(model)) return STAMP_OUTPUT_CONFIG_GLM_VALUE;
-  return STAMP_OUTPUT_CONFIG_VALUE;
-}
-
-function resolveMaxTokens(model: unknown): number {
-  if (typeof model === "string" && isGlmModel(model)) return STAMP_MAX_TOKENS_GLM_VALUE;
-  return STAMP_MAX_TOKENS_VALUE;
+  /**
+   * Resolved stamp policy. When omitted, the policy is resolved from the
+   * body's `model` field via the local overlay (kept for unit-test
+   * ergonomics — the pipeline always supplies this).
+   */
+  policy?: StampPolicy;
 }
 
 /**
@@ -48,22 +27,26 @@ function resolveMaxTokens(model: unknown): number {
  */
 export function stampThinking(body: AnthropicBody, options: StampOptions): boolean {
   const model = extractModelName(body);
+  const policy = options.policy ?? matchStampOverlay(typeof model === "string" ? model : "");
   let changed = false;
 
   if (options.maxTokens) {
-    body.max_tokens = resolveMaxTokens(model);
+    body.max_tokens = policy.max_tokens;
     changed = true;
   }
 
   if (options.thinking) {
-    if (modelMatchesThinkingPattern(model)) {
+    if (policy.thinking) {
       body.thinking = typeof options.thinking === "object" ? options.thinking : DEFAULT_THINKING;
       changed = true;
     }
   }
 
   if (options.outputConfig) {
-    body.output_config = resolveOutputConfig(model, options.outputConfig);
+    body.output_config =
+      typeof options.outputConfig === "object" && options.outputConfig !== null
+        ? options.outputConfig
+        : { effort: policy.effort };
     changed = true;
   }
 

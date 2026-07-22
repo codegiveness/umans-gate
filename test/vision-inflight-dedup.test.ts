@@ -318,9 +318,14 @@ describe("V4: inflight dedup TOCTOU fix", () => {
     server.setDelayMs(50);
 
     // Access the private inflight map for inspection via a helper that
-    // reads it off any handoff instance (they share the same class shape).
+    // reads it off the imageProcessor instance (per-image lifecycle moved
+    // there in ADR-0005 step 2).
     function getInflightSize(h: VisionHandoff): number {
-      return (h as unknown as { inflight: Map<string, Promise<string>> }).inflight.size;
+      return (
+        h as unknown as {
+          imageProcessor: { inflight: Map<string, Promise<string>> };
+        }
+      ).imageProcessor.inflight.size;
     }
 
     // --- Success path ---

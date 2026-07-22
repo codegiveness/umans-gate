@@ -44,13 +44,13 @@ describe("vision capture failed on rejection", () => {
     const cache = new DescriptionCache(100, 60000, null);
     const handoff = new VisionHandoff(makeConfig(), cache, null, undefined, db);
 
-    // Patch callVisionRecorded (private) to throw — simulates an unhandled
-    // rejection in the vision promise that processImage awaits.
+    // Patch callVisionRecorded (private, now on VisionImageProcessor) to throw
+    // — simulates an unhandled rejection in the vision promise that processImage awaits.
     (
       handoff as unknown as {
-        callVisionRecorded: () => Promise<never>;
+        imageProcessor: { callVisionRecorded: () => Promise<never> };
       }
-    ).callVisionRecorded = async () => {
+    ).imageProcessor.callVisionRecorded = async () => {
       throw new Error("test rejection");
     };
 

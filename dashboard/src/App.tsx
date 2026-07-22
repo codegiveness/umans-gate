@@ -1,5 +1,5 @@
 import { Menu } from "lucide-react";
-import { Suspense, lazy, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
 import { ApiKeyGate } from "@/components/api-key-gate";
@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { WatchdogBanner } from "@/components/watchdog-banner";
 import { WsStatusBadge } from "@/components/ws-status-badge";
 import { useCaptures } from "@/hooks/use-captures";
 import { useClipboard } from "@/hooks/use-clipboard";
@@ -85,6 +86,26 @@ export function App() {
   const { copyText } = useClipboard();
   const [copyStatus, setCopyStatus] = useState("Copy");
 
+  const watchdogDisabled = gateStats?.watchdog_disabled ?? false;
+  const watchdogFailures = gateStats?.watchdog_consecutive_failures ?? 0;
+  const [watchdogBannerDismissed, setWatchdogBannerDismissed] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.localStorage?.getItem("watchdog_banner_dismissed") === "1",
+  );
+  useEffect(() => {
+    if (!watchdogDisabled) {
+      setWatchdogBannerDismissed(false);
+      if (typeof window !== "undefined")
+        window.localStorage?.removeItem("watchdog_banner_dismissed");
+    }
+  }, [watchdogDisabled]);
+  const dismissWatchdogBanner = () => {
+    setWatchdogBannerDismissed(true);
+    if (typeof window !== "undefined")
+      window.localStorage?.setItem("watchdog_banner_dismissed", "1");
+  };
+
   return (
     <ConfigProvider>
       <TooltipProvider delay={300}>
@@ -99,6 +120,13 @@ export function App() {
               Skip to content
             </a>
             <h1 className="sr-only">umans-gate</h1>
+            {watchdogDisabled && !watchdogBannerDismissed && (
+              <WatchdogBanner
+                watchdogDisabled={watchdogDisabled}
+                consecutiveFailures={watchdogFailures}
+                onDismiss={dismissWatchdogBanner}
+              />
+            )}
             <Tabs defaultValue="captures" className="flex flex-1 flex-col overflow-hidden">
               <header className="flex items-center gap-2 px-4 py-2 border-b bg-background">
                 <MobileDrawerTrigger />

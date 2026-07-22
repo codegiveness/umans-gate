@@ -80,4 +80,17 @@ export class TtftWatchdogState {
     this.consecutiveFailures = 0;
     this.windowStartedAt = 0;
   }
+
+  /** Snapshot of auto-disable state for dashboard/WS consumption. */
+  getStats(): {
+    disabled: boolean;
+    consecutiveFailures: number;
+    windowStartedAt: number | null;
+  } {
+    return {
+      disabled: this.isDisabled(),
+      consecutiveFailures: this.consecutiveFailures,
+      windowStartedAt: this.windowStartedAt || null,
+    };
+  }
 }

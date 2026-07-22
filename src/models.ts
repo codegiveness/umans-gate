@@ -3,7 +3,7 @@
 // (default 2.0) get a reduced weight (default 0.5); all others default to 1.0.
 
 import { createLogger } from "./logger.js";
-import type { ParsedModelInfo, VisionSupport } from "./model-info-parser.js";
+import type { ParsedModelInfo } from "./model-info-parser.js";
 import { fetchModelsInfo } from "./models/fetch-info.js";
 import type { VisionLookup, VisionTristate } from "./vision/detect.js";
 
@@ -19,46 +19,13 @@ const CHEAP_MODEL_WEIGHT = 0.5;
 const DEFAULT_MODEL_WEIGHT = 1;
 
 /** Rich model info from /v1/models/info — faithfully typed from the upstream API. */
-interface ModelInfo {
-  name: string;
-  display_name: string;
-  description: string;
-  base_model: {
-    name: string;
-    provider?: string;
-    family?: string;
-    oss_base?: string;
-  };
-  capabilities: {
-    max_completion_tokens: number;
-    recommended_max_tokens: number;
-    context_window: number;
-    supports_vision: VisionSupport;
-    supports_tools: boolean;
-    reasoning: {
-      supported: boolean;
-      can_disable: boolean;
-      levels: string[];
-      default_level: string | null;
-    };
-  };
-  benchmarks: Record<string, unknown>;
-  weights: {
-    precision: string | undefined;
-    hf_url: string | undefined;
-  };
-  stage?: string;
-  lifecycle?: {
-    playground_start_date?: string;
-  };
-}
 
 export interface ModelEntry {
   id: string;
   context_length: number;
   pricing: { input: number; output: number } | null;
   weight: number;
-  info: ModelInfo | null;
+  info: ParsedModelInfo | null;
 }
 
 interface RawModel {
@@ -86,6 +53,7 @@ export interface ModelsClientOptions {
  */
 export class ModelsClient implements VisionLookup {
   private entries: Map<string, ModelEntry> = new Map();
+  private parsedCatalog: Map<string, ParsedModelInfo> = new Map();
   private fetchedAt = 0;
   private ok = false;
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -154,6 +122,11 @@ export class ModelsClient implements VisionLookup {
     return entry.info.capabilities.supports_vision;
   }
 
+  /** Snapshot of the parsed /v1/models/info catalog (empty if not fetched). */
+  getParsedCatalog(): Map<string, ParsedModelInfo> {
+    return this.parsedCatalog;
+  }
+
   /** Get a model entry, or null if unknown. */
   get(modelId: string): ModelEntry | null {
     return this.entries.get(modelId) ?? null;
@@ -215,6 +188,7 @@ export class ModelsClient implements VisionLookup {
       if (infoResult) {
         infoMap = infoResult;
       }
+      this.parsedCatalog = infoMap ?? new Map();
 
       const next = new Map<string, ModelEntry>();
       for (const raw of data) {

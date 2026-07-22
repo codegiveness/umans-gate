@@ -1,4 +1,4 @@
-import { Beaker, Cloud, Download, RotateCw } from "lucide-react";
+import { Beaker, Cloud, Download, Info, RotateCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import type { FieldDef } from "@/components/config-sections";
@@ -290,6 +290,22 @@ export function FieldRow({
               <Cloud className="h-2.5 w-2.5" />
               Umans API
             </Badge>
+          ) : null}
+          {def.tooltip ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="inline-flex h-3.5 w-3.5 items-center justify-center text-muted-foreground hover:text-foreground"
+                  aria-label={`More info about ${def.label}`}
+                >
+                  <Info className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="max-w-[320px]">
+                {def.tooltip}
+              </TooltipContent>
+            </Tooltip>
           ) : null}
         </div>
         {def.description ? (

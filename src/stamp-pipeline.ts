@@ -9,7 +9,6 @@
 import {
   STAMP_CACHE_TTL_VALUE,
   STAMP_CONTEXT_MANAGEMENT_VALUE,
-  STAMP_OUTPUT_CONFIG_VALUE,
   STAMP_TEMPERATURE_VALUE,
   STAMP_THINKING_VALUE,
   STAMP_TOP_K_VALUE,
@@ -17,8 +16,9 @@ import {
 import { stripOmoReminder } from "./experiments/strip-omo-reminder.js";
 import { textDecoder } from "./helpers.js";
 import { createLogger } from "./logger.js";
-import { isGlmModel, resolveEffortForModel } from "./model-policy.js";
+import type { ParsedModelInfo } from "./model-info-parser.js";
 import { restampBreakpoints } from "./restamp-breakpoints.js";
+import { resolveStampPolicy } from "./stamp-catalog.js";
 import { stampReasoning } from "./stamp-reasoning.js";
 import { stampTemperature } from "./stamp-temperature.js";
 import { stampThinking } from "./stamp-thinking.js";
@@ -48,6 +48,8 @@ export interface StampContext {
   url: URL;
   method: string;
   modelName: string | undefined;
+  /** Parsed model catalog — used by steps to resolve per-model StampPolicy. */
+  catalog: Map<string, ParsedModelInfo>;
 }
 
 /** A single mutation step in the stamp pipeline. */
@@ -128,12 +130,12 @@ export const AnthropicBodyStep: StampStep = {
   },
   apply(body, ctx) {
     if (body === null || typeof body !== "object") return false;
-    const effort = resolveEffortForModel(ctx.modelName, true);
-    const outputConfigValue = effort !== undefined ? { effort } : STAMP_OUTPUT_CONFIG_VALUE;
+    const policy = resolveStampPolicy(ctx.modelName, ctx.catalog);
     const changed = stampThinking(body as AnthropicBody, {
       maxTokens: true,
       thinking: STAMP_THINKING_VALUE,
-      outputConfig: outputConfigValue,
+      outputConfig: { effort: policy.effort },
+      policy,
     });
     if (changed) {
       log.info("stamped anthropic body fields", {
@@ -169,10 +171,8 @@ export const OpenAiReasoningStep: StampStep = {
   },
   apply(body, ctx) {
     if (body === null || typeof body !== "object") return false;
-    const reasoningEffort =
-      resolveEffortForModel(ctx.modelName, ctx.config.stampReasoningEffort !== null) ??
-      (ctx.config.stampReasoningEffort as "high" | "max");
-    const changed = stampReasoning(body as OpenAiBody, { reasoningEffort });
+    const policy = resolveStampPolicy(ctx.modelName, ctx.catalog);
+    const changed = stampReasoning(body as OpenAiBody, { reasoningEffort: policy.effort });
     if (changed) {
       log.info("stamped openai body reasoning_effort", {
         method: ctx.method,
@@ -187,11 +187,14 @@ export const OpenAiReasoningStep: StampStep = {
 export const TopKStep: StampStep = {
   label: "top-k",
   applies(ctx) {
-    return ctx.config.stampClaudeCode && isGlmModel(ctx.modelName);
+    if (!ctx.config.stampClaudeCode) return false;
+    const policy = resolveStampPolicy(ctx.modelName, ctx.catalog);
+    return policy.top_k !== null;
   },
   apply(body, ctx) {
     if (body === null || typeof body !== "object") return false;
-    const changed = stampTopK(body, STAMP_TOP_K_VALUE);
+    const policy = resolveStampPolicy(ctx.modelName, ctx.catalog);
+    const changed = stampTopK(body, STAMP_TOP_K_VALUE, policy);
     if (changed) {
       log.info(`stamped top_k=${STAMP_TOP_K_VALUE}`, {
         method: ctx.method,

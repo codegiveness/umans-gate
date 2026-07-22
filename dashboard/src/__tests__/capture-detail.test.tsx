@@ -60,6 +60,8 @@ function makeCapture(overrides: Partial<CaptureDetail> = {}): CaptureDetail {
     is_vision: false,
     status_source: null,
     gate_reason: null,
+    retry_attempt: null,
+    ttft_exceeded: null,
     request_headers: '{"content-type":"application/json"}',
     request_body: '{"model":"claude-3","messages":[]}',
     response_headers: '{"content-type":"application/json"}',
