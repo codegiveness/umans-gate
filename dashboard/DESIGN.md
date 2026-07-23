@@ -16,7 +16,7 @@ declared in this file first.
 - **Base color:** neutral
 - **Theming mode:** CSS variables via `data-theme` / `.dark` class
 - **Tailwind config:** `dashboard/tailwind.config.ts`
-- **Global styles:** `dashboard/src/index.css` (OKLCH tokens)
+- **Global styles:** `dashboard/src/index.css` (HSL tokens)
 - **Component aliases:** `@/components`, `@/components/ui`, `@/lib/utils`, `@/lib`, `@/hooks`
 
 > **Why Base UI, not Radix.** Radix's `ScrollArea` defaulted to `type="hover"`,
@@ -30,7 +30,7 @@ declared in this file first.
 
 ## Palette
 
-All tokens are OKLCH, defined in `src/index.css` and exposed as Tailwind color
+All tokens are HSL, defined in `src/index.css` and exposed as Tailwind color
 aliases in `tailwind.config.ts`. The full token list (background, foreground,
 card, popover, primary, secondary, muted, accent, destructive, border, input,
 ring, chart-*, sidebar-*) lives in `src/index.css`; that file is the source of
@@ -38,14 +38,24 @@ truth — copy tables here go stale.
 
 ### Color strategy
 
-**Restrained, near-neutral.** The Nova preset ships a grayscale identity
-(OKLCH chroma 0 across light and dark) so that the data the tool captures —
-HTTP methods, status codes, SSE streams — carries the only color on screen.
-Semantic accents (`destructive` red, `chart-*` series) are the sole saturated
-hues. This is a deliberate shift from the previous azure (hue 212) primary:
-the earlier accent fought the traffic-light status colors and left focus rings
-hard to distinguish from selection state on the capture list. Grayscale primary
-+ colored status is the cleaner information hierarchy for a capture tool.
+**Restrained, near-neutral with a violet accent.** The Nova preset ships a
+grayscale identity (HSL saturation 0 across light and dark) so that the data
+the tool captures — HTTP methods, status codes, SSE streams — carries the only
+color on screen. Semantic accents (`destructive` red, `warning` amber, `success`
+green, `info` blue) remain the saturated status hues. This is a deliberate shift
+from the previous azure (hue 212) primary: the earlier accent fought the
+traffic-light status colors and left focus rings hard to distinguish from
+selection state on the capture list. Grayscale primary + colored status is the
+cleaner information hierarchy for a capture tool.
+
+**Chromatic accent for functional color.** Violet (HSL 263°) is used for
+focus rings (`--ring`), chart series (`--chart-1` through `--chart-5`), and
+`--sidebar-primary`. The hue extends the existing "colored status is the
+cleaner information hierarchy" philosophy from status badges to functional
+color: focus states and data-viz need a recognizable accent that is distinct
+from both the neutral base palette and the traffic-light status colors. The
+dark theme already used violet for `--sidebar-primary`; mirroring it in light
+theme unifies brand identity across modes.
 
 ### Semantic aliases used by components
 
@@ -147,10 +157,18 @@ while preserving touch scrolling.
    container.
 3. **Live region:** WebSocket status changes are announced via an `aria-live`
    region with `polite` so screen-reader users know when the list is stale.
-4. **Contrast:** All text/background pairs meet WCAG AA (4.5:1) for small
-   text. Semantic token pairs (`success`, `warning`, `info`, `sse`,
-   `destructive`) were adjusted in T13b to pass AA in both light and dark
-   themes.
+4. **Contrast:** All functional text/background pairs meet WCAG AA (4.5:1)
+   for small text, and non-text UI components (focus rings, inputs, functional
+   borders, chart series) meet WCAG 1.4.11 (3:1) in light theme. The dark
+   theme meets the same thresholds for focus rings, chart series, and text;
+   dark `--input` is alpha-blended (`0 0% 100% / 15%`, ~1.6:1) and relies on
+   `--ring` for focus visibility — a known pre-existing gap. Decorative
+   borders (`--border`) are exempt under WCAG 1.4.11 in both themes. The
+   light theme was brought into compliance by darkening `--muted-foreground`,
+   `--input`, and `--border`, and by introducing violet (HSL 263°) for
+   `--ring`, `--chart-*`, and `--sidebar-primary`. The dark theme kept its
+   existing text contrast and gained the same violet accent for `--ring`,
+   `--sidebar-ring`, and `--chart-*` (`--sidebar-primary` was already violet).
 5. **Keyboard-first:** All interactive elements are reachable and operable by
    keyboard; focus rings are not removed without a replacement.
 6. **No emoji icons:** Use SVG icon sets only (`lucide-react`). Emojis are not

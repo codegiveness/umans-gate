@@ -322,3 +322,43 @@ entries first (highest `used_pct` among them), otherwise highest
 report `used_pct = 0`. The Usage tab shows all entries regardless; only
 the header badge uses the selection.
 _Avoid_: top budget, worst budget, active budget.
+
+**Admission state**:
+The composite degradation state derived from the priority tuple
+(`{ priorityLow, boxedUntil, boxedReason, unitsDemoted, demotedUntil }`)
+and the service_mode tuple (`{ current, resetsAt }`) together. Already
+merged by `computeStatus()` in `dashboard/src/components/gate-status.tsx`
+using precedence: boxed → demoted → low service_mode → non-normal
+service_mode → priorityLow → high. Distinct from budget state (a quota
+gauge, not a discrete mode). The `mode` field on `priority_budget`
+entries mirrors `service_mode.current` — it is denormalized context,
+not a third independent dimension.
+_Avoid_: gate state (reserved for the whole GateStats panel), priority
+state, degradation flags.
+
+**Gate health**:
+The composite badge shown in the GateStatus header, merging the
+admission state and the most-urgent budget into a single compact
+indicator. Label is severity-ordered: the worst active segment leads
+(`boxed` > `demoted` > budget-over-80% > low-mode > non-normal-mode >
+`high`), with budget appended when present and not already the leader
+(e.g. `"boxed · frontier 87%"`, `"frontier 87% · interactive"`,
+`"interactive · frontier 49%"`, `"high"`). Color reflects the worst
+color-tier across all visible segments (so `"interactive · frontier 95%"`
+is amber, not blue). Tooltip carries full detail per dimension.
+Replaces the prior two-badge layout (separate budget + status badges).
+_Avoid_: combined badge, merged status, unified indicator.
+
+### Design system
+
+**Accent Hue**:
+The violet (HSL 263°) used for focus rings, chart series, and sidebar-primary across both light and dark themes. Chosen for brand consistency with the dark theme's existing violet sidebar-primary and for perceptual distinctness from the neutral base palette and the traffic-light status colors (green success, red destructive, amber warning). Replaces the prior pure-gray ring and chart palette that failed WCAG 2.2 AA contrast thresholds in light theme.
+_Avoid_: brand color, primary color (reserved for the `--primary` token), theme color.
+
+**Functional Border**:
+A border that delimits an interactive element (e.g. input fields, select triggers) and must meet WCAG 1.4.11 non-text contrast (3:1). Distinct from decorative borders (section dividers, card outlines) which are exempt from the contrast requirement. The `--input` token is a functional border; `--border` is decorative.
+_Avoid_: input border (too narrow — only one of several functional borders), outline.
+
+**Chart Palette**:
+The five-hue sequence used for data visualization: violet (263°), cyan (200°), amber (30°), rose (340°), teal (160°). Replaces the prior five-step grayscale palette that was visually indistinguishable as data series in both themes. Each hue is tuned per-theme (lower lightness in light theme, higher in dark) to meet WCAG 1.4.11 (3:1) against the respective background.
+_Avoid_: chart colors, data colors, series colors.
