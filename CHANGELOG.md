@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.10] - 2026-07-23
+
+### Added
+
+- **Upstream `priority_budget` surfaced in the dashboard.** The
+  `priority_budget` field from `/v1/usage` is now parsed, stored, and
+  displayed live in the dashboard's Usage tab and Gate Status panel.
+  New formatting helpers (`formatPriorityBudget`,
+  `formatPriorityBudgetBadge`) and badge color logic are included, with
+  full test coverage across server and dashboard.
+
 ### Fixed
 
 - **`bun run dev` no longer fails after `bun run clean` or fresh checkout.**
