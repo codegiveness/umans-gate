@@ -58,6 +58,7 @@
   },
   "scripts": {
     "dev": "bun src/cli.ts",
+    "predev": "[ -f dashboard/dist/index.html ] || bun run build:dashboard && bun run build:embed-assets",
     "build": "bun run build:dashboard && bun run build:embed-assets && bun run build:server",
     "build:server": "bash scripts/build-server.sh",
     "build:dashboard": "cd dashboard && bun run build",

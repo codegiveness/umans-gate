@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`bun run dev` no longer fails after `bun run clean` or fresh checkout.**
+  Added a `predev` script that auto-builds `dashboard/dist/` when missing
+  and always regenerates `src/embedded-assets.ts` from the current build
+  output. The guard adds ~50ms overhead on warm starts (embed-assets
+  regeneration only). Previously, running `bun run dev` without first
+  building the dashboard would either serve a "dashboard not built" 404
+  or crash on module load due to stale asset hashes in
+  `embedded-assets.ts`.
+
 ## [0.3.9] - 2026-07-22
 
 ### Added
