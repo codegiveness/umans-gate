@@ -8,7 +8,7 @@
 // Severity: Low (local-only DoS; remote vector closed by SEC-4 CSRF fix).
 
 import { expect, test } from "bun:test";
-import { type ProxyHandle, startProxy } from "./helpers/proxy.js";
+import { startProxy } from "./helpers/proxy.js";
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 

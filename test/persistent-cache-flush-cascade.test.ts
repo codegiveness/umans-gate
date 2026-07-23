@@ -5,7 +5,6 @@
 // pendingWrites, so the NEXT set() that crossed the flushBatch threshold
 // would re-splice the same failing batch and throw AGAIN, indefinitely.
 
-import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";

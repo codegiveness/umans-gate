@@ -6,7 +6,7 @@
 // This module does the type-guarded extraction once into a normalized
 // ParsedModelInfo; each caller projects to its own interface.
 
-import { type StampPolicy, matchStampOverlay } from "./stamp-catalog.js";
+import { matchStampOverlay, type StampPolicy } from "./stamp-catalog.js";
 
 /** Tristate vision support as encoded by the upstream API. */
 export type VisionSupport = boolean | "via-handoff";

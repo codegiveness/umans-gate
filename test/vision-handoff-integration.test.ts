@@ -294,10 +294,10 @@ describe("Vision handoff integration", () => {
       expect(upstream.getCallCount()).toBe(2);
       const r1 = upstream.getRequest(0) as ReceivedBody;
       const r2 = upstream.getRequest(1) as ReceivedBody;
-      const c1 = (r1.messages?.[0]?.content as ContentPart[]).find(
+      const c1 = ((r1.messages?.[0]?.content ?? []) as ContentPart[]).find(
         (p) => p.type === "text" && p.text?.includes(WRAPPED_PREFIX),
       );
-      const c2 = (r2.messages?.[0]?.content as ContentPart[]).find(
+      const c2 = ((r2.messages?.[0]?.content ?? []) as ContentPart[]).find(
         (p) => p.type === "text" && p.text?.includes(WRAPPED_PREFIX),
       );
       expect(c1).toBeDefined();

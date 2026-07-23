@@ -43,6 +43,7 @@ export function WsStatusBadge({ wsState }: WsStatusBadgeProps) {
         render={
           <span
             className="inline-flex items-center outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+            role="img"
             aria-label={`WebSocket: ${config.label}`}
           />
         }

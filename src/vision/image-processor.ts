@@ -6,8 +6,8 @@
 // stay inline as if/else — they map to cache keys, so a strategy pattern would
 // be premature (ADR-0005).
 
-import { flattenUsage } from "../db.js";
 import type { CaptureDB } from "../db.js";
+import { flattenUsage } from "../db.js";
 import { headersToObject, redactHeaders } from "../helpers.js";
 import type { ConcurrencyGate } from "../limiter/index.js";
 import { GateError } from "../limiter/index.js";
@@ -17,14 +17,14 @@ import { extractOpenAiNonStreaming } from "../usage/extract.js";
 import type { UsageMetrics } from "../usage/types.js";
 import type { CompressionRecipe, DescriptionCache } from "./cache.js";
 import { descriptionCacheKey } from "./cache.js";
-import { type CraftConfig, craftVisionQuestion, craftingCacheKey } from "./craft.js";
+import { type CraftConfig, craftingCacheKey, craftVisionQuestion } from "./craft.js";
 import type { ImagePart } from "./detect.js";
 import type { VisionCallRecord, VisionConfig, VisionContext } from "./handoff.js";
 import type { VisionHttpExchange, VisionRecordSink } from "./sink.js";
-import { TranscodeError } from "./transcode.js";
 import type { TranscodeOptions, TranscodeResult } from "./transcode.js";
-import { DEFAULT_TRIAGE_CONFIG, triageVision } from "./triage.js";
+import { TranscodeError } from "./transcode.js";
 import type { VisionStrategy as TriageStrategy } from "./triage.js";
+import { DEFAULT_TRIAGE_CONFIG, triageVision } from "./triage.js";
 import { failurePlaceholder, isFailurePlaceholder, wrapDescription } from "./wrapper.js";
 
 const log = createLogger("vision");

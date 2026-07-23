@@ -1,6 +1,6 @@
 import { Eye } from "lucide-react";
-import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import { useEffect, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -73,13 +73,7 @@ function useCooldownCountdown(
  * Minimal tooltip wrapper for inline elements in capture rows. Keeps the
  * tooltip content shape consistent: a bold label + optional muted detail.
  */
-function RowTip({
-  tip,
-  children,
-}: {
-  tip: ReactNode;
-  children: ReactNode;
-}) {
+function RowTip({ tip, children }: { tip: ReactNode; children: ReactNode }) {
   return (
     <Tooltip>
       <TooltipTrigger render={<span className="inline-flex" />}>{children}</TooltipTrigger>
@@ -103,7 +97,6 @@ export function CaptureRowItem({
 
   return (
     <div
-      // biome-ignore lint/a11y/useSemanticElements: ARIA option role for virtualized listbox pattern
       role="option"
       id={optionId}
       aria-selected={selected}

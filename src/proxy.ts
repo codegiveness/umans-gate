@@ -2,33 +2,31 @@
 // Tee's response stream so the client gets data immediately while capture
 // accumulates in the background.
 
+import { STAMP_ANTHROPIC_BETA_HEADER } from "./config.js";
 import type { CaptureDB } from "./db.js";
+import type { Harness, RewriteIdExperiment } from "./experiments/rewrite-ids.js";
+import type { TtftWatchdogState } from "./experiments/ttft-watchdog-state.js";
 import {
-  HOP,
   classify429,
   computeRequestWeight,
   decodeText,
+  HOP,
   headersToObject,
   newSummary,
   redactHeaders,
   textDecoder,
   textEncoder,
 } from "./helpers.js";
-import type { GateError } from "./limiter/index.js";
-import type { ConcurrencyGate } from "./limiter/index.js";
+import type { ConcurrencyGate, GateError } from "./limiter/index.js";
 import { createLogger } from "./logger.js";
-
-import { STAMP_ANTHROPIC_BETA_HEADER } from "./config.js";
-import type { Harness, RewriteIdExperiment } from "./experiments/rewrite-ids.js";
-import type { TtftWatchdogState } from "./experiments/ttft-watchdog-state.js";
 import { extractModelName } from "./models/name.js";
 import type { WriteQueue } from "./queue.js";
 import type { SlidingWindowRateLimiter } from "./rate.js";
 import {
   CacheTtlStep,
+  parseJsonBody,
   STAMP_PIPELINE,
   type StampContext,
-  parseJsonBody,
 } from "./stamp-pipeline.js";
 import type {
   CaptureConfig,
@@ -43,6 +41,7 @@ import type {
 import type { UsageMetrics } from "./usage-extract.js";
 
 const log = createLogger("proxy");
+
 import type { ModelsClient } from "./models.js";
 import { extractUsage } from "./usage-extract.js";
 import type { VisionHandoff } from "./vision/handoff.js";

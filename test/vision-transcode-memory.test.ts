@@ -5,15 +5,14 @@
 //
 // Run: bun test test/vision-transcode-memory.test.ts
 
-import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CaptureDB } from "../src/db.js";
 import { DescriptionCache } from "../src/vision/cache.js";
-import { VisionHandoff } from "../src/vision/handoff.js";
 import type { VisionConfig } from "../src/vision/handoff.js";
+import { VisionHandoff } from "../src/vision/handoff.js";
 import { PersistentDescriptionStore } from "../src/vision/persistent-cache.js";
 import { TranscodeError, transcodeImage } from "../src/vision/transcode.js";
 

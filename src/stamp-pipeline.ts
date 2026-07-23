@@ -17,11 +17,11 @@ import { textDecoder } from "./helpers.js";
 import { createLogger } from "./logger.js";
 import type { ParsedModelInfo } from "./model-info-parser.js";
 import { restampBreakpoints } from "./restamp-breakpoints.js";
+import { stampCacheTtl } from "./stamp.js";
 import { resolveStampPolicy } from "./stamp-catalog.js";
 import { stampTemperature } from "./stamp-temperature.js";
 import { stampThinking } from "./stamp-thinking.js";
 import { stampTopK } from "./stamp-topk.js";
-import { stampCacheTtl } from "./stamp.js";
 import type {
   AnthropicBody,
   CaptureConfig,

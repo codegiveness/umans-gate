@@ -1,3 +1,4 @@
+import { AlertTriangle, ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { badgeGold, badgeInfo, badgeSuccess, badgeWarning } from "@/lib/badge-colors";
@@ -5,7 +6,6 @@ import { fmtDurationUntil, fmtUtcDateTime } from "@/lib/format";
 import { computeGateHealth } from "@/lib/gate-health";
 import { cn } from "@/lib/utils";
 import type { GateStats } from "@/types";
-import { AlertTriangle, ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
 
 const tierBadgeClass: Record<GateStats["tier"], string | undefined> = {
   "Code Max": badgeGold,

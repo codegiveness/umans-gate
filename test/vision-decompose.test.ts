@@ -29,8 +29,8 @@ import {
   decomposeIfNeeded,
   decompositionCacheKey,
 } from "../src/vision/decompose.js";
-import { VisionHandoff } from "../src/vision/handoff.js";
 import type { VisionConfig } from "../src/vision/handoff.js";
+import { VisionHandoff } from "../src/vision/handoff.js";
 import { PersistentDescriptionStore } from "../src/vision/persistent-cache.js";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -166,7 +166,7 @@ interface MockVisionHandle {
   close(): Promise<void>;
 }
 
-function startMockVision(description: string): MockVisionHandle {
+function _startMockVision(description: string): MockVisionHandle {
   let callCount = 0;
   const requests: unknown[] = [];
   const server = Bun.serve({

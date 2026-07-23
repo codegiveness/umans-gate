@@ -240,7 +240,7 @@ class UpstreamPrefixCacheModel {
   inputTokensTotal = 0;
 
   constructor(
-    private readonly apiKind: "openai" | "anthropic",
+    readonly _apiKind: "openai" | "anthropic",
     private readonly minCacheableTokens: number,
   ) {}
 
@@ -352,7 +352,7 @@ function runSimulation(strategy: CacheStrategy, config: SimConfig): SimResult {
     };
 
     let description = "";
-    let prefixBytes: string;
+    let _prefixBytes: string;
 
     if (isImageTurn) {
       const cached = strategy.lookup(ctx);
@@ -367,12 +367,12 @@ function runSimulation(strategy: CacheStrategy, config: SimConfig): SimResult {
       if (!strategy.name.includes("wrapper")) {
         description = wrapStable(description);
       }
-      prefixBytes = JSON.stringify({
+      _prefixBytes = JSON.stringify({
         model: "umans-glm-5.2",
         messages: [...messageHistory.slice(0, -1), `[Image: ${description}]`],
       });
     } else {
-      prefixBytes = fullPayloadSerialized;
+      _prefixBytes = fullPayloadSerialized;
     }
 
     const inputTokens =

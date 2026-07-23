@@ -1,8 +1,8 @@
 // Raw TCP upstream that captures the exact wire bytes (headers + body).
 // Used for testing TTL stamping by inspecting what the proxy actually sent.
 
-import { type Server as NetServer, type Socket, createServer } from "node:net";
 import type { AddressInfo } from "node:net";
+import { createServer, type Server as NetServer, type Socket } from "node:net";
 
 export interface RawRequest {
   head: string;

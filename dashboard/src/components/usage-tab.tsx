@@ -27,7 +27,7 @@ import { useUsageHistory } from "@/hooks/use-usage-history";
 import { useUsageWs } from "@/hooks/use-usage-ws";
 import { badgeGold, budgetTier } from "@/lib/badge-colors";
 import { fmtDurationUntil, fmtUtcTime } from "@/lib/format";
-import { type RangePreset, addDays, dayAgeDays, presetRange, todayUtc } from "@/lib/usage-heatmap";
+import { addDays, dayAgeDays, presetRange, type RangePreset, todayUtc } from "@/lib/usage-heatmap";
 import { findDailyRow } from "@/lib/usage-timeline-old";
 import type { PriorityBudgetEntry, UsageSampleRow } from "@/types";
 
@@ -274,7 +274,7 @@ const TIER_BAR_CLASS: Record<"blue" | "amber" | "red", string> = {
   red: "bg-destructive",
 };
 
-function PriorityBudgetCards({ entries }: { entries: PriorityBudgetEntry[] }): JSX.Element {
+function PriorityBudgetCards({ entries }: { entries: PriorityBudgetEntry[] }): React.JSX.Element {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {entries.map((entry) => {
@@ -324,7 +324,7 @@ function TodaySamplesSection({
   loading,
   error,
   onRefresh,
-}: TodaySamplesSectionProps): JSX.Element {
+}: TodaySamplesSectionProps): React.JSX.Element {
   return (
     <Card>
       <CardContent className="px-4 py-0">
@@ -376,7 +376,7 @@ function TodaySamplesSection({
   );
 }
 
-function SamplesTable({ samples }: { samples: UsageSampleRow[] }): JSX.Element {
+function SamplesTable({ samples }: { samples: UsageSampleRow[] }): React.JSX.Element {
   return (
     <Table className="text-xs">
       <TableHeader>

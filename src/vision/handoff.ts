@@ -36,12 +36,12 @@ import {
 } from "./detect.js";
 import {
   CACHE_MISS,
+  decodeBase64,
   ENCODER_VERSION,
   type ImageProcessResult,
-  VisionImageProcessor,
-  decodeBase64,
   recipeFromConfig,
   resolveTriageStrategy,
+  VisionImageProcessor,
 } from "./image-processor.js";
 import type { VisionRecordSink } from "./sink.js";
 import { transcodeImage } from "./transcode.js";
@@ -631,8 +631,8 @@ function concatRecentTextBlocks(arr: unknown[]): string {
   return out;
 }
 
+export type { CompressionRecipe } from "./cache.js";
 // Re-export shared constants/types so existing imports from handoff.ts keep
 // working (e.g. tests that import ENCODER_VERSION or descriptionCacheKey).
 export { descriptionCacheKey } from "./cache.js";
-export type { CompressionRecipe } from "./cache.js";
 export { ENCODER_VERSION } from "./image-processor.js";

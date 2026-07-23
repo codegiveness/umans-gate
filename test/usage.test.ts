@@ -1,13 +1,13 @@
 import { Database } from "bun:sqlite";
 import { expect, mock, test } from "bun:test";
 import {
-  accountCaptureUsage,
   accountCapturesUsage,
+  accountCaptureUsage,
   getDailyUsage,
   migrateEconomicsSchema,
 } from "../src/economics.js";
-import { UmansUsageClient } from "../src/usage.js";
 import { buildSnapshot, failSafeSnapshot } from "../src/usage/parser.js";
+import { UmansUsageClient } from "../src/usage.js";
 
 const baseConfig = {
   target: "https://api.code.umans.ai",

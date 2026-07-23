@@ -17,13 +17,13 @@ import { Spinner } from "@/components/ui/spinner";
 import { thirtyDayAvg } from "@/components/usage-timeline";
 import { fmtUtcTime } from "@/lib/format";
 import {
-  type EventMarker,
-  type RealBand,
   buildEventMarkers,
   buildRealBands,
   buildStepPoints,
   dayEndMs,
   dayStartMs,
+  type EventMarker,
+  type RealBand,
 } from "@/lib/usage-timeline-old";
 import type { UsageDailyRow, UsageEventRow } from "@/types";
 
@@ -48,7 +48,7 @@ export function UsageTimelineOld({
   daily30Day,
   loading = false,
   error = null,
-}: UsageTimelineOldProps): JSX.Element {
+}: UsageTimelineOldProps): React.JSX.Element {
   const eventList = events ?? [];
   const sortedEvents = useMemo(
     () => [...eventList].sort((a, b) => a.onset_at - b.onset_at),
@@ -159,7 +159,9 @@ interface OldLaneSharedProps {
   isStep: boolean;
 }
 
-function ConcurrencyLaneOld(props: OldLaneSharedProps & { markers: EventMarker[] }): JSX.Element {
+function ConcurrencyLaneOld(
+  props: OldLaneSharedProps & { markers: EventMarker[] },
+): React.JSX.Element {
   const { daily, events, markers, startMs, endMs, isFlat, isStep } = props;
   const hardCap = daily?.concurrency_hard_cap ?? 0;
 
@@ -287,7 +289,7 @@ function ConcurrencyLaneOld(props: OldLaneSharedProps & { markers: EventMarker[]
   );
 }
 
-function RequestsLaneOld(props: OldLaneSharedProps): JSX.Element {
+function RequestsLaneOld(props: OldLaneSharedProps): React.JSX.Element {
   const { daily, events, startMs, endMs, isFlat, isStep } = props;
   const limit = daily?.requests_limit ?? 0;
 
@@ -404,7 +406,7 @@ function RequestsLaneOld(props: OldLaneSharedProps): JSX.Element {
   );
 }
 
-function TokenFlowLaneOld(props: OldLaneSharedProps): JSX.Element {
+function TokenFlowLaneOld(props: OldLaneSharedProps): React.JSX.Element {
   const { daily, events, startMs, endMs, isFlat, isStep } = props;
 
   const data = useMemo(() => {
@@ -530,7 +532,7 @@ function TokenFlowLaneOld(props: OldLaneSharedProps): JSX.Element {
 
 function CacheHitRateLaneOld(
   props: OldLaneSharedProps & { thirtyDayAvg: number | null },
-): JSX.Element {
+): React.JSX.Element {
   const { daily, events, thirtyDayAvg, startMs, endMs, isFlat, isStep } = props;
   const avgPct = thirtyDayAvg === null ? null : thirtyDayAvg * 100;
 
@@ -630,7 +632,7 @@ function DegradationLaneOld(props: {
   markers: EventMarker[];
   startMs: number;
   endMs: number;
-}): JSX.Element {
+}): React.JSX.Element {
   const { bands, markers, startMs, endMs } = props;
   const onsetTimestamps = markers.filter((m) => m.transition === "onset").map((m) => m.onset_at);
   const data = [{ ts: startMs }, { ts: endMs }];
@@ -705,7 +707,7 @@ interface LaneHeaderProps {
   subtitle?: string;
 }
 
-function LaneHeader({ title, subtitle }: LaneHeaderProps): JSX.Element {
+function LaneHeader({ title, subtitle }: LaneHeaderProps): React.JSX.Element {
   return (
     <div className="flex items-baseline justify-between">
       <span className="text-xs font-semibold">{title}</span>

@@ -310,7 +310,7 @@ function resolveAnthropicUsage(
 
 // ─── OpenAI handler ─────────────────────────────────────────────────────────
 
-function handleOpenAi(body: MockRequestBody, callCount: number): Response {
+function handleOpenAi(body: MockRequestBody, _callCount: number): Response {
   const streaming = body?.stream === true;
   const includeUsage = body?.stream_options?.include_usage === true;
 

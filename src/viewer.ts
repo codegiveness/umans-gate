@@ -5,17 +5,21 @@
 // 1. dashboard/dist/ (production build from Vite)
 // 2. 404
 
+// Embedded assets: in compiled executables, Bun.embeddedFiles exposes imported
+// `with { type: "file" }` assets as Blobs. In dev mode, it's an empty array.
+// This allows the dashboard to work inside standalone compiled executables.
+import { embeddedFiles } from "bun";
 import { type AuthFailureLimiter, isTokenAuthorized } from "./auth.js";
+import type { RawConfigInput } from "./config.js";
 import {
+  isRawConfigInput,
   type RawConfig,
   type ReloadResult,
-  isRawConfigInput,
   readConfigFile,
   resetConfig,
   saveConfigLocked,
   validateConfig,
 } from "./config.js";
-import type { RawConfigInput } from "./config.js";
 import type { CaptureDB } from "./db.js";
 import {
   getAvailableMonths,
@@ -23,23 +27,18 @@ import {
   getMonthSummary,
   getPricingTable,
 } from "./economics.js";
+import { EMBEDDED_ASSET_PATHS } from "./embedded-assets.js";
 import type { TtftWatchdogState } from "./experiments/ttft-watchdog-state.js";
 import { summary } from "./helpers.js";
 import type { ConcurrencyGate } from "./limiter/index.js";
 import type { ModelsClient } from "./models.js";
 import type { ProxyConfig } from "./types.js";
+import { selectMostUrgentBudget } from "./usage/budget.js";
+import type { UmansUsageClient } from "./usage.js";
 import type { UsageHistoryStore } from "./usage-history/index.js";
 import { addDays, downsampleRange } from "./usage-history/index.js";
-import type { UmansUsageClient } from "./usage.js";
-import { selectMostUrgentBudget } from "./usage/budget.js";
 import type { VisionHandoff } from "./vision/handoff.js";
 import type { WsBroadcaster } from "./ws.js";
-
-// Embedded assets: in compiled executables, Bun.embeddedFiles exposes imported
-// `with { type: "file" }` assets as Blobs. In dev mode, it's an empty array.
-// This allows the dashboard to work inside standalone compiled executables.
-import { embeddedFiles } from "bun";
-import { EMBEDDED_ASSET_PATHS } from "./embedded-assets.js";
 
 interface NamedBlob extends Blob {
   name: string;

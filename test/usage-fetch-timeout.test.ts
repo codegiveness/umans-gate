@@ -15,7 +15,7 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import { UmansUsageClient } from "../src/usage/aggregator.js";
 import { fetchUsageRaw } from "../src/usage/fetch-usage.js";
 
-const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+const _sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 interface MockUpstream {
   port: number;

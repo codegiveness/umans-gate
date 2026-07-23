@@ -21,7 +21,7 @@ const gateOpts = {
   queueTimeoutMs: 100,
 };
 
-function wireGate(client: UmansUsageClient): ConcurrencyGate {
+function _wireGate(client: UmansUsageClient): ConcurrencyGate {
   const gate = new ConcurrencyGate(gateOpts);
   client.onChange((snap) => {
     gate.setSoftLimit(snap.concurrencySoftLimit);

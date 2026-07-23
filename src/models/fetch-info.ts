@@ -6,6 +6,7 @@
 import { parseModelInfoResponse } from "../model-info-parser.js";
 
 export type { ParsedModelInfo } from "../model-info-parser.js";
+
 import type { ParsedModelInfo } from "../model-info-parser.js";
 
 /** Timeout for the upstream fetch (ms). */

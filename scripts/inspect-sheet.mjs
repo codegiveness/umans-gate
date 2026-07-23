@@ -39,9 +39,8 @@ const data = await page.evaluate(() => {
   }
 
   // Check if Tailwind utility bg-popover is present
-  const hasBgPopover =
-    sheetClasses.includes("bg-popover") ||
-    (aside && asideCs && asideCs.className && asideCs.className.includes("bg-popover"));
+  const _hasBgPopover =
+    sheetClasses.includes("bg-popover") || (aside && asideCs?.className?.includes("bg-popover"));
   const asideHasBgPopover = aside ? aside.className.includes("bg-popover") : false;
   const sheetHasBgPopover = sheetClasses.includes("bg-popover");
 

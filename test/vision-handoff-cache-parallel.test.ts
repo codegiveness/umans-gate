@@ -1,20 +1,11 @@
-// TDD tests for PERF-04: parallelize vision cache-only checks.
-// These tests verify that processBodyCacheOnly checks the cache from the
-// original decoded bytes before any transcoding, fails fast on any miss,
-// and never calls transcodeImage when all images are cache hits.
-//
-// Run: bun test test/vision-handoff-cache-parallel.test.ts
-
-import { Database } from "bun:sqlite";
-import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CaptureDB } from "../src/db.js";
-import { DescriptionCache } from "../src/vision/cache.js";
-import { type CompressionRecipe, imageCacheKey } from "../src/vision/cache.js";
-import { VisionHandoff } from "../src/vision/handoff.js";
+import { type CompressionRecipe, DescriptionCache } from "../src/vision/cache.js";
 import type { VisionConfig } from "../src/vision/handoff.js";
+import { VisionHandoff } from "../src/vision/handoff.js";
 import { PersistentDescriptionStore } from "../src/vision/persistent-cache.js";
 import { getTranscodeCallCount, resetTranscodeCallCount } from "../src/vision/transcode.js";
 import { failurePlaceholder, isFailurePlaceholder } from "../src/vision/wrapper.js";
@@ -135,7 +126,7 @@ describe("processBodyCacheOnly parallel behavior (PERF-04)", () => {
     const visionServer = Bun.serve({
       port: 0,
       async fetch(req) {
-        const body = await req.json().catch(() => ({}));
+        const _body = await req.json().catch(() => ({}));
         const desc = visionDescriptions[visionCallIdx] ?? "fallback";
         visionCallIdx++;
         return Response.json({

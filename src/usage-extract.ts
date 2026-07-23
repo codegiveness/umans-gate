@@ -11,7 +11,7 @@
 // exported from this file before the split is re-exported here, so all
 // existing import paths (`src/usage-extract.js` / test/helpers) keep working.
 
-export * from "./usage/types.js";
-export * from "./usage/sse-parse.js";
-export * from "./usage/extract.js";
 export * from "./usage/ddl.js";
+export * from "./usage/extract.js";
+export * from "./usage/sse-parse.js";
+export * from "./usage/types.js";

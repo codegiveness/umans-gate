@@ -20,17 +20,14 @@ import { describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
 import { DescriptionCache, descriptionCacheKey, imageCacheKey } from "../src/vision/cache.js";
 import {
-  type ApiKind,
-  type ImagePart,
-  type VisionTristate,
   cheapImageSignal,
   findAnthropicImageParts,
   findOpenAIImageParts,
-  inferExtFromUrl,
+  type ImagePart,
   shouldRewrite,
+  type VisionTristate,
 } from "../src/vision/detect.js";
 import {
-  type FormatPolicy,
   applyMaxImagesPolicy,
   failurePlaceholder,
   formatPolicy,
@@ -210,8 +207,8 @@ describe("content-hash cache key", () => {
   test("hash must NOT include description text (would collide on generic captions)", () => {
     const bytes = Buffer.from("FAKEPNGDATA");
     const recipe = { format: "jpeg", quality: 75, max_dimension: 1024, subsampling: "4:2:0" };
-    const desc1 = "a red cat on a mat";
-    const desc2 = "a blue dog on a rug";
+    const _desc1 = "a red cat on a mat";
+    const _desc2 = "a blue dog on a rug";
     const k1 = descriptionCacheKey(bytes, recipe, "v1", "umans-flash", 1);
     const k2 = descriptionCacheKey(bytes, recipe, "v1", "umans-flash", 1);
     // description text is a VALUE, not part of the KEY

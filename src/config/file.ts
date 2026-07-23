@@ -7,7 +7,7 @@ import { DEFAULT_CONFIG } from "./defaults.js";
 import { loadJsonConfig } from "./env.js";
 import { resolveConfigPath } from "./paths.js";
 import type { RawConfig, RawConfigInput } from "./types.js";
-import { type ValidationContext, coerceRawForValidation, validateConfig } from "./validation.js";
+import { coerceRawForValidation, type ValidationContext, validateConfig } from "./validation.js";
 
 /**
  * Write the default config template if no config file exists.

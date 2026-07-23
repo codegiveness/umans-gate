@@ -5,8 +5,7 @@
 // ProxyConfig stale.
 
 import { describe, expect, test } from "bun:test";
-import { applyReloadToConfig } from "../src/config.js";
-import { loadConfig } from "../src/config.js";
+import { applyReloadToConfig, loadConfig } from "../src/config.js";
 import type { ProxyConfig } from "../src/types.js";
 
 function makeLiveConfig(): ProxyConfig {

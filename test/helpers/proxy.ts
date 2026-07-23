@@ -1,6 +1,6 @@
 import { existsSync, rmSync, unlinkSync } from "node:fs";
-import { spawn } from "bun";
 import type { Subprocess } from "bun";
+import { spawn } from "bun";
 
 export interface ProxyHandle {
   proc: Subprocess<"ignore", "ignore", "pipe">;

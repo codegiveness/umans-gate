@@ -24,8 +24,8 @@ import { join } from "node:path";
 import { CaptureDB } from "../src/db.js";
 import { ConcurrencyGate, GateError } from "../src/limiter/index.js";
 import { DescriptionCache } from "../src/vision/cache.js";
-import { VisionHandoff } from "../src/vision/handoff.js";
 import type { VisionConfig } from "../src/vision/handoff.js";
+import { VisionHandoff } from "../src/vision/handoff.js";
 import { PersistentDescriptionStore } from "../src/vision/persistent-cache.js";
 import { wrapDescription } from "../src/vision/wrapper.js";
 
@@ -334,7 +334,7 @@ function makeAnthropicToolResultBody(text: string, imageB64: string): unknown {
 /** Extract the text part from a single-image mutated body. */
 function extractReplacementText(
   result: { body: unknown },
-  apiKind: "openai" | "anthropic",
+  _apiKind: "openai" | "anthropic",
 ): string {
   const b = result.body as {
     messages: Array<{ content: Array<{ type: string; text?: string }> }>;

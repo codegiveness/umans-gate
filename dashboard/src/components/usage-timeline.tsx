@@ -172,7 +172,7 @@ export function UsageTimeline({
   daily30Day,
   loading = false,
   error = null,
-}: UsageTimelineProps): JSX.Element {
+}: UsageTimelineProps): React.JSX.Element {
   const sampleList = samples ?? [];
   const eventList = events ?? [];
 
@@ -236,7 +236,7 @@ interface ConcurrencyLaneProps extends LaneProps {
   // No additional fields; the hard cap comes from the samples' static field.
 }
 
-function ConcurrencyLane({ samples, onsets }: ConcurrencyLaneProps): JSX.Element {
+function ConcurrencyLane({ samples, onsets }: ConcurrencyLaneProps): React.JSX.Element {
   const data = useMemo(
     () =>
       samples.map((s) => ({
@@ -317,7 +317,7 @@ function ConcurrencyLane({ samples, onsets }: ConcurrencyLaneProps): JSX.Element
   );
 }
 
-function RequestsLane({ samples, onsets }: LaneProps): JSX.Element {
+function RequestsLane({ samples, onsets }: LaneProps): React.JSX.Element {
   const data = useMemo(
     () =>
       samples.map((s) => ({
@@ -410,7 +410,7 @@ function RequestsLane({ samples, onsets }: LaneProps): JSX.Element {
   );
 }
 
-function TokenFlowLane({ samples, onsets }: LaneProps): JSX.Element {
+function TokenFlowLane({ samples, onsets }: LaneProps): React.JSX.Element {
   const data = useMemo(
     () =>
       samples.map((s) => ({
@@ -521,7 +521,11 @@ interface CacheHitRateLaneProps extends LaneProps {
   thirtyDayAvg: number | null;
 }
 
-function CacheHitRateLane({ samples, onsets, thirtyDayAvg }: CacheHitRateLaneProps): JSX.Element {
+function CacheHitRateLane({
+  samples,
+  onsets,
+  thirtyDayAvg,
+}: CacheHitRateLaneProps): React.JSX.Element {
   const data = useMemo(
     () =>
       samples.map((s) => {
@@ -605,7 +609,7 @@ interface DegradationLaneProps extends LaneProps {
   bands: { priority: DegradationBand[]; serviceMode: DegradationBand[] };
 }
 
-function DegradationLane({ samples, onsets, bands }: DegradationLaneProps): JSX.Element {
+function DegradationLane({ samples, onsets, bands }: DegradationLaneProps): React.JSX.Element {
   const data = useMemo(
     () =>
       samples.map((s) => ({
@@ -736,7 +740,7 @@ interface LaneHeaderProps {
   subtitle?: string;
 }
 
-function LaneHeader({ title, subtitle }: LaneHeaderProps): JSX.Element {
+function LaneHeader({ title, subtitle }: LaneHeaderProps): React.JSX.Element {
   return (
     <div className="flex items-baseline justify-between">
       <span className="text-xs font-semibold">{title}</span>

@@ -40,13 +40,13 @@ test("does NOT delete reasoning_effort when feature is disabled", () => {
   expect(stampReasoning(body, { reasoningEffort: null })).toBe(false);
   // reasoning_effort respected, NOT deleted
   expect(body.reasoning_effort).toBe("high");
-  expect(Object.prototype.hasOwnProperty.call(body, "reasoning_effort")).toBe(true);
+  expect(Object.hasOwn(body, "reasoning_effort")).toBe(true);
 });
 
 test("returns false for empty body when feature is disabled", () => {
   const body: OpenAiBody = {};
   expect(stampReasoning(body, { reasoningEffort: null })).toBe(false);
-  expect(Object.prototype.hasOwnProperty.call(body, "reasoning_effort")).toBe(false);
+  expect(Object.hasOwn(body, "reasoning_effort")).toBe(false);
 });
 
 test("respects reasoning_effort=none (does NOT strip or overwrite)", () => {

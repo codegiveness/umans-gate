@@ -4,12 +4,12 @@
 import { describe, expect, test } from "bun:test";
 import {
   type AnthropicSseEvent,
-  type OpenAIStreamChunk,
-  type TimedChunk,
   extractAnthropicStreaming,
   extractOpenAiStreaming,
+  type OpenAIStreamChunk,
   parseAnthropicSse,
   parseOpenAiSse,
+  type TimedChunk,
 } from "./helpers/usage-extractors";
 
 describe("parseAnthropicSse with chunks parameter", () => {

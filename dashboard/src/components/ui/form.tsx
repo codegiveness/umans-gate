@@ -1,8 +1,8 @@
 import { Slot } from "@radix-ui/react-slot";
 import {
   type ComponentPropsWithoutRef,
-  type HTMLAttributes,
   createContext,
+  type HTMLAttributes,
   useContext,
   useId,
 } from "react";

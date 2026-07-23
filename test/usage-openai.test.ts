@@ -4,9 +4,9 @@
 
 import { describe, expect, test } from "bun:test";
 import {
-  type OpenAIStreamChunk,
   extractOpenAiNonStreaming,
   extractOpenAiStreaming,
+  type OpenAIStreamChunk,
 } from "./helpers/usage-extractors";
 
 describe("OpenAI non-streaming usage extraction", () => {

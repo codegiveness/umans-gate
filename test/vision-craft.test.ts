@@ -22,9 +22,9 @@ import { join } from "node:path";
 import { CaptureDB } from "../src/db.js";
 import { ConcurrencyGate } from "../src/limiter/index.js";
 import { DescriptionCache } from "../src/vision/cache.js";
-import { type CraftConfig, craftVisionQuestion, craftingCacheKey } from "../src/vision/craft.js";
-import { VisionHandoff } from "../src/vision/handoff.js";
+import { type CraftConfig, craftingCacheKey, craftVisionQuestion } from "../src/vision/craft.js";
 import type { VisionConfig } from "../src/vision/handoff.js";
+import { VisionHandoff } from "../src/vision/handoff.js";
 import { PersistentDescriptionStore } from "../src/vision/persistent-cache.js";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));

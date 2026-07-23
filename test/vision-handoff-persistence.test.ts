@@ -1,7 +1,6 @@
 // Tier 1 persistence tests: SQLite-backed description store, cache warming,
 // TTL eviction, max-row enforcement, and DescriptionCache ↔ persistent backing.
 
-import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";

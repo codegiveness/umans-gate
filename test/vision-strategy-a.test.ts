@@ -17,8 +17,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CaptureDB } from "../src/db.js";
 import { DescriptionCache } from "../src/vision/cache.js";
-import { VisionHandoff } from "../src/vision/handoff.js";
 import type { VisionConfig } from "../src/vision/handoff.js";
+import { VisionHandoff } from "../src/vision/handoff.js";
 import { PersistentDescriptionStore } from "../src/vision/persistent-cache.js";
 import { wrapDescription } from "../src/vision/wrapper.js";
 import { startMockLlmUpstream } from "./helpers/mock-llm-upstream";
@@ -138,7 +138,7 @@ function makeOpenAiBody(text: string, ...imagesB64: string[]): unknown {
 }
 
 /** OpenAI body with a system message. */
-function makeOpenAiBodyWithSystem(systemPrompt: string, text: string, imageB64: string): unknown {
+function _makeOpenAiBodyWithSystem(systemPrompt: string, text: string, imageB64: string): unknown {
   return {
     model: "umans-glm-5.2",
     max_tokens: 50,

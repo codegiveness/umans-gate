@@ -1,8 +1,7 @@
 // Cross-platform status formatting and log path helpers.
 // Used by the CLI dispatcher to display service status uniformly.
 
-import { homedir } from "node:os";
-import { platform } from "node:os";
+import { homedir, platform } from "node:os";
 import { join } from "node:path";
 import type { ServiceStatus } from "./types.js";
 

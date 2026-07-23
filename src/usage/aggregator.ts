@@ -4,7 +4,7 @@
 
 import { createLogger } from "../logger.js";
 import type { ProxyConfig, UsageSnapshot } from "../types.js";
-import { type RawUsage, fetchUsageRaw } from "./fetch-usage.js";
+import { fetchUsageRaw, type RawUsage } from "./fetch-usage.js";
 import { buildSnapshot, failSafeSnapshot } from "./parser.js";
 import { fetchConcurrencyLimits, fetchRequestsLimits } from "./reconciler.js";
 

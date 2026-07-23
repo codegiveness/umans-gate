@@ -4,10 +4,10 @@
 import { AuthFailureLimiter, isTokenAuthorized, tokensEqual } from "./auth.js";
 import { printBanner } from "./banner.js";
 import {
-  type RawConfig,
-  type ReloadResult,
   applyReloadToConfig,
   loadConfig,
+  type RawConfig,
+  type ReloadResult,
   readConfigFile,
   resolveConfigPath,
   saveConfig,
@@ -22,22 +22,22 @@ import { ConcurrencyGate, GATE_RECONFIG_FIELDS, gateOptionsFromConfig } from "./
 import { createLogger } from "./logger.js";
 import { metrics } from "./metrics.js";
 import { ModelsClient } from "./models.js";
-import { type RateLimiterRef, createProxyHandler } from "./proxy.js";
-import { WriteQueue } from "./queue.js";
+import { createProxyHandler, type RateLimiterRef } from "./proxy.js";
 import type { CaptureStore } from "./queue.js";
+import { WriteQueue } from "./queue.js";
 import { SlidingWindowRateLimiter } from "./rate.js";
 import type { GateStats, ProxyConfig, UsageSnapshot } from "./types.js";
+import { selectMostUrgentBudget } from "./usage/budget.js";
+import { UmansUsageClient } from "./usage.js";
 import {
-  UsageEventDetector,
-  UsageHistoryStore,
   addDays,
   dayUtcOf,
   downsampleRange,
   msUntilNextUtcMidnight,
   pruneOldSamples,
+  UsageEventDetector,
+  UsageHistoryStore,
 } from "./usage-history/index.js";
-import { UmansUsageClient } from "./usage.js";
-import { selectMostUrgentBudget } from "./usage/budget.js";
 import { createViewerRouter } from "./viewer.js";
 import { DescriptionCache } from "./vision/cache.js";
 import type { VisionLookup } from "./vision/detect.js";
@@ -50,47 +50,49 @@ import { type BunServerWebSocket, WsBroadcaster } from "./ws.js";
 
 const log = createLogger("server");
 
+export type {
+  RawConfig,
+  RawConfigInput,
+  ReloadResult,
+  ValidationContext,
+  ValidationResult,
+} from "./config.js";
 export {
+  ensureConfigFile,
   loadConfig,
   readConfigFile,
+  resolveConfigDir,
+  resolveConfigPath,
   saveConfig,
   saveConfigLocked,
   validateConfig,
 } from "./config.js";
-export { resolveConfigDir, resolveConfigPath, ensureConfigFile } from "./config.js";
-export type {
-  RawConfig,
-  RawConfigInput,
-  ValidationResult,
-  ValidationContext,
-  ReloadResult,
-} from "./config.js";
 export { CaptureDB } from "./db.js";
-export { WsBroadcaster } from "./ws.js";
-export type { BunServerWebSocket } from "./ws.js";
-export { WriteQueue } from "./queue.js";
-export { stampCacheTtl } from "./stamp.js";
-export { ConnectionWarmer } from "./warmer.js";
 export { ConcurrencyGate } from "./limiter/index.js";
+export { WriteQueue } from "./queue.js";
 export { SlidingWindowRateLimiter } from "./rate.js";
-export { UmansUsageClient } from "./usage.js";
-export { UsageEventDetector, UsageHistoryStore } from "./usage-history/index.js";
-export type { UsageEventRow, UsageSampleRow } from "./usage-history/index.js";
+export { stampCacheTtl } from "./stamp.js";
 export type {
-  ProxyConfig,
+  BreakerState,
   CaptureConfig,
   CaptureRow,
   CaptureSummary,
   GateConfig,
+  GateStats,
   ProtocolConfig,
+  ProxyConfig,
   QueueConfig,
   StampConfig,
-  WsMessage,
-  GateStats,
   UsageSnapshot,
-  BreakerState,
+  WsMessage,
 } from "./types.js";
+export { UmansUsageClient } from "./usage.js";
 export type { TimedChunk } from "./usage-extract.js";
+export type { UsageEventRow, UsageSampleRow } from "./usage-history/index.js";
+export { UsageEventDetector, UsageHistoryStore } from "./usage-history/index.js";
+export { ConnectionWarmer } from "./warmer.js";
+export type { BunServerWebSocket } from "./ws.js";
+export { WsBroadcaster } from "./ws.js";
 
 /** Whitelist of LLM API routes that the proxy will capture + forward.
  * Matches umans API surface (verified from app.umans.ai/offers/code/docs). */

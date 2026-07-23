@@ -11,7 +11,7 @@
 // On worker crash (onerror), all pending are rejected.
 // On close(), drains pending for up to 10s before terminating.
 
-import { afterAll, beforeAll, expect, test } from "bun:test";
+import { afterAll, expect, test } from "bun:test";
 import { existsSync, unlinkSync } from "node:fs";
 import type { CaptureDB } from "../src/db.js";
 import { WriteQueue } from "../src/queue.js";
@@ -21,7 +21,7 @@ import type { WsBroadcaster } from "../src/ws.js";
 
 const DB_PATH = `/tmp/umans-gate-c2-test-${Date.now()}.db`;
 
-const baseConfig = {
+const _baseConfig = {
   queueMaxDepth: 100,
   flushBatch: 1,
   flushIntervalMs: 100,

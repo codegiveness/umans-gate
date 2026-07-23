@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import type { CaptureDB } from "../src/db.js";
 import { ConcurrencyGate } from "../src/limiter/index.js";
 import type { ModelsClient } from "../src/models.js";
-import { type RateLimiterRef, createProxyHandler } from "../src/proxy.js";
+import { createProxyHandler, type RateLimiterRef } from "../src/proxy.js";
 import type { WriteQueue } from "../src/queue.js";
 import type { UsageSnapshot } from "../src/types.js";
 import type { VisionHandoff } from "../src/vision/handoff.js";

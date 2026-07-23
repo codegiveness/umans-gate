@@ -3,7 +3,6 @@
 // is decomposed into smaller units.
 
 import { expect, test } from "bun:test";
-import { startMockLlmUpstream } from "./helpers/mock-llm-upstream.js";
 import { type ProxyHandle, startProxy } from "./helpers/proxy.js";
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));

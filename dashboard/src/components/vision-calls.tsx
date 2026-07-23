@@ -1,5 +1,5 @@
 import { AlertCircle, Eye, RotateCcw, Trash2 } from "lucide-react";
-import { Suspense, lazy, useState } from "react";
+import { lazy, Suspense, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

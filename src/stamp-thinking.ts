@@ -1,5 +1,5 @@
 import { extractModelName } from "./models/name.js";
-import { type StampPolicy, matchStampOverlay } from "./stamp-catalog.js";
+import { matchStampOverlay, type StampPolicy } from "./stamp-catalog.js";
 import type { AnthropicBody, OutputConfig } from "./types.js";
 
 export interface StampOptions {

@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { ConcurrencyGate, GateError } from "../src/limiter/index.js";
+import { ConcurrencyGate } from "../src/limiter/index.js";
 import type { UsageSnapshot } from "../src/types.js";
 
 const opts = {

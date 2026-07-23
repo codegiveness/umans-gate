@@ -2,8 +2,8 @@ import { AlertCircle, Power, RotateCcw, RotateCw } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { GroupBlock } from "@/components/config-fields";
-import { GROUPS } from "@/components/config-sections";
 import type { GroupDef } from "@/components/config-sections";
+import { GROUPS } from "@/components/config-sections";
 import {
   AlertDialog,
   AlertDialogAction,

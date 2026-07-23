@@ -65,4 +65,4 @@ function envOrRawBool(
   return typeof rawVal === "boolean" ? rawVal : fallback;
 }
 
-export { resolveUpstreamProtocol, num, str, bool, envOrRawNum, envOrRawBool, loadJsonConfig };
+export { bool, envOrRawBool, envOrRawNum, loadJsonConfig, num, resolveUpstreamProtocol, str };

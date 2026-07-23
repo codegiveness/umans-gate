@@ -1,5 +1,5 @@
 import { AlertCircle, Check, Clock, Copy, RotateCcw, ScanSearch } from "lucide-react";
-import { Suspense, lazy, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { BodyRenderer } from "@/components/body-renderer";

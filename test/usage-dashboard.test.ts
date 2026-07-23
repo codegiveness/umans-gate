@@ -6,17 +6,7 @@ import { join } from "node:path";
 import { CaptureDB } from "../src/db.js";
 import { type MockUpstreamHandle, startMockLlmUpstream } from "./helpers/mock-llm-upstream";
 import { type ProxyHandle, startProxy } from "./helpers/proxy";
-import {
-  PERFORMANCE_STATS_SQL,
-  USAGE_COLUMNS_DDL,
-  extractAnthropicNonStreaming,
-  extractAnthropicStreaming,
-  extractModel,
-  extractOpenAiNonStreaming,
-  extractOpenAiStreaming,
-  parseAnthropicSse,
-  parseOpenAiSse,
-} from "./helpers/usage-extractors";
+import { extractModel, PERFORMANCE_STATS_SQL, USAGE_COLUMNS_DDL } from "./helpers/usage-extractors";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -37,7 +27,7 @@ afterAll(async () => {
   await upstream.close();
 });
 
-async function getLatestCapture(
+async function _getLatestCapture(
   path: string,
 ): Promise<{ body: string; duration_ms: number; request_body: string } | null> {
   await sleep(200);

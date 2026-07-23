@@ -1,9 +1,6 @@
 import { Beaker, Cloud, Download, Info, RotateCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-
-import type { FieldDef } from "@/components/config-sections";
-import type { GroupDef } from "@/components/config-sections";
-import type { SectionDef } from "@/components/config-sections";
+import type { FieldDef, GroupDef, SectionDef } from "@/components/config-sections";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

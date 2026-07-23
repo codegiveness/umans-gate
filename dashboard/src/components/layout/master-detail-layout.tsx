@@ -1,4 +1,4 @@
-import { type ReactNode, Suspense, createContext, lazy, useContext, useState } from "react";
+import { createContext, lazy, type ReactNode, Suspense, useContext, useState } from "react";
 
 const Sheet = lazy(() => import("@/components/ui/sheet").then((m) => ({ default: m.Sheet })));
 const SheetContent = lazy(() =>
@@ -61,9 +61,9 @@ export function MasterDetailLayout({
         <aside aria-label={masterAriaLabel} className="hidden w-[400px] shrink-0 md:flex">
           {master}
         </aside>
-        <div className="flex flex-1 min-w-0" aria-label={detailAriaLabel}>
+        <section className="flex flex-1 min-w-0" aria-label={detailAriaLabel}>
           {detail}
-        </div>
+        </section>
       </div>
       {isOpen && (
         <Suspense fallback={null}>

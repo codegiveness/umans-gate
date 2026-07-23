@@ -1,10 +1,10 @@
+export { ConcurrencyGate } from "./gate.js";
 export {
-  SCALE,
+  type BreakerState,
+  type ConcurrencyGateOptions,
+  GATE_RECONFIG_FIELDS,
   GateError,
   gateOptionsFromConfig,
-  GATE_RECONFIG_FIELDS,
-  type ConcurrencyGateOptions,
   type Permit,
-  type BreakerState,
+  SCALE,
 } from "./types.js";
-export { ConcurrencyGate } from "./gate.js";

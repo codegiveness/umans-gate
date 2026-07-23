@@ -56,7 +56,7 @@ test("computeSha256 returns consistent digest for ArrayBuffer input", () => {
 
 const PLATFORM_ASSET = "umans-gate-linux-x64";
 
-function makeRelease(binaryDigest: string, sumsDigest: string) {
+function makeRelease(_binaryDigest: string, sumsDigest: string) {
   return {
     tag_name: "v2.0.0",
     assets: [

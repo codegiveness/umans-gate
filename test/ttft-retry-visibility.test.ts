@@ -8,8 +8,8 @@
 // A non-retried request returns `retry_attempt: 0` (or null) and
 // `ttft_exceeded: 0` (or null).
 
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { type ProxyHandle, startProxy } from "./helpers/proxy.js";
+import { describe, expect, test } from "bun:test";
+import { startProxy } from "./helpers/proxy.js";
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 

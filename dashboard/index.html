@@ -10,16 +10,16 @@
     />
     <title>umans-gate</title>
     <script>
-      (function () {
+      (() => {
         try {
-          var stored = localStorage.getItem("umans-gate-theme");
-          var theme = stored || "system";
-          var isDark =
+          const stored = localStorage.getItem("umans-gate-theme");
+          const theme = stored || "system";
+          const isDark =
             theme === "dark" ||
             (theme === "system" &&
               window.matchMedia("(prefers-color-scheme: dark)").matches);
           document.documentElement.classList.toggle("dark", isDark);
-        } catch (e) {}
+        } catch (_e) {}
       })();
     </script>
   </head>

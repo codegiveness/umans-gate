@@ -2,6 +2,7 @@ import { usePollingResource } from "@/hooks/use-polling-resource";
 import { apiFetch } from "@/lib/api";
 import { API_BASE } from "@/lib/constants";
 import type { VisionCallRecord } from "@/types/vision";
+
 const POLL_INTERVAL = 5000;
 
 export interface UseVisionCallsResult {
@@ -32,7 +33,7 @@ export function useVisionCalls(): UseVisionCallsResult {
     try {
       await apiFetch(`${API_BASE}/vision-calls`, { method: "DELETE" });
       refresh();
-    } catch (err) {
+    } catch (_err) {
       // Ignore: the next poll will reconcile the server state anyway.
     }
   };

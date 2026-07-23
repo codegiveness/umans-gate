@@ -53,7 +53,7 @@ export function ApiKeyGate() {
   const onSubmit = async (values: FormValues) => {
     try {
       const result = await save({ umans_api_key: values.umans_api_key });
-      if (!result || !result.ok) {
+      if (!result?.ok) {
         toast.error("Failed to save API key", {
           description: result?.errors.join("; ") || "Unknown error",
         });

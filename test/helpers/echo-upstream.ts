@@ -1,8 +1,6 @@
 // Echo upstream: returns EXACTLY what it receives (method, path, headers, body)
 // so tests can diff "direct" vs "through proxy" to isolate what the proxy changes.
 
-import type { Server } from "bun";
-
 export function startEchoUpstream(port = 0): ReturnType<typeof Bun.serve> {
   return Bun.serve({
     port,

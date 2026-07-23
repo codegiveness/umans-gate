@@ -1,6 +1,6 @@
 import { Menu } from "lucide-react";
-import { Suspense, lazy, useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 
 import { ApiKeyGate } from "@/components/api-key-gate";
 import { CaptureDetailPanel } from "@/components/capture-detail";

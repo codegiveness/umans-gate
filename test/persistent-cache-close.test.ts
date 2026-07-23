@@ -4,7 +4,6 @@
 // a failed transaction), this.closed never gets set, leaving the store
 // in a half-open state where the timer can still fire.
 
-import { Database } from "bun:sqlite";
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { unlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -23,11 +22,11 @@ function makeCaptureDB(path: string): CaptureDB {
   return new CaptureDB({ dbPath: path, maxCaptures: 100 });
 }
 
-const ENCODER = "bun-image-v2";
-const RECIPE = { format: "png", quality: 92, max_dimension: 2048 } as const;
+const _ENCODER = "bun-image-v2";
+const _RECIPE = { format: "png", quality: 92, max_dimension: 2048 } as const;
 const MODEL = "umans-flash";
 const PV = 2;
-const SAMPLE_BYTES = Buffer.from("close-v6-bytes");
+const _SAMPLE_BYTES = Buffer.from("close-v6-bytes");
 
 describe("PersistentDescriptionStore.close() safety (V6)", () => {
   let dbPath: string;

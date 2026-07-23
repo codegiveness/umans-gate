@@ -3,8 +3,8 @@
 // These tests MUST pass identically before AND after the refactor.
 
 import { expect, test } from "bun:test";
+import type { RawConfig } from "../src/config.js";
 import { validateConfig } from "../src/config.js";
-import type { RawConfig, RawConfigInput } from "../src/config.js";
 
 // Helper: assert exactly one error message is present
 function expectSingleError(r: ReturnType<typeof validateConfig>, msg: string) {
@@ -17,7 +17,7 @@ function expectNoErrors(r: ReturnType<typeof validateConfig>) {
 }
 
 // Helper: assert exactly one warning message is present
-function expectSingleWarning(r: ReturnType<typeof validateConfig>, msg: string) {
+function _expectSingleWarning(r: ReturnType<typeof validateConfig>, msg: string) {
   expect(r.warnings).toEqual([msg]);
 }
 

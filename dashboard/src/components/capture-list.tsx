@@ -1,6 +1,6 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { AlertCircle, Inbox, RotateCcw, Trash2 } from "lucide-react";
-import { Suspense, lazy, useRef, useState } from "react";
+import { lazy, Suspense, useRef, useState } from "react";
 
 import { CaptureRowItem } from "@/components/capture-row-item";
 import { GateStatus } from "@/components/gate-status";
@@ -155,7 +155,6 @@ export function CaptureList({
         <ScrollArea
           className="min-h-0 flex-1 overflow-hidden outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
           viewportRef={viewportRef}
-          // biome-ignore lint/a11y/useSemanticElements: virtualized listbox needs role on scroll container
           role="listbox"
           aria-label="Captures"
           aria-activedescendant={activeOptionId}

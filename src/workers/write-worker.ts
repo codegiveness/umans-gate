@@ -6,8 +6,8 @@
 
 import { Database } from "bun:sqlite";
 import { compressText } from "../compress.js";
-import { flattenUsage, migrateCaptureSchema } from "../db.js";
 import type { UpdateParams } from "../db.js";
+import { flattenUsage, migrateCaptureSchema } from "../db.js";
 import { accountCapturesUsage, migrateEconomicsSchema } from "../economics.js";
 
 interface BatchMessage {

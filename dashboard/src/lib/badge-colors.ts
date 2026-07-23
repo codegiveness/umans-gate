@@ -28,10 +28,10 @@ export const dotSuccess = "bg-green-500 dark:bg-green-400";
 /** Dot color for warning indicators (e.g. WebSocket reconnecting dot). */
 export const dotWarning = "bg-amber-500 dark:bg-amber-400";
 
-export function budgetTier(entry: { overBudgetToday: boolean; usedPct: number }):
-  | "blue"
-  | "amber"
-  | "red" {
+export function budgetTier(entry: {
+  overBudgetToday: boolean;
+  usedPct: number;
+}): "blue" | "amber" | "red" {
   if (entry.overBudgetToday) return "red";
   if (entry.usedPct >= 80) return "amber";
   return "blue";

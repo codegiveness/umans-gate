@@ -67,7 +67,7 @@ try {
             messages: [{ role: "user", content: `seed ${i}` }],
           }),
         });
-      } catch (e) {}
+      } catch (_e) {}
     }
     console.log("Seeding done.");
     await page.waitForTimeout(1500);

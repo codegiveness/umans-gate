@@ -4,7 +4,7 @@
 // Preserves any existing `top_k` value already set by the caller.
 
 import { extractModelName } from "./models/name.js";
-import { type StampPolicy, matchStampOverlay } from "./stamp-catalog.js";
+import { matchStampOverlay, type StampPolicy } from "./stamp-catalog.js";
 
 /**
  * Body shape we mutate — has a `model` and optional `top_k` at top level.

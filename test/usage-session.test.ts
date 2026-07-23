@@ -22,13 +22,13 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { type MockUpstreamHandle, startMockLlmUpstream } from "./helpers/mock-llm-upstream";
 import { type ProxyHandle, startProxy } from "./helpers/proxy";
 import {
-  type UsageMetrics,
   extractAnthropicNonStreaming,
   extractAnthropicStreaming,
   extractOpenAiNonStreaming,
   extractOpenAiStreaming,
   parseAnthropicSse,
   parseOpenAiSse,
+  type UsageMetrics,
 } from "./helpers/usage-extractors";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -279,13 +279,13 @@ describe("Long-running OpenAI coding session (5 turns)", () => {
   test("cumulative session totals = sum of per-turn metrics", () => {
     const totalPrompt = metrics.reduce((s, m) => s + (m.input_tokens ?? 0), 0);
     const totalCompletion = metrics.reduce((s, m) => s + (m.output_tokens ?? 0), 0);
-    const totalCached = metrics.reduce((s, m) => s + (m.cache_read_tokens ?? 0), 0);
+    const _totalCached = metrics.reduce((s, m) => s + (m.cache_read_tokens ?? 0), 0);
 
     expect(totalPrompt).toBeGreaterThan(0);
     expect(totalCompletion).toBeGreaterThan(0);
     // total_tokens should equal prompt + completion for each turn
     for (const m of metrics) {
-      const expected = (m.input_tokens ?? 0) + (m.output_tokens ?? 0);
+      const _expected = (m.input_tokens ?? 0) + (m.output_tokens ?? 0);
       // OpenAI total = prompt + completion; our extractor stores total_input = prompt
       expect(m.total_input_tokens).toBe(m.input_tokens);
     }

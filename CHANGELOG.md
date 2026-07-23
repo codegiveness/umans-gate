@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.13] - 2026-07-24
+
+### Changed
+
+- **Full dependency stack upgrade.** All root and dashboard dependencies
+  updated to latest compatible versions:
+  - **Biome 1.9.4 → 2.5.5** — migrated config to v2 format (`includes`
+    replaces `ignore`, `preset` replaces `recommended`, `assist` replaces
+    `organizeImports`). CSS files excluded from linting (Tailwind v4
+    directives not yet supported by Biome's CSS parser).
+  - **React 18.3.1 → 19.2.8** — global `JSX` namespace removed; all
+    `JSX.Element` references updated to `React.JSX.Element`.
+  - **Vite 6.4.3 → 8.1.5** + `@vitejs/plugin-react` 4.7.0 → 6.0.4.
+  - **lucide-react 0.577 → 1.26.0**, **tailwind-merge 2.6 → 3.6**,
+  - **recharts 3.9 → 3.10**, **shadcn 4.13 → 4.14**,
+  - **commander 12 → 15**, **@testing-library/jest-dom 6 → 7**.
+  - **TypeScript pinned to 5.9.3** (not 7.0.2) — `rollup-plugin-dts`
+    (used by tsup for DTS generation) does not yet support TS 7.
+  - Dashboard `tsconfig.json`: removed `baseUrl` (removed in TS 7),
+    excluded `__tests__/` from production type-checking.
+
+### Fixed
+
+- **Dashboard index.html** — converted `var` to `const` in inline theme
+  script (Biome 2 `noInnerDeclarations` rule).
+- **master-detail-layout.tsx** — `<div role="region">` → `<section>`
+  (Biome 2 `useSemanticElements` rule).
+- **ws-status-badge.tsx** — added `role="img"` to span with `aria-label`
+  (Biome 2 `useAriaPropsSupportedByRole` rule).
+- **Stale Biome suppression comments** removed in `capture-list.tsx` and
+  `capture-row-item.tsx` (Biome 2 `suppressions/unused` rule).
+- **Unsafe optional chaining** in `vision-handoff-integration.test.ts`
+  fixed with `?? []` fallback.
+- **embed-assets.ts** — added `@ts-nocheck` to the auto-generated file
+  (side-effect imports with `with { type: "file" }` resolve at runtime
+  via Bun, not at type-check time).
+
 ## [0.3.12] - 2026-07-23
 
 ### Changed

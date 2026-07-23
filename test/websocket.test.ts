@@ -5,7 +5,7 @@ import { afterAll, beforeAll, expect, test } from "bun:test";
 import { getEchoPort, startEchoUpstream, stopEchoUpstream } from "./helpers/echo-upstream";
 import { type ProxyHandle, startProxy } from "./helpers/proxy";
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const _sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 let proxy: ProxyHandle;
 let echoUpstream: ReturnType<typeof import("./helpers/echo-upstream")["startEchoUpstream"]>;

@@ -8,14 +8,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
-  RANGE_PRESETS,
-  type RangePreset,
   activityLevel,
   borderThickness,
   dayCount,
   degradationState,
   enumerateDays,
   indexByDay,
+  RANGE_PRESETS,
+  type RangePreset,
 } from "@/lib/usage-heatmap";
 import { cn } from "@/lib/utils";
 import type { UsageDailyRow } from "@/types";
@@ -100,7 +100,7 @@ export function UsageHeatmap({
   onSelectPreset,
   onSelectDay,
   onBrushRange,
-}: UsageHeatmapProps): JSX.Element {
+}: UsageHeatmapProps): React.JSX.Element {
   const days = useMemo(() => enumerateDays(from, to), [from, to]);
   const byDay = useMemo(() => indexByDay(rows ?? []), [rows]);
 
@@ -176,7 +176,7 @@ interface HeatmapGridProps {
   onSelectDay: (dayUtc: string) => void;
 }
 
-function HeatmapGrid({ days, byDay, loading, onSelectDay }: HeatmapGridProps): JSX.Element {
+function HeatmapGrid({ days, byDay, loading, onSelectDay }: HeatmapGridProps): React.JSX.Element {
   // Group days into weeks (columns of 7) for a GitHub-contributions layout.
   // The first week is left-padded so day 0 aligns to its weekday column.
   const weeks = useMemo(() => {
@@ -251,7 +251,7 @@ interface DayCellProps {
   onSelectDay: (dayUtc: string) => void;
 }
 
-function DayCell({ day, row, loading, onSelectDay }: DayCellProps): JSX.Element {
+function DayCell({ day, row, loading, onSelectDay }: DayCellProps): React.JSX.Element {
   const level = activityLevel(row);
   const degradation = degradationState(row);
   const thickness = borderThickness(row);
@@ -292,7 +292,13 @@ function DayCell({ day, row, loading, onSelectDay }: DayCellProps): JSX.Element 
   );
 }
 
-function DayTooltip({ day, row }: { day: string; row: UsageDailyRow | undefined }): JSX.Element {
+function DayTooltip({
+  day,
+  row,
+}: {
+  day: string;
+  row: UsageDailyRow | undefined;
+}): React.JSX.Element {
   if (!row) {
     return (
       <div className="space-y-1">
@@ -329,7 +335,7 @@ function DayTooltip({ day, row }: { day: string; row: UsageDailyRow | undefined 
   );
 }
 
-function HeatmapLegend(): JSX.Element {
+function HeatmapLegend(): React.JSX.Element {
   return (
     <div className="flex flex-wrap items-center gap-3 text-[0.625rem] text-muted-foreground">
       <div className="flex items-center gap-1">
@@ -368,7 +374,7 @@ interface HeatmapBrushProps {
  *  activity with a Recharts `Brush` overlay. Dragging the brush fires
  *  `onBrushRange(from, to)` with the selected date window so the parent
  *  can zoom the heatmap. */
-function HeatmapBrush({ rows, from, to, onBrushRange }: HeatmapBrushProps): JSX.Element {
+function HeatmapBrush({ rows, from, to, onBrushRange }: HeatmapBrushProps): React.JSX.Element {
   // Build a point per day in [from, to]. The brush indexes into this
   // array; we map brush start/end indices back to YYYY-MM-DD.
   const points = useMemo(() => {
@@ -412,7 +418,7 @@ function ResponsiveAreaChart({
   startIndex,
   endIndex,
   onBrushRange,
-}: ResponsiveAreaChartProps): JSX.Element {
+}: ResponsiveAreaChartProps): React.JSX.Element {
   return (
     <ResponsiveContainer width="100%" height="100%">
       <AreaChart data={points} margin={{ top: 4, right: 8, bottom: 0, left: 8 }}>

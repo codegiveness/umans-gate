@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import { parseModelInfoResponse } from "../src/model-info-parser.js";
 import {
-  STAMP_OVERLAY,
-  type StampPolicy,
   matchStampOverlay,
   resolveStampPolicy,
+  STAMP_OVERLAY,
+  type StampPolicy,
 } from "../src/stamp-catalog.js";
 
 /** Minimal /v1/models/info body with the given model id as its sole key. */

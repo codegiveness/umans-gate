@@ -19,20 +19,9 @@ export interface CombinedMockHandle {
   totalRequests: number;
   samples: number[];
   setLimit(n: number): void;
-  setPriority(state: {
-    low?: boolean;
-    boxedUntil?: number | null;
-    reason?: string | null;
-  }): void;
-  setServiceMode(state: {
-    current?: string;
-    resetsAt?: number | null;
-  }): void;
-  setTokens(state: {
-    tokensIn?: number;
-    tokensOut?: number;
-    tokensCached?: number;
-  }): void;
+  setPriority(state: { low?: boolean; boxedUntil?: number | null; reason?: string | null }): void;
+  setServiceMode(state: { current?: string; resetsAt?: number | null }): void;
+  setTokens(state: { tokensIn?: number; tokensOut?: number; tokensCached?: number }): void;
   setPriorityBudget(entries: RawPriorityBudgetEntry[] | null): void;
   close(): Promise<void>;
 }
@@ -203,11 +192,7 @@ export function startCombinedMock(config: CombinedMockConfig): CombinedMockHandl
         hardCap = n;
       }
     },
-    setPriority(state: {
-      low?: boolean;
-      boxedUntil?: number | null;
-      reason?: string | null;
-    }) {
+    setPriority(state: { low?: boolean; boxedUntil?: number | null; reason?: string | null }) {
       if (state.low !== undefined) priorityLow = state.low;
       if (state.boxedUntil !== undefined) boxedUntil = state.boxedUntil;
       if (state.reason !== undefined) boxedReason = state.reason;
@@ -216,11 +201,7 @@ export function startCombinedMock(config: CombinedMockConfig): CombinedMockHandl
       if (state.current !== undefined) serviceModeCurrent = state.current;
       if (state.resetsAt !== undefined) serviceModeResetsAt = state.resetsAt;
     },
-    setTokens(state: {
-      tokensIn?: number;
-      tokensOut?: number;
-      tokensCached?: number;
-    }) {
+    setTokens(state: { tokensIn?: number; tokensOut?: number; tokensCached?: number }) {
       if (state.tokensIn !== undefined) tokensIn = state.tokensIn;
       if (state.tokensOut !== undefined) tokensOut = state.tokensOut;
       if (state.tokensCached !== undefined) tokensCached = state.tokensCached;

@@ -8,13 +8,7 @@ const SseViewer = lazy(() =>
   import("@/components/sse-viewer").then((m) => ({ default: m.SseViewer })),
 );
 
-export function BodyRenderer({
-  body,
-  isSse,
-}: {
-  body: string | null | undefined;
-  isSse: boolean;
-}) {
+export function BodyRenderer({ body, isSse }: { body: string | null | undefined; isSse: boolean }) {
   if (body === null) {
     return (
       <div className="flex items-center gap-1.5 text-destructive italic">

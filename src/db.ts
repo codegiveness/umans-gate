@@ -7,10 +7,10 @@ import { compressText, decompressText } from "./compress.js";
 import { accountCapturesUsage, backfillFromCaptures, migrateEconomicsSchema } from "./economics.js";
 import { createLogger } from "./logger.js";
 import type { CaptureRow, CaptureState, ProxyConfig } from "./types.js";
-import { PERFORMANCE_STATS_SQL, USAGE_COLUMNS_DDL } from "./usage-extract.js";
 import type { PerformanceStatsRow, UsageMetrics } from "./usage-extract.js";
-import { VisionDescriptionStore } from "./vision-description-store.js";
+import { PERFORMANCE_STATS_SQL, USAGE_COLUMNS_DDL } from "./usage-extract.js";
 import type { VisionCallRecord } from "./vision/handoff.js";
+import { VisionDescriptionStore } from "./vision-description-store.js";
 
 function restrictDbFilePermissions(dbPath: string): void {
   for (const p of [dbPath, `${dbPath}-wal`, `${dbPath}-shm`]) {
