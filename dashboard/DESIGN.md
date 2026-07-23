@@ -159,16 +159,17 @@ while preserving touch scrolling.
    region with `polite` so screen-reader users know when the list is stale.
 4. **Contrast:** All functional text/background pairs meet WCAG AA (4.5:1)
    for small text, and non-text UI components (focus rings, inputs, functional
-   borders, chart series) meet WCAG 1.4.11 (3:1) in light theme. The dark
-   theme meets the same thresholds for focus rings, chart series, and text;
-   dark `--input` is alpha-blended (`0 0% 100% / 15%`, ~1.6:1) and relies on
-   `--ring` for focus visibility — a known pre-existing gap. Decorative
-   borders (`--border`) are exempt under WCAG 1.4.11 in both themes. The
-   light theme was brought into compliance by darkening `--muted-foreground`,
+   borders, chart series) meet WCAG 1.4.11 (3:1) in both light and dark themes.
+   Decorative borders (`--border`) are exempt under WCAG 1.4.11 in both themes.
+   The light theme was brought into compliance by darkening `--muted-foreground`,
    `--input`, and `--border`, and by introducing violet (HSL 263°) for
-   `--ring`, `--chart-*`, and `--sidebar-primary`. The dark theme kept its
-   existing text contrast and gained the same violet accent for `--ring`,
-   `--sidebar-ring`, and `--chart-*` (`--sidebar-primary` was already violet).
+   `--ring`, `--chart-*`, and `--sidebar-primary`. The dark theme was brought
+   into compliance by darkening `--destructive` (56%→52%) and `--sidebar-primary`
+   (65%→60%) to meet 4.5:1 for their foreground text, increasing `--input` alpha
+   (15%→35%) to meet 3:1, and gaining the same violet accent for `--ring`,
+   `--sidebar-ring`, and `--chart-*`. Tooltip secondary text uses
+   `text-background/70` on `bg-foreground` instead of `text-muted-foreground`
+   to maintain 4.5:1 on the inverted tooltip surface.
 5. **Keyboard-first:** All interactive elements are reachable and operable by
    keyboard; focus rings are not removed without a replacement.
 6. **No emoji icons:** Use SVG icon sets only (`lucide-react`). Emojis are not

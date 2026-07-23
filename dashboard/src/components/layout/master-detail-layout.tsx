@@ -58,7 +58,7 @@ export function MasterDetailLayout({
   return (
     <>
       <div className="flex h-full">
-        <aside aria-label={masterAriaLabel} className="hidden w-[380px] shrink-0 md:flex">
+        <aside aria-label={masterAriaLabel} className="hidden w-[400px] shrink-0 md:flex">
           {master}
         </aside>
         <div className="flex flex-1 min-w-0" aria-label={detailAriaLabel}>
@@ -76,7 +76,7 @@ export function MasterDetailLayout({
             <SheetContent
               side="left"
               aria-label={masterAriaLabel}
-              className="p-0 data-[side=left]:w-[85vw] data-[side=left]:sm:w-[380px] data-[side=left]:sm:max-w-[380px]"
+              className="p-0 data-[side=left]:w-[85vw] data-[side=left]:sm:w-[400px] data-[side=left]:sm:max-w-[400px]"
             >
               {master}
             </SheetContent>

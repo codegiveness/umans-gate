@@ -30,6 +30,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   hardcoded to 100. Accessible via the Config tab, env var
   `PERFORMANCE_SAMPLE_COUNT`, or JSON config `performance_sample_count`.
 
+### Added
+
+- **Composite gate health badge.** A new `gate-health.ts` module
+  computes the merged admission badge (label, variant, color) from the
+  gate status and most-urgent priority budget, replacing inline logic
+  in `gate-status.tsx`. Fully tested in `gate-health.test.ts`.
+
+- **Dark-theme a11y contrast tests.** Added WCAG text-threshold (≥4.5:1)
+  assertions for `--destructive-foreground`/`--destructive`,
+  `--sidebar-primary-foreground`/`--sidebar-primary`, and
+  `--input` functional border, plus tooltip secondary-text contrast
+  tests for both themes.
+
+### Fixed
+
+- **Flaky dashboard test.** `use-captures-errors.test.tsx` "caps capture
+  list at MAX_CAPTURES" failed intermittently in the full suite because
+  `MockWebSocket.instances[0]` was accessed before `useCapturesSocket`'s
+  effect created the WebSocket. Added a `waitFor` for the instance.
+
+- **Stale `embedded-assets.ts`.** Regenerated from current
+  `dashboard/dist/` build output; the old manifest referenced asset
+  filenames with expired content hashes, causing all server integration
+  tests to fail at proxy startup.
+
 ### Removed
 
 - **Dead `v_latest_requests_per_model` view.** The unused SQLite view

@@ -1,7 +1,8 @@
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { badgeGold, badgeInfo, badgeSuccess, badgeWarning, budgetTier } from "@/lib/badge-colors";
+import { badgeGold, badgeInfo, badgeSuccess, badgeWarning } from "@/lib/badge-colors";
 import { fmtDurationUntil, fmtUtcDateTime } from "@/lib/format";
+import { computeGateHealth } from "@/lib/gate-health";
 import { cn } from "@/lib/utils";
 import type { GateStats } from "@/types";
 import { AlertTriangle, ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
@@ -170,19 +171,6 @@ export function GateStatus({ stats }: { stats: GateStats | null }) {
               </TooltipContent>
             </Tooltip>
           )}
-          {stats.boxed && (
-            <Tooltip>
-              <TooltipTrigger render={<span className="inline-flex" />}>
-                <Badge variant="destructive">
-                  boxed{stats.boxedReason ? `: ${stats.boxedReason}` : ""}
-                </Badge>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-[260px]">
-                Requests rejected by box guard
-                {stats.boxedReason ? ` — ${stats.boxedReason}` : ""}
-              </TooltipContent>
-            </Tooltip>
-          )}
           {!stats.usageOk && (
             <Tooltip>
               <TooltipTrigger render={<span className="inline-flex" />}>
@@ -195,79 +183,81 @@ export function GateStatus({ stats }: { stats: GateStats | null }) {
               </TooltipContent>
             </Tooltip>
           )}
-          {stats.usageOk && stats.priorityBudgetSummary && (
-            <Tooltip>
-              <TooltipTrigger render={<span className="inline-flex" />}>
-                {(() => {
-                  const tier = budgetTier(stats.priorityBudgetSummary);
-                  const label = `${stats.priorityBudgetSummary.category} ${stats.priorityBudgetSummary.usedPct}%`;
-                  if (tier === "red") {
-                    return <Badge variant="destructive">{label}</Badge>;
+          {(() => {
+            const budget =
+              stats.usageOk && stats.priorityBudgetSummary
+                ? {
+                    category: stats.priorityBudgetSummary.category,
+                    usedPct: stats.priorityBudgetSummary.usedPct,
+                    overBudgetToday: stats.priorityBudgetSummary.overBudgetToday,
                   }
-                  return (
-                    <Badge
-                      variant="secondary"
-                      className={tier === "amber" ? badgeWarning : badgeInfo}
-                    >
-                      {label}
-                    </Badge>
-                  );
-                })()}
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-[260px]">
-                <div className="space-y-1">
-                  <p>{stats.priorityBudgetSummary.label}</p>
-                  <p className="text-muted-foreground">
-                    {stats.priorityBudgetSummary.models.join(", ")}
-                  </p>
-                  <p className="text-muted-foreground">
-                    {stats.priorityBudgetSummary.usedPct}% used
-                  </p>
-                  <p className="text-muted-foreground">mode: {stats.priorityBudgetSummary.mode}</p>
-                  {stats.priorityBudgetSummary.overBudgetToday && (
-                    <p className="text-muted-foreground">over budget today</p>
-                  )}
-                  {(() => {
-                    const resetText = fmtDurationUntil(stats.priorityBudgetSummary.resetsAt);
-                    return resetText ? (
-                      <p className="text-muted-foreground">resets in {resetText}</p>
-                    ) : null;
-                  })()}
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          )}
+                : null;
+            const health = computeGateHealth({ admissionLabel: status.label, budget });
+            return (
+              <Tooltip>
+                <TooltipTrigger render={<span className="inline-flex" />}>
+                  <Badge variant={health.variant} className={health.className}>
+                    {health.label}
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[280px]">
+                  <div className="space-y-1">
+                    {status.label !== "high" && (
+                      <>
+                        <p>{status.detail}</p>
+                        {stats.boxed && stats.boxedReason && (
+                          <p className="text-background/70">reason: {stats.boxedReason}</p>
+                        )}
+                        {stats.boxed && stats.boxedUntil !== null && (
+                          <p className="text-background/70">
+                            boxed until {fmtUtcDateTime(stats.boxedUntil)}
+                          </p>
+                        )}
+                        {stats.unitsDemoted && stats.demotedUntil !== null && (
+                          <p className="text-background/70">
+                            demoted until {fmtUtcDateTime(stats.demotedUntil)}
+                          </p>
+                        )}
+                        {stats.serviceMode.resetsAt !== null && (
+                          <p className="text-background/70">
+                            resets at {fmtUtcDateTime(stats.serviceMode.resetsAt)}
+                          </p>
+                        )}
+                      </>
+                    )}
+                    {stats.usageOk && stats.priorityBudgetSummary && (
+                      <>
+                        {status.label !== "high" && <hr className="border-border" />}
+                        <p>{stats.priorityBudgetSummary.label}</p>
+                        <p className="text-background/70">
+                          {stats.priorityBudgetSummary.models.join(", ")}
+                        </p>
+                        <p className="text-background/70">
+                          {stats.priorityBudgetSummary.usedPct}% used
+                        </p>
+                        <p className="text-background/70">
+                          mode: {stats.priorityBudgetSummary.mode}
+                        </p>
+                        {stats.priorityBudgetSummary.overBudgetToday && (
+                          <p className="text-background/70">over budget today</p>
+                        )}
+                        {(() => {
+                          const resetText = fmtDurationUntil(stats.priorityBudgetSummary.resetsAt);
+                          return resetText ? (
+                            <p className="text-background/70">resets in {resetText}</p>
+                          ) : null;
+                        })()}
+                      </>
+                    )}
+                    {status.label === "high" && !(stats.usageOk && stats.priorityBudgetSummary) && (
+                      <p className="text-background/70">All systems nominal</p>
+                    )}
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })()}
         </div>
-        <Tooltip>
-          <TooltipTrigger render={<span className="inline-flex" />}>
-            <Badge variant={status.variant} className={status.className}>
-              {status.label}
-            </Badge>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className="max-w-[260px]">
-            <div className="space-y-1">
-              <p>{status.detail}</p>
-              {stats.boxedReason !== null && (
-                <p className="text-muted-foreground">reason: {stats.boxedReason}</p>
-              )}
-              {stats.boxed && stats.boxedUntil !== null && (
-                <p className="text-muted-foreground">
-                  boxed until {fmtUtcDateTime(stats.boxedUntil)}
-                </p>
-              )}
-              {stats.demotedUntil !== null && (
-                <p className="text-muted-foreground">
-                  demoted until {fmtUtcDateTime(stats.demotedUntil)}
-                </p>
-              )}
-              {stats.serviceMode.resetsAt !== null && (
-                <p className="text-muted-foreground">
-                  resets at {fmtUtcDateTime(stats.serviceMode.resetsAt)}
-                </p>
-              )}
-            </div>
-          </TooltipContent>
-        </Tooltip>
       </div>
 
       <div className="mt-1.5 h-1 w-full overflow-hidden rounded bg-secondary">

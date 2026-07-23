@@ -241,6 +241,7 @@ describe("light theme WCAG contrast ratios (:root vs background)", () => {
 
 describe("dark theme WCAG contrast ratios (.dark vs background)", () => {
   const UI_THRESHOLD = 3.0;
+  const TEXT_THRESHOLD = 4.5;
 
   it.each([1, 2, 3, 4, 5] as const)("--chart-%i meets graphical-object threshold (≥3.0:1)", (n) => {
     const fg = tokenHsla("dark", `chart-${n}`);
@@ -255,5 +256,43 @@ describe("dark theme WCAG contrast ratios (.dark vs background)", () => {
   it("--sidebar-ring meets UI threshold (≥3.0:1)", () => {
     const fg = tokenHsla("dark", "sidebar-ring");
     expect(contrastRatio(fg, DARK_BG)).toBeGreaterThanOrEqual(UI_THRESHOLD);
+  });
+
+  // --destructive-foreground on --destructive (button text on red fill)
+  it("--destructive-foreground on --destructive meets text threshold (≥4.5:1)", () => {
+    const fg = tokenHsla("dark", "destructive-foreground");
+    const bg = tokenHsla("dark", "destructive");
+    expect(contrastRatio(fg, bg)).toBeGreaterThanOrEqual(TEXT_THRESHOLD);
+  });
+
+  // --sidebar-primary-foreground on --sidebar-primary (button text on violet fill)
+  it("--sidebar-primary-foreground on --sidebar-primary meets text threshold (≥4.5:1)", () => {
+    const fg = tokenHsla("dark", "sidebar-primary-foreground");
+    const bg = tokenHsla("dark", "sidebar-primary");
+    expect(contrastRatio(fg, bg)).toBeGreaterThanOrEqual(TEXT_THRESHOLD);
+  });
+
+  // --input is a functional border (alpha-blended white over dark bg)
+  it("--input meets functional UI threshold (≥3.0:1)", () => {
+    const fg = tokenHsla("dark", "input");
+    expect(contrastRatio(fg, DARK_BG)).toBeGreaterThanOrEqual(UI_THRESHOLD);
+  });
+});
+
+// Tooltip secondary text uses text-background/70 on bg-foreground.
+// Verify the composited pair meets text threshold in both themes.
+describe("tooltip secondary text WCAG contrast (background/70 on foreground)", () => {
+  const TEXT_THRESHOLD = 4.5;
+
+  it("light theme: --background at 70% alpha on --foreground meets text threshold (≥4.5:1)", () => {
+    const secondary = { ...tokenHsla("root", "background"), a: 0.7 };
+    const tooltipBg = tokenHsla("root", "foreground");
+    expect(contrastRatio(secondary, tooltipBg)).toBeGreaterThanOrEqual(TEXT_THRESHOLD);
+  });
+
+  it("dark theme: --background at 70% alpha on --foreground meets text threshold (≥4.5:1)", () => {
+    const secondary = { ...tokenHsla("dark", "background"), a: 0.7 };
+    const tooltipBg = tokenHsla("dark", "foreground");
+    expect(contrastRatio(secondary, tooltipBg)).toBeGreaterThanOrEqual(TEXT_THRESHOLD);
   });
 });

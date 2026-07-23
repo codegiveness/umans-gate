@@ -191,6 +191,10 @@ describe("useCaptures error surfacing", () => {
       expect(result.current.captures).toEqual([]);
     });
 
+    await waitFor(() => {
+      expect(MockWebSocket.instances.length).toBeGreaterThan(0);
+    });
+
     const ws = MockWebSocket.instances[0];
     ws.onopen?.();
 

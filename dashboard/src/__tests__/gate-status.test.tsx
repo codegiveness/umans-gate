@@ -130,21 +130,23 @@ describe("GateStatus service mode", () => {
   });
 });
 
-describe("GateStatus priority budget badge", () => {
-  const budget = (overrides: Partial<GateStats["priorityBudgetSummary"]> = null) => {
-    if (overrides === null) return null;
-    return {
-      category: "frontier",
-      label: "Frontier models",
-      models: ["umans-glm-5.2", "umans-o3"],
-      usedPct: 11,
-      overBudgetToday: false,
-      mode: "standard",
-      resetsAt: 1893456000000,
-      ...overrides,
-    };
+function budget(
+  overrides: Partial<NonNullable<GateStats["priorityBudgetSummary"]>> | null,
+): NonNullable<GateStats["priorityBudgetSummary"]> | null {
+  if (overrides === null) return null;
+  return {
+    category: "frontier",
+    label: "Frontier models",
+    models: ["umans-glm-5.2", "umans-o3"],
+    usedPct: 11,
+    overBudgetToday: false,
+    mode: "standard",
+    resetsAt: 1893456000000,
+    ...overrides,
   };
+}
 
+describe("GateStatus merged gate health badge", () => {
   it("renders blue badge when usedPct below 80 and not over budget", async () => {
     const { container } = render(
       <GateStatus
@@ -195,15 +197,16 @@ describe("GateStatus priority budget badge", () => {
     expect(budgetBadge?.className).toContain("text-destructive");
   });
 
-  it("does not render budget badge when priorityBudgetSummary is null", async () => {
+  it("shows high badge when priorityBudgetSummary is null", async () => {
     const { container } = render(<GateStatus stats={baseStats} />);
     await flushEffects();
     const badges = container.querySelectorAll("[data-slot='badge']");
     const badgeTexts = Array.from(badges).map((b) => b.textContent?.trim() ?? "");
+    expect(badgeTexts).toContain("high");
     expect(badgeTexts.some((t) => t.includes("frontier"))).toBe(false);
   });
 
-  it("does not render budget badge when usage is stale", async () => {
+  it("hides budget segment when usage is stale", async () => {
     const { container } = render(
       <GateStatus
         stats={{
@@ -220,7 +223,7 @@ describe("GateStatus priority budget badge", () => {
     expect(badgeTexts.some((t) => t.includes("frontier"))).toBe(false);
   });
 
-  it("tooltip includes models, mode, and reset time when resetsAt is non-null", async () => {
+  it("tooltip includes models, mode, and reset time when budget is present", async () => {
     const { container } = render(
       <GateStatus
         stats={{
@@ -253,5 +256,190 @@ describe("GateStatus priority budget badge", () => {
     await flushEffects();
     expect(container).toHaveTextContent("Frontier models");
     expect(container).not.toHaveTextContent("resets in");
+  });
+});
+
+describe("GateStatus merged badge label composition", () => {
+  it("shows 'interactive · frontier 49%' when service mode interactive + budget 49%", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          serviceMode: { current: "interactive", resetsAt: null },
+          priorityBudgetSummary: budget({ usedPct: 49, overBudgetToday: false }),
+        }}
+      />,
+    );
+    await flushEffects();
+    const badges = container.querySelectorAll("[data-slot='badge']");
+    const badgeTexts = Array.from(badges).map((b) => b.textContent?.trim() ?? "");
+    expect(badgeTexts).toContain("interactive · frontier 49%");
+  });
+
+  it("shows 'frontier 87% · interactive' when service mode interactive + budget 87%", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          serviceMode: { current: "interactive", resetsAt: null },
+          priorityBudgetSummary: budget({ usedPct: 87, overBudgetToday: false }),
+        }}
+      />,
+    );
+    await flushEffects();
+    const badges = container.querySelectorAll("[data-slot='badge']");
+    const badgeTexts = Array.from(badges).map((b) => b.textContent?.trim() ?? "");
+    expect(badgeTexts).toContain("frontier 87% · interactive");
+  });
+
+  it("shows 'boxed · frontier 49%' when boxed + budget", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          boxed: true,
+          boxedReason: "rate_limit_exceeded",
+          boxedUntil: 1893456000000,
+          priorityBudgetSummary: budget({ usedPct: 49, overBudgetToday: false }),
+        }}
+      />,
+    );
+    await flushEffects();
+    const badges = container.querySelectorAll("[data-slot='badge']");
+    const badgeTexts = Array.from(badges).map((b) => b.textContent?.trim() ?? "");
+    expect(badgeTexts).toContain("boxed · frontier 49%");
+  });
+
+  it("shows worst-tier amber when interactive + budget >= 80%", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          serviceMode: { current: "interactive", resetsAt: null },
+          priorityBudgetSummary: budget({ usedPct: 85, overBudgetToday: false }),
+        }}
+      />,
+    );
+    await flushEffects();
+    const badges = container.querySelectorAll("[data-slot='badge']");
+    const badgeTexts = Array.from(badges).map((b) => b.textContent?.trim() ?? "");
+    expect(badgeTexts).toContain("frontier 85% · interactive");
+    const mergedBadge = Array.from(badges).find(
+      (b) => b.textContent?.trim() === "frontier 85% · interactive",
+    );
+    expect(mergedBadge?.className).toContain("bg-amber");
+    expect(mergedBadge?.className).not.toContain("bg-blue");
+  });
+
+  it("shows worst-tier red (destructive) when boxed + budget", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          boxed: true,
+          boxedReason: "rate_limit_exceeded",
+          boxedUntil: 1893456000000,
+          priorityBudgetSummary: budget({ usedPct: 49, overBudgetToday: false }),
+        }}
+      />,
+    );
+    await flushEffects();
+    const badges = container.querySelectorAll("[data-slot='badge']");
+    const mergedBadge = Array.from(badges).find(
+      (b) => b.textContent?.trim() === "boxed · frontier 49%",
+    );
+    expect(mergedBadge?.className).toContain("text-destructive");
+  });
+});
+
+describe("GateStatus merged badge tooltip sections", () => {
+  it("shows 'All systems nominal' when high and no budget", async () => {
+    const { container } = render(<GateStatus stats={baseStats} />);
+    await flushEffects();
+    expect(container).toHaveTextContent("All systems nominal");
+  });
+
+  it("omits admission detail when state is high", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          priorityBudgetSummary: budget({ usedPct: 49, overBudgetToday: false }),
+        }}
+      />,
+    );
+    await flushEffects();
+    expect(container).not.toHaveTextContent("priority high");
+    expect(container).not.toHaveTextContent("All systems nominal");
+  });
+
+  it("omits budget section when no budget data", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          serviceMode: { current: "interactive", resetsAt: null },
+        }}
+      />,
+    );
+    await flushEffects();
+    expect(container).not.toHaveTextContent("Frontier models");
+    expect(container).not.toHaveTextContent("used");
+    expect(container).not.toHaveTextContent("% used");
+  });
+
+  it("badge is always present when stats is non-null", async () => {
+    const { container } = render(<GateStatus stats={baseStats} />);
+    await flushEffects();
+    const badges = container.querySelectorAll("[data-slot='badge']");
+    const badgeTexts = Array.from(badges).map((b) => b.textContent?.trim() ?? "");
+    expect(badgeTexts).toContain("high");
+  });
+
+  it("shows both admission detail and budget detail in tooltip when both present", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          serviceMode: { current: "interactive", resetsAt: null },
+          priorityBudgetSummary: budget({ usedPct: 49, overBudgetToday: false }),
+        }}
+      />,
+    );
+    await flushEffects();
+    expect(container).toHaveTextContent("service mode: interactive");
+    expect(container).toHaveTextContent("Frontier models");
+    const hr = container.querySelector("hr");
+    expect(hr).not.toBeNull();
+  });
+
+  it("shows boxedReason and boxedUntil in tooltip when boxed", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          boxed: true,
+          boxedReason: "rate_limit_exceeded",
+          boxedUntil: 1893456000000,
+        }}
+      />,
+    );
+    await flushEffects();
+    expect(container).toHaveTextContent("reason: rate_limit_exceeded");
+    expect(container).toHaveTextContent("boxed until");
+  });
+
+  it("shows demotedUntil in tooltip when demoted", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          unitsDemoted: true,
+          demotedUntil: 1893456000000,
+        }}
+      />,
+    );
+    await flushEffects();
+    expect(container).toHaveTextContent("demoted until");
   });
 });

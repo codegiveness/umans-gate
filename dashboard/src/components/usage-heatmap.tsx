@@ -297,14 +297,14 @@ function DayTooltip({ day, row }: { day: string; row: UsageDailyRow | undefined 
     return (
       <div className="space-y-1">
         <div className="font-medium">{day}</div>
-        <div className="text-muted-foreground">No data (missing day)</div>
+        <div className="text-background/70">No data (missing day)</div>
       </div>
     );
   }
   return (
     <div className="space-y-1">
       <div className="font-medium">{day}</div>
-      <div className="text-muted-foreground">
+      <div className="text-background/70">
         Completeness: <span className="font-mono">{row.day_completeness}</span>
       </div>
       <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
@@ -319,7 +319,7 @@ function DayTooltip({ day, row }: { day: string; row: UsageDailyRow | undefined 
       </div>
       {(row.priority_ban_total_duration_ms ?? 0) > 0 ||
       (row.service_mode_ban_total_duration_ms ?? 0) > 0 ? (
-        <div className="border-t border-border pt-1 text-muted-foreground">
+        <div className="border-t border-border pt-1 text-background/70">
           Priority ban: {fmtMinutes((row.priority_ban_total_duration_ms ?? 0) / 60000)}
           <br />
           Service ban: {fmtMinutes((row.service_mode_ban_total_duration_ms ?? 0) / 60000)}

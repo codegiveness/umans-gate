@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { fmtDurationUntil, fmtUtcDateTime, fmtUtcTime } from "@/lib/format";
+
+const FROZEN_NOW = Date.UTC(2026, 6, 23, 12, 0, 0);
 
 // Pinned epoch-ms: 2026-01-15T14:32:05.000Z (UTC).
 // UTC hour = 14. In several common local timezones this lands at a
@@ -33,25 +35,29 @@ describe("fmtUtcTime", () => {
 });
 
 describe("fmtDurationUntil", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(FROZEN_NOW);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("formats future timestamp with hours and minutes", () => {
-    const now = Date.now();
-    expect(fmtDurationUntil(now + 3 * 60 * 60 * 1000 + 15 * 60 * 1000)).toBe("3h 15m");
+    expect(fmtDurationUntil(FROZEN_NOW + 3 * 60 * 60 * 1000 + 15 * 60 * 1000)).toBe("3h 15m");
   });
 
   it("formats future timestamp with minutes only", () => {
-    const now = Date.now();
-    expect(fmtDurationUntil(now + 42 * 60 * 1000)).toBe("42m");
+    expect(fmtDurationUntil(FROZEN_NOW + 42 * 60 * 1000)).toBe("42m");
   });
 
   it("returns 'now' for near-zero future timestamps", () => {
-    const now = Date.now();
-    expect(fmtDurationUntil(now + 1000)).toBe("now");
-    expect(fmtDurationUntil(now - 1000)).toBe("now");
+    expect(fmtDurationUntil(FROZEN_NOW + 1000)).toBe("now");
+    expect(fmtDurationUntil(FROZEN_NOW - 1000)).toBe("now");
   });
 
   it("returns empty string for past timestamps", () => {
-    const now = Date.now();
-    expect(fmtDurationUntil(now - 60 * 1000)).toBe("");
+    expect(fmtDurationUntil(FROZEN_NOW - 60 * 1000)).toBe("");
   });
 
   it("returns empty string for null", () => {
