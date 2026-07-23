@@ -7,8 +7,7 @@
   "author": "codegiveness",
   "publishConfig": {
     "access": "public",
-    "registry": "https://registry.npmjs.org/",
-    "provenance": true
+    "registry": "https://registry.npmjs.org/"
   },
   "homepage": "https://github.com/codegiveness/umans-gate",
   "repository": {
