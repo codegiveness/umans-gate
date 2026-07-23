@@ -1,6 +1,7 @@
 // Test: temperature forcing on request bodies.
-// Verifies that temperature is forced to 1.0 on both OpenAI and Anthropic
-// routes, existing values are overwritten, and disabled flag skips injection.
+// Verifies that temperature is forced to 1.0 ONLY when the body has
+// `thinking` present and enabled (not absent, not { type: "disabled" }).
+// Only applies to Anthropic requests (not OpenAI).
 
 import { afterAll, beforeAll, expect, test } from "bun:test";
 import { type ProxyHandle, startProxy } from "./helpers/proxy";
@@ -46,20 +47,33 @@ async function sendAnthropic(body: string) {
   return raw.getLastRequest();
 }
 
-test("openai: temperature forced to 1.0 when absent", async () => {
+test("openai: temperature NOT forced (TemperatureStep is Anthropic-only)", async () => {
   const body = JSON.stringify({
     model: "umans-glm-5.2",
+    thinking: { type: "adaptive" },
     messages: [{ role: "user", content: "hi" }],
   });
   const r = await sendOpenAi(body);
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
-  expect(parsed.temperature).toBe(1.0);
+  expect(parsed.temperature).toBeUndefined();
 });
 
-test("anthropic: temperature forced to 1.0 when absent", async () => {
+test("anthropic: temperature NOT forced when body lacks thinking", async () => {
   const body = JSON.stringify({
     model: "umans-glm-5.2",
+    messages: [{ role: "user", content: "hi" }],
+  });
+  const r = await sendAnthropic(body);
+  expect(r).not.toBeNull();
+  const parsed = JSON.parse(r!.body);
+  expect(parsed.temperature).toBeUndefined();
+});
+
+test("anthropic: temperature forced to 1.0 when thinking is present", async () => {
+  const body = JSON.stringify({
+    model: "umans-glm-5.2",
+    thinking: { type: "adaptive" },
     messages: [{ role: "user", content: "hi" }],
   });
   const r = await sendAnthropic(body);
@@ -68,13 +82,26 @@ test("anthropic: temperature forced to 1.0 when absent", async () => {
   expect(parsed.temperature).toBe(1.0);
 });
 
-test("existing temperature is overwritten to 1.0", async () => {
+test("anthropic: temperature NOT forced when thinking is disabled", async () => {
   const body = JSON.stringify({
     model: "umans-glm-5.2",
+    thinking: { type: "disabled" },
+    messages: [{ role: "user", content: "hi" }],
+  });
+  const r = await sendAnthropic(body);
+  expect(r).not.toBeNull();
+  const parsed = JSON.parse(r!.body);
+  expect(parsed.temperature).toBeUndefined();
+});
+
+test("existing temperature is overwritten to 1.0 when thinking is present", async () => {
+  const body = JSON.stringify({
+    model: "umans-glm-5.2",
+    thinking: { type: "adaptive" },
     temperature: 0.5,
     messages: [],
   });
-  const r = await sendOpenAi(body);
+  const r = await sendAnthropic(body);
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
   expect(parsed.temperature).toBe(1.0);
@@ -87,10 +114,14 @@ test("STAMP_CLAUDE_CODE_ENABLED=false skips temperature injection", async () => 
   });
   try {
     raw2.getLastRequest();
-    await fetch(`${proxy2.baseUrl}/v1/chat/completions`, {
+    await fetch(`${proxy2.baseUrl}/v1/messages`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ model: "umans-glm-5.2", messages: [] }),
+      body: JSON.stringify({
+        model: "umans-glm-5.2",
+        thinking: { type: "adaptive" },
+        messages: [],
+      }),
     }).catch(() => {});
     await sleep(150);
     const r = raw2.getLastRequest();
@@ -103,12 +134,13 @@ test("STAMP_CLAUDE_CODE_ENABLED=false skips temperature injection", async () => 
   }
 });
 
-test("temperature forced on non-GLM models too", async () => {
+test("temperature forced on non-GLM models too when thinking is present", async () => {
   const body = JSON.stringify({
     model: "umans-flash",
+    thinking: { type: "adaptive" },
     messages: [],
   });
-  const r = await sendOpenAi(body);
+  const r = await sendAnthropic(body);
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
   expect(parsed.temperature).toBe(1.0);

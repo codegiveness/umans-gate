@@ -83,6 +83,8 @@ export interface ServerRawConfig {
   has_api_key?: boolean;
   /** Runtime flag: true when the resolved config has a dashboard token. Read-only — not saved. */
   has_dashboard_token?: boolean;
+  /** Number of latest captures per model used for performance percentile computation. Hot-reloadable. */
+  performance_sample_count?: number;
 }
 
 export interface ExperimentRawConfig {

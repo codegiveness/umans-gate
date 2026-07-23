@@ -284,6 +284,12 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     "ttft_retry_cooldown_ms",
     DEFAULT_CONFIG.ttft_retry_cooldown_ms ?? 30000,
   );
+  const performanceSampleCount = envOrRawNum(
+    env.PERFORMANCE_SAMPLE_COUNT,
+    raw,
+    "performance_sample_count",
+    DEFAULT_CONFIG.performance_sample_count ?? 200,
+  );
 
   return {
     port,
@@ -367,5 +373,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     ttftRetryFailureWindowMs,
     ttftRetryFailureThreshold,
     ttftRetryCooldownMs,
+    performanceSampleCount,
   };
 }

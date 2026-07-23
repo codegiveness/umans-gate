@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.12] - 2026-07-23
+
+### Changed
+
+- **Respect-if-present stamping.** The proxy no longer unconditionally
+  injects `thinking`, `output_config`, `reasoning_effort`, or
+  `temperature` into request bodies. When a client sends `thinking`
+  (Anthropic) or `reasoning_effort` (OpenAI), the value is preserved
+  as-is; when absent, no field is injected. `output_config` injection
+  is now coupled to thinking presence. Temperature is only forced to
+  1.0 when thinking is enabled on Anthropic requests. This prevents
+  the proxy from overriding client intent and avoids API rejections
+  from temperature/thinking conflicts.
+
+### Added
+
+- **Configurable performance sample count.** A new
+  `performance_sample_count` config field (default 200, hot-reloadable,
+  range 10–10000) controls how many recent requests per model are used
+  for performance percentile computation in the dashboard. Previously
+  hardcoded to 100. Accessible via the Config tab, env var
+  `PERFORMANCE_SAMPLE_COUNT`, or JSON config `performance_sample_count`.
+
+### Removed
+
+- **Dead `v_latest_requests_per_model` view.** The unused SQLite view
+  was dropped from schema migration and `LATEST_N_PER_MODEL_VIEW`
+  constant deleted from `src/usage/ddl.ts`.
+
 ## [0.3.11] - 2026-07-23
 
 ### Fixed

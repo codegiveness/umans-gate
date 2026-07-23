@@ -10,7 +10,6 @@ import {
   STAMP_CACHE_TTL_VALUE,
   STAMP_CONTEXT_MANAGEMENT_VALUE,
   STAMP_TEMPERATURE_VALUE,
-  STAMP_THINKING_VALUE,
   STAMP_TOP_K_VALUE,
 } from "./config.js";
 import { stripOmoReminder } from "./experiments/strip-omo-reminder.js";
@@ -19,7 +18,6 @@ import { createLogger } from "./logger.js";
 import type { ParsedModelInfo } from "./model-info-parser.js";
 import { restampBreakpoints } from "./restamp-breakpoints.js";
 import { resolveStampPolicy } from "./stamp-catalog.js";
-import { stampReasoning } from "./stamp-reasoning.js";
 import { stampTemperature } from "./stamp-temperature.js";
 import { stampThinking } from "./stamp-thinking.js";
 import { stampTopK } from "./stamp-topk.js";
@@ -28,7 +26,6 @@ import type {
   AnthropicBody,
   CaptureConfig,
   GateConfig,
-  OpenAiBody,
   ProtocolConfig,
   StampConfig,
 } from "./types.js";
@@ -133,7 +130,6 @@ export const AnthropicBodyStep: StampStep = {
     const policy = resolveStampPolicy(ctx.modelName, ctx.catalog);
     const changed = stampThinking(body as AnthropicBody, {
       maxTokens: true,
-      thinking: STAMP_THINKING_VALUE,
       outputConfig: { effort: policy.effort },
       policy,
     });
@@ -169,17 +165,10 @@ export const OpenAiReasoningStep: StampStep = {
   applies(ctx) {
     return ctx.isOpenAi && ctx.config.stampReasoningEffort !== null;
   },
-  apply(body, ctx) {
+  apply(body, _ctx) {
     if (body === null || typeof body !== "object") return false;
-    const policy = resolveStampPolicy(ctx.modelName, ctx.catalog);
-    const changed = stampReasoning(body as OpenAiBody, { reasoningEffort: policy.effort });
-    if (changed) {
-      log.info("stamped openai body reasoning_effort", {
-        method: ctx.method,
-        path: ctx.url.pathname,
-      });
-      return true;
-    }
+    // Respect-if-present: reasoning_effort is never injected or stripped.
+    // The step runs (gated by stampReasoningEffort) but is a structural no-op.
     return false;
   },
 };
@@ -209,10 +198,15 @@ export const TopKStep: StampStep = {
 export const TemperatureStep: StampStep = {
   label: "temperature",
   applies(ctx) {
-    return ctx.config.stampClaudeCode;
+    return ctx.config.stampClaudeCode && !ctx.isOpenAi;
   },
   apply(body, ctx) {
     if (body === null || typeof body !== "object") return false;
+    const b = body as AnthropicBody;
+    // Only force temperature when thinking is present and enabled.
+    if (!b.thinking) return false;
+    if (typeof b.thinking === "object" && (b.thinking as { type?: string }).type === "disabled")
+      return false;
     const changed = stampTemperature(body, STAMP_TEMPERATURE_VALUE);
     if (changed) {
       log.info(`stamped temperature=${STAMP_TEMPERATURE_VALUE}`, {

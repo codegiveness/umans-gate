@@ -124,6 +124,16 @@ const SERVER_FIELDS: FieldDef[] = [
     min: 1000,
     suffix: "ms",
   },
+  {
+    key: "performance_sample_count",
+    label: "Performance Sample Count",
+    kind: "number",
+    description:
+      "Number of latest captures per model used for performance percentile computation in the Performance tab. Decoupled from Max Captures. Hot-reloadable — changes take effect immediately. Default: 200.",
+    min: 10,
+    max: 10000,
+    suffix: "rows",
+  },
 ];
 
 const STAMP_FIELDS: FieldDef[] = [

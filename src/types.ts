@@ -305,6 +305,8 @@ export interface ProxyConfig {
   ttftRetryFailureThreshold: number;
   /** Cooldown between retries in ms. */
   ttftRetryCooldownMs: number;
+  /** Number of latest captures per model used for performance percentile computation. */
+  performanceSampleCount: number;
 }
 
 // Narrow config interfaces (ISP). ProxyConfig structurally satisfies each,

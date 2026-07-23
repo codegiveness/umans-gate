@@ -31,7 +31,7 @@ async function sendOpenAi(body: string) {
   return raw.getLastRequest();
 }
 
-test("OpenAI route gets reasoning_effort=high for non-glm model", async () => {
+test("OpenAI route does NOT inject reasoning_effort for non-glm model (respect-if-present)", async () => {
   const body = JSON.stringify({
     model: "umans-coder",
     messages: [{ role: "user", content: "hi" }],
@@ -41,12 +41,15 @@ test("OpenAI route gets reasoning_effort=high for non-glm model", async () => {
   const r = await sendOpenAi(body);
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
-  expect(parsed.max_tokens).toBeUndefined();
-  expect(parsed.thinking).toBeUndefined();
-  expect(parsed.reasoning_effort).toBe("high");
+  // max_tokens preserved (not stripped)
+  expect(parsed.max_tokens).toBe(4096);
+  // thinking preserved (not stripped)
+  expect(parsed.thinking).toEqual({ type: "enabled" });
+  // reasoning_effort NOT injected
+  expect(parsed.reasoning_effort).toBeUndefined();
 });
 
-test("OpenAI route gets reasoning_effort=max for umans-glm* model", async () => {
+test("OpenAI route does NOT inject reasoning_effort for umans-glm* model (respect-if-present)", async () => {
   const body = JSON.stringify({
     model: "umans-glm-5.2",
     messages: [{ role: "user", content: "hi" }],
@@ -54,9 +57,8 @@ test("OpenAI route gets reasoning_effort=max for umans-glm* model", async () => 
   const r = await sendOpenAi(body);
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
-  expect(parsed.max_tokens).toBeUndefined();
-  expect(parsed.thinking).toBeUndefined();
-  expect(parsed.reasoning_effort).toBe("max");
+  // reasoning_effort NOT injected
+  expect(parsed.reasoning_effort).toBeUndefined();
 });
 
 test("OpenAI route is not stamped when toggle disabled", async () => {

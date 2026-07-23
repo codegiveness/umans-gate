@@ -7,11 +7,7 @@ import { compressText, decompressText } from "./compress.js";
 import { accountCapturesUsage, backfillFromCaptures, migrateEconomicsSchema } from "./economics.js";
 import { createLogger } from "./logger.js";
 import type { CaptureRow, CaptureState, ProxyConfig } from "./types.js";
-import {
-  LATEST_N_PER_MODEL_VIEW,
-  PERFORMANCE_STATS_SQL,
-  USAGE_COLUMNS_DDL,
-} from "./usage-extract.js";
+import { PERFORMANCE_STATS_SQL, USAGE_COLUMNS_DDL } from "./usage-extract.js";
 import type { PerformanceStatsRow, UsageMetrics } from "./usage-extract.js";
 import { VisionDescriptionStore } from "./vision-description-store.js";
 import type { VisionCallRecord } from "./vision/handoff.js";
@@ -243,9 +239,6 @@ export function migrateCaptureSchema(db: Database): void {
     }
   }
 
-  // Latest-N-per-model materialized view (IF NOT EXISTS → safe on every restart).
-  db.exec(LATEST_N_PER_MODEL_VIEW);
-
   // Covering indexes for fast aggregation queries.
   // Without these, every stats query scans the entire captures table.
   db.exec(`
@@ -380,15 +373,17 @@ export class CaptureDB {
   private rowCount: number;
   readonly maxCaptures: number;
   compressionEnabled: boolean;
+  performanceSampleLimit: number;
   onPrune: ((prunedIds: number[]) => void) | null = null;
 
   constructor(
     config: Pick<ProxyConfig, "dbPath" | "maxCaptures"> &
-      Partial<Pick<ProxyConfig, "compressionEnabled">>,
+      Partial<Pick<ProxyConfig, "compressionEnabled" | "performanceSampleCount">>,
   ) {
     this.db = new Database(config.dbPath);
     this.maxCaptures = config.maxCaptures;
     this.compressionEnabled = config.compressionEnabled ?? true;
+    this.performanceSampleLimit = config.performanceSampleCount ?? 200;
 
     migrateCaptureSchema(this.db);
     restrictDbFilePermissions(config.dbPath);
@@ -632,10 +627,13 @@ export class CaptureDB {
   }
 
   /** Compute per-model performance stats entirely in SQL (p10/p50/p95, sums, cached%).
-   *  Uses the v_latest_requests_per_model view + nearest-rank percentiles.
+   *  Uses nearest-rank percentiles over the latest N done requests per model,
+   *  where N is controlled by `performanceSampleLimit` (hot-reloadable).
    *  Returns PerformanceStatsRow[] — no JS post-processing needed. */
   getPerformanceStats(): PerformanceStatsRow[] {
-    const rows = this.stmtPerformanceStats.all() as Array<Record<string, unknown>>;
+    const rows = this.stmtPerformanceStats.all({ $limit: this.performanceSampleLimit }) as Array<
+      Record<string, unknown>
+    >;
     return rows.map((row) => ({
       model: row.model as string,
       provider: (row.provider as "anthropic" | "openai") ?? "anthropic",

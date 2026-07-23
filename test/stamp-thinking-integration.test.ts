@@ -31,7 +31,7 @@ async function send(body: string) {
   return raw.getLastRequest();
 }
 
-test("umans-coder gets all three fields stamped", async () => {
+test("umans-coder without thinking: only max_tokens stamped", async () => {
   const body = JSON.stringify({
     model: "umans-coder",
     messages: [{ role: "user", content: "hi" }],
@@ -40,11 +40,11 @@ test("umans-coder gets all three fields stamped", async () => {
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
   expect(parsed.max_tokens).toBe(32767);
-  expect(parsed.thinking).toEqual({ type: "adaptive" });
-  expect(parsed.output_config).toEqual({ effort: "high" });
+  expect(parsed.thinking).toBeUndefined();
+  expect(parsed.output_config).toBeUndefined();
 });
 
-test("umans-flash gets thinking + max_tokens + output_config stamped", async () => {
+test("umans-flash without thinking: only max_tokens stamped", async () => {
   const body = JSON.stringify({
     model: "umans-flash",
     messages: [{ role: "user", content: "hi" }],
@@ -53,11 +53,11 @@ test("umans-flash gets thinking + max_tokens + output_config stamped", async () 
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
   expect(parsed.max_tokens).toBe(32767);
-  expect(parsed.thinking).toEqual({ type: "adaptive" });
-  expect(parsed.output_config).toEqual({ effort: "high" });
+  expect(parsed.thinking).toBeUndefined();
+  expect(parsed.output_config).toBeUndefined();
 });
 
-test("umans-glm model gets output_config effort=max", async () => {
+test("umans-glm model without thinking: only max_tokens stamped", async () => {
   const body = JSON.stringify({
     model: "umans-glm-5.2",
     messages: [{ role: "user", content: "hi" }],
@@ -66,11 +66,11 @@ test("umans-glm model gets output_config effort=max", async () => {
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
   expect(parsed.max_tokens).toBe(131071);
-  expect(parsed.thinking).toEqual({ type: "adaptive" });
-  expect(parsed.output_config).toEqual({ effort: "max" });
+  expect(parsed.thinking).toBeUndefined();
+  expect(parsed.output_config).toBeUndefined();
 });
 
-test("non-glm non-thinking model gets max_tokens + output_config high", async () => {
+test("non-glm non-thinking model: only max_tokens stamped", async () => {
   const body = JSON.stringify({
     model: "umans-other",
     messages: [{ role: "user", content: "hi" }],
@@ -80,10 +80,10 @@ test("non-glm non-thinking model gets max_tokens + output_config high", async ()
   const parsed = JSON.parse(r!.body);
   expect(parsed.max_tokens).toBe(32767);
   expect(parsed.thinking).toBeUndefined();
-  expect(parsed.output_config).toEqual({ effort: "high" });
+  expect(parsed.output_config).toBeUndefined();
 });
 
-test("existing fields are overwritten", async () => {
+test("existing thinking respected, max_tokens + output_config stamped", async () => {
   const body = JSON.stringify({
     model: "umans-coder",
     thinking: { type: "enabled", keep: "all", budget_tokens: 8000 },
@@ -95,7 +95,9 @@ test("existing fields are overwritten", async () => {
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
   expect(parsed.max_tokens).toBe(32767);
-  expect(parsed.thinking).toEqual({ type: "adaptive" });
+  // thinking respected (not overwritten)
+  expect(parsed.thinking).toEqual({ type: "enabled", keep: "all", budget_tokens: 8000 });
+  // output_config stamped (thinking is enabled)
   expect(parsed.output_config).toEqual({ effort: "high" });
 });
 
@@ -141,7 +143,7 @@ test("disabling all stamp toggles disables injection", async () => {
   }
 });
 
-test("claude code toggle stamps all fields together", async () => {
+test("claude code toggle stamps max_tokens when thinking absent", async () => {
   const raw3 = await startRawUpstream();
   const proxy3 = await startProxy({
     TARGET: `http://127.0.0.1:${raw3.port}`,
@@ -159,8 +161,39 @@ test("claude code toggle stamps all fields together", async () => {
     expect(r).not.toBeNull();
     const parsed = JSON.parse(r!.body);
     expect(parsed.max_tokens).toBe(32767);
+    expect(parsed.thinking).toBeUndefined();
+    expect(parsed.output_config).toBeUndefined();
+  } finally {
+    await proxy3.kill();
+    await raw3.close();
+  }
+});
+
+test("claude code toggle with thinking present stamps max_tokens + output_config + temperature", async () => {
+  const raw3 = await startRawUpstream();
+  const proxy3 = await startProxy({
+    TARGET: `http://127.0.0.1:${raw3.port}`,
+    STAMP_CLAUDE_CODE_ENABLED: "true",
+  });
+  try {
+    raw3.getLastRequest();
+    await fetch(`${proxy3.baseUrl}/v1/messages`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        model: "umans-coder",
+        thinking: { type: "adaptive" },
+        messages: [{ role: "user", content: "hi" }],
+      }),
+    }).catch(() => {});
+    await sleep(150);
+    const r = raw3.getLastRequest();
+    expect(r).not.toBeNull();
+    const parsed = JSON.parse(r!.body);
+    expect(parsed.max_tokens).toBe(32767);
     expect(parsed.thinking).toEqual({ type: "adaptive" });
     expect(parsed.output_config).toEqual({ effort: "high" });
+    expect(parsed.temperature).toBe(1.0);
   } finally {
     await proxy3.kill();
     await raw3.close();

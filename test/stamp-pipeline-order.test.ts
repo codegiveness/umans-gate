@@ -176,6 +176,7 @@ afterAll(async () => {
 test("all stamp steps fire in order on a single GLM Anthropic request", async () => {
   const body = JSON.stringify({
     model: "umans-glm-5.2",
+    thinking: { type: "adaptive" },
     max_tokens: 50,
     system: [{ type: "text", text: "You are helpful.", cache_control: { type: "ephemeral" } }],
     messages: [
@@ -205,7 +206,6 @@ test("all stamp steps fire in order on a single GLM Anthropic request", async ()
   expect(keys[1]).toBe("top_k");
 
   // --- AnthropicBody (runs second: max_tokens + thinking + output_config) ---
-  // thinking is stamped for umans-glm* models alongside umans-coder/flash/kimi*/qwen*
   expect(parsed.max_tokens).toBe(131071);
   expect(parsed.thinking).toEqual({ type: "adaptive" });
   expect(parsed.output_config).toEqual({ effort: "max" });
@@ -214,6 +214,8 @@ test("all stamp steps fire in order on a single GLM Anthropic request", async ()
   expect(parsed.context_management).toEqual({
     edits: [{ type: "clear_thinking_20251015", keep: "all" }],
   });
+
+  expect(parsed.temperature).toBe(1.0);
 
   // --- TTL (runs after restamp: stamps cache_control ephemeral blocks with ttl) ---
   expect(parsed.system[0].cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
@@ -279,4 +281,204 @@ test("restamp converts tip-riding breakpoints to Layout B and TTL step stamps th
   // --- TTL ran second: stamped ttl:"1h" on both restamped breakpoints ---
   expect(parsed.system[0].cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
   expect(parsed.messages[2].content[0].cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
+});
+
+// ─── Respect-if-present integration tests (ADR-0008) ──────────────────────
+
+test("anthropic without thinking: no thinking/output_config/temperature, has max_tokens+TTL+top_k+context_management", async () => {
+  const body = JSON.stringify({
+    model: "umans-glm-5.2",
+    max_tokens: 50,
+    system: [{ type: "text", text: "sys", cache_control: { type: "ephemeral" } }],
+    messages: [{ role: "user", content: "hi" }],
+  });
+
+  raw.getLastRequest();
+  await fetch(`${proxy.baseUrl}/v1/messages`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "anthropic-version": "2023-06-01" },
+    body,
+  }).catch(() => {});
+  await sleep(150);
+  const r = raw.getLastRequest();
+  expect(r).not.toBeNull();
+  const parsed = JSON.parse(r!.body);
+
+  // thinking NOT injected (respect-if-present: body lacked it)
+  expect(parsed.thinking).toBeUndefined();
+  // output_config NOT stamped (no thinking enabled)
+  expect(parsed.output_config).toBeUndefined();
+  // temperature NOT forced (no thinking)
+  expect(parsed.temperature).toBeUndefined();
+  // max_tokens IS stamped (always)
+  expect(parsed.max_tokens).toBe(131071);
+  // top_k IS stamped
+  expect(parsed.top_k).toBe(20);
+  // context_management IS stamped
+  expect(parsed.context_management).toEqual({
+    edits: [{ type: "clear_thinking_20251015", keep: "all" }],
+  });
+  // TTL IS stamped
+  expect(parsed.system[0].cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
+});
+
+test("anthropic with thinking disabled: respected, no output_config/temperature", async () => {
+  const body = JSON.stringify({
+    model: "umans-glm-5.2",
+    thinking: { type: "disabled" },
+    max_tokens: 50,
+    system: [{ type: "text", text: "sys", cache_control: { type: "ephemeral" } }],
+    messages: [{ role: "user", content: "hi" }],
+  });
+
+  raw.getLastRequest();
+  await fetch(`${proxy.baseUrl}/v1/messages`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "anthropic-version": "2023-06-01" },
+    body,
+  }).catch(() => {});
+  await sleep(150);
+  const r = raw.getLastRequest();
+  expect(r).not.toBeNull();
+  const parsed = JSON.parse(r!.body);
+
+  // thinking respected (not overwritten)
+  expect(parsed.thinking).toEqual({ type: "disabled" });
+  // output_config NOT stamped (thinking is disabled)
+  expect(parsed.output_config).toBeUndefined();
+  // temperature NOT forced (thinking is disabled)
+  expect(parsed.temperature).toBeUndefined();
+  // max_tokens IS stamped
+  expect(parsed.max_tokens).toBe(131071);
+});
+
+test("anthropic with thinking adaptive: respected, output_config stamped, temperature forced", async () => {
+  const body = JSON.stringify({
+    model: "umans-glm-5.2",
+    thinking: { type: "adaptive" },
+    max_tokens: 50,
+    system: [{ type: "text", text: "sys", cache_control: { type: "ephemeral" } }],
+    messages: [{ role: "user", content: "hi" }],
+  });
+
+  raw.getLastRequest();
+  await fetch(`${proxy.baseUrl}/v1/messages`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "anthropic-version": "2023-06-01" },
+    body,
+  }).catch(() => {});
+  await sleep(150);
+  const r = raw.getLastRequest();
+  expect(r).not.toBeNull();
+  const parsed = JSON.parse(r!.body);
+
+  // thinking respected (not overwritten)
+  expect(parsed.thinking).toEqual({ type: "adaptive" });
+  // output_config IS stamped (thinking is enabled)
+  expect(parsed.output_config).toEqual({ effort: "max" });
+  // temperature IS forced (thinking is enabled)
+  expect(parsed.temperature).toBe(1.0);
+  // max_tokens IS stamped
+  expect(parsed.max_tokens).toBe(131071);
+});
+
+// ─── OpenAI respect-if-present integration tests ──────────────────────────
+
+let openaiRaw: RawUpstreamHandle;
+let openaiProxy: ProxyHandle;
+
+beforeAll(async () => {
+  openaiRaw = await startRawUpstream();
+  openaiProxy = await startProxy({
+    TARGET: `http://127.0.0.1:${openaiRaw.port}`,
+    STAMP_REASONING_EFFORT_ENABLED: "true",
+  });
+});
+
+afterAll(async () => {
+  await openaiProxy.kill();
+  await openaiRaw.close();
+});
+
+test("openai without reasoning_effort: not injected, max_tokens/thinking preserved", async () => {
+  const body = JSON.stringify({
+    model: "umans-glm-5.2",
+    max_tokens: 4096,
+    thinking: { type: "adaptive" },
+    messages: [{ role: "user", content: "hi" }],
+  });
+
+  openaiRaw.getLastRequest();
+  await fetch(`${openaiProxy.baseUrl}/v1/chat/completions`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body,
+  }).catch(() => {});
+  await sleep(150);
+  const r = openaiRaw.getLastRequest();
+  expect(r).not.toBeNull();
+  const parsed = JSON.parse(r!.body);
+
+  // reasoning_effort NOT injected
+  expect(parsed.reasoning_effort).toBeUndefined();
+  // max_tokens preserved
+  expect(parsed.max_tokens).toBe(4096);
+  // thinking preserved
+  expect(parsed.thinking).toEqual({ type: "adaptive" });
+});
+
+test("openai with reasoning_effort=none: respected, no stripping", async () => {
+  const body = JSON.stringify({
+    model: "umans-glm-5.2",
+    reasoning_effort: "none",
+    max_tokens: 4096,
+    thinking: { type: "adaptive" },
+    messages: [{ role: "user", content: "hi" }],
+  });
+
+  openaiRaw.getLastRequest();
+  await fetch(`${openaiProxy.baseUrl}/v1/chat/completions`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body,
+  }).catch(() => {});
+  await sleep(150);
+  const r = openaiRaw.getLastRequest();
+  expect(r).not.toBeNull();
+  const parsed = JSON.parse(r!.body);
+
+  // reasoning_effort respected
+  expect(parsed.reasoning_effort).toBe("none");
+  // max_tokens preserved (not stripped)
+  expect(parsed.max_tokens).toBe(4096);
+  // thinking preserved (not stripped)
+  expect(parsed.thinking).toEqual({ type: "adaptive" });
+});
+
+test("openai with reasoning_effort=high: respected, max_tokens/thinking preserved", async () => {
+  const body = JSON.stringify({
+    model: "umans-glm-5.2",
+    reasoning_effort: "high",
+    max_tokens: 8192,
+    thinking: { type: "enabled" },
+    messages: [{ role: "user", content: "hi" }],
+  });
+
+  openaiRaw.getLastRequest();
+  await fetch(`${openaiProxy.baseUrl}/v1/chat/completions`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body,
+  }).catch(() => {});
+  await sleep(150);
+  const r = openaiRaw.getLastRequest();
+  expect(r).not.toBeNull();
+  const parsed = JSON.parse(r!.body);
+
+  // reasoning_effort respected
+  expect(parsed.reasoning_effort).toBe("high");
+  // max_tokens preserved (not stripped)
+  expect(parsed.max_tokens).toBe(8192);
+  // thinking preserved (not stripped)
+  expect(parsed.thinking).toEqual({ type: "enabled" });
 });

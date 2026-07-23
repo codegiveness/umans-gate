@@ -648,6 +648,10 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
       db.compressionEnabled = config.compressionEnabled;
     }
 
+    if (applied.includes("performance_sample_count")) {
+      db.performanceSampleLimit = config.performanceSampleCount;
+    }
+
     if (applied.includes("rate_limit_requests")) {
       rateRef.current = createRateLimiter(config.rateLimitRequests, usage.getSnapshot());
     }

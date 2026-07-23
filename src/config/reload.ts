@@ -272,6 +272,12 @@ const RELOAD_FIELDS: Array<{
       live.visionSystemPromptMaxChars = fresh.visionSystemPromptMaxChars;
     },
   },
+  {
+    rawKey: "performance_sample_count",
+    apply: (live, fresh) => {
+      live.performanceSampleCount = fresh.performanceSampleCount;
+    },
+  },
 ];
 
 /**

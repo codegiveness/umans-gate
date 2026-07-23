@@ -26,31 +26,15 @@ ALTER TABLE captures ADD COLUMN metrics_extracted_at INTEGER;
 ` as const;
 
 /**
- * SQL view: latest N requests per model with all metrics.
- * Replace :N with the desired window size (default 100).
- *
- * Uses ROW_NUMBER() window function (SQLite 3.25+).
- */
-export const LATEST_N_PER_MODEL_VIEW = `
-CREATE VIEW IF NOT EXISTS v_latest_requests_per_model AS
-WITH ranked AS (
-  SELECT
-    c.*,
-    ROW_NUMBER() OVER (PARTITION BY c.model ORDER BY c.started_at DESC) AS rn
-  FROM captures c
-  WHERE c.model IS NOT NULL
-    AND c.state = 'done'
-)
-SELECT * FROM ranked WHERE rn <= 100;
-` as const;
-
-/**
  * SQL: optimized per-model performance summary for the dashboard.
  *
  * Computes mean TTFT/TPS and nearest-rank percentiles (p10/p50/p95), plus
  * SUM of input/output/cached tokens and cached% in a single scan over the
- * latest 100 done requests per model. IQR/stddev removed — average is shown
- * as the primary metric.
+ * latest $limit done requests per model. IQR/stddev removed — average is
+ * shown as the primary metric.
+ *
+ * The $limit parameter is bound at query time (default 200) to control the
+ * sample window without recompiling the prepared statement.
  */
 export const PERFORMANCE_STATS_SQL = `
 WITH latest_per_model AS (
@@ -68,7 +52,7 @@ base AS (
     total_input_tokens, total_output_tokens,
     cache_read_tokens, thinking_tokens
   FROM latest_per_model
-  WHERE rn <= 100
+  WHERE rn <= $limit
 ),
 ranked AS (
   SELECT

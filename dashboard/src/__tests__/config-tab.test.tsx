@@ -63,6 +63,7 @@ const baseConfig = {
   ttft_retry_failure_window_ms: 300000,
   ttft_retry_failure_threshold: 3,
   ttft_retry_cooldown_ms: 30000,
+  performance_sample_count: 200,
 };
 
 const mockConfigResult = {

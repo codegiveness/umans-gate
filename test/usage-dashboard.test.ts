@@ -1,9 +1,12 @@
 import { Database } from "bun:sqlite";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { CaptureDB } from "../src/db.js";
 import { type MockUpstreamHandle, startMockLlmUpstream } from "./helpers/mock-llm-upstream";
 import { type ProxyHandle, startProxy } from "./helpers/proxy";
 import {
-  LATEST_N_PER_MODEL_VIEW,
   PERFORMANCE_STATS_SQL,
   USAGE_COLUMNS_DDL,
   extractAnthropicNonStreaming,
@@ -150,8 +153,7 @@ describe("SQL DDL: schema + views execute on SQLite", () => {
     }
   });
 
-  test("LATEST_N_PER_MODEL_VIEW creates a queryable view", () => {
-    db.exec(LATEST_N_PER_MODEL_VIEW);
+  test("PERFORMANCE_STATS_SQL with $limit returns rows within the limit window", () => {
     // Insert test data: 3 models × 5 requests each
     for (let m = 0; m < 3; m++) {
       for (let i = 0; i < 5; i++) {
@@ -162,25 +164,19 @@ describe("SQL DDL: schema + views execute on SQLite", () => {
       }
     }
 
-    // Query the view: should return all 15 rows (all within latest 100)
-    const rows = db.query("SELECT * FROM v_latest_requests_per_model").all() as Array<{
+    // Query with $limit=100: should return all 15 rows across 3 models
+    const rows = db.prepare(PERFORMANCE_STATS_SQL).all({ $limit: 100 }) as Array<{
       model: string;
-      rn: number;
+      request_count: number;
     }>;
-    expect(rows.length).toBe(15);
-
-    // Each model should have rn from 1 to 5
-    const byModel = new Map<string, number>();
+    expect(rows.length).toBe(3);
     for (const r of rows) {
-      byModel.set(r.model, (byModel.get(r.model) ?? 0) + 1);
-    }
-    for (const [, count] of byModel) {
-      expect(count).toBe(5);
+      expect(r.request_count).toBe(5);
     }
   });
 
-  test("latest-N view respects rn <= 100 limit (insert 120 rows per model, get 100)", () => {
-    // Insert 120 more rows for model-0
+  test("PERFORMANCE_STATS_SQL respects $limit parameter (insert 120 rows, limit 100)", () => {
+    // Insert 120 rows for model-0
     for (let i = 0; i < 120; i++) {
       db.run(
         `INSERT INTO captures (method, path, url, state, model, provider, started_at, ttft_ms, tps, input_tokens, output_tokens, usage_missing)
@@ -188,14 +184,42 @@ describe("SQL DDL: schema + views execute on SQLite", () => {
       );
     }
 
-    const model0Rows = db
-      .query("SELECT * FROM v_latest_requests_per_model WHERE model = 'model-0'")
-      .all() as Array<{ rn: number }>;
-    expect(model0Rows.length).toBe(100);
-    // rn should be 1..100
-    const rns = model0Rows.map((r) => r.rn).sort((a, b) => a - b);
-    expect(rns[0]).toBe(1);
-    expect(rns[99]).toBe(100);
+    // With $limit=100: only 100 rows counted
+    const rows100 = db.prepare(PERFORMANCE_STATS_SQL).all({ $limit: 100 }) as Array<{
+      model: string;
+      request_count: number;
+    }>;
+    const m0_100 = rows100.find((r) => r.model === "model-0");
+    expect(m0_100).toBeDefined();
+    expect(m0_100!.request_count).toBe(100);
+
+    // With $limit=50: only 50 rows counted
+    const rows50 = db.prepare(PERFORMANCE_STATS_SQL).all({ $limit: 50 }) as Array<{
+      model: string;
+      request_count: number;
+    }>;
+    const m0_50 = rows50.find((r) => r.model === "model-0");
+    expect(m0_50).toBeDefined();
+    expect(m0_50!.request_count).toBe(50);
+  });
+
+  test("PERFORMANCE_STATS_SQL degrades gracefully when $limit exceeds row count", () => {
+    // Insert 10 rows for model-graceful
+    for (let i = 0; i < 10; i++) {
+      db.run(
+        `INSERT INTO captures (method, path, url, state, model, provider, started_at, ttft_ms, tps, input_tokens, output_tokens, usage_missing)
+         VALUES ('POST', '/v1/messages', 'http://x', 'done', 'model-graceful', 'anthropic', ${500000 + i}, 50, 100, 100, 50, 0)`,
+      );
+    }
+
+    // $limit=200 but only 10 rows exist — should return 10
+    const rows = db.prepare(PERFORMANCE_STATS_SQL).all({ $limit: 200 }) as Array<{
+      model: string;
+      request_count: number;
+    }>;
+    const mg = rows.find((r) => r.model === "model-graceful");
+    expect(mg).toBeDefined();
+    expect(mg!.request_count).toBe(10);
   });
 
   test("PERFORMANCE_STATS_SQL computes mean and percentiles and excludes null tps/ttft rows", () => {
@@ -210,7 +234,7 @@ describe("SQL DDL: schema + views execute on SQLite", () => {
       );
     }
 
-    const rows = db.prepare(PERFORMANCE_STATS_SQL).all() as Array<{
+    const rows = db.prepare(PERFORMANCE_STATS_SQL).all({ $limit: 100 }) as Array<{
       model: string;
       request_count: number;
       ttft_mean: number | null;
@@ -239,7 +263,7 @@ describe("SQL DDL: schema + views execute on SQLite", () => {
          VALUES ('POST', '/v1/messages', 'http://x', 'done', 'model-all-null', 'anthropic', ${300000 + i}, NULL, NULL, 10, 5, 0)`,
       );
     }
-    const afterAllNull = db.prepare(PERFORMANCE_STATS_SQL).all() as Array<{
+    const afterAllNull = db.prepare(PERFORMANCE_STATS_SQL).all({ $limit: 100 }) as Array<{
       model: string;
       request_count: number;
       tps_mean: number | null;
@@ -261,7 +285,7 @@ describe("SQL DDL: schema + views execute on SQLite", () => {
       );
     }
 
-    const rows = db.prepare(PERFORMANCE_STATS_SQL).all() as Array<{
+    const rows = db.prepare(PERFORMANCE_STATS_SQL).all({ $limit: 100 }) as Array<{
       model: string;
       request_count: number;
       ttft_mean: number;
@@ -289,5 +313,49 @@ describe("SQL DDL: schema + views execute on SQLite", () => {
     expect(pct!.tps_p10).toBe(50);
     expect(pct!.tps_p50).toBe(54);
     expect(pct!.tps_p95).toBe(59);
+  });
+});
+
+// ─── Hot-reload mutation tests: performanceSampleLimit ─────────────────────────
+
+describe("CaptureDB performanceSampleLimit hot-reload", () => {
+  let tmpDir: string;
+  let dbPath: string;
+
+  beforeAll(() => {
+    tmpDir = mkdtempSync(join(tmpdir(), "umans-gate-perf-reload-"));
+    dbPath = join(tmpDir, "test.db");
+  });
+
+  afterAll(() => rmSync(tmpDir, { recursive: true, force: true }));
+
+  test("mutating performanceSampleLimit reflects in subsequent getPerformanceStats() calls", () => {
+    const captureDb = new CaptureDB({
+      dbPath,
+      maxCaptures: 200,
+      performanceSampleCount: 50,
+    } as { dbPath: string; maxCaptures: number; performanceSampleCount: number });
+
+    const rawDb = new Database(dbPath);
+    for (let i = 0; i < 100; i++) {
+      rawDb.run(
+        `INSERT INTO captures (method, path, url, state, model, provider, started_at, ttft_ms, tps, input_tokens, output_tokens, usage_missing)
+         VALUES ('POST', '/v1/messages', 'http://x', 'done', 'model-reload', 'anthropic', ${1000000 + i}, 50, 100, 100, 50, 0)`,
+      );
+    }
+    rawDb.close();
+
+    const stats50 = captureDb.getPerformanceStats();
+    const m50 = stats50.find((s) => s.model === "model-reload");
+    expect(m50).toBeDefined();
+    expect(m50!.request_count).toBe(50);
+
+    captureDb.performanceSampleLimit = 100;
+    const stats100 = captureDb.getPerformanceStats();
+    const m100 = stats100.find((s) => s.model === "model-reload");
+    expect(m100).toBeDefined();
+    expect(m100!.request_count).toBe(100);
+
+    captureDb.close();
   });
 });

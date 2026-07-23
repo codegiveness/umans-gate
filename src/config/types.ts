@@ -111,6 +111,8 @@ export interface RawConfig {
   ttft_retry_failure_threshold?: number;
   /** Cooldown between retries in ms. Default 30000 (30s). */
   ttft_retry_cooldown_ms?: number;
+  /** Number of latest captures per model used for performance percentile computation. Decoupled from max_captures. Hot-reloadable. Default 200. */
+  performance_sample_count?: number;
 }
 
 /**
