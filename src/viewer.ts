@@ -51,20 +51,40 @@ void EMBEDDED_ASSET_PATHS;
 
 // Module-level: populated only in compiled executables.
 // In dev mode, Bun.embeddedFiles is [] (empty array), so this stays null.
+//
+// Bun's `bun build --compile` flattens embedded file names to basenames and
+// appends an 8-char content hash before the extension:
+//   "index.html"                  → "index-v1ndr7bh.html"
+//   "assets/index-CgigIO6a.js"    → "index-CgigIO6a-p25fh85q.js"
+// We reverse this by stripping the hash and looking up the original relative
+// path from EMBEDDED_ASSET_PATHS (which preserves the correct paths).
 const EMBEDDED_ASSETS: Map<string, Blob> | null = (() => {
   try {
     if (!embeddedFiles || embeddedFiles.length === 0) return null;
+
+    // Build basename → relative-path lookup from the known asset paths.
+    // EMBEDDED_ASSET_PATHS has entries like "index.html", "assets/index-CgigIO6a.js".
+    const pathByBasename = new Map<string, string>();
+    for (const p of EMBEDDED_ASSET_PATHS) {
+      const base = p.split("/").pop();
+      if (base) pathByBasename.set(base, p);
+    }
+
+    // Bun appends an 8-char [a-z0-9] hash before the final extension.
+    const BUN_HASH = /-([a-z0-9]{8})\.([^.]+)$/;
+
     const map = new Map<string, Blob>();
     for (const blob of embeddedFiles as NamedBlob[]) {
-      // blob.name is an internal Bun virtual FS path like /$bunfs/root/dashboard/dist/index.html
-      // Strip the prefix to get the relative path within dashboard/dist/
-      const name = blob.name.replace(/^.*\/dashboard\/dist\//, "");
-      if (name) {
-        // Also store a de-hashed version (Bun adds hash suffix: index-a1b2c3d4.html → index.html)
-        const dehashed = name.replace(/-[a-f0-9]{6,}(\.[^.]+)$/, "$1");
-        map.set(name, blob);
-        if (dehashed !== name) map.set(dehashed, blob);
-      }
+      const base = blob.name.split("/").pop();
+      if (!base) continue;
+      // Strip Bun's hash to recover the original basename.
+      const dehashed = base.replace(BUN_HASH, ".$2");
+      // Look up the original relative path (with Vite hash preserved).
+      const relativePath = pathByBasename.get(dehashed) ?? dehashed;
+      map.set(relativePath, blob);
+      // Also store a Vite-hash-stripped version as a fallback lookup key.
+      const viteDehashed = relativePath.replace(/-[A-Za-z0-9_-]{6,}(\.[^.]+)$/, "$1");
+      if (viteDehashed !== relativePath) map.set(viteDehashed, blob);
     }
     return map.size > 0 ? map : null;
   } catch {
@@ -134,8 +154,7 @@ async function resolveStaticFile(
   candidates: URL[],
 ): Promise<Response | null> {
   if (EMBEDDED_ASSETS) {
-    const dehashed = relativePath.replace(/-[a-f0-9]{6,}(\.[^.]+)$/, "$1");
-    const blob = EMBEDDED_ASSETS.get(relativePath) ?? EMBEDDED_ASSETS.get(dehashed);
+    const blob = EMBEDDED_ASSETS.get(relativePath);
     if (blob) {
       return new Response(blob, {
         headers: { "content-type": contentTypeFor(relativePath) },

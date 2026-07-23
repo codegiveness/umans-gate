@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.11] - 2026-07-23
+
+### Fixed
+
+- **Dashboard not served in compiled binaries.** Bun's `bun build --compile`
+  flattens embedded file names to basenames and appends an 8-char content
+  hash (e.g. `index.html` → `index-v1ndr7bh.html`,
+  `assets/index-CgigIO6a.js` → `index-CgigIO6a-p25fh85q.js`). The
+  `EMBEDDED_ASSETS` map in `src/viewer.ts` assumed the original
+  `dashboard/dist/` path structure was preserved in blob names, so all
+  lookups failed and the dashboard returned "dashboard not built". The
+  map now strips Bun's hash, recovers the original basename, and looks
+  up the correct relative path from `EMBEDDED_ASSET_PATHS`.
+
 ## [0.3.10] - 2026-07-23
 
 ### Added
