@@ -86,6 +86,19 @@ function ambientKey(s: UsageSampleRow): string {
   });
 }
 
+/** Activity comparison key — only the 4 traffic-indicator fields that change
+ *  when real LLM requests are served. Used for the idle-skip in active-minutes
+ *  counting so that time-derived fields (window_remaining_minutes, etc.) don't
+ *  prevent idle detection. */
+function activityKey(s: UsageSampleRow): string {
+  return JSON.stringify({
+    concurrent_sessions: s.concurrent_sessions,
+    tokens_in: s.tokens_in,
+    tokens_out: s.tokens_out,
+    tokens_cached: s.tokens_cached,
+  });
+}
+
 /** Build the 10 trigger-moment fields from an event row. */
 interface TriggerMomentFields {
   concurrent_sessions: number | null;
@@ -225,9 +238,7 @@ export function computeDailyRow(input: DownsampleDayInput): UsageDailyRow {
       hasGap = true;
       continue;
     }
-    if (identical) {
-      // Byte-identical adjacent pair — idle coalesce, not a gap, but also
-      // not "active" time. Skip without contributing to active minutes.
+    if (activityKey(prev) === activityKey(next)) {
       continue;
     }
     const intervalMin = intervalMs / MS_PER_MINUTE;

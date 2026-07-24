@@ -113,46 +113,52 @@ function buildDegradationBands(
   const firstTs = samples[0].fetched_at;
   const lastTs = samples[samples.length - 1].fetched_at;
 
-  // Build band candidates from event transitions.
-  const priorityOnsets = (events ?? []).filter(
-    (e) => e.tuple_kind === "priority" && (e.transition === "onset" || e.transition === "morph"),
-  );
-  const serviceModeOnsets = (events ?? []).filter(
-    (e) =>
-      e.tuple_kind === "service_mode" && (e.transition === "onset" || e.transition === "morph"),
-  );
-
   const buildBands = (
-    onsets: UsageEventRow[],
+    evs: UsageEventRow[],
     kind: "priority" | "service_mode",
   ): DegradationBand[] => {
-    if (onsets.length === 0) return [];
+    if (evs.length === 0) return [];
+    const sorted = [...evs].sort((a, b) => a.onset_at - b.onset_at);
     const bands: DegradationBand[] = [];
-    for (let i = 0; i < onsets.length; i++) {
-      const onset = onsets[i];
-      // The band runs from this onset to the next event of the same kind
-      // (resolved or morph), clamped to the sample-window. When the onset
-      // is at or beyond the last sample, extend `to` to the onset itself
-      // so the band is still represented (zero-or-minimal width at the
-      // right edge) rather than dropped.
-      const next = onsets[i + 1];
-      const rawTo = next ? next.onset_at : lastTs;
-      const from = Math.max(onset.onset_at, firstTs);
-      const to = Math.max(rawTo, from + 1);
-      if (to <= from) continue;
+    let open: number | null = null;
+
+    const pushBand = (fromTs: number, toTs: number) => {
+      const from = Math.max(fromTs, firstTs);
+      const to = Math.max(Math.min(toTs, lastTs), from + 1);
       bands.push({
         kind,
         from,
         to,
         label: kind === "priority" ? "Priority degraded" : "Service mode degraded",
       });
+    };
+
+    for (const e of sorted) {
+      if (e.transition === "onset" || e.transition === "morph") {
+        if (open !== null) pushBand(open, e.onset_at);
+        open = e.onset_at;
+      } else if (e.transition === "resolved") {
+        if (open !== null) {
+          pushBand(open, e.onset_at);
+          open = null;
+        }
+      }
     }
+
+    if (open !== null) pushBand(open, lastTs);
+
     return bands;
   };
 
   return {
-    priority: buildBands(priorityOnsets, "priority"),
-    serviceMode: buildBands(serviceModeOnsets, "service_mode"),
+    priority: buildBands(
+      (events ?? []).filter((e) => e.tuple_kind === "priority"),
+      "priority",
+    ),
+    serviceMode: buildBands(
+      (events ?? []).filter((e) => e.tuple_kind === "service_mode"),
+      "service_mode",
+    ),
   };
 }
 

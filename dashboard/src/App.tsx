@@ -112,7 +112,7 @@ export function App() {
 
   return (
     <ConfigProvider>
-      <TooltipProvider delay={300}>
+      <TooltipProvider delay={0} closeDelay={150}>
         <MasterDetailProvider>
           <ApiKeyGate />
           <TokenGate />

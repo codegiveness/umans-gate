@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.16] - 2026-07-24
+
+### Fixed
+
+- **Usage: active-minutes undercount** — the idle-skip in daily
+  downsampling compared all 28 ambient fields, but time-derived fields
+  (`window_remaining_minutes`, `window_resets_at`) change every poll,
+  preventing the skip from ever firing. Added `activityKey()` comparing
+  only 4 traffic-indicator fields (`concurrent_sessions`,
+  `tokens_in`, `tokens_out`, `tokens_cached`) so idle periods are
+  correctly detected and excluded. Gap detection and degradation burden
+  still use the full 28-field `ambientKey` (unchanged).
+- **Dashboard: heatmap brush reset on poll** — the Recharts `Brush`
+  `startIndex`/`endIndex` were plain constants recomputed every render.
+  When `rows` changed on each 60s poll, `getDerivedStateFromProps`
+  reset the brush to full range. Converted to `useState` with a
+  `useEffect` that resets only when the date preset changes.
+- **Dashboard: tooltip lag** — `TooltipProvider delay={300}` caused a
+  300ms open delay on all 63 tooltips. Changed to `delay={0}` (instant
+  open) with `closeDelay={150}` to prevent flicker on rapid crossings.
+- **Dashboard: degradation bands extend past resolution** —
+  `buildDegradationBands` filtered out `resolved` events, causing bands
+  to extend to `lastTs` instead of stopping at the resolution
+  timestamp. Rewrote to walk all events (onset + morph + resolved):
+  morph pushes the current band and re-anchors; resolved closes the
+  band at the resolved timestamp; unresolved extends to `lastTs`.
+
 ## [0.3.15] - 2026-07-24
 
 ### Changed

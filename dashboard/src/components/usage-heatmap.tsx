@@ -1,5 +1,5 @@
 import { AlertCircle, Info, RefreshCw } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Area, AreaChart, Brush, ResponsiveContainer, XAxis, YAxis } from "recharts";
 
 import { Badge } from "@/components/ui/badge";
@@ -388,17 +388,22 @@ function HeatmapBrush({ rows, from, to, onBrushRange }: HeatmapBrushProps): Reac
 
   const total = dayCount(from, to);
 
-  // Initial brush window = the full range (indices 0..total-1).
-  const initialStart = 0;
-  const initialEnd = Math.max(0, total - 1);
+  const [brushStart, setBrushStart] = useState(0);
+  const [brushEnd, setBrushEnd] = useState(Math.max(0, total - 1));
+
+  useEffect(() => {
+    const max = Math.max(0, dayCount(from, to) - 1);
+    setBrushStart(0);
+    setBrushEnd(max);
+  }, [from, to]);
 
   return (
     <div data-testid="heatmap-brush" className="w-full">
       <div className="h-[72px] w-full">
         <ResponsiveAreaChart
           points={points}
-          startIndex={initialStart}
-          endIndex={initialEnd}
+          startIndex={brushStart}
+          endIndex={brushEnd}
           onBrushRange={onBrushRange}
         />
       </div>
