@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.17] - 2026-07-24
+
+### Added
+
+- **Dashboard: thinking token percentage on Total Out tile** — the
+  Performance tab's "Total Out" sub-line now shows the thinking-to-output
+  ratio (e.g. `3.0K thinking (25.0%)`) when thinking tokens are present.
+  Percentage omitted when output or thinking is zero. No backend or SQL
+  change — all data already aggregated in `PERFORMANCE_STATS_SQL`.
+
+### Fixed
+
+- **CI: flaky EnvironmentTeardownError** — Recharts emits an async
+  `console.warn` for zero-dimension charts in jsdom, which raced with
+  vitest worker teardown and failed CI despite all tests passing. The
+  specific warning is now suppressed in the test setup; all other
+  `console.warn` calls pass through unchanged.
+
 ## [0.3.16] - 2026-07-24
 
 ### Fixed
