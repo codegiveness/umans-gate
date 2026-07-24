@@ -1,5 +1,8 @@
-import { FileText, TriangleAlert } from "lucide-react";
+import { FileText } from "lucide-react";
 import { lazy } from "react";
+
+import { Spinner } from "@/components/ui/spinner";
+import type { CaptureState } from "@/types";
 
 const JsonViewer = lazy(() =>
   import("@/components/json-viewer").then((m) => ({ default: m.JsonViewer })),
@@ -8,12 +11,30 @@ const SseViewer = lazy(() =>
   import("@/components/sse-viewer").then((m) => ({ default: m.SseViewer })),
 );
 
-export function BodyRenderer({ body, isSse }: { body: string | null | undefined; isSse: boolean }) {
+const IN_FLIGHT_STATES: ReadonlyArray<CaptureState> = ["enqueued", "streaming", "cooling_down"];
+
+export function BodyRenderer({
+  body,
+  isSse,
+  state,
+}: {
+  body: string | null | undefined;
+  isSse: boolean;
+  state?: CaptureState;
+}) {
   if (body === null) {
+    if (state && IN_FLIGHT_STATES.includes(state)) {
+      return (
+        <div className="flex items-center gap-1.5 text-muted-foreground italic">
+          <Spinner className="h-3.5 w-3.5" />
+          Response still streaming…
+        </div>
+      );
+    }
     return (
-      <div className="flex items-center gap-1.5 text-destructive italic">
-        <TriangleAlert className="h-3.5 w-3.5" />
-        body corrupted or unavailable
+      <div className="flex items-center gap-1.5 text-muted-foreground italic">
+        <FileText className="h-3.5 w-3.5" />
+        Response body not captured
       </div>
     );
   }

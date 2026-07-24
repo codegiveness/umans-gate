@@ -3,14 +3,6 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Mock tooltip so content renders inline (jsdom doesn't render portals).
-vi.mock("@/components/ui/tooltip", () => ({
-  Tooltip: ({ children }: { children: ReactNode }) => <>{children}</>,
-  TooltipTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
-  TooltipContent: ({ children }: { children: ReactNode }) => <>{children}</>,
-  TooltipProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
-}));
-
 // Mock alert-dialog so content renders inline without portal animation.
 vi.mock("@/components/ui/alert-dialog", () => ({
   AlertDialog: ({ children, open }: { children: ReactNode; open?: boolean }) =>
@@ -204,27 +196,57 @@ describe("VersionSection", () => {
 });
 
 describe("VersionSection update button", () => {
-  it("shows disabled Update button with no_service tooltip when canUpdate is false", async () => {
-    mockVersionGet({ ...versionData, canUpdate: false, canUpdateReason: "no_service" });
-    render(<VersionSection />);
-    const btn = await screen.findByRole("button", { name: /Update to v0\.3\.15/i });
-    expect(btn).toBeDisabled();
-    expect(screen.getByText(/umans-gate service install/i)).toBeInTheDocument();
-  });
-
-  it("shows disabled Update button with no_token tooltip when canUpdate is false", async () => {
-    mockVersionGet({ ...versionData, canUpdate: false, canUpdateReason: "no_token" });
-    render(<VersionSection />);
-    const btn = await screen.findByRole("button", { name: /Update to v0\.3\.15/i });
-    expect(btn).toBeDisabled();
-    expect(screen.getByText(/Set DASHBOARD_TOKEN/i)).toBeInTheDocument();
-  });
-
   it("shows enabled Update button when canUpdate is true and updateAvailable is true", async () => {
     mockVersionGet({ ...versionData, canUpdate: true, canUpdateReason: null });
     render(<VersionSection />);
     const btn = await screen.findByRole("button", { name: /Update to v0\.3\.15/i });
     expect(btn).not.toBeDisabled();
+  });
+
+  it("opens blocker dialog with DASHBOARD_TOKEN guidance when canUpdate=false and reason is no_token", async () => {
+    const user = userEvent.setup();
+    mockVersionGet({ ...versionData, canUpdate: false, canUpdateReason: "no_token" });
+    render(<VersionSection />);
+    const btn = await screen.findByRole("button", { name: /Update to v0\.3\.15/i });
+    expect(btn).not.toBeDisabled();
+    await user.click(btn);
+    expect(screen.getByText(/Cannot update automatically/i)).toBeInTheDocument();
+    expect(screen.getByText(/DASHBOARD_TOKEN/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Update to v0\.3\.15\?/i)).not.toBeInTheDocument();
+  });
+
+  it("opens blocker dialog with service install guidance when canUpdate=false and reason is no_service", async () => {
+    const user = userEvent.setup();
+    mockVersionGet({ ...versionData, canUpdate: false, canUpdateReason: "no_service" });
+    render(<VersionSection />);
+    const btn = await screen.findByRole("button", { name: /Update to v0\.3\.15/i });
+    expect(btn).not.toBeDisabled();
+    await user.click(btn);
+    expect(screen.getByText(/Cannot update automatically/i)).toBeInTheDocument();
+    expect(screen.getByText(/service install/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Update to v0\.3\.15\?/i)).not.toBeInTheDocument();
+  });
+
+  it("opens confirm dialog (not blocker) when canUpdate is true", async () => {
+    const user = userEvent.setup();
+    mockVersionGet({ ...versionData, canUpdate: true, canUpdateReason: null });
+    render(<VersionSection />);
+    const btn = await screen.findByRole("button", { name: /Update to v0\.3\.15/i });
+    await user.click(btn);
+    expect(screen.getByText(/Update to v0\.3\.15\?/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Cannot update automatically/i)).not.toBeInTheDocument();
+  });
+
+  it("opens blocker dialog with generic message when canUpdate=false and reason is null", async () => {
+    const user = userEvent.setup();
+    mockVersionGet({ ...versionData, canUpdate: false, canUpdateReason: null });
+    render(<VersionSection />);
+    const btn = await screen.findByRole("button", { name: /Update to v0\.3\.15/i });
+    expect(btn).not.toBeDisabled();
+    await user.click(btn);
+    expect(screen.getByText(/Cannot update automatically/i)).toBeInTheDocument();
+    expect(screen.getByText(/One-click update is not available/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Update to v0\.3\.15\?/i)).not.toBeInTheDocument();
   });
 
   it("opens confirmation dialog on Update click", async () => {

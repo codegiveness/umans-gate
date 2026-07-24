@@ -14,7 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useVersion, type VersionInfo } from "@/hooks/use-version";
 import { apiFetch } from "@/lib/api";
 
@@ -30,10 +30,6 @@ function formatRelativeTime(ts: number | null): string {
   const days = Math.floor(hr / 24);
   return `${days}d ago`;
 }
-
-const NO_SERVICE_TOOLTIP =
-  "Install as a service to enable one-click update: `umans-gate service install`";
-const NO_TOKEN_TOOLTIP = "Set DASHBOARD_TOKEN to enable one-click update";
 
 export function VersionSection() {
   const { version, loading, checking, checkNow } = useVersion();
@@ -89,6 +85,7 @@ function VersionCard({
 }) {
   const [notesExpanded, setNotesExpanded] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [blockerOpen, setBlockerOpen] = useState(false);
   const [updateState, setUpdateState] = useState<UpdateState>("idle");
   const [targetVersion, setTargetVersion] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
@@ -97,14 +94,6 @@ function VersionCard({
 
   const showNotes = version.updateAvailable && version.releaseNotes !== null;
   const canShowUpdateButton = version.updateAvailable && version.latest !== null;
-  const updateDisabled = !version.canUpdate;
-
-  const tooltipText =
-    version.canUpdateReason === "no_service"
-      ? NO_SERVICE_TOOLTIP
-      : version.canUpdateReason === "no_token"
-        ? NO_TOKEN_TOOLTIP
-        : null;
 
   useEffect(() => {
     if (updateState !== "updating") return;
@@ -225,10 +214,8 @@ function VersionCard({
         <div className="flex items-center gap-2">
           {canShowUpdateButton && (
             <UpdateButton
-              disabled={updateDisabled}
-              tooltipText={tooltipText}
               latest={version.latest as string}
-              onClick={() => setConfirmOpen(true)}
+              onClick={() => (version.canUpdate ? setConfirmOpen(true) : setBlockerOpen(true))}
             />
           )}
           <Button size="sm" variant="ghost" disabled={checking} onClick={onCheck}>
@@ -239,8 +226,10 @@ function VersionCard({
       </CardContent>
       {showNotes && (
         <CardContent>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
             onClick={() => setNotesExpanded((v) => !v)}
             aria-expanded={notesExpanded}
@@ -249,11 +238,13 @@ function VersionCard({
               className={`h-3.5 w-3.5 transition-transform ${notesExpanded ? "rotate-90" : ""}`}
             />
             What's new
-          </button>
+          </Button>
           {notesExpanded && (
-            <pre className="mt-2 max-h-48 overflow-y-auto whitespace-pre-wrap text-xs text-muted-foreground">
-              {version.releaseNotes}
-            </pre>
+            <ScrollArea className="mt-2 h-48">
+              <pre className="whitespace-pre-wrap text-xs text-muted-foreground">
+                {version.releaseNotes}
+              </pre>
+            </ScrollArea>
           )}
         </CardContent>
       )}
@@ -272,37 +263,39 @@ function VersionCard({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <AlertDialog open={blockerOpen} onOpenChange={setBlockerOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cannot update automatically</AlertDialogTitle>
+            <AlertDialogDescription>
+              {version.canUpdateReason === "no_token" ? (
+                "One-click update requires DASHBOARD_TOKEN to be set. Configure it in the Config tab and restart the server."
+              ) : version.canUpdateReason === "no_service" ? (
+                <>
+                  One-click update requires the proxy to run as a managed service. Run{" "}
+                  <code className="rounded bg-muted px-1 py-0.5 text-xs">
+                    umans-gate service install
+                  </code>{" "}
+                  in your terminal.
+                </>
+              ) : (
+                "One-click update is not available."
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setBlockerOpen(false)}>Close</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
 
-function UpdateButton({
-  disabled,
-  tooltipText,
-  latest,
-  onClick,
-}: {
-  disabled: boolean;
-  tooltipText: string | null;
-  latest: string;
-  onClick: () => void;
-}) {
-  const button = (
-    <Button size="sm" variant="default" disabled={disabled} onClick={onClick}>
+function UpdateButton({ latest, onClick }: { latest: string; onClick: () => void }) {
+  return (
+    <Button size="sm" variant="default" onClick={onClick}>
       Update to v{latest}
     </Button>
   );
-
-  if (disabled && tooltipText) {
-    return (
-      <Tooltip>
-        <TooltipTrigger asChild>{button}</TooltipTrigger>
-        <TooltipContent side="bottom" className="max-w-xs">
-          {tooltipText}
-        </TooltipContent>
-      </Tooltip>
-    );
-  }
-
-  return button;
 }

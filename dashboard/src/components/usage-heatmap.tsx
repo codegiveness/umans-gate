@@ -5,6 +5,7 @@ import { Area, AreaChart, Brush, ResponsiveContainer, XAxis, YAxis } from "recha
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -194,51 +195,53 @@ function HeatmapGrid({ days, byDay, loading, onSelectDay }: HeatmapGridProps): R
   return (
     <Card>
       <CardContent className="px-3 py-3">
-        <div className="flex gap-3 overflow-x-auto">
-          {/* Weekday labels */}
-          <div className="grid grid-rows-7 gap-1 text-[0.625rem] text-muted-foreground">
-            <span className="leading-5">Sun</span>
-            <span className="leading-5" />
-            <span className="leading-5">Mon</span>
-            <span className="leading-5" />
-            <span className="leading-5">Wed</span>
-            <span className="leading-5" />
-            <span className="leading-5">Fri</span>
-            <span className="leading-5" />
-          </div>
-          {/* Heatmap cells */}
-          <div className="flex gap-1">
-            {weeks.map((week, wi) => (
-              // Week columns are positional (Sun–Sat grid); index is the stable identity.
-              // biome-ignore lint/suspicious/noArrayIndexKey: weeks are positional grid columns
-              <div key={`week-${wi}`} className="grid grid-rows-7 gap-1">
-                {week.map((day, di) => {
-                  if (day === null) {
+        <ScrollArea className="w-full" horizontal>
+          <div className="flex gap-3">
+            {/* Weekday labels */}
+            <div className="grid grid-rows-7 gap-1 text-[0.625rem] text-muted-foreground">
+              <span className="leading-5">Sun</span>
+              <span className="leading-5" />
+              <span className="leading-5">Mon</span>
+              <span className="leading-5" />
+              <span className="leading-5">Wed</span>
+              <span className="leading-5" />
+              <span className="leading-5">Fri</span>
+              <span className="leading-5" />
+            </div>
+            {/* Heatmap cells */}
+            <div className="flex gap-1">
+              {weeks.map((week, wi) => (
+                // Week columns are positional (Sun–Sat grid); index is the stable identity.
+                // biome-ignore lint/suspicious/noArrayIndexKey: weeks are positional grid columns
+                <div key={`week-${wi}`} className="grid grid-rows-7 gap-1">
+                  {week.map((day, di) => {
+                    if (day === null) {
+                      return (
+                        <div
+                          // Padding cells are positional within their week column.
+                          // biome-ignore lint/suspicious/noArrayIndexKey: positional padding in a fixed 7-row grid
+                          key={`pad-${wi}-${di}`}
+                          className="size-4"
+                          aria-hidden
+                        />
+                      );
+                    }
+                    const row = byDay.get(day);
                     return (
-                      <div
-                        // Padding cells are positional within their week column.
-                        // biome-ignore lint/suspicious/noArrayIndexKey: positional padding in a fixed 7-row grid
-                        key={`pad-${wi}-${di}`}
-                        className="size-4"
-                        aria-hidden
+                      <DayCell
+                        key={day}
+                        day={day}
+                        row={row}
+                        loading={loading}
+                        onSelectDay={onSelectDay}
                       />
                     );
-                  }
-                  const row = byDay.get(day);
-                  return (
-                    <DayCell
-                      key={day}
-                      day={day}
-                      row={row}
-                      loading={loading}
-                      onSelectDay={onSelectDay}
-                    />
-                  );
-                })}
-              </div>
-            ))}
+                  })}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        </ScrollArea>
       </CardContent>
     </Card>
   );

@@ -400,11 +400,12 @@ backend performs a pre-flight (re-confirms an update exists, returns
 the target version to the client immediately), then asynchronously
 stops the service, runs `performUpdate()`, and starts the service.
 The client enters a dedicated "updating" state with `/health` polling
-and auto-reconnects when the server returns. When the prerequisites
-are not met, the dashboard shows the update availability but directs
-the user to `umans-gate update` in a terminal instead of offering a
-button. Distinct from the CLI's `umans-gate update`, which is the
-unguarded, always-available path.
+and auto-reconnects when the server returns. The Update button is
+always enabled in the UI; when the prerequisites are not met
+(`canUpdate=false`), clicking it opens a dialog explaining the specific
+blocker (`no_token` or `no_service`) rather than being greyed out.
+Distinct from the CLI's `umans-gate update`, which is the unguarded,
+always-available path.
 _Avoid_: dashboard update, in-browser update, auto-update.
 
 **Update availability indicator**:
@@ -421,7 +422,22 @@ _Avoid_: version badge, update notification, version pill.
 The markdown body of the GitHub Release corresponding to the latest
 published version, fetched from the GitHub Releases API only when an
 update is detected (not on every version check). Rendered as a
-collapsible "What's new" section in the Config tab. Not fetched when
-the proxy is up-to-date, so the GitHub API is called at most once per
-actual update cycle.
+collapsible "What's new" section in the Config tab using shadcn
+`Button` and `ScrollArea`. Not fetched when the proxy is up-to-date,
+so the GitHub API is called at most once per actual update cycle.
 _Avoid_: changelog snippet, release body, what's-new text.
+
+**Body render state**:
+The phase of a capture's lifecycle as seen by `BodyRenderer`, derived
+from the capture `state` field. Three rendering cases: **in-flight**
+(`enqueued` | `streaming` | `cooling_down`) shows a spinner and
+"Response still streaming…"; **done + null body** shows "Response body
+not captured" (muted, not destructive — covers both "no body stored"
+and "decompression failed" without distinguishing them, since the user
+cannot act on the distinction); **empty string** shows "empty body".
+The request body is always available immediately (stored at
+`startCapture`), so state-dependent rendering applies only to the
+response body tab. Distinct from the capture's `state` field itself,
+which is the source of truth — `BodyRenderer` consumes it, does not
+own it.
+_Avoid_: body status, body phase, body condition.

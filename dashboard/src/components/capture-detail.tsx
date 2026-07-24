@@ -114,31 +114,39 @@ export function CaptureDetailPanel({
 
   if (!capture && detailError) {
     return (
-      <main className="flex flex-1 flex-col items-center justify-center gap-3 overflow-y-auto p-8 text-center text-muted-foreground">
-        <AlertCircle className="h-12 w-12 text-destructive" />
-        <p className="text-sm font-medium text-destructive">Couldn&apos;t load this capture</p>
-        <p className="text-xs">{detailError}</p>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="outline" size="sm" onClick={onRetry}>
-              <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-              Retry
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="top">Retry loading capture detail</TooltipContent>
-        </Tooltip>
+      <main className="flex flex-1 flex-col overflow-hidden">
+        <ScrollArea className="flex-1 min-h-0">
+          <div className="flex flex-col items-center justify-center gap-3 p-8 text-center text-muted-foreground">
+            <AlertCircle className="h-12 w-12 text-destructive" />
+            <p className="text-sm font-medium text-destructive">Couldn&apos;t load this capture</p>
+            <p className="text-xs">{detailError}</p>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" onClick={onRetry}>
+                  <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                  Retry
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">Retry loading capture detail</TooltipContent>
+            </Tooltip>
+          </div>
+        </ScrollArea>
       </main>
     );
   }
 
   if (!capture) {
     return (
-      <main className="flex flex-1 flex-col items-center justify-center gap-3 overflow-y-auto p-8 text-center text-muted-foreground">
-        <ScanSearch className="h-12 w-12 text-muted-foreground/40" />
-        <p className="text-sm font-medium">Select a capture to inspect</p>
-        <p className="text-xs">
-          Requests appear here automatically as they flow through the proxy.
-        </p>
+      <main className="flex flex-1 flex-col overflow-hidden">
+        <ScrollArea className="flex-1 min-h-0">
+          <div className="flex flex-col items-center justify-center gap-3 p-8 text-center text-muted-foreground">
+            <ScanSearch className="h-12 w-12 text-muted-foreground/40" />
+            <p className="text-sm font-medium">Select a capture to inspect</p>
+            <p className="text-xs">
+              Requests appear here automatically as they flow through the proxy.
+            </p>
+          </div>
+        </ScrollArea>
       </main>
     );
   }
@@ -277,7 +285,11 @@ export function CaptureDetailPanel({
           <ScrollArea className="flex-1 min-h-0 px-4 py-3">
             <div className="w-full">
               <TabsContent value="response" className="m-0">
-                <BodyRenderer body={capture.response_body} isSse={capture.is_sse} />
+                <BodyRenderer
+                  body={capture.response_body}
+                  isSse={capture.is_sse}
+                  state={capture.state}
+                />
               </TabsContent>
               <TabsContent value="request" className="m-0">
                 <BodyRenderer body={capture.request_body} isSse={false} />
