@@ -4,6 +4,7 @@
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import pkg from "../package.json" with { type: "json" };
+import { isServiceInstalled } from "../src/service/index.js";
 import { type ProxyHandle, startProxy } from "./helpers/proxy.js";
 
 interface VersionInfo {
@@ -107,5 +108,87 @@ describe("version API — with dashboard token", () => {
     const data = (await res.json()) as VersionInfo;
     expect(data.updateAvailable).toBe(false);
     expect(data.releaseNotes).toBeNull();
+  });
+});
+
+describe("update API — POST /dashboard/api/update", () => {
+  describe("without dashboard token", () => {
+    let proxy: ProxyHandle;
+
+    beforeAll(async () => {
+      proxy = await startProxy({ umansApiKey: "sk-test" });
+    });
+
+    afterAll(async () => {
+      await proxy.kill();
+    });
+
+    test("returns 400 token_not_set when no dashboard token is configured", async () => {
+      const res = await fetch(`${proxy.baseUrl}/dashboard/api/update`, { method: "POST" });
+      expect(res.status).toBe(400);
+      const data = (await res.json()) as { ok: boolean; error: string };
+      expect(data.ok).toBe(false);
+      expect(data.error).toBe("token_not_set");
+    });
+  });
+
+  describe("with dashboard token", () => {
+    let proxy: ProxyHandle;
+    const dashToken = "tok-update-test-002";
+    const authHeaders = { Authorization: `Bearer ${dashToken}` };
+
+    beforeAll(async () => {
+      proxy = await startProxy({
+        dashboardToken: dashToken,
+        umansApiKey: "sk-test",
+      });
+    });
+
+    afterAll(async () => {
+      await proxy.kill();
+    });
+
+    test("requires auth when token is set", async () => {
+      const res = await fetch(`${proxy.baseUrl}/dashboard/api/update`, { method: "POST" });
+      expect(res.status).toBe(401);
+    });
+
+    test("returns 400 not_service_managed when token set but no service installed", async () => {
+      const serviceInstalled = await isServiceInstalled();
+      const res = await fetch(`${proxy.baseUrl}/dashboard/api/update`, {
+        method: "POST",
+        headers: authHeaders,
+      });
+      expect(res.status).toBe(400);
+      const data = (await res.json()) as { ok: boolean; error: string };
+      expect(data.ok).toBe(false);
+      if (serviceInstalled) {
+        expect(data.error).toBe("already_up_to_date");
+      } else {
+        expect(data.error).toBe("not_service_managed");
+      }
+    });
+
+    test("returns already_up_to_date when no update is available", async () => {
+      // Populate the cache by running a version check first.
+      await fetch(`${proxy.baseUrl}/dashboard/api/version/check`, {
+        method: "POST",
+        headers: authHeaders,
+      });
+      const res = await fetch(`${proxy.baseUrl}/dashboard/api/update`, {
+        method: "POST",
+        headers: authHeaders,
+      });
+      const data = (await res.json()) as { ok: boolean; error?: string; targetVersion?: string };
+      if (data.ok) {
+        // An update is available and service is installed (unusual in CI).
+        // Do not trigger the actual update — only assert the contract shape.
+        expect(typeof data.targetVersion).toBe("string");
+      } else {
+        expect(data.error === "not_service_managed" || data.error === "already_up_to_date").toBe(
+          true,
+        );
+      }
+    });
   });
 });

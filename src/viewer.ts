@@ -33,8 +33,9 @@ import type { TtftWatchdogState } from "./experiments/ttft-watchdog-state.js";
 import { summary } from "./helpers.js";
 import type { ConcurrencyGate } from "./limiter/index.js";
 import type { ModelsClient } from "./models.js";
+import { isServiceInstalled, startService, stopService } from "./service/index.js";
 import type { ProxyConfig } from "./types.js";
-import { getCachedVersionInfo, refreshVersionCheck } from "./updater.js";
+import { getCachedVersionInfo, performUpdate, refreshVersionCheck } from "./updater.js";
 import { selectMostUrgentBudget } from "./usage/budget.js";
 import type { UmansUsageClient } from "./usage.js";
 import type { UsageHistoryStore } from "./usage-history/index.js";
@@ -602,6 +603,38 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
       handler: async (ctx) => {
         await refreshVersionCheck(pkg.version, ctx.config.dashboardToken);
         return Response.json(getCachedVersionInfo(pkg.version));
+      },
+    },
+    {
+      method: "POST",
+      pattern: `${VIEWER}/api/update`,
+      handler: (ctx) => {
+        // Pre-flight: token must be configured for one-click update to be safe.
+        if (!ctx.config.dashboardToken) {
+          return Response.json({ ok: false, error: "token_not_set" }, { status: 400 });
+        }
+        // Pre-flight: must be running as a managed service so the process
+        // comes back after stop/start.
+        return (async () => {
+          if (!(await isServiceInstalled())) {
+            return Response.json({ ok: false, error: "not_service_managed" }, { status: 400 });
+          }
+          // Pre-flight: an update must actually be available.
+          const info = getCachedVersionInfo(pkg.version);
+          if (!info.updateAvailable || !info.latest) {
+            return Response.json({ ok: false, error: "already_up_to_date" }, { status: 400 });
+          }
+          const targetVersion = info.latest;
+          // Schedule the stop/update/start cycle asynchronously so the
+          // HTTP response is flushed before the process goes down.
+          setImmediate(() => {
+            stopService()
+              .then(() => performUpdate(pkg.version))
+              .then(() => startService())
+              .catch((err) => console.error("Update failed:", err));
+          });
+          return Response.json({ ok: true, targetVersion });
+        })();
       },
     },
     // DETAIL_RE regex route — must come after all exact-match API routes and

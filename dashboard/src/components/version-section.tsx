@@ -1,10 +1,22 @@
-import { AlertCircle, Check, ChevronRight, RefreshCw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { AlertCircle, Check, ChevronRight, Loader2, RefreshCw } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useVersion, type VersionInfo } from "@/hooks/use-version";
+import { apiFetch } from "@/lib/api";
 
 function formatRelativeTime(ts: number | null): string {
   if (ts === null) return "never";
@@ -18,6 +30,10 @@ function formatRelativeTime(ts: number | null): string {
   const days = Math.floor(hr / 24);
   return `${days}d ago`;
 }
+
+const NO_SERVICE_TOOLTIP =
+  "Install as a service to enable one-click update: `umans-gate service install`";
+const NO_TOKEN_TOOLTIP = "Set DASHBOARD_TOKEN to enable one-click update";
 
 export function VersionSection() {
   const { version, loading, checking, checkNow } = useVersion();
@@ -60,6 +76,8 @@ export function VersionSection() {
   return <VersionCard version={version} checking={checking} onCheck={checkNow} />;
 }
 
+type UpdateState = "idle" | "updating" | "timeout" | "error";
+
 function VersionCard({
   version,
   checking,
@@ -70,7 +88,120 @@ function VersionCard({
   onCheck: () => void;
 }) {
   const [notesExpanded, setNotesExpanded] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [updateState, setUpdateState] = useState<UpdateState>("idle");
+  const [targetVersion, setTargetVersion] = useState<string | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const showNotes = version.updateAvailable && version.releaseNotes !== null;
+  const canShowUpdateButton = version.updateAvailable && version.latest !== null;
+  const updateDisabled = !version.canUpdate;
+
+  const tooltipText =
+    version.canUpdateReason === "no_service"
+      ? NO_SERVICE_TOOLTIP
+      : version.canUpdateReason === "no_token"
+        ? NO_TOKEN_TOOLTIP
+        : null;
+
+  useEffect(() => {
+    if (updateState !== "updating") return;
+
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch("/health");
+        if (res.status === 200 || res.status === 401) {
+          window.location.reload();
+        }
+      } catch {
+        // server still down — keep polling
+      }
+    }, 2000);
+
+    timeoutRef.current = setTimeout(() => {
+      setUpdateState("timeout");
+    }, 120000);
+
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, [updateState]);
+
+  async function handleConfirm() {
+    setConfirmOpen(false);
+    setUpdateError(null);
+    setUpdateState("updating");
+    try {
+      const res = await apiFetch("/dashboard/api/update", { method: "POST" });
+      const data = (await res.json()) as { ok: boolean; targetVersion?: string; error?: string };
+      if (data.ok && data.targetVersion) {
+        setTargetVersion(data.targetVersion);
+      } else {
+        setUpdateState("error");
+        setUpdateError(data.error ?? "unknown");
+      }
+    } catch {
+      setUpdateState("error");
+      setUpdateError("network");
+    }
+  }
+
+  if (updateState === "updating" || updateState === "timeout" || updateState === "error") {
+    const displayVersion = targetVersion ?? version.latest ?? "latest";
+    return (
+      <>
+        <div className="fixed inset-0 z-40 bg-background/60 backdrop-blur-sm" />
+        <Card className="relative z-50 mx-auto mt-32 max-w-md">
+          <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
+            {updateState === "error" ? (
+              <>
+                <AlertCircle className="h-8 w-8 text-destructive" />
+                <p className="text-sm">
+                  Update failed:{" "}
+                  {updateError === "already_up_to_date"
+                    ? "already up to date"
+                    : updateError === "not_service_managed"
+                      ? "not running as a service"
+                      : updateError === "token_not_set"
+                        ? "dashboard token not configured"
+                        : "unexpected error"}
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setUpdateState("idle");
+                    setUpdateError(null);
+                  }}
+                >
+                  Dismiss
+                </Button>
+              </>
+            ) : updateState === "timeout" ? (
+              <>
+                <AlertCircle className="h-8 w-8 text-amber-500" />
+                <p className="text-sm">
+                  Update is taking longer than expected. Check{" "}
+                  <code className="rounded bg-muted px-1 py-0.5 text-xs">
+                    umans-gate service logs
+                  </code>
+                  .
+                </p>
+              </>
+            ) : (
+              <>
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-sm">Updating to v{displayVersion}… reconnecting…</p>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </>
+    );
+  }
 
   return (
     <Card>
@@ -91,10 +222,20 @@ function VersionCard({
             Checked {formatRelativeTime(version.lastCheckedAt)}
           </span>
         </div>
-        <Button size="sm" variant="ghost" disabled={checking} onClick={onCheck}>
-          <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${checking ? "animate-spin" : ""}`} />
-          {checking ? "Checking…" : "Check now"}
-        </Button>
+        <div className="flex items-center gap-2">
+          {canShowUpdateButton && (
+            <UpdateButton
+              disabled={updateDisabled}
+              tooltipText={tooltipText}
+              latest={version.latest as string}
+              onClick={() => setConfirmOpen(true)}
+            />
+          )}
+          <Button size="sm" variant="ghost" disabled={checking} onClick={onCheck}>
+            <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${checking ? "animate-spin" : ""}`} />
+            {checking ? "Checking…" : "Check now"}
+          </Button>
+        </div>
       </CardContent>
       {showNotes && (
         <CardContent className="pt-0">
@@ -116,6 +257,52 @@ function VersionCard({
           )}
         </CardContent>
       )}
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Update to v{version.latest}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will stop the proxy, update to v{version.latest}, and restart. Your connection
+              will drop and reconnect automatically.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void handleConfirm()}>Update</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
+}
+
+function UpdateButton({
+  disabled,
+  tooltipText,
+  latest,
+  onClick,
+}: {
+  disabled: boolean;
+  tooltipText: string | null;
+  latest: string;
+  onClick: () => void;
+}) {
+  const button = (
+    <Button size="sm" variant="default" disabled={disabled} onClick={onClick}>
+      Update to v{latest}
+    </Button>
+  );
+
+  if (disabled && tooltipText) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{button}</TooltipTrigger>
+        <TooltipContent side="bottom" className="max-w-xs">
+          {tooltipText}
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return button;
 }
