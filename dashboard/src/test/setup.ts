@@ -40,3 +40,14 @@ if (typeof HTMLDialogElement.prototype.close !== "function") {
 window.addEventListener("error", (e: ErrorEvent) => {
   e.preventDefault();
 });
+
+// Recharts emits console.warn when a chart renders in a container with zero
+// width/height — expected in jsdom (no layout engine). The warning is async
+// and can race with vitest worker teardown, producing an
+// EnvironmentTeardownError that fails CI despite all tests passing. Suppress it.
+const rechartsDimWarn = /The width\(0\) and height\(0\) of chart should be greater than 0/;
+const originalWarn = console.warn;
+console.warn = (...args: unknown[]) => {
+  if (rechartsDimWarn.test(String(args[0]))) return;
+  originalWarn(...args);
+};
