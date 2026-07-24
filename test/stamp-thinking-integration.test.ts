@@ -31,7 +31,7 @@ async function send(body: string) {
   return raw.getLastRequest();
 }
 
-test("umans-coder without thinking: only max_tokens stamped", async () => {
+test("umans-coder without thinking: no body stamps", async () => {
   const body = JSON.stringify({
     model: "umans-coder",
     messages: [{ role: "user", content: "hi" }],
@@ -39,12 +39,15 @@ test("umans-coder without thinking: only max_tokens stamped", async () => {
   const r = await send(body);
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
-  expect(parsed.max_tokens).toBe(32767);
+  expect(parsed.max_tokens).toBeUndefined();
   expect(parsed.thinking).toBeUndefined();
   expect(parsed.output_config).toBeUndefined();
+  expect(parsed.top_k).toBeUndefined();
+  expect(parsed.context_management).toBeUndefined();
+  expect(parsed.temperature).toBeUndefined();
 });
 
-test("umans-flash without thinking: only max_tokens stamped", async () => {
+test("umans-flash without thinking: no body stamps", async () => {
   const body = JSON.stringify({
     model: "umans-flash",
     messages: [{ role: "user", content: "hi" }],
@@ -52,12 +55,12 @@ test("umans-flash without thinking: only max_tokens stamped", async () => {
   const r = await send(body);
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
-  expect(parsed.max_tokens).toBe(32767);
+  expect(parsed.max_tokens).toBeUndefined();
   expect(parsed.thinking).toBeUndefined();
   expect(parsed.output_config).toBeUndefined();
 });
 
-test("umans-glm model without thinking: only max_tokens stamped", async () => {
+test("umans-glm model without thinking: no body stamps", async () => {
   const body = JSON.stringify({
     model: "umans-glm-5.2",
     messages: [{ role: "user", content: "hi" }],
@@ -65,12 +68,14 @@ test("umans-glm model without thinking: only max_tokens stamped", async () => {
   const r = await send(body);
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
-  expect(parsed.max_tokens).toBe(131071);
+  expect(parsed.max_tokens).toBeUndefined();
   expect(parsed.thinking).toBeUndefined();
   expect(parsed.output_config).toBeUndefined();
+  expect(parsed.top_k).toBeUndefined();
+  expect(parsed.context_management).toBeUndefined();
 });
 
-test("non-glm non-thinking model: only max_tokens stamped", async () => {
+test("non-glm non-thinking model: no body stamps", async () => {
   const body = JSON.stringify({
     model: "umans-other",
     messages: [{ role: "user", content: "hi" }],
@@ -78,12 +83,12 @@ test("non-glm non-thinking model: only max_tokens stamped", async () => {
   const r = await send(body);
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
-  expect(parsed.max_tokens).toBe(32767);
+  expect(parsed.max_tokens).toBeUndefined();
   expect(parsed.thinking).toBeUndefined();
   expect(parsed.output_config).toBeUndefined();
 });
 
-test("existing thinking respected, max_tokens + output_config stamped", async () => {
+test("non-adaptive thinking forced to adaptive (umans-coder, canDisable=false)", async () => {
   const body = JSON.stringify({
     model: "umans-coder",
     thinking: { type: "enabled", keep: "all", budget_tokens: 8000 },
@@ -95,10 +100,75 @@ test("existing thinking respected, max_tokens + output_config stamped", async ()
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
   expect(parsed.max_tokens).toBe(32767);
-  // thinking respected (not overwritten)
-  expect(parsed.thinking).toEqual({ type: "enabled", keep: "all", budget_tokens: 8000 });
-  // output_config stamped (thinking is enabled)
+  // thinking forced to adaptive (umans-coder canDisableThinking=false)
+  expect(parsed.thinking).toEqual({ type: "adaptive" });
+  // output_config stamped (thinking is now enabled)
   expect(parsed.output_config).toEqual({ effort: "high" });
+});
+
+test("disabled thinking forced to adaptive (umans-coder, canDisable=false)", async () => {
+  const body = JSON.stringify({
+    model: "umans-coder",
+    thinking: { type: "disabled" },
+    max_tokens: 4096,
+    messages: [{ role: "user", content: "hi" }],
+  });
+  const r = await send(body);
+  expect(r).not.toBeNull();
+  const parsed = JSON.parse(r!.body);
+  // thinking forced to adaptive (canDisableThinking=false)
+  expect(parsed.thinking).toEqual({ type: "adaptive" });
+  // output_config stamped (thinking is now enabled)
+  expect(parsed.output_config).toEqual({ effort: "high" });
+  // temperature forced (thinking is now enabled)
+  expect(parsed.temperature).toBe(1.0);
+});
+
+test("disabled thinking respected (umans-glm, canDisable=true)", async () => {
+  const body = JSON.stringify({
+    model: "umans-glm-5.2",
+    thinking: { type: "disabled" },
+    max_tokens: 4096,
+    messages: [{ role: "user", content: "hi" }],
+  });
+  const r = await send(body);
+  expect(r).not.toBeNull();
+  const parsed = JSON.parse(r!.body);
+  expect(parsed.thinking).toEqual({ type: "disabled" });
+  expect(parsed.output_config).toBeUndefined();
+  expect(parsed.temperature).toBeUndefined();
+  expect(parsed.max_tokens).toBe(4096);
+  expect(parsed.top_k).toBeUndefined();
+  expect(parsed.context_management).toBeUndefined();
+});
+
+test("reasoning_effort stripped on anthropic route when claude code style enabled", async () => {
+  const body = JSON.stringify({
+    model: "umans-coder",
+    reasoning_effort: "high",
+    thinking: { type: "adaptive" },
+    max_tokens: 4096,
+    messages: [{ role: "user", content: "hi" }],
+  });
+  const r = await send(body);
+  expect(r).not.toBeNull();
+  const parsed = JSON.parse(r!.body);
+  expect(parsed.reasoning_effort).toBeUndefined();
+  expect(parsed.thinking).toEqual({ type: "adaptive" });
+  expect(parsed.max_tokens).toBe(32767);
+});
+
+test("reasoning_effort stripped even when no thinking present", async () => {
+  const body = JSON.stringify({
+    model: "umans-glm-5.2",
+    reasoning_effort: "max",
+    max_tokens: 50,
+    messages: [{ role: "user", content: "hi" }],
+  });
+  const r = await send(body);
+  expect(r).not.toBeNull();
+  const parsed = JSON.parse(r!.body);
+  expect(parsed.reasoning_effort).toBeUndefined();
 });
 
 test("OpenAI route is not stamped even for umans-coder", async () => {
@@ -143,7 +213,7 @@ test("disabling all stamp toggles disables injection", async () => {
   }
 });
 
-test("claude code toggle stamps max_tokens when thinking absent", async () => {
+test("claude code toggle without thinking: no body stamps", async () => {
   const raw3 = await startRawUpstream();
   const proxy3 = await startProxy({
     TARGET: `http://127.0.0.1:${raw3.port}`,
@@ -160,7 +230,7 @@ test("claude code toggle stamps max_tokens when thinking absent", async () => {
     const r = raw3.getLastRequest();
     expect(r).not.toBeNull();
     const parsed = JSON.parse(r!.body);
-    expect(parsed.max_tokens).toBe(32767);
+    expect(parsed.max_tokens).toBeUndefined();
     expect(parsed.thinking).toBeUndefined();
     expect(parsed.output_config).toBeUndefined();
   } finally {

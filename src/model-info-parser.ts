@@ -153,7 +153,10 @@ export function parseModelInfoResponse(body: unknown): Map<string, ParsedModelIn
                 : undefined,
           }
         : undefined,
-      stamps: matchStampOverlay(name),
+      stamps: {
+        ...matchStampOverlay(name),
+        canDisableThinking: reasoning.can_disable === true,
+      },
     });
   }
   return out;

@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.14] - 2026-07-24
+
+### Added
+
+- **ADR-0011**: Adaptive thinking forcing, `can_disable` consumption, and
+  OpenAI reasoning_effort forcing. Documents the full truth tables for both
+  Anthropic and OpenAI routes.
+- `StampPolicy.canDisableThinking` field — populated from
+  `/v1/models/info` `reasoning.can_disable` at parse time. Kimi K2.7
+  (`umans-kimi*`, `umans-coder`) report `can_disable: false` — their
+  thinking cannot be turned off, so the proxy forces it to adaptive.
+- `isThinkingDisabled()` and `isThinkingEnabled()` exported from
+  `stamp-thinking.ts` — recognize disabled forms (`type: "disabled"`,
+  `"off"`, `"none"`, `enabled: false`).
+
+### Changed
+
+- **Anthropic route — thinking forcing**: when `stampClaudeCode` is enabled
+  and the body has a non-disabled `thinking` block, it is forced to
+  `{ type: "adaptive" }`. Disabled forms are respected when
+  `canDisableThinking: true`, but forced to adaptive when `canDisableThinking:
+  false` (Kimi, Coder).
+- **Anthropic route — all body stamps gated on thinking**: `max_tokens`,
+  `top_k`, `context_management`, `output_config`, and `temperature` are
+  only stamped when thinking is enabled (present and not disabled). When
+  thinking is absent or disabled, only TTL/cache_control stamping runs.
+  Supersedes ADR-0008's "max_tokens always stamps" rule.
+- **Anthropic route — `reasoning_effort` stripped**: the OpenAI-style
+  `reasoning_effort` field is always deleted from Anthropic request bodies.
+- **OpenAI route — reasoning_effort forcing**: `stampReasoning()` is no
+  longer a no-op. It injects `reasoning_effort` from `policy.effort` when
+  `thinking` is present, forces existing values to `policy.effort`, and
+  respects disabled values (`off`/`none`/`null`) when `canDisableThinking:
+  true`.
+- **OpenAI route — Anthropic fields stripped**: when `reasoning_effort` is
+  active, `thinking`, `output_config`, and `context_management` are stripped
+  from the body. `temperature` is forced to 1.0 (reasoning models reject
+  `temperature != 1.0`).
+- **OpenAI route — target effort from policy**: the target effort is
+  `policy.effort` (`"max"` for GLM, `"high"` for others), not the
+  `STAMP_REASONING_EFFORT_VALUE` config constant.
+- `OpenAiBody.reasoning_effort` type widened from `"high" | "max"` to
+  `string` to accept disabled values.
+- `anthropic-beta` header placed before `anthropic-version` in header order.
+- `STAMP_THINKING_VALUE` constant is now consumed by `stampThinking()`.
+- AGENTS.md: added "Common agent mistakes" section (9 items) documenting
+  recurring errors: dashboard build prerequisite, interface field additions,
+  unused imports, Biome formatting, edit boundaries, thinking stamping rules,
+  OpenAI reasoning rules, codegraph trust, and test section dividers.
+
 ## [0.3.13] - 2026-07-24
 
 ### Changed

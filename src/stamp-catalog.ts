@@ -20,12 +20,19 @@ import type { ParsedModelInfo } from "./model-info-parser.js";
  * - `effort`: `output_config.effort` value ("max" for GLM, "high" for others).
  * - `thinking`: whether the `thinking` block is injected for this model.
  * - `top_k`: value injected after `model`, or `null` to skip top_k injection.
+ * - `canDisableThinking`: whether a client-sent disabled thinking block
+ *   (`type: "disabled"`, `type: "off"`, `type: "none"`, `enabled: false`)
+ *   should be respected. When `false`, thinking is always forced to adaptive
+ *   even if the client tries to disable it (e.g. Kimi K2.7 where reasoning
+ *   cannot be turned off). Overridden from `/v1/models/info` `reasoning.can_disable`
+ *   at parse time.
  */
 export interface StampPolicy {
   max_tokens: number;
   effort: "high" | "max";
   thinking: boolean;
   top_k: number | null;
+  canDisableThinking: boolean;
 }
 
 /**
@@ -37,12 +44,48 @@ export interface StampPolicy {
  * from `max_completion_tokens` / `reasoning.default_level`.
  */
 export const STAMP_OVERLAY: Record<string, StampPolicy> = {
-  "umans-glm*": { max_tokens: 131071, effort: "max", thinking: true, top_k: 20 },
-  "umans-coder": { max_tokens: 32767, effort: "high", thinking: true, top_k: null },
-  "umans-flash": { max_tokens: 32767, effort: "high", thinking: true, top_k: null },
-  "umans-kimi*": { max_tokens: 32767, effort: "high", thinking: true, top_k: null },
-  "umans-qwen*": { max_tokens: 32767, effort: "high", thinking: true, top_k: null },
-  "*": { max_tokens: 32767, effort: "high", thinking: false, top_k: null },
+  "umans-glm*": {
+    max_tokens: 131071,
+    effort: "max",
+    thinking: true,
+    top_k: 20,
+    canDisableThinking: true,
+  },
+  "umans-coder": {
+    max_tokens: 32767,
+    effort: "high",
+    thinking: true,
+    top_k: null,
+    canDisableThinking: false,
+  },
+  "umans-flash": {
+    max_tokens: 32767,
+    effort: "high",
+    thinking: true,
+    top_k: null,
+    canDisableThinking: true,
+  },
+  "umans-kimi*": {
+    max_tokens: 32767,
+    effort: "high",
+    thinking: true,
+    top_k: null,
+    canDisableThinking: false,
+  },
+  "umans-qwen*": {
+    max_tokens: 32767,
+    effort: "high",
+    thinking: true,
+    top_k: null,
+    canDisableThinking: true,
+  },
+  "*": {
+    max_tokens: 32767,
+    effort: "high",
+    thinking: false,
+    top_k: null,
+    canDisableThinking: true,
+  },
 };
 
 /**

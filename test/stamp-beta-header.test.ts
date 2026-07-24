@@ -153,6 +153,29 @@ test("client-sent anthropic-beta header is overwritten by the stamp value", asyn
   expect(r!.head).not.toContain("some-other-feature-2025-01-01");
 });
 
+test("anthropic-beta header appears before anthropic-version in header order", async () => {
+  raw.getLastRequest();
+  await fetch(`${proxy.baseUrl}/v1/messages`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      model: "umans-glm-5.2",
+      max_tokens: 50,
+      messages: [{ role: "user", content: "Hello" }],
+    }),
+  }).catch(() => {});
+  await sleep(150);
+
+  const r = raw.getLastRequest();
+  expect(r).not.toBeNull();
+  const lines = r!.head.split("\r\n");
+  const betaIdx = lines.findIndex((l) => l.toLowerCase().startsWith("anthropic-beta:"));
+  const versionIdx = lines.findIndex((l) => l.toLowerCase().startsWith("anthropic-version:"));
+  expect(betaIdx).toBeGreaterThan(0);
+  expect(versionIdx).toBeGreaterThan(0);
+  expect(betaIdx).toBeLessThan(versionIdx);
+});
+
 test("stamp disabled: /v1/messages does not get anthropic-beta or anthropic-version headers forced", async () => {
   const rawOff = await startRawUpstream();
   const proxyOff = await startProxy({

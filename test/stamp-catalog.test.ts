@@ -24,6 +24,7 @@ describe("resolveStampPolicy", () => {
       effort: "max",
       thinking: true,
       top_k: 20,
+      canDisableThinking: false,
     });
   });
 
@@ -34,6 +35,7 @@ describe("resolveStampPolicy", () => {
       effort: "high",
       thinking: true,
       top_k: null,
+      canDisableThinking: false,
     });
   });
 
@@ -44,6 +46,7 @@ describe("resolveStampPolicy", () => {
       effort: "high",
       thinking: true,
       top_k: null,
+      canDisableThinking: false,
     });
   });
 
@@ -54,6 +57,7 @@ describe("resolveStampPolicy", () => {
       effort: "high",
       thinking: true,
       top_k: null,
+      canDisableThinking: false,
     });
   });
 
@@ -64,6 +68,7 @@ describe("resolveStampPolicy", () => {
       effort: "high",
       thinking: true,
       top_k: null,
+      canDisableThinking: false,
     });
   });
 

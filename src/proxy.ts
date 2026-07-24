@@ -296,10 +296,19 @@ async function parseInbound(ctx: ProxyContext, deps: ProxyDeps): Promise<Respons
   fwdHeaders["accept-encoding"] = "identity";
 
   if (ctx.stampBeta) {
-    fwdHeaders["anthropic-beta"] = STAMP_ANTHROPIC_BETA_HEADER;
-    fwdHeaders["anthropic-version"] = "2023-06-01";
+    const betaHeaders: Record<string, string> = {
+      "anthropic-beta": STAMP_ANTHROPIC_BETA_HEADER,
+      "anthropic-version": "2023-06-01",
+    };
+    for (const [k, v] of Object.entries(fwdHeaders)) {
+      if (k !== "anthropic-beta" && k !== "anthropic-version") {
+        betaHeaders[k] = v;
+      }
+    }
+    ctx.fwdHeaders = betaHeaders;
+  } else {
+    ctx.fwdHeaders = fwdHeaders;
   }
-  ctx.fwdHeaders = fwdHeaders;
 }
 
 // ─── Phase 4: insert early capture row + broadcast new ────────────────────

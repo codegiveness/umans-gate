@@ -411,7 +411,10 @@ export interface OpenAiBody {
   model?: string;
   max_tokens?: number;
   thinking?: unknown;
-  reasoning_effort?: "high" | "max";
+  reasoning_effort?: string;
+  temperature?: number;
+  output_config?: unknown;
+  context_management?: unknown;
   [key: string]: unknown;
 }
 
