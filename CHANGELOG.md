@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.15] - 2026-07-24
+
+### Changed
+
+- **ConcurrencyGate: multiple `onStatsChange` callbacks** — the gate now
+  supports registering multiple stats-change listeners (was single-callback).
+  This enables the usage peak tracker to observe gate stats independently.
+- **Usage: local weighted concurrent peak tracking** — between upstream
+  `/v1/usage` samples, the proxy now tracks the highest weighted concurrent
+  load observed locally. Brief peaks shorter than the poll interval are no
+  longer missed in the usage timeline.
+- **Dashboard: sub-1-second capture TPS display** — captures with
+  generation time under 1 second now show the raw output token count
+  instead of a noisy, misleadingly high t/s value. The `tps` column
+  remains NULL for these rows so aggregate TPS calculations only average
+  true rates.
+- **DDL: `usage_missing=1` rows included in request_count** — the
+  `PERFORMANCE_STATS_SQL` view no longer filters out captures with
+  `usage_missing = 1`, so all completed requests are counted.
+
+### Fixed
+
+- **`embedded-assets.ts` regeneration** — fixed stale asset references
+  that caused integration tests to fail with "Cannot find module" errors
+  when the dashboard build was refreshed.
+
 ## [0.3.14] - 2026-07-24
 
 ### Added
