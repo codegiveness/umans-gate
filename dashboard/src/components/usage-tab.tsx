@@ -1,4 +1,4 @@
-import { AlertCircle, ArrowLeft, RefreshCw } from "lucide-react";
+import { AlertCircle, ArrowLeft, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
@@ -376,46 +376,86 @@ function TodaySamplesSection({
   );
 }
 
+const SAMPLES_PAGE_SIZE = 10;
+
 function SamplesTable({ samples }: { samples: UsageSampleRow[] }): React.JSX.Element {
+  const totalPages = Math.max(1, Math.ceil(samples.length / SAMPLES_PAGE_SIZE));
+  const [page, setPage] = useState(0);
+  const clampedPage = Math.min(page, totalPages - 1);
+  const startIdx = clampedPage * SAMPLES_PAGE_SIZE;
+  const pageRows = useMemo(
+    () => samples.slice(startIdx, startIdx + SAMPLES_PAGE_SIZE),
+    [samples, startIdx],
+  );
+
   return (
-    <Table className="text-xs">
-      <TableHeader>
-        <TableRow className="text-left text-muted-foreground hover:bg-transparent">
-          <TableHead>Time</TableHead>
-          <TableHead>Plan</TableHead>
-          <TableHead>Soft</TableHead>
-          <TableHead>Hard</TableHead>
-          <TableHead>In Window</TableHead>
-          <TableHead>Concurrent</TableHead>
-          <TableHead>Tokens In</TableHead>
-          <TableHead>Tokens Out</TableHead>
-          <TableHead>Service</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {samples.map((row) => (
-          <TableRow key={row.id}>
-            <TableCell className="tabular-nums whitespace-nowrap">
-              {fmtUtcTime(row.fetched_at)}
-            </TableCell>
-            <TableCell className="whitespace-nowrap">
-              {row.plan}
-              {row.priority_low === 1 && (
-                <Badge variant="outline" size="sm" className="ml-1">
-                  low
-                </Badge>
-              )}
-            </TableCell>
-            <TableCell className="tabular-nums">{row.concurrency_soft_limit}</TableCell>
-            <TableCell className="tabular-nums">{row.concurrency_hard_cap}</TableCell>
-            <TableCell className="tabular-nums">{row.requests_in_window}</TableCell>
-            <TableCell className="tabular-nums">{row.concurrent_sessions}</TableCell>
-            <TableCell className="tabular-nums">{row.tokens_in}</TableCell>
-            <TableCell className="tabular-nums">{row.tokens_out}</TableCell>
-            <TableCell className="whitespace-nowrap">{row.service_mode_current}</TableCell>
+    <div className="flex flex-col gap-3">
+      <Table className="text-xs">
+        <TableHeader>
+          <TableRow className="text-left text-muted-foreground hover:bg-transparent">
+            <TableHead>Time</TableHead>
+            <TableHead>Plan</TableHead>
+            <TableHead>Soft</TableHead>
+            <TableHead>Hard</TableHead>
+            <TableHead>In Window</TableHead>
+            <TableHead>Concurrent</TableHead>
+            <TableHead>Tokens In</TableHead>
+            <TableHead>Tokens Out</TableHead>
+            <TableHead>Service</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {pageRows.map((row) => (
+            <TableRow key={row.id}>
+              <TableCell className="tabular-nums whitespace-nowrap">
+                {fmtUtcTime(row.fetched_at)}
+              </TableCell>
+              <TableCell className="whitespace-nowrap">
+                {row.plan}
+                {row.priority_low === 1 && (
+                  <Badge variant="outline" size="sm" className="ml-1">
+                    low
+                  </Badge>
+                )}
+              </TableCell>
+              <TableCell className="tabular-nums">{row.concurrency_soft_limit}</TableCell>
+              <TableCell className="tabular-nums">{row.concurrency_hard_cap}</TableCell>
+              <TableCell className="tabular-nums">{row.requests_in_window}</TableCell>
+              <TableCell className="tabular-nums">{row.concurrent_sessions}</TableCell>
+              <TableCell className="tabular-nums">{row.tokens_in}</TableCell>
+              <TableCell className="tabular-nums">{row.tokens_out}</TableCell>
+              <TableCell className="whitespace-nowrap">{row.service_mode_current}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      {totalPages > 1 ? (
+        <div className="flex items-center justify-between px-1 pb-1">
+          <span className="text-xs text-muted-foreground tabular-nums">
+            Page {clampedPage + 1} of {totalPages} ({samples.length} samples)
+          </span>
+          <div className="flex items-center gap-1">
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+              disabled={clampedPage === 0}
+            >
+              <ChevronLeft className="size-3" />
+              Prev
+            </Button>
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+              disabled={clampedPage >= totalPages - 1}
+            >
+              Next
+              <ChevronRight className="size-3" />
+            </Button>
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
