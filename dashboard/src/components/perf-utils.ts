@@ -33,6 +33,15 @@ export function fmtPercentiles(p10: number | null, p50: number | null, p95: numb
   return parts.join(" · ") || "—";
 }
 
+/** Format the thinking-to-output ratio as a percentage (e.g. "25.0%").
+ *  Returns undefined when thinking or output is zero/absent, so the caller
+ *  can omit the annotation entirely. Delegates to fmtPct for one-decimal
+ *  consistency with the Cache Hit tile. */
+export function fmtThinkingPct(thinking: number, output: number): string | undefined {
+  if (thinking <= 0 || output <= 0) return undefined;
+  return fmtPct((thinking / output) * 100);
+}
+
 /** Format TPS percentile sub-line (e.g. "p10: 12.0 · p50: 22.0 · p95: 30.0"). */
 export function fmtTpsPercentiles(
   p10: number | null,

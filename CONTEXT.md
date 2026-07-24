@@ -71,6 +71,18 @@ which is why no cache hit rate formula using `total_input_tokens` as the
 denominator can reach 100%.
 _Avoid_: fresh tokens, new tokens.
 
+**total_output_tokens**:
+The full output bill for a request — `output_tokens` (Anthropic) or
+`completion_tokens` (OpenAI). Includes thinking tokens as a subset.
+_Avoid_: completion tokens, response tokens.
+
+**thinking_tokens**:
+The subset of `total_output_tokens` spent on internal reasoning, not
+visible to the end user. Extracted from `output_tokens_details.thinking_tokens`
+(Anthropic) or `completion_tokens_details.reasoning_tokens` (OpenAI);
+null when the provider does not report thinking.
+_Avoid_: reasoning tokens.
+
 ### Stamping
 
 **Stamp policy**:

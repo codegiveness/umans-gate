@@ -17,6 +17,7 @@ import {
   fmtAvgTps,
   fmtPct,
   fmtPercentiles,
+  fmtThinkingPct,
   fmtTpsPercentiles,
 } from "./perf-utils";
 
@@ -98,6 +99,7 @@ export function PerformanceMeter() {
 }
 
 function ModelPerfCard({ row }: { row: PerformanceStatsRow }) {
+  const thinkingPct = fmtThinkingPct(row.total_thinking_tokens, row.total_output_tokens);
   return (
     <Card>
       <CardContent className="px-4 py-0">
@@ -150,7 +152,7 @@ function ModelPerfCard({ row }: { row: PerformanceStatsRow }) {
             primary={fmtTokensCompact(row.total_output_tokens)}
             sub={
               row.total_thinking_tokens > 0
-                ? `${fmtTokensCompact(row.total_thinking_tokens)} thinking`
+                ? `${fmtTokensCompact(row.total_thinking_tokens)} thinking${thinkingPct ? ` (${thinkingPct})` : ""}`
                 : undefined
             }
           />

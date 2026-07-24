@@ -102,12 +102,28 @@ describe("PerformanceMeter", () => {
     expect(dls.length).toBe(0);
   });
 
-  it("Total Out StatTile shows thinking token subtitle when present", async () => {
+  it("Total Out StatTile shows thinking token subtitle with percentage when present", async () => {
     const { container } = render(<PerformanceMeter />);
     await flushEffects();
 
-    // mockRow.total_thinking_tokens = 3000 → "3.0K thinking"
+    // mockRow: total_thinking_tokens = 3000, total_output_tokens = 12000 → 25.0%
     expect(container).toHaveTextContent("3.0K thinking");
+    expect(container).toHaveTextContent("(25.0%)");
+  });
+
+  it("Total Out StatTile shows thinking count without percentage when output is zero", async () => {
+    mockUsePerformanceStats.mockReturnValueOnce({
+      stats: [{ ...mockRow.row, total_output_tokens: 0, total_thinking_tokens: 3000 }],
+      loading: false,
+      error: null,
+      refresh: () => {},
+    });
+
+    const { container } = render(<PerformanceMeter />);
+    await flushEffects();
+
+    expect(container).toHaveTextContent("3.0K thinking");
+    expect(container).not.toHaveTextContent("(");
   });
 
   it("Total Out StatTile omits thinking subtitle when zero", async () => {
