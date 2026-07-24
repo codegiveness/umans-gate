@@ -392,7 +392,7 @@ class Semaphore {
 export class ConcurrencyGate {
   private readonly semaphore: Semaphore;
   private readonly breaker: CircuitBreaker;
-  private onStatsCb: (() => void) | null = null;
+  private onStatsCbs: (() => void)[] = [];
 
   constructor(opts: ConcurrencyGateOptions) {
     this.breaker = new CircuitBreaker(
@@ -416,7 +416,7 @@ export class ConcurrencyGate {
   }
 
   onStatsChange(cb: () => void): void {
-    this.onStatsCb = cb;
+    this.onStatsCbs.push(cb);
   }
 
   getLimit(): number {
@@ -597,6 +597,8 @@ export class ConcurrencyGate {
   }
 
   private emitStats(): void {
-    this.onStatsCb?.();
+    for (const cb of this.onStatsCbs) {
+      cb();
+    }
   }
 }

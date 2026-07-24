@@ -86,8 +86,14 @@ export function CaptureList({
         <h2 className="text-sm font-semibold">
           Queue/Captures{" "}
           <span className="text-muted-foreground">
-            ({captures.filter((c) => c.state === "enqueued" || c.state === "streaming").length}/
-            {captures.length})
+            (
+            {
+              captures.filter(
+                (c) =>
+                  c.state === "enqueued" || c.state === "streaming" || c.state === "cooling_down",
+              ).length
+            }
+            /{captures.length})
           </span>
         </h2>
         <div className="flex items-center gap-2">

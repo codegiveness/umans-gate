@@ -272,7 +272,16 @@ export function CaptureRowItem({
               : "Tokens per second — output generation rate"
           }
         >
-          <span>{fmtTps(c.tps)} t/s</span>
+          <span>
+            {c.tps == null &&
+            !c.usage_missing &&
+            c.output_tokens != null &&
+            c.output_tokens > 0 &&
+            c.duration_ms != null &&
+            c.duration_ms - (c.ttft_ms ?? 0) < 1000
+              ? `${c.output_tokens} tok`
+              : `${fmtTps(c.tps)} t/s`}
+          </span>
         </RowTip>
         <RowTip tip="Total input tokens — prompt tokens sent (incl. cache writes)">
           <span>in {fmtTokensCompact(c.total_input_tokens)}</span>

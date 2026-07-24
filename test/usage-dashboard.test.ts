@@ -212,6 +212,22 @@ describe("SQL DDL: schema + views execute on SQLite", () => {
     expect(mg!.request_count).toBe(10);
   });
 
+  test("PERFORMANCE_STATS_SQL includes usage_missing=1 rows in request_count", () => {
+    for (let i = 0; i < 3; i++) {
+      db.run(
+        `INSERT INTO captures (method, path, url, state, model, provider, started_at, ttft_ms, tps, input_tokens, output_tokens, usage_missing)
+         VALUES ('POST', '/v1/messages', 'http://x', 'done', 'model-usage-missing', 'anthropic', ${500000 + i}, 50, 100, 10, 5, 1)`,
+      );
+    }
+    const rows = db.prepare(PERFORMANCE_STATS_SQL).all({ $limit: 100 }) as Array<{
+      model: string;
+      request_count: number;
+    }>;
+    const missing = rows.find((r) => r.model === "model-usage-missing");
+    expect(missing).toBeDefined();
+    expect(missing!.request_count).toBe(3);
+  });
+
   test("PERFORMANCE_STATS_SQL computes mean and percentiles and excludes null tps/ttft rows", () => {
     // Insert a model with 5 rows: 2 null tps, 3 non-null tps [10, 20, 30]
     // and 2 null ttft, 3 non-null ttft [100, 200, 300]

@@ -19,8 +19,11 @@ export function computeTps(
   if (output == null || output <= 0) return null;
   if (durationMs == null) return null;
   const genMs = ttftMs != null && ttftMs > 0 ? durationMs - ttftMs : durationMs;
-  // Require at least 1 second of generation time — below this the rate is
-  // dominated by timing noise and produces nonsensical values (e.g. 44k t/s).
+  // Below one second of generation time the token count itself is a more
+  // useful dashboard metric than a rate, because a short duration would
+  // produce a noisy, misleadingly high t/s value. We still store the raw
+  // count in a separate column for display, but leave tps null so aggregate
+  // TPS calculations only average true rates.
   if (genMs < 1000) return null;
   return (output / genMs) * 1000;
 }

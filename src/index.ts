@@ -397,15 +397,36 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     ws.broadcast({ type: "gate", stats: buildGateStats(snap) });
   });
   if (usageHistory) {
+    // Track the highest weighted concurrent load observed locally between
+    // upstream /v1/usage samples. Upstream only reports the current value at
+    // each poll, so brief peaks shorter than the poll interval are missed.
+    // Merging the local gate peak into the snapshot preserves the upstream
+    // coalescing logic while ensuring the timeline reflects true maxima.
+    let maxWeightedConcurrentSinceSample = 0;
+    gate.onStatsChange(() => {
+      const active = gate.getStats(usage.getSnapshot()).active;
+      if (active > maxWeightedConcurrentSinceSample) {
+        maxWeightedConcurrentSinceSample = active;
+      }
+    });
     usage.onChange((snap) => {
       if (!config.usageHistoryEnabled) return;
       try {
-        const written = usageHistory.handleSnapshot(snap);
+        const merged: UsageSnapshot = {
+          ...snap,
+          concurrentSessions: Math.max(snap.concurrentSessions, maxWeightedConcurrentSinceSample),
+          weightedConcurrentSessions: Math.max(
+            snap.weightedConcurrentSessions,
+            maxWeightedConcurrentSinceSample,
+          ),
+        };
+        maxWeightedConcurrentSinceSample = 0;
+        const written = usageHistory.handleSnapshot(merged);
         if (written) {
           ws.broadcast({
             type: "usage-sample",
-            dayUtc: dayUtcOf(snap.fetchedAt),
-            fetchedAt: snap.fetchedAt,
+            dayUtc: dayUtcOf(merged.fetchedAt),
+            fetchedAt: merged.fetchedAt,
           });
         }
       } catch (err) {

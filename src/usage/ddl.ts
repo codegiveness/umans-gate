@@ -44,7 +44,7 @@ WITH latest_per_model AS (
     cache_read_tokens, thinking_tokens,
     ROW_NUMBER() OVER (PARTITION BY model ORDER BY started_at DESC) AS rn
   FROM captures
-  WHERE model IS NOT NULL AND state = 'done' AND usage_missing = 0
+  WHERE model IS NOT NULL AND state = 'done'
 ),
 base AS (
   SELECT model, provider, streaming,
@@ -61,8 +61,8 @@ ranked AS (
     total_input_tokens, total_output_tokens, cache_read_tokens, thinking_tokens,
     ROW_NUMBER() OVER (PARTITION BY model ORDER BY ttft_ms NULLS LAST) AS ttft_rn,
     COUNT(ttft_ms)     OVER (PARTITION BY model) AS ttft_cnt,
-    ROW_NUMBER() OVER (PARTITION BY model ORDER BY tps NULLS LAST)     AS tps_rn,
-    COUNT(tps)         OVER (PARTITION BY model) AS tps_cnt
+    ROW_NUMBER() OVER (PARTITION BY model ORDER BY tps NULLS LAST) AS tps_rn,
+    COUNT(tps) OVER (PARTITION BY model) AS tps_cnt
   FROM base
 ),
 pctiles AS (
@@ -95,7 +95,7 @@ SELECT
   MAX(p.ttft_p10)      AS ttft_p10,
   MAX(p.ttft_p50)      AS ttft_p50,
   MAX(p.ttft_p95)      AS ttft_p95,
-  AVG(r.tps)     AS tps_mean,
+  AVG(r.tps) AS tps_mean,
   MAX(p.tps_p10)       AS tps_p10,
   MAX(p.tps_p50)       AS tps_p50,
   MAX(p.tps_p95)       AS tps_p95

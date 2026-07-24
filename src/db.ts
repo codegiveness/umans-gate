@@ -252,16 +252,9 @@ export function migrateCaptureSchema(db: Database): void {
       WHERE model IS NOT NULL;
   `);
 
-  // Null out tps values computed before the 1-second generation-time floor
-  // was introduced. Idempotent: after the first run no rows match because
-  // computeTps() already returns null for short generations.
-  db.exec(`
-    UPDATE captures
-    SET tps = NULL
-    WHERE tps IS NOT NULL
-      AND duration_ms IS NOT NULL
-      AND (duration_ms - COALESCE(ttft_ms, 0)) < 1000
-  `);
+  // Sub-1-second captures intentionally keep tps NULL so aggregate TPS only
+  // averages true rates. The dashboard display falls back to the raw output
+  // token count when generation time is under one second.
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS vision_descriptions (

@@ -371,7 +371,7 @@ describe("Anthropic streaming usage extraction", () => {
     expect(m.tps).toBeGreaterThan(0);
   });
 
-  test("TPS null when generation time < 1 second", () => {
+  test("TPS is null for sub-1-second generation; output tokens still recorded", () => {
     const { events, startedAt } = buildEvents({
       outputTokens: 100,
       ttftMs: 100,
