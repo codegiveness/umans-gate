@@ -47,7 +47,7 @@ export function VersionSection() {
   if (loading && !version) {
     return (
       <Card>
-        <CardContent className="py-4 text-xs text-muted-foreground">Checking version…</CardContent>
+        <CardContent className="text-xs text-muted-foreground">Checking version…</CardContent>
       </Card>
     );
   }
@@ -59,7 +59,7 @@ export function VersionSection() {
   if (version.error) {
     return (
       <Card>
-        <CardContent className="flex items-center justify-between py-4">
+        <CardContent className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <AlertCircle className="h-4 w-4 text-destructive" />
             <span className="text-xs text-destructive">Version check failed</span>
@@ -154,8 +154,8 @@ function VersionCard({
     return (
       <>
         <div className="fixed inset-0 z-40 bg-background/60 backdrop-blur-sm" />
-        <Card className="relative z-50 mx-auto mt-32 max-w-md">
-          <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
+        <Card className="relative z-50 mx-auto mt-16 max-w-md">
+          <CardContent className="flex flex-col items-center gap-3 py-6 text-center">
             {updateState === "error" ? (
               <>
                 <AlertCircle className="h-8 w-8 text-destructive" />
@@ -205,7 +205,7 @@ function VersionCard({
 
   return (
     <Card>
-      <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+      <CardContent className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-medium">v{version.current}</span>
           {version.updateAvailable ? (
@@ -238,10 +238,10 @@ function VersionCard({
         </div>
       </CardContent>
       {showNotes && (
-        <CardContent className="pt-0">
+        <CardContent>
           <button
             type="button"
-            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
             onClick={() => setNotesExpanded((v) => !v)}
             aria-expanded={notesExpanded}
           >

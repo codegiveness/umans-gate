@@ -264,7 +264,9 @@ export function ConfigTab() {
       <ScrollArea className="min-h-0 flex-1">
         <div className="mx-auto w-full max-w-3xl px-6 py-6">
           <Suspense fallback={null}>
-            <VersionSection />
+            <div className="mb-4">
+              <VersionSection />
+            </div>
           </Suspense>
           {groupsWithOverrides.map((g, gi) => (
             <GroupBlock
