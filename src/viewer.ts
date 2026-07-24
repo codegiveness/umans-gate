@@ -9,6 +9,7 @@
 // `with { type: "file" }` assets as Blobs. In dev mode, it's an empty array.
 // This allows the dashboard to work inside standalone compiled executables.
 import { embeddedFiles } from "bun";
+import pkg from "../package.json" with { type: "json" };
 import { type AuthFailureLimiter, isTokenAuthorized } from "./auth.js";
 import type { RawConfigInput } from "./config.js";
 import {
@@ -33,6 +34,7 @@ import { summary } from "./helpers.js";
 import type { ConcurrencyGate } from "./limiter/index.js";
 import type { ModelsClient } from "./models.js";
 import type { ProxyConfig } from "./types.js";
+import { getCachedVersionInfo, refreshVersionCheck } from "./updater.js";
 import { selectMostUrgentBudget } from "./usage/budget.js";
 import type { UmansUsageClient } from "./usage.js";
 import type { UsageHistoryStore } from "./usage-history/index.js";
@@ -588,6 +590,19 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
       method: "GET",
       pattern: `${VIEWER}/api/economics/pricing`,
       handler: (ctx) => Response.json(getPricingTable(ctx.db.rawDb)),
+    },
+    {
+      method: "GET",
+      pattern: `${VIEWER}/api/version`,
+      handler: () => Response.json(getCachedVersionInfo(pkg.version)),
+    },
+    {
+      method: "POST",
+      pattern: `${VIEWER}/api/version/check`,
+      handler: async (ctx) => {
+        await refreshVersionCheck(pkg.version, ctx.config.dashboardToken);
+        return Response.json(getCachedVersionInfo(pkg.version));
+      },
     },
     // DETAIL_RE regex route — must come after all exact-match API routes and
     // before static file fallback. Uses the capture id from match[1].

@@ -16,6 +16,8 @@ import {
 import { arch, platform } from "node:os";
 import { dirname, join } from "node:path";
 
+import { isServiceInstalled } from "./service/index.js";
+
 const GITHUB_API = "https://api.github.com/repos/codegiveness/umans-gate/releases/latest";
 
 const NPM_REGISTRY = "https://registry.npmjs.org/umans-gate/latest";
@@ -54,11 +56,12 @@ export function computeSha256(data: Uint8Array | ArrayBuffer): string {
 
 interface GithubRelease {
   tag_name: string;
+  body: string;
   assets: Array<{ name: string; browser_download_url: string; size: number }>;
 }
 
 /** Result of attempting to fetch the latest version. */
-interface VersionFetchResult {
+export interface VersionFetchResult {
   version: string | null;
   /** Human-readable explanation when `version` is null. */
   error: string | null;
@@ -125,7 +128,7 @@ async function fetchVersionFromGithub(): Promise<VersionFetchResult> {
  * Returns `{ version, error }` so callers can surface the real reason
  * on failure instead of a generic message.
  */
-async function fetchLatestVersion(): Promise<VersionFetchResult> {
+export async function fetchLatestVersion(): Promise<VersionFetchResult> {
   const npmResult = await fetchVersionFromNpm();
   if (npmResult.version) return npmResult;
 
@@ -188,7 +191,7 @@ function isNpmGlobal(): boolean {
 }
 
 /** Compare two semver strings (returns -1, 0, 1). */
-function compareVersions(a: string, b: string): number {
+export function compareVersions(a: string, b: string): number {
   const pa = a.split(".").map(Number);
   const pb = b.split(".").map(Number);
   for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
@@ -392,4 +395,86 @@ export async function performUpdate(currentVersion: string): Promise<void> {
     console.log("Pull the latest changes and reinstall:");
     console.log("  git pull && bun install && bun run build");
   }
+}
+
+// ---------------------------------------------------------------------------
+// Version info cache + dashboard API support (ticket 01).
+// ---------------------------------------------------------------------------
+
+/** Cached version information exposed to the dashboard. */
+export interface VersionInfo {
+  current: string;
+  latest: string | null;
+  updateAvailable: boolean;
+  lastCheckedAt: number | null;
+  error: string | null;
+  /** Release notes (markdown) from the GitHub Release when `updateAvailable` is true, else `null`. */
+  releaseNotes: string | null;
+  canUpdate: boolean;
+  /** `null`, `"no_service"`, or `"no_token"`. */
+  canUpdateReason: string | null;
+}
+
+let versionCache: VersionInfo | null = null;
+
+/** Return the cached version info, or a default shape if never checked. */
+export function getCachedVersionInfo(currentVersion: string): VersionInfo {
+  if (versionCache) return versionCache;
+  return {
+    current: currentVersion,
+    latest: null,
+    updateAvailable: false,
+    lastCheckedAt: null,
+    error: null,
+    releaseNotes: null,
+    canUpdate: false,
+    canUpdateReason: null,
+  };
+}
+
+/**
+ * Fetch the latest version, compare against `currentVersion`, update the cache.
+ * Token check takes precedence over service check.
+ */
+export async function refreshVersionCheck(
+  currentVersion: string,
+  dashboardToken: string | null,
+): Promise<VersionInfo> {
+  const { version: latest, error } = await fetchLatestVersion();
+
+  const updateAvailable = latest !== null && compareVersions(currentVersion, latest) < 0;
+
+  let releaseNotes: string | null = null;
+  if (updateAvailable) {
+    const { release } = await fetchLatestRelease();
+    if (release) {
+      releaseNotes = release.body;
+    }
+  }
+
+  let canUpdate = false;
+  let canUpdateReason: string | null = null;
+  if (!dashboardToken) {
+    canUpdateReason = "no_token";
+  } else {
+    const installed = await isServiceInstalled();
+    if (!installed) {
+      canUpdateReason = "no_service";
+    } else {
+      canUpdate = true;
+    }
+  }
+
+  versionCache = {
+    current: currentVersion,
+    latest,
+    updateAvailable,
+    lastCheckedAt: Date.now(),
+    error,
+    releaseNotes,
+    canUpdate,
+    canUpdateReason,
+  };
+
+  return versionCache;
 }

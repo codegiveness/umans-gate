@@ -1,5 +1,5 @@
 import { AlertCircle, Power, RotateCcw, RotateCw } from "lucide-react";
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 
 import { GroupBlock } from "@/components/config-fields";
 import type { GroupDef } from "@/components/config-sections";
@@ -26,6 +26,10 @@ import { useConfigMutation } from "@/hooks/use-config-mutation";
 import { useModels } from "@/hooks/use-models";
 import { useUsage } from "@/hooks/use-usage";
 import { validateConfigDraft } from "@/lib/config-validation";
+
+const VersionSection = lazy(() =>
+  import("@/components/version-section").then((m) => ({ default: m.VersionSection })),
+);
 
 export function ConfigTab() {
   const {
@@ -259,6 +263,9 @@ export function ConfigTab() {
       )}
       <ScrollArea className="min-h-0 flex-1">
         <div className="mx-auto w-full max-w-3xl px-6 py-6">
+          <Suspense fallback={null}>
+            <VersionSection />
+          </Suspense>
           {groupsWithOverrides.map((g, gi) => (
             <GroupBlock
               key={g.title}

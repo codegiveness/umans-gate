@@ -42,6 +42,9 @@ const VisionCalls = lazy(() =>
 const ModeToggle = lazy(() =>
   import("@/components/mode-toggle").then((m) => ({ default: m.ModeToggle })),
 );
+const UpdateIndicator = lazy(() =>
+  import("@/components/update-indicator").then((m) => ({ default: m.UpdateIndicator })),
+);
 const Toaster = lazy(() => import("@/components/ui/sonner").then((m) => ({ default: m.Toaster })));
 
 function TabPanelFallback() {
@@ -85,6 +88,7 @@ export function App() {
 
   const { copyText } = useClipboard();
   const [copyStatus, setCopyStatus] = useState("Copy");
+  const [activeTab, setActiveTab] = useState("captures");
 
   const watchdogDisabled = gateStats?.watchdog_disabled ?? false;
   const watchdogFailures = gateStats?.watchdog_consecutive_failures ?? 0;
@@ -127,7 +131,11 @@ export function App() {
                 onDismiss={dismissWatchdogBanner}
               />
             )}
-            <Tabs defaultValue="captures" className="flex flex-1 flex-col overflow-hidden">
+            <Tabs
+              value={activeTab}
+              onValueChange={setActiveTab}
+              className="flex flex-1 flex-col overflow-hidden"
+            >
               <header className="flex items-center gap-2 px-4 py-2 border-b bg-background">
                 <MobileDrawerTrigger />
                 <WsStatusBadge wsState={wsState} />
@@ -170,6 +178,9 @@ export function App() {
                     />
                   </TabsList>
                 </div>
+                <Suspense fallback={null}>
+                  <UpdateIndicator onNavigateToConfig={() => setActiveTab("config")} />
+                </Suspense>
                 <Suspense fallback={null}>
                   <ModeToggle />
                 </Suspense>

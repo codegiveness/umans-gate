@@ -231,7 +231,7 @@ describe("UsageTab", () => {
       });
       const { container } = render(<UsageTab />);
       await flushEffects();
-      const goldBadge = container.querySelector('[data-variant="secondary"].bg-yellow-100');
+      const goldBadge = container.querySelector('[data-variant="secondary"].bg-yellow-200');
       expect(goldBadge).not.toBeNull();
       expect(goldBadge?.textContent).toBe("priority");
     });

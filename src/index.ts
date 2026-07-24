@@ -1,6 +1,7 @@
 // Public API — createProxyServer() factory.
 // Exports the main server creation function and key types for programmatic use.
 
+import pkg from "../package.json" with { type: "json" };
 import { AuthFailureLimiter, isTokenAuthorized, tokensEqual } from "./auth.js";
 import { printBanner } from "./banner.js";
 import {
@@ -27,6 +28,7 @@ import type { CaptureStore } from "./queue.js";
 import { WriteQueue } from "./queue.js";
 import { SlidingWindowRateLimiter } from "./rate.js";
 import type { GateStats, ProxyConfig, UsageSnapshot } from "./types.js";
+import { refreshVersionCheck } from "./updater.js";
 import { selectMostUrgentBudget } from "./usage/budget.js";
 import { UmansUsageClient } from "./usage.js";
 import {
@@ -833,6 +835,10 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
       backpressureLimit: config.wsBackpressureLimit > 0 ? config.wsBackpressureLimit : undefined,
       closeOnBackpressureLimit: config.wsCloseOnBackpressureLimit,
     },
+  });
+
+  void refreshVersionCheck(pkg.version, config.dashboardToken).catch(() => {
+    // Network errors are captured into VersionInfo.error internally.
   });
 
   if (options.banner !== false) {

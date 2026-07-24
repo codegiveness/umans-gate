@@ -362,3 +362,54 @@ _Avoid_: input border (too narrow — only one of several functional borders), o
 **Chart Palette**:
 The five-hue sequence used for data visualization: violet (263°), cyan (200°), amber (30°), rose (340°), teal (160°). Replaces the prior five-step grayscale palette that was visually indistinguishable as data series in both themes. Each hue is tuned per-theme (lower lightness in light theme, higher in dark) to meet WCAG 1.4.11 (3:1) against the respective background.
 _Avoid_: chart colors, data colors, series colors.
+
+**Badge Tint Tier**:
+The Tailwind shade step used for light-theme semantic badge backgrounds. The dashboard uses `*-100` for success/warning/info and `*-200` for gold, producing a 4–8% lightness delta from the white surface — enough for figure-ground separation without the visual noise of dark-fill pills. Distinct from text contrast (handled by `*-900` text, which already clears AA 7:1) and from the dark theme (which uses `*-800` fills at equal weight across semantics). The equal-weight philosophy means all semantic badges share the same shade tier — hue carries the meaning, not lightness — matching the dark theme's approach. See ADR 0012.
+_Avoid_: badge shade, badge lightness, status fill.
+
+### Version & Updates
+
+**Version check**:
+A comparison of the running version (from `package.json`, read at boot
+and cached in memory) against the latest published version on the npm
+registry, with GitHub Releases as fallback. Performed once on server
+startup and on-demand via `POST /dashboard/api/version/check`. Result
+is cached in a module-level variable and served by
+`GET /dashboard/api/version` — the dashboard never calls the registry
+or GitHub directly. Distinct from the CLI's `umans-gate update --check`,
+which uses the same `fetchLatestVersion()` but runs in the CLI process.
+_Avoid_: update check, version poll, latest-version fetch.
+
+**One-click update**:
+A dashboard-initiated self-update via `POST /dashboard/api/update`,
+available only when the proxy is running as a managed service
+(`isServiceInstalled()` is true) and `DASHBOARD_TOKEN` is set. The
+backend performs a pre-flight (re-confirms an update exists, returns
+the target version to the client immediately), then asynchronously
+stops the service, runs `performUpdate()`, and starts the service.
+The client enters a dedicated "updating" state with `/health` polling
+and auto-reconnects when the server returns. When the prerequisites
+are not met, the dashboard shows the update availability but directs
+the user to `umans-gate update` in a terminal instead of offering a
+button. Distinct from the CLI's `umans-gate update`, which is the
+unguarded, always-available path.
+_Avoid_: dashboard update, in-browser update, auto-update.
+
+**Update availability indicator**:
+A minimal visual cue in the dashboard header — a small dot or badge
+icon that appears only when `GET /dashboard/api/version` reports
+`updateAvailable: true`. No version text is shown in the header (the
+header is space-constrained on mobile). Clicking the indicator
+navigates to the Config tab, where the full version display, latest
+available, release notes, and the update action live. When the proxy
+is up-to-date, the indicator is absent — zero visual cost.
+_Avoid_: version badge, update notification, version pill.
+
+**Release notes**:
+The markdown body of the GitHub Release corresponding to the latest
+published version, fetched from the GitHub Releases API only when an
+update is detected (not on every version check). Rendered as a
+collapsible "What's new" section in the Config tab. Not fetched when
+the proxy is up-to-date, so the GitHub API is called at most once per
+actual update cycle.
+_Avoid_: changelog snippet, release body, what's-new text.
