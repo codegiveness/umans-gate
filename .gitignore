@@ -46,6 +46,7 @@ images-test/
 .claude/
 .impeccable/
 .playwright-mcp/
+.worktrees/
 opencode.json
 CLAUDE.md
 codegraph.md
