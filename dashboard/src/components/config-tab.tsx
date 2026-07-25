@@ -118,6 +118,14 @@ export function ConfigTab() {
   }, [draft, groupsWithOverrides, usage]);
   const hasClientErrors = Object.keys(clientErrors).length > 0;
 
+  const experimentalActive = Boolean(
+    draft?.stamp_claude_code_enabled ||
+      draft?.stamp_reasoning_effort_enabled ||
+      draft?.experiment_rewrite_ids ||
+      draft?.experiment_strip_omo_reminder ||
+      draft?.experiment_ttft_watchdog,
+  );
+
   function onField(key: keyof RawConfig, v: unknown) {
     if (draft) updateField(key, v);
     if (validationErrors.length > 0) setValidationErrors([]);
@@ -259,6 +267,20 @@ export function ConfigTab() {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+      {experimentalActive && (
+        <div
+          role="alert"
+          aria-live="polite"
+          className="border-b border-amber-300/40 bg-amber-50 px-4 py-2 dark:bg-amber-900/30 dark:border-amber-700/40"
+        >
+          <p className="text-xs font-medium text-amber-900 dark:text-amber-100">
+            Experimental features active
+          </p>
+          <p className="text-xs text-amber-700 dark:text-amber-300">
+            Behavior may differ from defaults. Run at your own risk.
+          </p>
         </div>
       )}
       <ScrollArea className="min-h-0 flex-1">

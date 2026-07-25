@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { FieldDef, GroupDef, SectionDef } from "@/components/config-sections";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NumberInput } from "@/components/ui/number-input";
@@ -422,26 +423,27 @@ export function GroupBlock({
   refreshingSource?: boolean;
 }) {
   return (
-    <div className="space-y-1">
-      <div className="pb-1">
-        <h3 className="text-base font-semibold tracking-tight">{group.title}</h3>
-        <p className="text-xs text-muted-foreground">{group.description}</p>
-      </div>
-      {group.sections.map((s, i) => (
-        <SectionBlock
-          key={s.title}
-          section={s}
-          values={values}
-          originals={originals}
-          onField={onField}
-          errors={errors}
-          warnings={warnings}
-          isLast={isLast && i === group.sections.length - 1}
-          onRefreshSource={onRefreshSource}
-          refreshingSource={refreshingSource}
-        />
-      ))}
-      {!isLast ? <Separator className="my-3" /> : null}
-    </div>
+    <Card data-group-card>
+      <CardHeader>
+        <CardTitle>{group.title}</CardTitle>
+        <CardDescription>{group.description}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {group.sections.map((s, i) => (
+          <SectionBlock
+            key={s.title}
+            section={s}
+            values={values}
+            originals={originals}
+            onField={onField}
+            errors={errors}
+            warnings={warnings}
+            isLast={isLast && i === group.sections.length - 1}
+            onRefreshSource={onRefreshSource}
+            refreshingSource={refreshingSource}
+          />
+        ))}
+      </CardContent>
+    </Card>
   );
 }

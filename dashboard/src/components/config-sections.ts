@@ -547,6 +547,11 @@ export const GROUPS: GroupDef[] = [
         fields: CONCURRENCY_GATE_FIELDS,
       },
       {
+        title: "Circuit Breaker",
+        description: "Failure detection and circuit breaker thresholds.",
+        fields: CIRCUIT_BREAKER_FIELDS,
+      },
+      {
         title: "Usage History",
         description:
           "Persistent /v1/usage history for the Usage tab (heatmap + timeline). All three knobs are hot-reloadable.",
@@ -569,27 +574,22 @@ export const GROUPS: GroupDef[] = [
         fields: ID_REWRITE_FIELDS,
       },
       {
-        title: "oh-my-openagent",
-        description: "Client-side mitigations for oh-my-openagent harness behaviors.",
-        fields: OMO_INTEGRATION_FIELDS,
-      },
-      {
         title: "TTFT Watchdog",
         description:
           "Experimental first-byte watchdog with gated retry. Aborts stalled upstream fetches and retries (same-key, then rewrite-escalation).",
         fields: TTFT_WATCHDOG_FIELDS,
       },
+      {
+        title: "oh-my-openagent",
+        description: "Client-side mitigations for oh-my-openagent harness behaviors.",
+        fields: OMO_INTEGRATION_FIELDS,
+      },
     ],
   },
   {
     title: "Advanced",
-    description: "Circuit breaker, queue tuning, vision parameters, and storage internals.",
+    description: "Queue tuning, vision parameters, and storage internals.",
     sections: [
-      {
-        title: "Circuit Breaker",
-        description: "Failure detection and circuit breaker thresholds.",
-        fields: CIRCUIT_BREAKER_FIELDS,
-      },
       {
         title: "Queue",
         description: "Request queue timeouts, depths, and write-behind buffering.",

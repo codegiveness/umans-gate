@@ -441,3 +441,23 @@ response body tab. Distinct from the capture's `state` field itself,
 which is the source of truth — `BodyRenderer` consumes it, does not
 own it.
 _Avoid_: body status, body phase, body condition.
+
+### Configuration
+
+**experimental** (label):
+A humility claim about unmeasured user-visible effects, not a
+statement about code quality or maturity. Applied via
+`FieldDef.experimental` (`config-sections.ts:45`), rendered as a
+Beaker-icon badge (`config-fields.tsx:281`). Five fields carry it:
+`stamp_claude_code_enabled`, `stamp_reasoning_effort_enabled`,
+`experiment_rewrite_ids`, `experiment_ttft_watchdog`,
+`experiment_strip_omo_reminder` — all default `false` in
+`DEFAULT_CONFIG` (`defaults.ts:6`). The label refuses to over-claim
+felt benefits (higher cache hit rate, lower frustration, faster TTFT)
+that have not been benchmarked against a control. ADR-backed code
+(ADR-0004, ADR-0006, ADR-0008, ADR-0011) does not graduate a field
+out of the label — the label tracks evidence level for the
+user-visible benefit, not production-readiness. Graduation requires
+a measured benchmark documented in a new ADR superseding ADR-0016.
+See: `docs/adr/0016-experimental-means-humility-claim.md`.
+_Avoid_: prototype, beta, unstable, provisional.

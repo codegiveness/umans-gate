@@ -407,4 +407,66 @@ describe("ConfigTab", () => {
     );
     mockConfigResult.refreshFromSource = originalRefresh;
   });
+
+  describe("group structure (Card wrap + breaker move + OMO reorder)", () => {
+    it("renders three group Cards with titles General, Experimental, Advanced", async () => {
+      render(<ConfigTab />);
+      await flushEffects();
+      const general = screen.getByText("General");
+      const experimental = screen.getByText("Experimental");
+      const advanced = screen.getByText("Advanced");
+      expect(general.closest("[data-group-card]")).not.toBeNull();
+      expect(experimental.closest("[data-group-card]")).not.toBeNull();
+      expect(advanced.closest("[data-group-card]")).not.toBeNull();
+    });
+
+    it("places Circuit Breaker fields within the General group", async () => {
+      render(<ConfigTab />);
+      await flushEffects();
+      const breakerLabel = screen.getByText("Breaker Threshold");
+      const generalCard = breakerLabel.closest("[data-group-card]");
+      expect(generalCard).not.toBeNull();
+      expect(generalCard?.textContent).toContain("General");
+      expect(generalCard?.textContent).not.toContain("Advanced");
+    });
+
+    it("places oh-my-openagent as the last section of Experimental group", async () => {
+      render(<ConfigTab />);
+      await flushEffects();
+      const experimentalCard = screen.getByText("Experimental").closest("[data-group-card]");
+      expect(experimentalCard).not.toBeNull();
+      const sectionHeadings = Array.from(experimentalCard?.querySelectorAll("h4") ?? []).map(
+        (h) => h.textContent ?? "",
+      );
+      expect(sectionHeadings.length).toBeGreaterThanOrEqual(4);
+      expect(sectionHeadings[sectionHeadings.length - 1]).toContain("oh-my-openagent");
+      const ttftIdx = sectionHeadings.findIndex((s) => s.includes("TTFT Watchdog"));
+      const omoIdx = sectionHeadings.findIndex((s) => s.includes("oh-my-openagent"));
+      expect(ttftIdx).toBeGreaterThanOrEqual(0);
+      expect(omoIdx).toBeGreaterThan(ttftIdx);
+    });
+  });
+
+  describe("experimental-active banner", () => {
+    it("does not render the banner when all experimental flags are false (default baseConfig)", async () => {
+      render(<ConfigTab />);
+      await flushEffects();
+      expect(screen.queryByText(/Experimental features active/i)).toBeNull();
+    });
+
+    it("renders the banner when an experimental flag is on", async () => {
+      const withExperimental = {
+        ...baseConfig,
+        experiment_ttft_watchdog: true,
+      };
+      mockConfigResult.config = withExperimental;
+      mockConfigResult.reload.mockResolvedValue(withExperimental);
+      render(<ConfigTab />);
+      await flushEffects();
+      expect(screen.getByText(/Experimental features active/i)).toBeInTheDocument();
+      expect(screen.getByText(/run at your own risk/i)).toBeInTheDocument();
+      mockConfigResult.config = baseConfig;
+      mockConfigResult.reload.mockResolvedValue(baseConfig);
+    });
+  });
 });
