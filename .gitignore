@@ -47,14 +47,12 @@ images-test/
 .impeccable/
 .playwright-mcp/
 opencode.json
-AGENTS.md
 CLAUDE.md
 codegraph.md
 plans/
 
 # Matt Pocock skills work canvas (local only)
 .scratch/
-docs/adr/
 docs/agents/
 
 # Stray build output at repo root (sourcemaps, fonts, html, bins)

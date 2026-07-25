@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.19] - 2026-07-25
+
+### Changed
+
+- **ROADMAP.md full rewrite** — body was structurally stale (header said
+  v0.3.18 but body said "Current State (v0.1.3)" and listed shipped features
+  as future work under "Near-Term (v0.2.x)"). All shipped features (vision
+  handoff, concurrency gate, rate limiter, service persistence, release
+  automation, etc.) moved to Current State. Only genuinely future work
+  remains in Near-Term / Mid-Term / Long-Term sections. (ADR-0014)
+- **AGENTS.md is now public** — was gitignored since project inception.
+  Rewritten as a public contributor guide: project paths, architecture,
+  config, dev workflow, code style, SOLID principles, testing, release
+  process, and common mistakes. AI-agent behavioral rules stay in the
+  private `CLAUDE.md` (gitignored). (ADR-0014)
+- **docs/adr/ is now public** — 14 existing ADRs (ADR-0001 through
+  ADR-0013) were gitignored and invisible to public contributors. Now
+  tracked. Reviewed for private info — none found. (ADR-0014)
+- **All docs stamps updated** — `docs/ARCHITECTURE.md`,
+  `docs/BENCHMARKS.md`, `docs/PRODUCT.md`, `docs/TROUBLESHOOTING.md`,
+  `docs/proxy-modifications.md` were stamped v0.1.4 (14 versions stale).
+  All now stamped v0.3.18. `update-docs.ts` extended to update all
+  docs/*.md stamps automatically on every release. (ADR-0014)
+
+### Added
+
+- **ADR-0014** — documents 5 release hygiene decisions: no history rewrite,
+  ROADMAP full rewrite, extend update-docs.ts for all docs stamps,
+  AGENTS.md/CLAUDE.md two-file split, CHANGELOG append-only policy.
+
 ## [0.3.18] - 2026-07-25
 
 ### Added

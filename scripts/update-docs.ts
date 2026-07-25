@@ -29,25 +29,22 @@ function parseArgs(): { mode: Mode } {
 const rootDir = new URL("../", import.meta.url).pathname;
 const { mode } = parseArgs();
 
-// ─── 1. ROADMAP stamp update ──────────────────────────────────────────────
+// ─── 1. Doc stamp updates (ROADMAP + docs/*.md) ───────────────────────────
 
-function updateRoadmapStamps(): boolean {
-  const roadmapPath = `${rootDir}ROADMAP.md`;
-  if (!existsSync(roadmapPath)) return false;
-  let content = readFileSync(roadmapPath, "utf8");
+function updateDocStamps(filePath: string): boolean {
+  if (!existsSync(filePath)) return false;
+  let content = readFileSync(filePath, "utf8");
   const today = new Date().toISOString().slice(0, 10);
-  let changed = false;
-
-  // Update "Applies to: umans-gate vX.Y.Z"
   const pkg = JSON.parse(readFileSync(`${rootDir}package.json`, "utf8"));
   const version = pkg.version;
+  let changed = false;
+
   const appliesRegex = /\*\*Applies to:\*\* umans-gate v?[0-9]+\.[0-9]+\.[0-9]+/;
   if (appliesRegex.test(content)) {
     content = content.replace(appliesRegex, `**Applies to:** umans-gate v${version}`);
     changed = true;
   }
 
-  // Update "Last updated: YYYY-MM-DD"
   const updatedRegex = /\*\*Last updated:\*\* [0-9]{4}-[0-9]{2}-[0-9]{2}/;
   if (updatedRegex.test(content)) {
     content = content.replace(updatedRegex, `**Last updated:** ${today}`);
@@ -55,9 +52,29 @@ function updateRoadmapStamps(): boolean {
   }
 
   if (changed && mode === "update") {
-    writeFileSync(roadmapPath, content);
+    writeFileSync(filePath, content);
   }
   return changed;
+}
+
+function updateAllDocStamps(): string[] {
+  const updated: string[] = [];
+  const roadmapPath = `${rootDir}ROADMAP.md`;
+  if (updateDocStamps(roadmapPath)) {
+    updated.push("ROADMAP.md");
+  }
+  const docsDir = `${rootDir}docs/`;
+  if (existsSync(docsDir)) {
+    for (const entry of readdirSync(docsDir)) {
+      if (entry.endsWith(".md") && entry !== "README.md") {
+        const fullPath = join(docsDir, entry);
+        if (updateDocStamps(fullPath)) {
+          updated.push(`docs/${entry}`);
+        }
+      }
+    }
+  }
+  return updated;
 }
 
 // ─── 2. Link validation ──────────────────────────────────────────────────
@@ -216,10 +233,11 @@ function regenerateDocsIndex(): boolean {
 
 const fixes: string[] = [];
 
-// 1. ROADMAP stamps
+// 1. Doc stamps (ROADMAP + docs/*.md)
 if (mode === "update") {
-  if (updateRoadmapStamps()) {
-    fixes.push("ROADMAP.md: updated version + last-updated stamps");
+  const updated = updateAllDocStamps();
+  if (updated.length > 0) {
+    fixes.push(`Doc stamps updated: ${updated.join(", ")}`);
   }
 }
 

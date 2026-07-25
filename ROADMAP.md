@@ -1,31 +1,38 @@
 # Roadmap
 
-> **Applies to:** umans-gate v0.3.18 · **Last updated:** 2026-07-25
+> **Applies to:** umans-gate v0.3.19 · **Last updated:** 2026-07-25
 
 This document outlines the planned direction for umans-gate. It is a living
 document — priorities may shift based on upstream API changes and personal
 development needs.
 
-## Current State (v0.1.3)
+## Current State (v0.3.18)
 
-- ✅ Capture proxy with SQLite storage and WAL mode
+- ✅ Capture proxy with SQLite storage, WAL mode, and zstd body compression
 - ✅ Anthropic `cache_control` TTL stamping via unified stamp pipeline
-- ✅ Vision handoff pipeline (image → text description)
-- ✅ Concurrency gate (semaphore + circuit breaker)
-- ✅ Sliding-window rate limiter
-- ✅ Connection warmer
+- ✅ Full stamp bundle: TTL, `top_k`, `max_tokens`, `thinking`,
+  `output_config`, `context_management`, `temperature`
+- ✅ OpenAI-compatible `reasoning_effort` stamping (strips `thinking`/`max_tokens`)
+- ✅ Vision handoff pipeline (image → text description, cached 7-day TTL)
+- ✅ Intent-aware vision prompting (generic, slotted, crafted, decomposed)
+- ✅ Concurrency gate (semaphore + circuit breaker + intention-based reservations)
+- ✅ Sliding-window rate limiter (auto-derived from `/v1/usage`)
+- ✅ Connection warmer (TLS keep-alive)
 - ✅ Usage tracking and reconciliation
-- ✅ zstd body compression
 - ✅ Worker-based capture pipeline
-- ✅ Live inspector dashboard (React + shadcn/ui)
+- ✅ Live inspector dashboard (React + shadcn/ui + WebSocket)
 - ✅ Dashboard config validation with hot-reload
-- ✅ npm-first distribution: `npx umans-gate` / `npm install -g umans-gate` (no Bun required)
+- ✅ Body render state-aware (in-flight, done, null body handling)
 - ✅ Self-update (`umans-gate update`) and uninstall (`umans-gate uninstall`)
+- ✅ Service persistence (systemd / launchd / Windows Service via NSSM)
 - ✅ 6 pre-compiled platform binaries (darwin/linux/win32 × arm64/x64)
+- ✅ npm-first distribution: `npx umans-gate` / `npm install -g umans-gate`
 - ✅ npm provenance attestation on all published packages
 - ✅ CodeQL code scanning (weekly + on push/PR)
+- ✅ Release automation: version sync, docs update, pre-release validation
+- ✅ CI version consistency gate (version-check.yml)
 
-## Near-Term (v0.2.x)
+## Near-Term
 
 ### Dashboard enhancements
 - Capture search and filtering by model, route, status code, and time range
@@ -43,7 +50,7 @@ development needs.
 - Integration tests for concurrency gate under load
 - Dashboard component tests for config validation UI
 
-## Mid-Term (v0.3.x – v0.4.x)
+## Mid-Term
 
 ### Multi-upstream support
 - Route requests to different upstream targets based on model or header
@@ -60,7 +67,7 @@ development needs.
 - Streaming response caching for identical requests
 - Configurable capture sampling (capture every Nth request)
 
-## Long-Term (v0.5+)
+## Long-Term
 
 ### Plugin system
 - Pluggable stamp strategies via a strategy registry

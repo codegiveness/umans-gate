@@ -1,6 +1,6 @@
 # umans-gate Documentation
 
-> **Current version:** v0.3.18 · **Index updated:** 2026-07-25
+> **Current version:** v0.3.19 · **Index updated:** 2026-07-25
 
 ## Start here
 
@@ -20,6 +20,7 @@
 ## Develop and extend
 
 - [CONTRIBUTING.md](../CONTRIBUTING.md) — development setup, code style, testing
+- [AGENTS.md](../AGENTS.md) — guidance for AI agents working in this codebase
 - [SECURITY.md](../SECURITY.md) — vulnerability reporting and security practices
 - [ROADMAP.md](../ROADMAP.md) — planned direction
 
