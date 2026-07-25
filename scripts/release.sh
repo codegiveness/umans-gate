@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Release helper: bumps version, updates changelog, commits, tags, and pushes.
-# The tag push triggers .github/workflows/release.yml which creates the
-# GitHub Release, builds standalone binaries, and publishes to npm.
+# Release helper: bumps version, syncs version across files, updates docs,
+# commits, tags, and pushes. The tag push triggers .github/workflows/release.yml
+# which creates the GitHub Release, builds standalone binaries, and publishes to npm.
 #
 # Usage:
 #   bun run release                    # patch: 0.3.14 → 0.3.15
-#   bun run release minor              # minor:  0.3.14 → 0.4.0
+#   bun run release minor             # minor:  0.3.14 → 0.4.0
 #   bun run release major              # major:  0.3.14 → 1.0.0
 #   bun run release 0.4.2              # explicit version
 #
@@ -15,6 +15,15 @@ set -euo pipefail
 #   - Clean working tree (no uncommitted changes)
 #   - On master branch
 #   - typecheck + lint + tests pass
+#   - CHANGELOG.md has a [## Unreleased] section
+#
+# What this script does:
+#   1. Runs pre-flight checks (typecheck, lint, test, build)
+#   2. Bumps package.json version
+#   3. Runs sync-version.ts --sync --allow-untagged (syncs dashboard/package.json)
+#   4. Runs update-docs.ts --update (stamps ROADMAP, regenerates docs index)
+#   5. Validates CHANGELOG.md has a section for the new version
+#   6. Commits + tags + pushes (triggers release.yml)
 
 cd "$(dirname "$0")/.."
 
@@ -64,7 +73,7 @@ bun test --timeout 30000
 echo "🔍 Running build..."
 bun run build
 
-# ─── Bump + changelog + commit + tag + push ────────────────────────────────
+# ─── Bump version ──────────────────────────────────────────────────────────
 
 node -e "
   const fs = require('fs');
@@ -72,6 +81,14 @@ node -e "
   pkg.version = '$NEW_VERSION';
   fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
 "
+
+echo "🔄 Syncing version across files (dashboard/package.json)..."
+bun run scripts/sync-version.ts --sync --allow-untagged
+
+echo "🔄 Updating docs (ROADMAP stamps, docs index)..."
+bun run scripts/update-docs.ts --update
+
+# ─── Changelog validation ─────────────────────────────────────────────────
 
 # Ensure changelog has an entry for the new version
 if ! grep -q "## \[$NEW_VERSION\]" CHANGELOG.md; then
@@ -90,8 +107,19 @@ if ! grep -q "## \[$NEW_VERSION\]" CHANGELOG.md; then
   exit 1
 fi
 
-git add package.json CHANGELOG.md
-git commit -m "release: v$NEW_VERSION"
+# ─── Final validation ──────────────────────────────────────────────────────
+
+echo "🔍 Final version consistency check..."
+bun run scripts/sync-version.ts --allow-untagged
+
+# ─── Commit + tag + push ───────────────────────────────────────────────────
+
+git add package.json dashboard/package.json CHANGELOG.md ROADMAP.md docs/README.md
+git commit -m "release: v$NEW_VERSION
+
+- Sync dashboard/package.json version
+- Update ROADMAP.md stamps
+- Regenerate docs/README.md index"
 
 git tag "v$NEW_VERSION"
 git push origin master

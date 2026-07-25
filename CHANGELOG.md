@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.18] - 2026-07-25
+
+### Added
+
+- **Release automation** — `scripts/release.sh` now syncs version across
+  `dashboard/package.json`, updates `ROADMAP.md` stamps, and regenerates
+  `docs/README.md` index automatically on every release. New
+  `scripts/sync-version.ts` validates version consistency across all files;
+  `scripts/update-docs.ts` validates doc links and updates stamps.
+- **CI version gate** — new `.github/workflows/version-check.yml` runs on
+  every PR/push touching version-related files, blocking merges that break
+  version consistency or contain broken doc links.
+- **Pre-release validation** — `release.yml` now runs a validation job
+  before building/publishing, failing fast on version mismatch or empty
+  CHANGELOG entries.
+- **CONTRIBUTING.md** — release section rewritten to document the
+  automated flow and manual validation commands.
+
+### Changed
+
+- **Dashboard: BodyRenderer state-aware rendering** — in-flight + null body
+  shows spinner + "Response still streaming…"; done + null body shows
+  "Response body not captured" (muted, not destructive). Request body
+  never receives state. (ADR-0013)
+- **Dashboard: UpdateButton always enabled** — `canUpdate=false` opens a
+  blocker AlertDialog with reason-specific guidance (`no_token` →
+  DASHBOARD_TOKEN, `no_service` → `umans-gate service install`, `other` →
+  generic). `canUpdate=true` preserves existing confirm flow. (ADR-0013)
+- **Dashboard: What's New UX** — native `<button>` → shadcn Button
+  (ghost/sm); release-notes scroll: `<pre overflow-y-auto>` → ScrollArea
+  wrapping `<pre>`. (ADR-0013)
+- **Dashboard: ScrollArea fallbacks** — capture-detail error/empty states
+  use ScrollArea; usage-heatmap horizontal scroll uses ScrollArea with new
+  `horizontal` prop (backward-compatible, default false). (ADR-0013)
+- **ROADMAP.md** — stamp updated from v0.1.4 to v0.3.17 (was stale by 14
+  versions).
+- **dashboard/package.json** — version synced from 0.1.0 to 0.3.17 (was
+  never synced since initial release).
+
 ## [0.3.17] - 2026-07-24
 
 ### Added

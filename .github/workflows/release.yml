@@ -15,7 +15,55 @@ permissions:
   id-token: write
 
 jobs:
+  # Pre-release validation: ensure version consistency + docs integrity
+  # before building/publishing anything. Fails fast if anything is off.
+  validate:
+    name: Pre-release Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Extract version
+        id: ver
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Validate version consistency
+        run: bun run scripts/sync-version.ts
+
+      - name: Validate docs (links + structure)
+        run: bun run scripts/update-docs.ts
+
+      - name: Validate CHANGELOG has release notes
+        run: |
+          VERSION="${{ steps.ver.outputs.version }}"
+          NOTES=$(awk "/^## \[${VERSION}\]/{f=1; next} f && /^## \[/{exit} f" CHANGELOG.md)
+          if [ -z "$NOTES" ]; then
+            echo "❌ CHANGELOG.md has no content under [${VERSION}]"
+            exit 1
+          fi
+          echo "✅ CHANGELOG has release notes for ${VERSION}"
+
+      - name: Verify git tag matches version
+        run: |
+          VERSION="${{ steps.ver.outputs.version }}"
+          if [ -n "${GITHUB_REF#refs/tags/}" ] && [ "${GITHUB_REF#refs/tags/}" != "v${VERSION}" ]; then
+            echo "❌ Tag ${GITHUB_REF#refs/tags/} does not match package.json version v${VERSION}"
+            exit 1
+          fi
+          echo "✅ Tag matches version"
+
   release:
+    needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:

@@ -119,13 +119,70 @@ The dashboard talks to the backend's REST API and WebSocket, both under `/dashbo
 
 ## Releasing
 
-Releases are triggered by pushing a `v*` tag. The publish workflow handles npm publishing with provenance.
+Releases are automated through `scripts/release.sh`, which bumps the
+version, syncs it across all files, updates docs, commits, tags, and
+pushes. The tag push triggers `.github/workflows/release.yml`, which
+runs pre-release validation then creates the GitHub Release, builds
+standalone binaries (6 platforms), and publishes to npm with provenance.
 
-Release checklist:
+### Automated version sync
+
+`package.json` is the single source of truth for the version. The
+release script and CI workflows keep these files in sync automatically:
+
+- `dashboard/package.json` — synced via `scripts/sync-version.ts --sync`
+- `CHANGELOG.md` — must have a `## [<version>]` section
+- `ROADMAP.md` — "Applies to" stamp updated via `scripts/update-docs.ts --update`
+- `docs/README.md` — version + date stamp regenerated on every release
+
+No manual version editing needed — just run the release script.
+
+### Release process
+
+```bash
+# 1. Ensure CHANGELOG.md has notes under [Unreleased]
+# 2. Run the release helper (handles everything else)
+bun run release              # patch: 0.3.17 → 0.3.18
+bun run release minor        # minor:  0.3.17 → 0.4.0
+bun run release major        # major:  0.3.17 → 1.0.0
+bun run release 0.4.2        # explicit version
+```
+
+The script:
+
+1. Runs pre-flight checks (typecheck, lint, test, build)
+2. Bumps `package.json` version
+3. Syncs `dashboard/package.json` to match
+4. Updates `ROADMAP.md` stamps + regenerates `docs/README.md` index
+5. Validates `CHANGELOG.md` has a section for the new version
+6. Commits + tags + pushes (triggers `release.yml`)
+
+### CI gates
+
+Two workflows enforce integrity:
+
+- **`version-check.yml`** — runs on every PR/push touching version-related
+  files. Validates consistency (package.json ↔ dashboard/package.json ↔
+  CHANGELOG ↔ ROADMAP) and checks all doc links resolve. Fails the PR if
+  anything is off.
+- **`release.yml`** — on tag push, runs a pre-release validation job
+  *before* building/publishing. Fails fast if version is inconsistent or
+  CHANGELOG is empty.
+
+### Manual checks (if needed)
+
+```bash
+bun run scripts/sync-version.ts          # validate consistency
+bun run scripts/sync-version.ts --sync    # fix dashboard/package.json
+bun run scripts/update-docs.ts            # validate doc links
+bun run scripts/update-docs.ts --update   # update ROADMAP + docs index
+```
+
+### Release checklist (for reference)
 
 1. [ ] `bun run typecheck` passes
 2. [ ] `bun run test:all` passes
 3. [ ] `bun run build` produces `dist/` and `dashboard/dist/`
 4. [ ] `bun dist/cli.js` starts and serves the dashboard
-5. [ ] Version bumped in `package.json`
-6. [ ] `CHANGELOG.md` updated
+5. [ ] `CHANGELOG.md` has notes under `[Unreleased]`
+6. [ ] `bun run release` completes without errors

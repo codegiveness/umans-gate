@@ -1,0 +1,62 @@
+name: Version & Docs Check
+
+# Runs on every PR and push to master. Ensures version consistency across:
+#   - package.json (canonical source)
+#   - dashboard/package.json (must match)
+#   - CHANGELOG.md (must have a section for the current version)
+#   - ROADMAP.md (stamp must match)
+# Also validates that no doc links are broken.
+#
+# This is a GATE — PRs that fail this check cannot merge. It prevents
+# drift between version references that would cause confusing releases.
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "package.json"
+      - "dashboard/package.json"
+      - "CHANGELOG.md"
+      - "ROADMAP.md"
+      - "docs/**"
+      - "README.md"
+      - "scripts/sync-version.ts"
+      - "scripts/update-docs.ts"
+  push:
+    branches: [master]
+    paths:
+      - "package.json"
+      - "dashboard/package.json"
+      - "CHANGELOG.md"
+      - "ROADMAP.md"
+      - "docs/**"
+      - "README.md"
+      - "scripts/sync-version.ts"
+      - "scripts/update-docs.ts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  version-consistency:
+    name: Version & Docs Consistency
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Validate version consistency
+        run: bun run scripts/sync-version.ts
+
+      - name: Validate docs (links + structure)
+        run: bun run scripts/update-docs.ts

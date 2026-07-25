@@ -1,5 +1,7 @@
 # umans-gate Documentation
 
+> **Current version:** v0.3.17 · **Index updated:** 2026-07-25
+
 ## Start here
 
 - [README.md](../README.md) — install, quick start, full config reference, usage rights
