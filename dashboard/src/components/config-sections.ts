@@ -56,7 +56,7 @@ const SERVER_FIELDS: FieldDef[] = [
     key: "port",
     label: "Port",
     kind: "number",
-    description: "TCP port the proxy listens on. Range: 1–65,535. Default: 1,945.",
+    description: "TCP port the proxy listens on. Default: 1,945.",
     restartRequired: true,
     required: true,
     min: 1,
@@ -67,7 +67,7 @@ const SERVER_FIELDS: FieldDef[] = [
     label: "Max Captures",
     kind: "number",
     description:
-      "Maximum number of captures kept in the SQLite ring buffer. When this limit is reached, the oldest entries are evicted to make room for new ones. Must be ≥ 200. Default: 200.",
+      "Maximum captures retained in the SQLite ring buffer. Oldest evicted when full. Default: 200.",
     restartRequired: true,
     required: true,
     min: 200,
@@ -77,7 +77,7 @@ const SERVER_FIELDS: FieldDef[] = [
     label: "DB Path",
     kind: "text",
     description:
-      "Filesystem path to the SQLite database used for storing captures. Relative paths are resolved from the proxy's working directory. Default: ./umans-gate.db.",
+      "SQLite database path for captures. Relative paths resolve from the working directory. Default: ./umans-gate.db.",
     restartRequired: true,
     required: true,
   },
@@ -86,7 +86,7 @@ const SERVER_FIELDS: FieldDef[] = [
     label: "Idle Timeout",
     kind: "number",
     description:
-      "Bun.serve idleTimeout — seconds before an idle HTTP connection is closed. Range: 1–255 (Bun's maximum). Default: 255 s.",
+      "Bun.serve idleTimeout — seconds before an idle HTTP connection closes. Max 255 (Bun limit). Default: 255 s.",
     restartRequired: true,
     required: true,
     min: 1,
@@ -98,7 +98,7 @@ const SERVER_FIELDS: FieldDef[] = [
     label: "Upstream Protocol",
     kind: "select",
     description:
-      'HTTP protocol used for upstream connections. "http1.1" uses HTTP/1.1 (default, broadest compatibility); "http2" uses HTTP/2 (multiplexing, lower latency for concurrent requests). Default: http1.1.',
+      "HTTP protocol for upstream connections. http1.1 (default, broadest compat) or http2 (multiplexing, lower latency under concurrency). Default: http1.1.",
     options: [
       { value: "http1.1", label: "HTTP/1.1" },
       { value: "http2", label: "HTTP/2" },
@@ -112,14 +112,14 @@ const SERVER_FIELDS: FieldDef[] = [
     kind: "toggle",
     restartRequired: false,
     description:
-      "When on, stored request/response bodies are compressed with zstd to reduce SQLite database size. Hot-reloadable — changes take effect immediately without restart. Default: on.",
+      "zstd-compresses stored request/response bodies to reduce SQLite database size. Default: on.",
   },
   {
     key: "upstream_timeout_ms",
     label: "Upstream Timeout",
     kind: "number",
     description:
-      "Hard timeout for upstream requests in milliseconds. Prevents permit leaks when the upstream hangs and the client stays connected. Must be ≥ 1,000. Default: 300,000 ms (5 min).",
+      "Hard timeout for upstream requests. Prevents permit leaks when upstream hangs and client stays connected. Default: 300,000 ms (5 min).",
     required: true,
     min: 1000,
     suffix: "ms",
@@ -129,7 +129,7 @@ const SERVER_FIELDS: FieldDef[] = [
     label: "Performance Sample Count",
     kind: "number",
     description:
-      "Number of latest captures per model used for performance percentile computation in the Performance tab. Decoupled from Max Captures. Hot-reloadable — changes take effect immediately. Default: 200.",
+      "Latest captures per model used for performance percentile computation in the Performance tab. Decoupled from Max Captures. Default: 200.",
     min: 10,
     max: 10000,
     suffix: "rows",
@@ -142,7 +142,7 @@ const STAMP_FIELDS: FieldDef[] = [
     label: "Claude Code Style",
     kind: "toggle",
     description:
-      "When on, applies the full Claude Code stamp bundle on Anthropic requests: cache TTL=1h, temperature=1.0, top_k=20 (GLM only), max_tokens (131,071 GLM / 32,767 others), thinking={type:'adaptive'}, output_config (effort=max GLM / high others), and context_management injection (requires anthropic-version: 2023-06-01). Off by default.",
+      "When on, stamps Anthropic routes: TTL=1h on cache_control ephemeral blocks (always, independent of thinking), plus when thinking is enabled — temperature=1.0, top_k=20 (GLM only), max_tokens (131,071 GLM / 32,767 others), thinking forced to {type:'adaptive'}, output_config (effort=max GLM / high others), context_management injection. Disabled thinking is respected unless policy.canDisableThinking=false (Kimi, Coder). Default: off.",
     experimental: true,
   },
   {
@@ -150,7 +150,7 @@ const STAMP_FIELDS: FieldDef[] = [
     label: "Reasoning Effort (OpenAI)",
     kind: "toggle",
     description:
-      "When on, stamps reasoning_effort='high' onto OpenAI-compatible requests (umans-glm* models get 'max') and removes max_tokens/thinking from the request body. Off by default.",
+      "When on, stamps reasoning_effort on OpenAI-compatible routes from policy (effort=max for GLM, high for others). Injects when thinking is enabled or reasoning_effort is present; respects absent fields and disabled values (off/none/null) when canDisableThinking=true. When active: strips thinking, output_config, context_management; forces temperature=1.0 (reasoning models reject temperature != 1.0). Default: off.",
     experimental: true,
   },
 ];
@@ -162,7 +162,7 @@ const ID_REWRITE_FIELDS: FieldDef[] = [
     kind: "toggle",
     experimental: true,
     description:
-      "Parent toggle for the ID rewrite experiment. When on, umans-gate rewrites the x-session-id header and all tool_use_ids (call_*/toolu_*) in the request body when the upstream returns 502/529 with 'overloaded_error', then retries with the rewritten IDs. The rewrites use a per-session salt (stored in SQLite) that escalates on consecutive 502s. This experiment does NOT touch cache_control — existing breakpoints are preserved. Eligible only when the harness is opencode (detected via user-agent). Default: off.",
+      "Parent toggle for ID rewrite experiment. On 502/529 'overloaded_error', rewrites x-session-id header and tool_use_ids (call_*/toolu_*) using a per-session salt (stored in SQLite) that escalates on consecutive 502s, then retries. Preserves cache_control breakpoints. Eligible only when harness is opencode (detected via user-agent). Default: off.",
   },
   {
     key: "experiment_rewrite_ttl_ms",
@@ -172,7 +172,7 @@ const ID_REWRITE_FIELDS: FieldDef[] = [
     suffix: "ms",
     experimental: true,
     description:
-      "Child of experiment_rewrite_ids — only takes effect when the parent toggle is on. Controls how long umans-gate retains the per-session salt mapping in the id_rewrite_sessions SQLite table after the last 502. When the TTL expires, the next 502 starts a fresh salt chain instead of escalating. Default: 3,600,000 ms (1 hour).",
+      "Only active when ID Rewrite is on. How long the per-session salt mapping is retained in SQLite after the last 502. On expiry, the next 502 starts a fresh salt chain instead of escalating. Default: 3,600,000 ms (1 hour).",
   },
 ];
 
@@ -183,7 +183,7 @@ const OMO_INTEGRATION_FIELDS: FieldDef[] = [
     kind: "toggle",
     experimental: true,
     description:
-      "When on, strips oh-my-openagent's Category+Skill Reminder synthetic injection from the first user message before forwarding upstream. This injection (added by the category-skill-reminder hook in oh-my-openagent v4.18.x) splices a 486-byte text block into messages[0] on turn 2, invalidating the prompt cache prefix and causing 0% hit rate for 1-2 turns. Stripping it preserves cache stability. Enable if you use oh-my-openagent and observe cache hit drops on turn 2.",
+      "When on, strips oh-my-openagent's Category+Skill Reminder synthetic injection from messages[0] before forwarding upstream. This 486-byte block (injected on turn 2 by the category-skill-reminder hook in oh-my-openagent v4.18.x) invalidates the prompt cache prefix, causing 0% hit rate for 1-2 turns. Enable if you use oh-my-openagent and see cache hit drops on turn 2.",
   },
 ];
 
@@ -194,7 +194,7 @@ const TTFT_WATCHDOG_FIELDS: FieldDef[] = [
     kind: "toggle",
     experimental: true,
     description:
-      "Master toggle for the TTFT (time-to-first-token) watchdog. When on, upstream fetches get a first-byte watchdog that aborts stalled connections within ttft_timeout_ms, then retries (same-key, then rewrite-escalation if eligible). When off (default), the only active guard is the upstream_timeout_ms absolute timeout — no retry, no rewrite. Enable if the upstream intermittently hangs after accepting a request without ever sending the first byte.",
+      "Master toggle for TTFT (time-to-first-token) watchdog. When on, upstream fetches get a first-byte watchdog that aborts stalled connections within ttft_timeout_ms, then retries (same-key, then rewrite-escalation if eligible). When off, only upstream_timeout_ms applies — no retry, no rewrite. Default: off.",
   },
   {
     key: "ttft_timeout_ms",
@@ -202,7 +202,7 @@ const TTFT_WATCHDOG_FIELDS: FieldDef[] = [
     kind: "number",
     experimental: true,
     description:
-      "Watchdog threshold in milliseconds — if no first byte arrives within this window, the fetch is aborted and the retry decision runs. Must be ≥ 1,000. Default: 60,000 ms (1 min).",
+      "Watchdog threshold — abort fetch if no first byte arrives within this window, then run retry decision. Default: 60,000 ms (1 min).",
     required: true,
     min: 1000,
     suffix: "ms",
@@ -213,7 +213,7 @@ const TTFT_WATCHDOG_FIELDS: FieldDef[] = [
     kind: "number",
     experimental: true,
     description:
-      "Cap on total upstream attempts. 1 = original only (no retry). 2 = original + 1 same-key retry. 3 = original + 1 same-key retry + 1 rewrite-id escalation (when eligible). Must be between 1 and 3. Default: 2.",
+      "Cap on total upstream attempts. 1 = original only, 2 = +1 same-key retry, 3 = +1 rewrite-id escalation (when eligible). Default: 2.",
     required: true,
     min: 1,
     max: 3,
@@ -224,7 +224,7 @@ const TTFT_WATCHDOG_FIELDS: FieldDef[] = [
     kind: "number",
     experimental: true,
     description:
-      "Suppress retry when the gate active count is at or above this percentage of the soft limit. Prevents retries from deepening an already-saturated concurrency gate. Must be between 1 and 100. Default: 80 (%).",
+      "Suppress retry when gate active count ≥ this percentage of soft limit. Prevents deepening saturated concurrency. Default: 80%.",
     required: true,
     min: 1,
     max: 100,
@@ -236,7 +236,7 @@ const TTFT_WATCHDOG_FIELDS: FieldDef[] = [
     kind: "number",
     experimental: true,
     description:
-      "Consecutive retry-also-failed events within the failure window that trigger permanent auto-disable of the watchdog (until config reload). Must be ≥ 1. Default: 3.",
+      "Consecutive retry failures within the failure window that trigger permanent auto-disable of the watchdog (until config reload). Default: 3.",
     required: true,
     min: 1,
   },
@@ -246,7 +246,7 @@ const TTFT_WATCHDOG_FIELDS: FieldDef[] = [
     kind: "number",
     experimental: true,
     description:
-      "Sliding window in milliseconds during which consecutive retry failures are counted toward the auto-disable threshold. Must be ≥ 1,000. Default: 300,000 ms (5 min).",
+      "Sliding window for counting consecutive retry failures toward auto-disable threshold. Default: 300,000 ms (5 min).",
     required: true,
     min: 1000,
     suffix: "ms",
@@ -257,7 +257,7 @@ const TTFT_WATCHDOG_FIELDS: FieldDef[] = [
     kind: "number",
     experimental: true,
     description:
-      "Delay in milliseconds between retry attempts. Allows the upstream a brief recovery window before the next attempt. Must be ≥ 0. Default: 30,000 ms (30 s).",
+      "Delay between retry attempts. Gives upstream a brief recovery window before the next attempt. Default: 30,000 ms (30 s).",
     required: true,
     min: 0,
     suffix: "ms",
@@ -270,7 +270,7 @@ const WARMER_FIELDS: FieldDef[] = [
     label: "Enabled",
     kind: "boolean",
     description:
-      "When on, the proxy periodically pings the upstream /v1/models endpoint to keep connections warm, avoiding ~750 ms cold-start latency on the first request after an idle period. Default: true.",
+      "Periodically pings upstream /v1/models to keep TLS connections warm, avoiding ~750 ms cold-start latency on first request after idle. Default: on.",
     restartRequired: true,
   },
   {
@@ -278,7 +278,7 @@ const WARMER_FIELDS: FieldDef[] = [
     label: "Interval",
     kind: "number",
     description:
-      "Interval between upstream keep-alive pings in milliseconds. Shorter intervals keep connections warmer but increase background traffic. Must be ≥ 1,000 ms. Default: 20,000 ms (20 s).",
+      "Interval between upstream keep-alive pings. Shorter keeps connections warmer but increases background traffic. Default: 20,000 ms (20 s).",
     restartRequired: true,
     required: true,
     min: 1000,
@@ -292,14 +292,14 @@ const CONCURRENCY_GATE_FIELDS: FieldDef[] = [
     label: "Use Hard Cap",
     kind: "toggle",
     description:
-      "When on, the effective concurrency limit is the hard cap (16). When off (default), the effective limit is the soft limit (8). Over-cap is impossible — the gate never grants beyond the selected limit.",
+      "When on, effective concurrency limit = hard cap. When off (default), effective limit = soft limit. Toggle to switch at runtime — no restart needed.",
   },
   {
     key: "concurrency_hard_cap",
     label: "Hard Cap",
     kind: "number",
     description:
-      "Absolute maximum concurrent upstream requests (16). Non-configurable — derived from /v1/usage. Use the 'Use Hard Cap' toggle to switch the effective limit.",
+      "Absolute maximum concurrent upstream requests. Non-configurable — derived from /v1/usage. Use 'Use Hard Cap' toggle to select as effective limit.",
     disabled: true,
     umansSourced: true,
   },
@@ -308,7 +308,7 @@ const CONCURRENCY_GATE_FIELDS: FieldDef[] = [
     label: "Soft Limit",
     kind: "number",
     description:
-      "Soft concurrency limit (8). Non-configurable — derived from /v1/usage. Use the 'Use Hard Cap' toggle to switch the effective limit.",
+      "Soft concurrency limit. Non-configurable — derived from /v1/usage. Use 'Use Hard Cap' toggle to select as effective limit.",
     disabled: true,
     umansSourced: true,
   },
@@ -317,7 +317,7 @@ const CONCURRENCY_GATE_FIELDS: FieldDef[] = [
     label: "Main Reservation",
     kind: "number",
     description:
-      "Number of concurrency slots reserved exclusively for main (non-vision) requests. Ensures vision traffic cannot starve main requests. Must be ≥ 1 and ≤ (hard_cap − 2) when hard_cap ≥ 3. Default: 1.",
+      "Slots reserved exclusively for main (non-vision) requests. Prevents vision traffic from starving main requests. Default: 1.",
     required: true,
     min: 1,
   },
@@ -326,7 +326,7 @@ const CONCURRENCY_GATE_FIELDS: FieldDef[] = [
     label: "Vision Reservation",
     kind: "number",
     description:
-      "Number of concurrency slots reserved exclusively for vision interception requests. When vision_strategy is 'never' this is forced to 0 so no slots are wasted. Otherwise must be ≥ 1 and ≤ (hard_cap − 2) when hard_cap ≥ 3. Default: 1.",
+      "Slots reserved for vision interception requests. Forced to 0 when vision_strategy is 'never' so no slots are wasted. Default: 1.",
     required: true,
     min: 0,
   },
@@ -335,7 +335,7 @@ const CONCURRENCY_GATE_FIELDS: FieldDef[] = [
     label: "Release Cooldown",
     kind: "number",
     description:
-      "Delay in milliseconds before releasing a concurrency slot back to the pool after a response completes. A non-zero value adds a brief cooldown to prevent immediate burst re-use. Must be ≥ 0. Default: 1,000 ms (1 s).",
+      "Delay before releasing a concurrency slot back to the pool after a response completes. Prevents immediate burst re-use. Default: 1,000 ms (1 s).",
     required: true,
     min: 0,
     suffix: "ms",
@@ -345,7 +345,7 @@ const CONCURRENCY_GATE_FIELDS: FieldDef[] = [
     label: "Rate Limit",
     kind: "number",
     description:
-      "Controls upstream request rate limiting. -1 = unlimited (no limiter at all), 0 = auto-derive the limit from the upstream /v1/usage endpoint (requires umans_api_key), >0 = use this explicit value as the max requests per rate-limit window. Default: 0 (auto-derive).",
+      "Upstream request rate limiting. -1 = unlimited (no limiter), 0 = auto-derive from /v1/usage (requires umans_api_key), >0 = explicit max requests per window. Default: 0 (auto-derive).",
     min: -1,
     umansSourced: true,
     refreshSource: true,
@@ -358,7 +358,7 @@ const CIRCUIT_BREAKER_FIELDS: FieldDef[] = [
     label: "Breaker Threshold",
     kind: "number",
     description:
-      "Number of upstream failures within the breaker window required to open (trip) the circuit breaker. When open, the proxy short-circuits upstream requests instead of retrying. Must be ≥ 1. Default: 5.",
+      "Upstream failures within the breaker window required to trip the circuit breaker. When open, requests are short-circuited instead of forwarded. Default: 5.",
     required: true,
     min: 1,
   },
@@ -367,7 +367,7 @@ const CIRCUIT_BREAKER_FIELDS: FieldDef[] = [
     label: "Breaker Window",
     kind: "number",
     description:
-      "Sliding time window in milliseconds during which upstream failures are counted toward the breaker threshold. Must be ≥ 1,000 ms. Default: 300,000 ms (5 minutes).",
+      "Sliding window for counting upstream failures toward the breaker threshold. Default: 300,000 ms (5 min).",
     required: true,
     min: 1000,
     suffix: "ms",
@@ -377,7 +377,7 @@ const CIRCUIT_BREAKER_FIELDS: FieldDef[] = [
     label: "Breaker Cooldown",
     kind: "number",
     description:
-      "Duration in milliseconds the circuit breaker stays open before allowing a half-open probe request through. If the probe succeeds, the breaker closes; if it fails, the timer restarts. Must be ≥ 1,000 ms. Default: 60,000 ms (1 minute).",
+      "Duration the breaker stays open before allowing a half-open probe. If probe succeeds, breaker closes; if it fails, timer restarts. Default: 60,000 ms (1 min).",
     required: true,
     min: 1000,
     suffix: "ms",
@@ -390,7 +390,7 @@ const QUEUE_FIELDS: FieldDef[] = [
     label: "Queue Timeout",
     kind: "number",
     description:
-      "Maximum time in milliseconds a request can wait in the concurrency queue before timing out and returning an error to the client. Must be ≥ 100 ms. Default: 30,000 ms (30 s).",
+      "Maximum time a request can wait in the concurrency queue before timing out and returning an error to the client. Default: 30,000 ms (30 s).",
     required: true,
     min: 100,
     suffix: "ms",
@@ -400,7 +400,7 @@ const QUEUE_FIELDS: FieldDef[] = [
     label: "Max Queue Depth",
     kind: "number",
     description:
-      "Maximum number of requests that can be waiting in the concurrency queue simultaneously. When the queue is full, new requests are rejected immediately. Must be ≥ 1. Default: 256.",
+      "Maximum requests waiting in the concurrency queue simultaneously. New requests rejected immediately when full. Default: 256.",
     required: true,
     min: 1,
   },
@@ -409,7 +409,7 @@ const QUEUE_FIELDS: FieldDef[] = [
     label: "Write Queue Depth",
     kind: "number",
     description:
-      "Maximum depth of the write-behind database flush queue (distinct from the concurrency waiters queue above). Controls how many capture writes can be buffered before the queue applies backpressure. Must be ≥ 1. Default: 100.",
+      "Maximum depth of the write-behind database flush queue (distinct from the concurrency queue). Controls buffered capture writes before backpressure applies. Default: 100.",
     min: 1,
   },
 ];
@@ -420,7 +420,7 @@ const CAPTURE_STORAGE_FIELDS: FieldDef[] = [
     label: "Capture Body Max Bytes",
     kind: "number",
     description:
-      "Maximum size (in bytes) of captured request/response bodies stored in SQLite. Bodies exceeding this limit are truncated. 0 = no limit (capture full bodies). Must be ≥ 0. Default: 10,000,000 (10 MB).",
+      "Maximum size of captured request/response bodies stored in SQLite. Bodies exceeding this are truncated. 0 = no limit (capture full bodies). Default: 10,000,000 (10 MB).",
     min: 0,
   },
   {
@@ -428,7 +428,7 @@ const CAPTURE_STORAGE_FIELDS: FieldDef[] = [
     label: "WS Backpressure Limit",
     kind: "number",
     description:
-      "Maximum buffered bytes per WebSocket connection before backpressure is applied. When a client falls behind, the proxy stops sending until the client catches up. 0 = use Bun's default limit. Must be ≥ 0. Default: 1,048,576 (1 MB).",
+      "Maximum buffered bytes per WebSocket connection before backpressure applies. Client pauses until it catches up. 0 = Bun default. Default: 1,048,576 (1 MB).",
     min: 0,
     suffix: "bytes",
   },
@@ -437,7 +437,7 @@ const CAPTURE_STORAGE_FIELDS: FieldDef[] = [
     label: "Close on Backpressure Limit",
     kind: "boolean",
     description:
-      "When on, WebSocket connections that exceed the backpressure limit are forcibly closed instead of merely pausing. This prevents slow clients from accumulating unbounded buffered data. Default: true.",
+      "When on, WebSocket connections exceeding the backpressure limit are forcibly closed instead of pausing. Prevents slow clients from accumulating unbounded buffer. Default: on.",
   },
 ];
 
@@ -447,7 +447,7 @@ const CREDENTIALS_FIELDS: FieldDef[] = [
     label: "Umans API Key",
     kind: "password",
     description:
-      "Umans API key used to authenticate upstream requests and fetch /v1/usage data (concurrency limits, rate-limit source). When empty, the proxy runs in fail-safe mode with worst-case limits and priority_low=true. Leave empty to disable upstream usage tracking. Default: empty.",
+      "API key for upstream authentication and /v1/usage fetch (concurrency limits, rate-limit source). When empty, proxy runs in fail-safe mode with worst-case limits and priority_low=true. Default: empty.",
     restartRequired: true,
   },
   {
@@ -455,7 +455,7 @@ const CREDENTIALS_FIELDS: FieldDef[] = [
     label: "Usage Refresh",
     kind: "number",
     description:
-      "Interval in milliseconds between background /v1/usage fetches. The usage data drives concurrency limit auto-derivation and rate-limit source values. Shorter intervals keep limits fresher but increase API calls. Must be ≥ 1,000 ms. Default: 60,000 ms (1 minute).",
+      "Interval between background /v1/usage fetches. Drives concurrency limit auto-derivation and rate-limit source values. Default: 60,000 ms (1 min).",
     restartRequired: true,
     required: true,
     min: 1000,
@@ -466,7 +466,7 @@ const CREDENTIALS_FIELDS: FieldDef[] = [
     label: "Models Refresh",
     kind: "number",
     description:
-      "Interval in milliseconds between background /v1/models fetches. The models list populates the vision model dropdown and validates model names. Must be ≥ 1,000 ms. Default: 3,600,000 ms (1 hour).",
+      "Interval between background /v1/models fetches. Populates vision model dropdown and validates model names. Default: 3,600,000 ms (1 hour).",
     restartRequired: true,
     required: true,
     min: 1000,
@@ -480,14 +480,14 @@ const USAGE_HISTORY_FIELDS: FieldDef[] = [
     label: "Usage History",
     kind: "toggle",
     description:
-      "When on, every /v1/usage poll is persisted to SQLite (usage_samples + usage_events + usage_daily tables) and the Usage tab visualizes the history. When off, no history is written and the tab shows no data. Hot-reloadable. Default: on.",
+      "When on, every /v1/usage poll is persisted to SQLite (usage_samples + usage_events + usage_daily tables) and the Usage tab visualizes the history. When off, no history is written. Default: on.",
   },
   {
     key: "usage_raw_retention_days",
     label: "Raw Retention",
     kind: "number",
     description:
-      "Days to retain raw `usage_samples` rows before the downsampling job folds them into a `usage_daily` aggregate and deletes the raw rows. Controls the zoom-in resolution window for the timeline drill-down. Must be ≥ 1. Default: 7.",
+      "Days to retain raw usage_samples rows before downsampling into usage_daily aggregate and deleting raw rows. Controls timeline drill-down resolution window. Default: 7.",
     required: true,
     min: 1,
     suffix: "d",
@@ -497,7 +497,7 @@ const USAGE_HISTORY_FIELDS: FieldDef[] = [
     label: "Gap Threshold",
     kind: "number",
     description:
-      "Minutes between adjacent non-byte-identical samples above which a UTC day is flagged `day_completeness = incomplete_window`. Tune to your machine's sleep behavior so legitimate idle-coalesce gaps (identical adjacent samples) aren't false-positive flagged. Must be ≥ 5. Default: 60.",
+      "Minutes between adjacent non-byte-identical samples above which a UTC day is flagged day_completeness=incomplete_window. Tune to your machine's sleep behavior so legitimate idle-coalesce gaps (identical adjacent samples) aren't false-positive flagged. Default: 60.",
     required: true,
     min: 5,
     suffix: "min",
