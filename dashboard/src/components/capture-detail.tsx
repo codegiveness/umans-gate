@@ -139,7 +139,7 @@ export function CaptureDetailPanel({
     return (
       <main className="flex flex-1 flex-col overflow-hidden">
         <ScrollArea className="flex-1 min-h-0">
-          <div className="flex flex-col items-center justify-center gap-3 p-8 text-center text-muted-foreground">
+          <div className="flex min-h-full flex-col items-center justify-center gap-3 p-8 text-center text-muted-foreground">
             <ScanSearch className="h-12 w-12 text-muted-foreground/40" />
             <p className="text-sm font-medium">Select a capture to inspect</p>
             <p className="text-xs">

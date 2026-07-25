@@ -135,9 +135,9 @@ function ModelPerfCard({ row }: { row: PerformanceStatsRow }) {
             label="TTFT"
             primary={fmtAvgMs(row.ttft_mean)}
             primaryDetail={fmtAvgLabel(row.ttft_mean)}
-            sub={
+            tertiary={
               row.ttft_max != null
-                ? `${fmtMaxMs(row.ttft_max)}${fmtMaxLabel(row.ttft_max) ? ` ${fmtMaxLabel(row.ttft_max)}` : ""}`
+                ? { value: fmtMaxMs(row.ttft_max), label: fmtMaxLabel(row.ttft_max) ?? undefined }
                 : undefined
             }
             sub2={fmtPercentiles(row.ttft_p10, row.ttft_p50, row.ttft_p95)}
@@ -147,9 +147,9 @@ function ModelPerfCard({ row }: { row: PerformanceStatsRow }) {
             label="TPS"
             primary={fmtAvgTps(row.tps_mean)}
             primaryDetail={fmtAvgLabel(row.tps_mean)}
-            sub={
+            tertiary={
               row.tps_min != null
-                ? `${fmtMinTps(row.tps_min)}${fmtMinLabel(row.tps_min) ? ` ${fmtMinLabel(row.tps_min)}` : ""}`
+                ? { value: fmtMinTps(row.tps_min), label: fmtMinLabel(row.tps_min) ?? undefined }
                 : undefined
             }
             sub2={fmtTpsPercentiles(row.tps_p10, row.tps_p50, row.tps_p95)}
@@ -158,17 +158,21 @@ function ModelPerfCard({ row }: { row: PerformanceStatsRow }) {
             icon={<Cpu className="h-3.5 w-3.5" />}
             label="Total In"
             primary={fmtTokensCompact(row.total_input_tokens)}
-            sub={`${row.provider === "anthropic" ? "incl. cache (total token uncached)" : "prompt"}`}
+            sub={
+              row.provider === "anthropic"
+                ? `incl. cache · ${fmtTokensCompact(
+                    Math.max(0, row.total_input_tokens - row.total_cache_read_tokens),
+                  )} uncached`
+                : "prompt"
+            }
           />
           <StatTile
             icon={<Cpu className="h-3.5 w-3.5" />}
             label="Total Out"
             primary={fmtTokensCompact(row.total_output_tokens)}
-            sub={
-              row.total_thinking_tokens > 0
-                ? `${fmtTokensCompact(row.total_thinking_tokens)} think${thinkingPct ? ` (${thinkingPct})` : ""}`
-                : undefined
-            }
+            sub={`${fmtTokensCompact(row.total_thinking_tokens)} ${
+              row.provider === "anthropic" ? "think" : "reason"
+            }${thinkingPct ? ` (${thinkingPct})` : ""}`}
           />
           <StatTile
             icon={<Activity className="h-3.5 w-3.5" />}
@@ -187,6 +191,7 @@ function StatTile({
   label,
   primary,
   primaryDetail,
+  tertiary,
   sub,
   sub2,
 }: {
@@ -194,6 +199,7 @@ function StatTile({
   label: string;
   primary: string;
   primaryDetail?: string;
+  tertiary?: { value: string; label?: string };
   sub?: string;
   sub2?: string;
 }) {
@@ -208,6 +214,16 @@ function StatTile({
         {primaryDetail && (
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/80 tabular-nums">
             {primaryDetail}
+          </span>
+        )}
+        {tertiary && (
+          <span className="ml-auto flex items-baseline gap-1 text-xs tabular-nums text-muted-foreground">
+            {tertiary.label && (
+              <span className="font-semibold uppercase tracking-wide text-muted-foreground/70">
+                {tertiary.label}
+              </span>
+            )}
+            <span className="font-medium">{tertiary.value}</span>
           </span>
         )}
       </div>

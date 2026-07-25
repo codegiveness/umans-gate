@@ -16,7 +16,7 @@ import {
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { fmtUtcTime } from "@/lib/format";
+import { fmtInt, fmtUtcTime } from "@/lib/format";
 import type { UsageDailyRow, UsageEventRow, UsageSampleRow } from "@/types";
 
 /** Compute cache hit rate from a sample row. Null when all three token
@@ -288,6 +288,7 @@ function ConcurrencyLane({ samples, onsets }: ConcurrencyLaneProps): React.JSX.E
             <Tooltip
               labelFormatter={(v) => fmtUtcTime(Number(v)).slice(0, 5)}
               contentStyle={{ fontSize: 11 }}
+              formatter={(value) => (typeof value === "number" ? fmtInt(value) : (value ?? "—"))}
             />
             <ReferenceLine y={hardCap} stroke="hsl(var(--destructive))" strokeDasharray="4 4" />
             {onsets.map((ts) => (
@@ -375,6 +376,7 @@ function RequestsLane({ samples, onsets }: LaneProps): React.JSX.Element {
             <Tooltip
               labelFormatter={(v) => fmtUtcTime(Number(v)).slice(0, 5)}
               contentStyle={{ fontSize: 11 }}
+              formatter={(value) => (typeof value === "number" ? fmtInt(value) : (value ?? "—"))}
             />
             {last.limit !== null ? (
               <ReferenceLine
@@ -477,6 +479,7 @@ function TokenFlowLane({ samples, onsets }: LaneProps): React.JSX.Element {
             <Tooltip
               labelFormatter={(v) => fmtUtcTime(Number(v)).slice(0, 5)}
               contentStyle={{ fontSize: 11 }}
+              formatter={(value) => (typeof value === "number" ? fmtInt(value) : (value ?? "—"))}
             />
             {onsets.map((ts) => (
               <ReferenceLine

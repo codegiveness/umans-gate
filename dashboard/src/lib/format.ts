@@ -15,6 +15,13 @@ export function fmtTokensCompact(n: number | null | undefined): string {
   return `${(value / 1_000_000_000).toFixed(2)}B`;
 }
 
+/** Format an integer with locale thousand separators (e.g. 1_234_567 → "1,234,567").
+ *  Non-numbers and nullish values pass through as "—". */
+export function fmtInt(v: number | null | undefined): string {
+  if (v == null || (typeof v === "number" && Number.isNaN(v))) return "—";
+  return Math.round(v).toLocaleString("en-US");
+}
+
 export function fmtTime(ms: number | null | undefined): string {
   if (ms == null) return "";
   if (ms < 1000) return `${ms} ms`;

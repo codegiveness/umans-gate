@@ -15,7 +15,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { thirtyDayAvg } from "@/components/usage-timeline";
-import { fmtUtcTime } from "@/lib/format";
+import { fmtInt, fmtUtcTime } from "@/lib/format";
 import {
   buildEventMarkers,
   buildRealBands,
@@ -252,6 +252,7 @@ function ConcurrencyLaneOld(
             <Tooltip
               labelFormatter={(v) => fmtUtcTime(Number(v)).slice(0, 5)}
               contentStyle={{ fontSize: 11 }}
+              formatter={(value) => (typeof value === "number" ? fmtInt(value) : (value ?? "—"))}
             />
             <ReferenceLine y={hardCap} stroke="hsl(var(--destructive))" strokeDasharray="4 4" />
             {markers.map((m) => (
@@ -367,6 +368,7 @@ function RequestsLaneOld(props: OldLaneSharedProps): React.JSX.Element {
             <Tooltip
               labelFormatter={(v) => fmtUtcTime(Number(v)).slice(0, 5)}
               contentStyle={{ fontSize: 11 }}
+              formatter={(value) => (typeof value === "number" ? fmtInt(value) : (value ?? "—"))}
             />
             {limit > 0 ? (
               <ReferenceLine y={limit} stroke="hsl(var(--destructive))" strokeDasharray="4 4" />
@@ -484,6 +486,7 @@ function TokenFlowLaneOld(props: OldLaneSharedProps): React.JSX.Element {
             <Tooltip
               labelFormatter={(v) => fmtUtcTime(Number(v)).slice(0, 5)}
               contentStyle={{ fontSize: 11 }}
+              formatter={(value) => (typeof value === "number" ? fmtInt(value) : (value ?? "—"))}
             />
             {events.map((e) => (
               <ReferenceLine
