@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.22] - 2026-07-25
+
+### Changed
+
+- **Dashboard one-click update no longer requires `DASHBOARD_TOKEN`** —
+  the `POST /dashboard/api/update` pre-flight guard that checked
+  `ctx.config.dashboardToken` is removed. `isServiceInstalled()` alone
+  now gates one-click binary update, matching the dashboard's own auth
+  model (the token guards dashboard *access*, not update authorization).
+  The `token_not_set` error code and its `no_token` UI branch are
+  dropped. See [ADR-0015](docs/adr/0015-token-guard-removed-ws-version-push.md).
+
+- **Version info pushed over WebSocket** — `VersionInfo` is broadcast on
+  WebSocket startup and on every on-demand check. The `useVersion` hook
+  subscribes to `VERSION_EVENT` instead of fetching, so the version card
+  and update button update live without a page reload. Adds a new
+  `WsMessage { type: "version" }` variant with its handler in
+  `WsHandlerMap`.
+
 ## [0.3.21] - 2026-07-25
 
 ### Added
