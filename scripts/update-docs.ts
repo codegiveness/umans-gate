@@ -15,6 +15,7 @@
  *   0 — docs consistent (or updated successfully)
  *   1 — broken links found
  */
+import { execSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 
@@ -114,11 +115,21 @@ function validateLinks(): BrokenLink[] {
     for (const link of links) {
       const target = resolve(dirname(file), link);
       if (!existsSync(target)) {
-        broken.push({
-          file: relative(rootDir, file),
-          link,
-          reason: "target does not exist",
-        });
+        // Skip if target is gitignored (local-only file, not in CI checkout)
+        let isGitignored = false;
+        try {
+          execSync(`git check-ignore --quiet "${target}"`, { stdio: "ignore" });
+          isGitignored = true;
+        } catch {
+          // git check-ignore exits 1 if NOT ignored
+        }
+        if (!isGitignored) {
+          broken.push({
+            file: relative(rootDir, file),
+            link,
+            reason: "target does not exist",
+          });
+        }
       }
     }
   }

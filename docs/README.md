@@ -20,7 +20,6 @@
 ## Develop and extend
 
 - [CONTRIBUTING.md](../CONTRIBUTING.md) — development setup, code style, testing
-- [AGENTS.md](../AGENTS.md) — guidance for AI agents working in this codebase
 - [SECURITY.md](../SECURITY.md) — vulnerability reporting and security practices
 - [ROADMAP.md](../ROADMAP.md) — planned direction
 
