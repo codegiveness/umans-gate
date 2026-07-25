@@ -1,6 +1,6 @@
 # umans-gate Documentation
 
-> **Current version:** v0.3.17 · **Index updated:** 2026-07-25
+> **Current version:** v0.3.18 · **Index updated:** 2026-07-25
 
 ## Start here
 
