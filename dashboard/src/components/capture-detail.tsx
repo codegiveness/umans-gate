@@ -295,7 +295,7 @@ export function CaptureDetailPanel({
                 <BodyRenderer body={capture.request_body} isSse={false} />
               </TabsContent>
               <TabsContent value="res-headers" className="m-0">
-                <HeadersViewer headers={capture.response_headers} />
+                <HeadersViewer headers={capture.response_headers} state={capture.state} />
               </TabsContent>
               <TabsContent value="req-headers" className="m-0">
                 <HeadersViewer headers={capture.request_headers} />

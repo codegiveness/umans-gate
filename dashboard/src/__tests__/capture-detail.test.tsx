@@ -14,8 +14,10 @@ vi.mock("@/components/json-viewer", () => ({
 }));
 
 vi.mock("@/components/headers-viewer", () => ({
-  HeadersViewer: ({ headers }: { headers: string | null }) => (
-    <div data-testid="headers-viewer">{headers ?? "null"}</div>
+  HeadersViewer: ({ headers, state }: { headers: string | null; state?: string }) => (
+    <div data-testid="headers-viewer" data-state={state ?? undefined}>
+      {headers ?? "null"}
+    </div>
   ),
 }));
 
@@ -271,5 +273,33 @@ describe("CaptureDetailPanel transitions", () => {
 
     await userEvent.setup().click(screen.getByRole("tab", { name: "Request Body" }));
     expect(screen.getByText("Response body not captured")).toBeInTheDocument();
+  });
+
+  it("passes state to response headers viewer when streaming", async () => {
+    const user = userEvent.setup();
+    const capture = makeCapture({ state: "streaming", response_headers: null });
+
+    render(
+      <CaptureDetailPanel capture={capture} isLoading={false} detailError={null} {...baseProps} />,
+    );
+    await flushEffects();
+
+    await user.click(screen.getByRole("tab", { name: "Response Headers" }));
+    const viewer = await screen.findByTestId("headers-viewer");
+    expect(viewer).toHaveAttribute("data-state", "streaming");
+  });
+
+  it("does not pass state to request headers viewer", async () => {
+    const user = userEvent.setup();
+    const capture = makeCapture({ state: "streaming" });
+
+    render(
+      <CaptureDetailPanel capture={capture} isLoading={false} detailError={null} {...baseProps} />,
+    );
+    await flushEffects();
+
+    await user.click(screen.getByRole("tab", { name: "Request Headers" }));
+    const viewer = await screen.findByTestId("headers-viewer");
+    expect(viewer).not.toHaveAttribute("data-state");
   });
 });
