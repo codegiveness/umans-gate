@@ -12,6 +12,7 @@
 // touching the lookup logic.
 
 import type { ParsedModelInfo } from "./model-info-parser.js";
+import type { ThinkingConfig } from "./types.js";
 
 /**
  * Stamp tuning for a single model family.
@@ -22,10 +23,16 @@ import type { ParsedModelInfo } from "./model-info-parser.js";
  * - `top_k`: value injected after `model`, or `null` to skip top_k injection.
  * - `canDisableThinking`: whether a client-sent disabled thinking block
  *   (`type: "disabled"`, `type: "off"`, `type: "none"`, `enabled: false`)
- *   should be respected. When `false`, thinking is always forced to adaptive
+ *   should be respected. When `false`, thinking is always forced
  *   even if the client tries to disable it (e.g. Kimi K2.7 where reasoning
  *   cannot be turned off). Overridden from `/v1/models/info` `reasoning.can_disable`
  *   at parse time.
+ * - `thinkingShape`: the `ThinkingConfig` value forced on the body when
+ *   `stampThinking` decides to overwrite `body.thinking` (thinking is
+ *   enabled and not respected as disabled). Per ADR-0017 each model family
+ *   gets its own shape: GLM uses Z.ai Preserved Thinking
+ *   (`clear_thinking: false`), Kimi/Coder use Kimi Preserved Thinking
+ *   (`keep: "all"`), others use adaptive.
  */
 export interface StampPolicy {
   max_tokens: number;
@@ -33,6 +40,7 @@ export interface StampPolicy {
   thinking: boolean;
   top_k: number | null;
   canDisableThinking: boolean;
+  thinkingShape: ThinkingConfig;
 }
 
 /**
@@ -50,6 +58,7 @@ export const STAMP_OVERLAY: Record<string, StampPolicy> = {
     thinking: true,
     top_k: 20,
     canDisableThinking: true,
+    thinkingShape: { type: "enabled", clear_thinking: false, budget_tokens: 32000 },
   },
   "umans-coder": {
     max_tokens: 32767,
@@ -57,6 +66,7 @@ export const STAMP_OVERLAY: Record<string, StampPolicy> = {
     thinking: true,
     top_k: null,
     canDisableThinking: false,
+    thinkingShape: { type: "enabled", keep: "all", budget_tokens: 32000 },
   },
   "umans-flash": {
     max_tokens: 32767,
@@ -64,6 +74,7 @@ export const STAMP_OVERLAY: Record<string, StampPolicy> = {
     thinking: true,
     top_k: null,
     canDisableThinking: true,
+    thinkingShape: { type: "adaptive" },
   },
   "umans-kimi*": {
     max_tokens: 32767,
@@ -71,6 +82,7 @@ export const STAMP_OVERLAY: Record<string, StampPolicy> = {
     thinking: true,
     top_k: null,
     canDisableThinking: false,
+    thinkingShape: { type: "enabled", keep: "all", budget_tokens: 32000 },
   },
   "umans-qwen*": {
     max_tokens: 32767,
@@ -78,6 +90,7 @@ export const STAMP_OVERLAY: Record<string, StampPolicy> = {
     thinking: true,
     top_k: null,
     canDisableThinking: true,
+    thinkingShape: { type: "adaptive" },
   },
   "*": {
     max_tokens: 32767,
@@ -85,6 +98,7 @@ export const STAMP_OVERLAY: Record<string, StampPolicy> = {
     thinking: false,
     top_k: null,
     canDisableThinking: true,
+    thinkingShape: { type: "adaptive" },
   },
 };
 

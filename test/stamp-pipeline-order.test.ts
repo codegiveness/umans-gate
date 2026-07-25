@@ -207,7 +207,7 @@ test("all stamp steps fire in order on a single GLM Anthropic request", async ()
 
   // --- AnthropicBody (runs second: max_tokens + thinking + output_config) ---
   expect(parsed.max_tokens).toBe(131071);
-  expect(parsed.thinking).toEqual({ type: "adaptive" });
+  expect(parsed.thinking).toEqual({ type: "enabled", clear_thinking: false, budget_tokens: 32000 });
   expect(parsed.output_config).toEqual({ effort: "max" });
 
   // --- ContextManagement (runs third: injects context_management) ---
@@ -361,8 +361,8 @@ test("anthropic with thinking adaptive: respected, output_config stamped, temper
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
 
-  // thinking respected (not overwritten)
-  expect(parsed.thinking).toEqual({ type: "adaptive" });
+  // thinking forced to GLM Preserved Thinking shape (clear_thinking:false)
+  expect(parsed.thinking).toEqual({ type: "enabled", clear_thinking: false, budget_tokens: 32000 });
   // output_config IS stamped (thinking is enabled)
   expect(parsed.output_config).toEqual({ effort: "max" });
   // temperature IS forced (thinking is enabled)
@@ -391,13 +391,13 @@ test("umans-coder with non-adaptive thinking: forced to adaptive end-to-end", as
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
 
-  expect(parsed.thinking).toEqual({ type: "adaptive" });
+  expect(parsed.thinking).toEqual({ type: "enabled", keep: "all", budget_tokens: 32000 });
   expect(parsed.output_config).toEqual({ effort: "high" });
   expect(parsed.temperature).toBe(1.0);
   expect(parsed.max_tokens).toBe(32767);
 });
 
-test("umans-coder with disabled thinking: forced to adaptive (canDisable=false)", async () => {
+test("umans-coder with disabled thinking: forced to Kimi Preserved Thinking (canDisable=false)", async () => {
   const body = JSON.stringify({
     model: "umans-coder",
     thinking: { type: "disabled" },
@@ -417,7 +417,7 @@ test("umans-coder with disabled thinking: forced to adaptive (canDisable=false)"
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
 
-  expect(parsed.thinking).toEqual({ type: "adaptive" });
+  expect(parsed.thinking).toEqual({ type: "enabled", keep: "all", budget_tokens: 32000 });
   expect(parsed.output_config).toEqual({ effort: "high" });
   expect(parsed.temperature).toBe(1.0);
 });

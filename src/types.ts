@@ -388,10 +388,23 @@ export interface ContentBlock {
   [key: string]: unknown;
 }
 
-/** Anthropic `thinking` block injected for matching models. */
-export interface ThinkingConfig {
-  type: "adaptive";
-}
+/**
+ * Anthropic `thinking` block injected for matching models.
+ *
+ * Three variants are produced by the stamp pipeline:
+ * - `adaptive`: the proxy's legacy adaptive thinking shape (used by
+ *   `umans-coder`, `umans-flash`, `umans-qwen*`, and the fallback `*`
+ *   policy when thinking is forced).
+ * - `enabled` with `keep: "all"`: Kimi Preserved Thinking shape, used by
+ *   `umans-kimi*` and `umans-coder` (both Kimi K2.7-Code base).
+ *   See ADR-0017.
+ * - `enabled` with `clear_thinking: false`: Z.ai Preserved Thinking shape,
+ *   used by `umans-glm*`. See ADR-0017.
+ */
+export type ThinkingConfig =
+  | { type: "adaptive" }
+  | { type: "enabled"; keep: "all"; budget_tokens: number }
+  | { type: "enabled"; clear_thinking: boolean; budget_tokens: number };
 
 /** Anthropic `output_config` block injected for matching models. */
 export interface OutputConfig {

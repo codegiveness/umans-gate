@@ -88,7 +88,7 @@ test("non-glm non-thinking model: no body stamps", async () => {
   expect(parsed.output_config).toBeUndefined();
 });
 
-test("non-adaptive thinking forced to adaptive (umans-coder, canDisable=false)", async () => {
+test("non-adaptive thinking forced to Kimi Preserved Thinking (umans-coder, canDisable=false)", async () => {
   const body = JSON.stringify({
     model: "umans-coder",
     thinking: { type: "enabled", keep: "all", budget_tokens: 8000 },
@@ -100,13 +100,11 @@ test("non-adaptive thinking forced to adaptive (umans-coder, canDisable=false)",
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
   expect(parsed.max_tokens).toBe(32767);
-  // thinking forced to adaptive (umans-coder canDisableThinking=false)
-  expect(parsed.thinking).toEqual({ type: "adaptive" });
-  // output_config stamped (thinking is now enabled)
+  expect(parsed.thinking).toEqual({ type: "enabled", keep: "all", budget_tokens: 32000 });
   expect(parsed.output_config).toEqual({ effort: "high" });
 });
 
-test("disabled thinking forced to adaptive (umans-coder, canDisable=false)", async () => {
+test("disabled thinking forced to Kimi Preserved Thinking (umans-coder, canDisable=false)", async () => {
   const body = JSON.stringify({
     model: "umans-coder",
     thinking: { type: "disabled" },
@@ -116,8 +114,7 @@ test("disabled thinking forced to adaptive (umans-coder, canDisable=false)", asy
   const r = await send(body);
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
-  // thinking forced to adaptive (canDisableThinking=false)
-  expect(parsed.thinking).toEqual({ type: "adaptive" });
+  expect(parsed.thinking).toEqual({ type: "enabled", keep: "all", budget_tokens: 32000 });
   // output_config stamped (thinking is now enabled)
   expect(parsed.output_config).toEqual({ effort: "high" });
   // temperature forced (thinking is now enabled)
@@ -154,7 +151,7 @@ test("reasoning_effort stripped on anthropic route when claude code style enable
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
   expect(parsed.reasoning_effort).toBeUndefined();
-  expect(parsed.thinking).toEqual({ type: "adaptive" });
+  expect(parsed.thinking).toEqual({ type: "enabled", keep: "all", budget_tokens: 32000 });
   expect(parsed.max_tokens).toBe(32767);
 });
 
@@ -261,7 +258,7 @@ test("claude code toggle with thinking present stamps max_tokens + output_config
     expect(r).not.toBeNull();
     const parsed = JSON.parse(r!.body);
     expect(parsed.max_tokens).toBe(32767);
-    expect(parsed.thinking).toEqual({ type: "adaptive" });
+    expect(parsed.thinking).toEqual({ type: "enabled", keep: "all", budget_tokens: 32000 });
     expect(parsed.output_config).toEqual({ effort: "high" });
     expect(parsed.temperature).toBe(1.0);
   } finally {

@@ -1,4 +1,3 @@
-import { STAMP_THINKING_VALUE } from "./config.js";
 import { extractModelName } from "./models/name.js";
 import { matchStampOverlay, type StampPolicy } from "./stamp-catalog.js";
 import type { AnthropicBody, OutputConfig, ThinkingConfig } from "./types.js";
@@ -51,14 +50,36 @@ export function isThinkingEnabled(thinking: unknown): boolean {
 }
 
 /**
+ * Structural equality between two `ThinkingConfig` values. Used to skip
+ * spurious writes when the body already carries the policy's thinking
+ * shape. Compares only the discriminant fields (`type` and its variants'
+ * companions); extra client-sent fields do not count as equal.
+ */
+function thinkingEquals(a: ThinkingConfig, b: ThinkingConfig): boolean {
+  if (a.type !== b.type) return false;
+  if (a.type === "enabled" && b.type === "enabled") {
+    if ("keep" in a && "keep" in b) return a.keep === b.keep && a.budget_tokens === b.budget_tokens;
+    if ("clear_thinking" in a && "clear_thinking" in b)
+      return a.clear_thinking === b.clear_thinking && a.budget_tokens === b.budget_tokens;
+    return false;
+  }
+  return true;
+}
+
+/**
  * Stamp Anthropic request body fields based on enabled toggles.
  *
  * `thinking` forcing semantics (when `options.thinking` is true):
  * - Absent: never injected.
  * - Disabled form AND `policy.canDisableThinking` is true: respected.
  * - Disabled form AND `policy.canDisableThinking` is false: forced to
- *   `{ type: "adaptive" }` (e.g. Kimi K2.7 where reasoning cannot be disabled).
- * - Any other shape: forced to `{ type: "adaptive" }`.
+ *   `policy.thinkingShape` (e.g. Kimi K2.7 where reasoning cannot be disabled).
+ * - Any other shape: forced to `policy.thinkingShape`.
+ *
+ * The per-family `thinkingShape` (ADR-0017) drives the forced value:
+ * GLM → `{ type:"enabled", clear_thinking:false, budget_tokens:32000 }`,
+ * Kimi/Coder → `{ type:"enabled", keep:"all", budget_tokens:32000 }`,
+ * others → `{ type:"adaptive" }`.
  *
  * `max_tokens` is stamped from policy when `options.maxTokens` is true.
  * `output_config` is injected when `options.outputConfig` is truthy AND
@@ -81,8 +102,8 @@ export function stampThinking(body: AnthropicBody, options: StampOptions): boole
     const shouldForce = !disabled || !policy.canDisableThinking;
     if (shouldForce) {
       const current = body.thinking as ThinkingConfig;
-      if (current.type !== "adaptive") {
-        body.thinking = { ...STAMP_THINKING_VALUE };
+      if (!thinkingEquals(current, policy.thinkingShape)) {
+        body.thinking = { ...policy.thinkingShape };
         changed = true;
       }
     }

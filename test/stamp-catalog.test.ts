@@ -17,7 +17,7 @@ function catalogWith(
 }
 
 describe("resolveStampPolicy", () => {
-  it("resolves umans-glm* to the GLM policy (max effort, top_k=20)", () => {
+  it("resolves umans-glm* to the GLM policy (max effort, top_k=20, Z.ai Preserved Thinking)", () => {
     const catalog = catalogWith("umans-glm-foo");
     expect(resolveStampPolicy("umans-glm-foo", catalog)).toEqual({
       max_tokens: 131071,
@@ -25,10 +25,11 @@ describe("resolveStampPolicy", () => {
       thinking: true,
       top_k: 20,
       canDisableThinking: false,
+      thinkingShape: { type: "enabled", clear_thinking: false, budget_tokens: 32000 },
     });
   });
 
-  it("resolves umans-coder to the high-effort thinking policy", () => {
+  it("resolves umans-coder to the high-effort thinking policy with Kimi Preserved Thinking", () => {
     const catalog = catalogWith("umans-coder");
     expect(resolveStampPolicy("umans-coder", catalog)).toEqual({
       max_tokens: 32767,
@@ -36,10 +37,11 @@ describe("resolveStampPolicy", () => {
       thinking: true,
       top_k: null,
       canDisableThinking: false,
+      thinkingShape: { type: "enabled", keep: "all", budget_tokens: 32000 },
     });
   });
 
-  it("resolves umans-flash to the high-effort thinking policy", () => {
+  it("resolves umans-flash to the high-effort thinking policy with adaptive shape", () => {
     const catalog = catalogWith("umans-flash");
     expect(resolveStampPolicy("umans-flash", catalog)).toEqual({
       max_tokens: 32767,
@@ -47,10 +49,11 @@ describe("resolveStampPolicy", () => {
       thinking: true,
       top_k: null,
       canDisableThinking: false,
+      thinkingShape: { type: "adaptive" },
     });
   });
 
-  it("resolves umans-kimi* to the high-effort thinking policy", () => {
+  it("resolves umans-kimi* to the high-effort thinking policy with Kimi Preserved Thinking", () => {
     const catalog = catalogWith("umans-kimi-bar");
     expect(resolveStampPolicy("umans-kimi-bar", catalog)).toEqual({
       max_tokens: 32767,
@@ -58,10 +61,11 @@ describe("resolveStampPolicy", () => {
       thinking: true,
       top_k: null,
       canDisableThinking: false,
+      thinkingShape: { type: "enabled", keep: "all", budget_tokens: 32000 },
     });
   });
 
-  it("resolves umans-qwen* to the high-effort thinking policy", () => {
+  it("resolves umans-qwen* to the high-effort thinking policy with adaptive shape", () => {
     const catalog = catalogWith("umans-qwen-baz");
     expect(resolveStampPolicy("umans-qwen-baz", catalog)).toEqual({
       max_tokens: 32767,
@@ -69,6 +73,7 @@ describe("resolveStampPolicy", () => {
       thinking: true,
       top_k: null,
       canDisableThinking: false,
+      thinkingShape: { type: "adaptive" },
     });
   });
 
@@ -78,6 +83,7 @@ describe("resolveStampPolicy", () => {
     expect(resolved).toEqual(STAMP_OVERLAY["*"]);
     expect(resolved.thinking).toBe(false);
     expect(resolved.top_k).toBeNull();
+    expect(resolved.thinkingShape).toEqual({ type: "adaptive" });
   });
 
   it("falls back to the * policy for undefined model name", () => {

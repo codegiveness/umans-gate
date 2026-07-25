@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Model-specific thinking block shapes (ADR-0017)** — `ThinkingConfig` widened
+  from `{type:"adaptive"}` to a discriminated union supporting
+  `{type:"enabled", keep:"all", budget_tokens}` (Kimi Preserved Thinking) and
+  `{type:"enabled", clear_thinking:boolean, budget_tokens}` (Z.ai Preserved
+  Thinking). On the Anthropic/Claude-Code stamp path, `umans-glm*` models now
+  force `thinking` to `{type:"enabled", clear_thinking:false, budget_tokens:32000}`
+  and `umans-kimi*`/`umans-coder` models force to
+  `{type:"enabled", keep:"all", budget_tokens:32000}`. Other families (flash,
+  qwen, fallback) keep `{type:"adaptive"}`. Disabled thinking blocks stay
+  respected per `policy.canDisableThinking`. Per-family shapes are data-driven
+  via `StampPolicy.thinkingShape`, not if-branches.
+
 ## [0.3.23] - 2026-07-25
 
 ### Fixed

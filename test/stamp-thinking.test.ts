@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { matchStampOverlay } from "../src/stamp-catalog.js";
 import { isThinkingDisabled, isThinkingEnabled, stampThinking } from "../src/stamp-thinking.js";
 import type { AnthropicBody } from "../src/types.js";
 
@@ -117,34 +118,54 @@ test("stamps output_config=max for umans-glm* models when thinking is enabled", 
 
 // ─── thinking forcing (options.thinking: true) ─────────────────────────────
 
-test("thinking:true forces {type:enabled,...} to adaptive for canDisable=false model (umans-coder)", () => {
+test("thinking:true forces {type:enabled,...} to Kimi Preserved Thinking for canDisable=false model (umans-coder)", () => {
   const body: AnthropicBody = {
     model: "umans-coder",
     thinking: { type: "enabled", budget_tokens: 1024 } as never,
     messages: [],
   };
   expect(stampThinking(body, { thinking: true })).toBe(true);
-  expect(body.thinking).toEqual({ type: "adaptive" });
+  expect(body.thinking).toEqual({ type: "enabled", keep: "all", budget_tokens: 32000 });
 });
 
-test("thinking:true forces {type:enabled,...} to adaptive for canDisable=false model (umans-kimi)", () => {
+test("thinking:true forces {type:enabled,...} to Kimi Preserved Thinking for canDisable=false model (umans-kimi)", () => {
   const body: AnthropicBody = {
     model: "umans-kimi-k2.7",
     thinking: { type: "enabled", budget_tokens: 1024 } as never,
     messages: [],
   };
   expect(stampThinking(body, { thinking: true })).toBe(true);
-  expect(body.thinking).toEqual({ type: "adaptive" });
+  expect(body.thinking).toEqual({ type: "enabled", keep: "all", budget_tokens: 32000 });
 });
 
-test("thinking:true forces disabled to adaptive when canDisableThinking is false (umans-coder)", () => {
+test("thinking:true forces disabled to Kimi Preserved Thinking when canDisableThinking is false (umans-coder)", () => {
   const body: AnthropicBody = {
     model: "umans-coder",
     thinking: { type: "disabled" } as never,
     messages: [],
   };
   expect(stampThinking(body, { thinking: true })).toBe(true);
-  expect(body.thinking).toEqual({ type: "adaptive" });
+  expect(body.thinking).toEqual({ type: "enabled", keep: "all", budget_tokens: 32000 });
+});
+
+test("thinking:true forces disabled to Kimi Preserved Thinking when canDisableThinking is false (umans-kimi)", () => {
+  const body: AnthropicBody = {
+    model: "umans-kimi-k2.7",
+    thinking: { type: "disabled" } as never,
+    messages: [],
+  };
+  expect(stampThinking(body, { thinking: true })).toBe(true);
+  expect(body.thinking).toEqual({ type: "enabled", keep: "all", budget_tokens: 32000 });
+});
+
+test("thinking:true forces {enabled:false} to Kimi Preserved Thinking when canDisableThinking is false (umans-coder)", () => {
+  const body: AnthropicBody = {
+    model: "umans-coder",
+    thinking: { enabled: false } as never,
+    messages: [],
+  };
+  expect(stampThinking(body, { thinking: true })).toBe(true);
+  expect(body.thinking).toEqual({ type: "enabled", keep: "all", budget_tokens: 32000 });
 });
 
 test("thinking:true respects disabled when canDisableThinking is true (umans-glm)", () => {
@@ -177,30 +198,107 @@ test("thinking:true respects {enabled:false} when canDisableThinking is true (um
   expect(body.thinking as { enabled?: boolean }).toEqual({ enabled: false });
 });
 
-test("thinking:true forces {enabled:false} to adaptive when canDisableThinking is false (umans-coder)", () => {
-  const body: AnthropicBody = {
-    model: "umans-coder",
-    thinking: { enabled: false } as never,
-    messages: [],
-  };
-  expect(stampThinking(body, { thinking: true })).toBe(true);
-  expect(body.thinking).toEqual({ type: "adaptive" });
-});
-
 test("thinking:true does not force when thinking is absent", () => {
   const body: AnthropicBody = { model: "umans-coder", messages: [] };
   expect(stampThinking(body, { thinking: true })).toBe(false);
   expect(body.thinking).toBeUndefined();
 });
 
-test("thinking:true does not re-force when already adaptive", () => {
+// ─── per-family thinkingShape forcing (ADR-0017) ────────────────────────────
+
+test("thinking:true forces non-adaptive to GLM Preserved Thinking for umans-glm* (Z.ai clear_thinking:false)", () => {
+  const body: AnthropicBody = {
+    model: "umans-glm-5.2",
+    thinking: { type: "enabled", budget_tokens: 1024 } as never,
+    messages: [],
+  };
+  expect(stampThinking(body, { thinking: true })).toBe(true);
+  expect(body.thinking).toEqual({ type: "enabled", clear_thinking: false, budget_tokens: 32000 });
+});
+
+test("thinking:true forces adaptive to GLM Preserved Thinking for umans-glm*", () => {
+  const body: AnthropicBody = {
+    model: "umans-glm-5.2",
+    thinking: { type: "adaptive" },
+    messages: [],
+  };
+  expect(stampThinking(body, { thinking: true })).toBe(true);
+  expect(body.thinking).toEqual({ type: "enabled", clear_thinking: false, budget_tokens: 32000 });
+});
+
+test("thinking:true forces disabled to GLM Preserved Thinking when canDisableThinking is false (umans-glm with policy override)", () => {
+  const body: AnthropicBody = {
+    model: "umans-glm-5.2",
+    thinking: { type: "disabled" } as never,
+    messages: [],
+  };
+  expect(
+    stampThinking(body, {
+      thinking: true,
+      policy: { ...matchStampOverlay("umans-glm-5.2"), canDisableThinking: false },
+    }),
+  ).toBe(true);
+  expect(body.thinking).toEqual({ type: "enabled", clear_thinking: false, budget_tokens: 32000 });
+});
+
+test("thinking:true forces adaptive to Kimi Preserved Thinking for umans-coder (keep:all)", () => {
   const body: AnthropicBody = {
     model: "umans-coder",
     thinking: { type: "adaptive" },
     messages: [],
   };
-  expect(stampThinking(body, { thinking: true })).toBe(false);
+  expect(stampThinking(body, { thinking: true })).toBe(true);
+  expect(body.thinking).toEqual({ type: "enabled", keep: "all", budget_tokens: 32000 });
+});
+
+test("thinking:true forces adaptive to Kimi Preserved Thinking for umans-kimi* (keep:all)", () => {
+  const body: AnthropicBody = {
+    model: "umans-kimi-k2.6",
+    thinking: { type: "adaptive" },
+    messages: [],
+  };
+  expect(stampThinking(body, { thinking: true })).toBe(true);
+  expect(body.thinking).toEqual({ type: "enabled", keep: "all", budget_tokens: 32000 });
+});
+
+test("thinking:true keeps adaptive for umans-flash (non-GLM, non-Kimi family)", () => {
+  const body: AnthropicBody = {
+    model: "umans-flash",
+    thinking: { type: "enabled", budget_tokens: 1024 } as never,
+    messages: [],
+  };
+  expect(stampThinking(body, { thinking: true })).toBe(true);
   expect(body.thinking).toEqual({ type: "adaptive" });
+});
+
+test("thinking:true keeps adaptive for umans-qwen* (non-GLM, non-Kimi family)", () => {
+  const body: AnthropicBody = {
+    model: "umans-qwen-72b",
+    thinking: { type: "enabled", budget_tokens: 1024 } as never,
+    messages: [],
+  };
+  expect(stampThinking(body, { thinking: true })).toBe(true);
+  expect(body.thinking).toEqual({ type: "adaptive" });
+});
+
+test("thinking:true does not re-write when body already matches policy thinkingShape (umans-glm)", () => {
+  const body: AnthropicBody = {
+    model: "umans-glm-5.2",
+    thinking: { type: "enabled", clear_thinking: false, budget_tokens: 32000 },
+    messages: [],
+  };
+  expect(stampThinking(body, { thinking: true })).toBe(false);
+  expect(body.thinking).toEqual({ type: "enabled", clear_thinking: false, budget_tokens: 32000 });
+});
+
+test("thinking:true does not re-write when body already matches policy thinkingShape (umans-coder)", () => {
+  const body: AnthropicBody = {
+    model: "umans-coder",
+    thinking: { type: "enabled", keep: "all", budget_tokens: 32000 },
+    messages: [],
+  };
+  expect(stampThinking(body, { thinking: true })).toBe(false);
+  expect(body.thinking).toEqual({ type: "enabled", keep: "all", budget_tokens: 32000 });
 });
 
 // ─── backward compat: no thinking option = no forcing ─────────────────────
