@@ -82,11 +82,11 @@ node -e "
   fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
 "
 
-echo "🔄 Syncing version across files (dashboard/package.json)..."
-bun run scripts/sync-version.ts --sync --allow-untagged
-
 echo "🔄 Updating docs (ROADMAP stamps, docs index)..."
 bun run scripts/update-docs.ts --update
+
+echo "🔄 Syncing version across files (dashboard/package.json)..."
+bun run scripts/sync-version.ts --sync --allow-untagged
 
 # ─── Changelog validation ─────────────────────────────────────────────────
 
