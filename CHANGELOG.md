@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.21] - 2026-07-25
+
+### Added
+
+- **`ttft_max` and `tps_min` performance stats** — the
+  `PERFORMANCE_STATS_SQL` view now computes `MAX(ttft_ms)` and
+  `MIN(tps)`, surfaced alongside the existing mean and percentile
+  columns. The dashboard's Performance tab shows the TTFT max (with
+  "MAX" label) under the average, and the TPS min (with "MIN" label)
+  under the average, giving a clearer worst-case/best-case picture.
+
+### Changed
+
+- **Total In label clarified** — the Anthropic "Total In" subtitle now
+  reads "incl. cache (total token uncached)" instead of the ambiguous
+  "incl. cache".
+- **"thinking" → "think"** — the Total Out thinking-tokens subtitle is
+  shortened to "think" to save horizontal space on the stat tile.
+
 ## [0.3.20] - 2026-07-25
 
 ### Fixed
