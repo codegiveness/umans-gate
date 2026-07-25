@@ -5,6 +5,12 @@ import { Database } from "bun:sqlite";
 // exercise the downsampling job's day-aggregation, completeness, and
 // missing-day backfill paths.
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import {
+  addDays,
+  downsampleDay,
+  downsampleRange,
+  UsageHistoryStore,
+} from "../src/usage-history/index.js";
 import { type CombinedMockHandle, startCombinedMock } from "./helpers/combined-mock";
 import { type ProxyHandle, startProxy } from "./helpers/proxy";
 
@@ -593,5 +599,288 @@ describe("Integration: usage daily (ticket 03)", () => {
       method: "POST",
     });
     expect(res.status).toBe(401);
+  });
+
+  // ─── Regression: stale-today fix (computer not on 24/7) ───
+
+  test("downsampleDay upserts: calling it twice on the same day yields one row with updated values", async () => {
+    const day = utcDate(8);
+    const t0 = utcMidnightMs(8);
+    // First pass: one sample at 10:00 with tokens_in=1000.
+    insertSample(db, {
+      fetched_at: t0 + 10 * 3600_000,
+      plan: "Code Pro",
+      concurrency_soft_limit: 8,
+      concurrency_hard_cap: 16,
+      tokens_in: 1000,
+      tokens_out: 500,
+      tokens_cached: 100,
+    });
+    await triggerDownsample(proxy, day, day);
+    const rows1 = await fetchDaily(proxy, day, day);
+    expect(rows1.length).toBe(1);
+    expect(rows1[0].tokens_in_total).toBe(1000);
+    const firstDownsampledAt = rows1[0].downsampled_at;
+
+    // Second pass: add a later sample at 14:00 with tokens_in=2000. The day
+    // already has a row, so a non-force downsampleRange would skip it. But
+    // the POST /downsample endpoint uses force:true — simulating the 10-min
+    // refresh-today timer which calls downsampleDay directly.
+    insertSample(db, {
+      fetched_at: t0 + 14 * 3600_000,
+      plan: "Code Pro",
+      concurrency_soft_limit: 8,
+      concurrency_hard_cap: 16,
+      tokens_in: 2000,
+      tokens_out: 1000,
+      tokens_cached: 200,
+    });
+    await triggerDownsample(proxy, day, day);
+    const rows2 = await fetchDaily(proxy, day, day);
+    // Still exactly one row — upsert, not insert.
+    expect(rows2.length).toBe(1);
+    // Token totals updated to the new last-sample values.
+    expect(rows2[0].tokens_in_total).toBe(2000);
+    expect(rows2[0].tokens_out_total).toBe(1000);
+    // downsampled_at advanced.
+    expect(rows2[0].downsampled_at).toBeGreaterThanOrEqual(firstDownsampledAt);
+  });
+
+  test("stale today row refreshes after new samples arrive (the core bug)", async () => {
+    const day = utcDate(1);
+    const t0 = utcMidnightMs(1);
+    // Seed one early sample (simulating startup with minimal data).
+    insertSample(db, {
+      fetched_at: t0 + 1 * 3600_000,
+      plan: "Code Pro",
+      concurrency_soft_limit: 8,
+      concurrency_hard_cap: 16,
+      tokens_in: 100,
+      tokens_out: 50,
+      tokens_cached: 10,
+      concurrent_sessions: 1,
+    });
+    await triggerDownsample(proxy, day, day);
+    const before = (await fetchDaily(proxy, day, day))[0];
+    expect(before.tokens_in_total).toBe(100);
+
+    // More samples arrive throughout the "day" (user keeps coding).
+    for (let h = 2; h <= 8; h++) {
+      insertSample(db, {
+        fetched_at: t0 + h * 3600_000,
+        plan: "Code Pro",
+        concurrency_soft_limit: 8,
+        concurrency_hard_cap: 16,
+        tokens_in: 100 + h * 1000,
+        tokens_out: 50 + h * 500,
+        tokens_cached: 10 + h * 100,
+        concurrent_sessions: 1,
+      });
+    }
+    // Force-recompute (what the 10-min timer does via downsampleDay).
+    await triggerDownsample(proxy, day, day);
+    const after = (await fetchDaily(proxy, day, day))[0];
+    // The row now reflects the latest sample, not the startup snapshot.
+    expect(after.tokens_in_total).toBe(100 + 8 * 1000);
+    expect(after.tokens_out_total).toBe(50 + 8 * 500);
+    expect(after.downsampled_at).toBeGreaterThanOrEqual(before.downsampled_at);
+  });
+
+  test("active minutes count session-open intervals even when tokens do not advance", async () => {
+    const day = utcDate(9);
+    const t0 = utcMidnightMs(9);
+    // Two samples 5min apart. tokens identical (no token movement), but
+    // concurrent_sessions=1 in both (session open). Pre-fix this interval
+    // would be skipped (activityKey identical). Post-fix it counts because
+    // the user has an open session — they're "working" (reading/thinking).
+    const base = {
+      plan: "Code Pro",
+      concurrency_soft_limit: 8,
+      concurrency_hard_cap: 16,
+      tokens_in: 1000,
+      tokens_out: 500,
+      tokens_cached: 100,
+      concurrent_sessions: 1,
+      weighted_concurrent_sessions: 1,
+      requests_in_window: 1,
+      weighted_requests_in_window: 1,
+      requests_limit: 480,
+      requests_hard_cap: 720,
+      requests_window_seconds: 21600,
+      requests_remaining: 479,
+      weighted_remaining_requests: 479,
+    };
+    insertSample(db, { ...base, fetched_at: t0 + 10 * 3600_000 });
+    insertSample(db, { ...base, fetched_at: t0 + 10 * 3600_000 + 5 * 60_000 });
+    await triggerDownsample(proxy, day, day);
+    const rows = await fetchDaily(proxy, day, day);
+    expect(rows.length).toBe(1);
+    // The 5-minute session-open interval must count as active.
+    expect(rows[0].accumulated_active_minutes).toBe(5);
+  });
+
+  test("truly idle intervals (concurrent_sessions=0, no token movement) are not counted", async () => {
+    const day = utcDate(9);
+    const t0 = utcMidnightMs(9);
+    // Two samples 5min apart, both with concurrent_sessions=0 and identical
+    // tokens. This is a genuinely idle gap — must NOT count as active.
+    const base = {
+      plan: "Code Pro",
+      concurrency_soft_limit: 8,
+      concurrency_hard_cap: 16,
+      tokens_in: 1000,
+      tokens_out: 500,
+      tokens_cached: 100,
+      concurrent_sessions: 0,
+      weighted_concurrent_sessions: 0,
+      requests_in_window: 0,
+      weighted_requests_in_window: 0,
+      requests_limit: 480,
+      requests_hard_cap: 720,
+      requests_window_seconds: 21600,
+      requests_remaining: 480,
+      weighted_remaining_requests: 480,
+    };
+    insertSample(db, { ...base, fetched_at: t0 + 10 * 3600_000 });
+    insertSample(db, { ...base, fetched_at: t0 + 10 * 3600_000 + 5 * 60_000 });
+    await triggerDownsample(proxy, day, day);
+    const rows = await fetchDaily(proxy, day, day);
+    expect(rows.length).toBe(1);
+    expect(rows[0].accumulated_active_minutes).toBe(0);
+  });
+});
+
+// ─── Direct unit tests: timer code path + retention-aware heal ───
+
+describe("Unit: downsampleDay + retention-aware split (timer code path)", () => {
+  let storeDb: Database;
+  let store: UsageHistoryStore;
+
+  beforeAll(() => {
+    storeDb = new Database(":memory:");
+    store = new UsageHistoryStore({ db: storeDb });
+  });
+
+  afterAll(() => {
+    storeDb.close();
+  });
+
+  test("downsampleDay does not prune raw samples (unlike downsampleRange with force)", () => {
+    const day = utcDate(0);
+    const t0 = utcMidnightMs(0);
+    insertSample(storeDb, {
+      fetched_at: t0 + 10 * 3600_000,
+      tokens_in: 1000,
+      tokens_out: 500,
+      tokens_cached: 100,
+      concurrent_sessions: 1,
+    });
+    downsampleDay(store, day, 60);
+    const count = storeDb.prepare("SELECT COUNT(*) AS n FROM usage_samples").get() as { n: number };
+    expect(count.n).toBe(1);
+  });
+
+  test("downsampleDay upserts: two calls yield one row with updated values and no pruning", () => {
+    const day = utcDate(0);
+    const t0 = utcMidnightMs(0);
+    storeDb
+      .prepare("DELETE FROM usage_samples WHERE fetched_at >= $start AND fetched_at < $end")
+      .run({ $start: t0, $end: t0 + 86400_000 });
+    storeDb.prepare("DELETE FROM usage_daily WHERE day_utc = $day").run({ $day: day });
+
+    insertSample(storeDb, {
+      fetched_at: t0 + 10 * 3600_000,
+      tokens_in: 1000,
+      tokens_out: 500,
+      tokens_cached: 100,
+      concurrent_sessions: 1,
+    });
+    downsampleDay(store, day, 60);
+    const row1 = store.getDailyRow(day);
+    expect(row1?.tokens_in_total).toBe(1000);
+
+    insertSample(storeDb, {
+      fetched_at: t0 + 14 * 3600_000,
+      tokens_in: 2000,
+      tokens_out: 1000,
+      tokens_cached: 200,
+      concurrent_sessions: 1,
+    });
+    downsampleDay(store, day, 60);
+    const row2 = store.getDailyRow(day);
+    const rowCount = storeDb
+      .prepare("SELECT COUNT(*) AS n FROM usage_daily WHERE day_utc = $day")
+      .get({ $day: day }) as { n: number };
+    expect(rowCount.n).toBe(1);
+    expect(row2?.tokens_in_total).toBe(2000);
+    expect(row2!.downsampled_at).toBeGreaterThanOrEqual(row1!.downsampled_at);
+    const sampleCount = storeDb.prepare("SELECT COUNT(*) AS n FROM usage_samples").get() as {
+      n: number;
+    };
+    expect(sampleCount.n).toBe(2);
+  });
+
+  test("retention-aware split: within-retention stale row healed, beyond-retention row preserved", () => {
+    const retentionDays = 7;
+    const today = utcDate(0);
+    const withinDay = utcDate(3);
+    const beyondDay = utcDate(10);
+    const withinT0 = utcMidnightMs(3);
+    const beyondT0 = utcMidnightMs(10);
+
+    // Clean slate for this test.
+    storeDb.prepare("DELETE FROM usage_samples").run();
+    storeDb.prepare("DELETE FROM usage_daily").run();
+
+    insertSample(storeDb, {
+      fetched_at: withinT0 + 8 * 3600_000,
+      tokens_in: 100,
+      tokens_out: 50,
+      tokens_cached: 10,
+      concurrent_sessions: 1,
+    });
+    downsampleDay(store, withinDay, 60);
+    const staleRow = store.getDailyRow(withinDay);
+    expect(staleRow?.tokens_in_total).toBe(100);
+
+    insertSample(storeDb, {
+      fetched_at: withinT0 + 14 * 3600_000,
+      tokens_in: 2000,
+      tokens_out: 1000,
+      tokens_cached: 200,
+      concurrent_sessions: 1,
+    });
+
+    insertSample(storeDb, {
+      fetched_at: beyondT0 + 8 * 3600_000,
+      tokens_in: 500,
+      tokens_out: 250,
+      tokens_cached: 50,
+      concurrent_sessions: 1,
+    });
+    downsampleDay(store, beyondDay, 60);
+    const beyondRow = store.getDailyRow(beyondDay);
+    expect(beyondRow?.tokens_in_total).toBe(500);
+    store.deleteSamplesInRange(beyondDay, beyondDay);
+
+    const retentionCutoffDay = addDays(today, -(retentionDays - 1));
+    if (beyondDay < retentionCutoffDay) {
+      downsampleRange(store, beyondDay, addDays(retentionCutoffDay, -1), {
+        gapThresholdMinutes: 60,
+        retentionDays,
+      });
+    }
+    downsampleRange(store, retentionCutoffDay, today, {
+      gapThresholdMinutes: 60,
+      retentionDays,
+      force: true,
+    });
+
+    const healedRow = store.getDailyRow(withinDay);
+    expect(healedRow?.tokens_in_total).toBe(2000);
+    expect(healedRow?.accumulated_active_minutes).not.toBe(null);
+
+    const preservedRow = store.getDailyRow(beyondDay);
+    expect(preservedRow?.tokens_in_total).toBe(500);
   });
 });

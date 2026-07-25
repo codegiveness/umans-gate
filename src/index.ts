@@ -34,6 +34,7 @@ import { UmansUsageClient } from "./usage.js";
 import {
   addDays,
   dayUtcOf,
+  downsampleDay,
   downsampleRange,
   msUntilNextUtcMidnight,
   pruneOldSamples,
@@ -475,15 +476,31 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
   // Daily downsampling job (ticket 03). Per decision 09: run once at startup
   // for self-healing, then on a UTC-midnight timer.
   let downsampleTimer: ReturnType<typeof setTimeout> | ReturnType<typeof setInterval> | null = null;
+  let refreshTodayTimer: ReturnType<typeof setInterval> | null = null;
   function runDailyDownsample(): void {
     if (!usageHistory) return;
     try {
       const today = dayUtcOf(Date.now());
       const earliest = usageHistory.getEarliestSampleDay();
       const from = earliest ?? addDays(today, -config.usageRawRetentionDays);
-      downsampleRange(usageHistory, from, today, {
+      // Force-recompute days within the retention window: raw samples still
+      // exist for these days, so recomputing is correct and heals any stale
+      // rows left over from a previous startup/midnight that ran with
+      // partial data (e.g. the computer was off at midnight, or the proxy
+      // started before the day's activity began). Days older than retention
+      // are left alone (force=false) — their samples may already be pruned,
+      // so forcing would replace good rows with missing/incomplete ones.
+      const retentionCutoffDay = addDays(today, -(config.usageRawRetentionDays - 1));
+      if (from < retentionCutoffDay) {
+        downsampleRange(usageHistory, from, addDays(retentionCutoffDay, -1), {
+          gapThresholdMinutes: config.usageGapThresholdMinutes,
+          retentionDays: config.usageRawRetentionDays,
+        });
+      }
+      downsampleRange(usageHistory, retentionCutoffDay, today, {
         gapThresholdMinutes: config.usageGapThresholdMinutes,
         retentionDays: config.usageRawRetentionDays,
+        force: true,
       });
       pruneOldSamples(usageHistory, config.usageRawRetentionDays);
     } catch (err) {
@@ -492,17 +509,44 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
       });
     }
   }
+  // Force-recompute today's daily row from its current raw samples. Today is
+  // the only day that accrues new samples after the startup/midnight job; on
+  // a machine that isn't on 24/7 the midnight timer often does not fire, so
+  // without this refresh today's row would be frozen at whatever was present
+  // at startup. `downsampleDay` upserts (INSERT OR REPLACE) and never prunes,
+  // so calling it repeatedly is safe and idempotent.
+  function refreshTodayDaily(): void {
+    if (!usageHistory) return;
+    try {
+      const today = dayUtcOf(Date.now());
+      downsampleDay(usageHistory, today, config.usageGapThresholdMinutes);
+    } catch (err) {
+      log.error("refresh-today downsample failed", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
   if (usageHistory) {
     runDailyDownsample();
+    // Immediately recompute today from the backfilled samples so the heatmap
+    // reflects current-day activity without waiting for the first timer tick.
+    refreshTodayDaily();
     const scheduleNextMidnight = (): void => {
       downsampleTimer = setTimeout(() => {
         runDailyDownsample();
+        refreshTodayDaily();
         downsampleTimer = setInterval(runDailyDownsample, 24 * 60 * 60 * 1000);
         downsampleTimer.unref?.();
       }, msUntilNextUtcMidnight());
       downsampleTimer.unref?.();
     };
     scheduleNextMidnight();
+    // Refresh today every 10 minutes. Max heatmap staleness = 10 min. The
+    // dashboard polls /usage/daily every 60s, so a refreshed row lands within
+    // 10 min of the underlying activity. `.unref()` so it doesn't hold the
+    // process open on shutdown.
+    refreshTodayTimer = setInterval(refreshTodayDaily, 10 * 60 * 1000);
+    refreshTodayTimer.unref?.();
   }
 
   async function applyLimitsFromSource(
@@ -884,6 +928,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     usage.stop();
     if (rewritePruneTimer) clearInterval(rewritePruneTimer);
     if (downsampleTimer) clearTimeout(downsampleTimer as ReturnType<typeof setTimeout>);
+    if (refreshTodayTimer) clearInterval(refreshTodayTimer);
 
     server.stop(false);
 

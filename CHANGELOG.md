@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.23] - 2026-07-25
+
+### Fixed
+
+- **Usage heatmap stale daily rows** — the Usage tab heatmap could show 0
+  work hours for days with 10+ hours of active coding. Two root causes fixed:
+  1. **Stale today row** (`src/index.ts`): the daily downsample job computed
+     today's row at startup or UTC midnight with whatever samples existed at
+     that moment, then never refreshed it. On machines that are not on 24/7,
+     the UTC-midnight timer frequently does not fire, leaving today's row
+     frozen at startup values. Fix: a new `refreshTodayDaily()` timer now
+     calls `downsampleDay` directly every 10 minutes, keeping today's row
+     current throughout the session. Additionally, `runDailyDownsample`
+     now force-recomputes all within-retention days at startup and midnight,
+     healing stale rows left over from previous runs (e.g. Monday's row at
+     Tuesday's startup). Beyond-retention days are left untouched (raw
+     samples may be pruned, so recompute would destroy good rows).
+  2. **Active-minutes undercount** (`src/usage-history/daily.ts`): the
+     `computeDailyRow` algorithm skipped any 60-second interval where the
+     `activityKey` (tokens_in, tokens_out, tokens_cached,
+     concurrent_sessions) was identical between two consecutive samples.
+     For bursty coding traffic, many 60-second windows had no new token
+     movement, so session-open intervals (reading, thinking, waiting on a
+     generation) were not counted. Fix: the skip is now gated on
+     `concurrent_sessions === 0` in both samples — if a session is open,
+     the interval counts as active even without token movement.
+
 ## [0.3.22] - 2026-07-25
 
 ### Changed

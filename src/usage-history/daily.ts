@@ -239,7 +239,15 @@ export function computeDailyRow(input: DownsampleDayInput): UsageDailyRow {
       continue;
     }
     if (activityKey(prev) === activityKey(next)) {
-      continue;
+      // Skip only when truly idle: no concurrent session in either sample.
+      // If a session is open (concurrent_sessions > 0) the user is "working"
+      // even if no tokens advanced during this 60s poll window (reading code,
+      // waiting on a long generation, thinking). This makes "active minute"
+      // mean "minute with an open session" rather than "minute with token
+      // throughput" — which is what the work-hours heatmap is meant to show.
+      if (prev.concurrent_sessions === 0 && next.concurrent_sessions === 0) {
+        continue;
+      }
     }
     const intervalMin = intervalMs / MS_PER_MINUTE;
     accumulatedActiveMinutes += intervalMin;
