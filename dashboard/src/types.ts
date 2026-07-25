@@ -46,11 +46,13 @@ export interface PerformanceStatsRow {
   total_thinking_tokens: number;
   cached_pct: number;
   ttft_mean: number | null;
+  ttft_max: number | null;
   ttft_p10: number | null;
   ttft_p50: number | null;
   ttft_p95: number | null;
   ttft_outlier_count: number;
   tps_mean: number | null;
+  tps_min: number | null;
   tps_p10: number | null;
   tps_p50: number | null;
   tps_p95: number | null;

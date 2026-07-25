@@ -13,15 +13,36 @@ export function fmtAvgMs(mean: number | null): string {
   return fmtMs(mean);
 }
 
+/** Format a max value in ms (e.g. "800ms" or "1.50s"). */
+export function fmtMaxMs(max: number | null): string {
+  return fmtMs(max);
+}
+
 /** Format an average value in TPS (e.g. "22.0"). */
 export function fmtAvgTps(mean: number | null): string {
   if (mean == null) return "—";
   return mean.toFixed(1);
 }
 
+/** Format a min value in TPS (e.g. "12.0"). */
+export function fmtMinTps(min: number | null): string {
+  if (min == null) return "—";
+  return min.toFixed(1);
+}
+
 /** Small "avg" label shown next to the primary average value. */
 export function fmtAvgLabel(mean: number | null): string | undefined {
   return mean == null ? undefined : "AVG";
+}
+
+/** Small "max" label shown next to the TTFT max value. */
+export function fmtMaxLabel(max: number | null): string | undefined {
+  return max == null ? undefined : "MAX";
+}
+
+/** Small "min" label shown next to the TPS min value. */
+export function fmtMinLabel(min: number | null): string | undefined {
+  return min == null ? undefined : "MIN";
 }
 
 /** Format percentile sub-line (e.g. "p10: 80ms · p50: 250ms · p95: 480ms"). */

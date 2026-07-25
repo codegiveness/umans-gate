@@ -17,11 +17,13 @@ const mockRow = vi.hoisted(() => {
     total_thinking_tokens: 3000,
     cached_pct: 60.0,
     ttft_mean: 500,
+    ttft_max: 800,
     ttft_p10: 200,
     ttft_p50: 450,
     ttft_p95: 800,
     ttft_outlier_count: 0,
     tps_mean: 22.0,
+    tps_min: 12.0,
     tps_p10: 15.0,
     tps_p50: 22.0,
     tps_p95: 30.0,
@@ -71,6 +73,9 @@ describe("PerformanceMeter", () => {
     expect(container).toHaveTextContent("500ms");
     // AVG label shown next to primary value
     expect(container).toHaveTextContent("AVG");
+    // Max sub-line: 800ms MAX
+    expect(container).toHaveTextContent("800ms");
+    expect(container).toHaveTextContent("MAX");
     // Percentile sub-line: p10: 200ms · p50: 450ms · p95: 800ms
     expect(container).toHaveTextContent("p10: 200ms");
     expect(container).toHaveTextContent("p50: 450ms");
@@ -85,6 +90,9 @@ describe("PerformanceMeter", () => {
     expect(container).toHaveTextContent("22.0");
     // AVG label shown next to primary value
     expect(container).toHaveTextContent("AVG");
+    // Min sub-line: 12.0 MIN
+    expect(container).toHaveTextContent("12.0");
+    expect(container).toHaveTextContent("MIN");
     // Percentile sub-line: p10: 15.0 · p50: 22.0 · p95: 30.0
     expect(container).toHaveTextContent("p10: 15.0");
     expect(container).toHaveTextContent("p50: 22.0");
@@ -107,7 +115,7 @@ describe("PerformanceMeter", () => {
     await flushEffects();
 
     // mockRow: total_thinking_tokens = 3000, total_output_tokens = 12000 → 25.0%
-    expect(container).toHaveTextContent("3.0K thinking");
+    expect(container).toHaveTextContent("3.0K think");
     expect(container).toHaveTextContent("(25.0%)");
   });
 
@@ -122,8 +130,8 @@ describe("PerformanceMeter", () => {
     const { container } = render(<PerformanceMeter />);
     await flushEffects();
 
-    expect(container).toHaveTextContent("3.0K thinking");
-    expect(container).not.toHaveTextContent("(");
+    expect(container).toHaveTextContent("3.0K think");
+    expect(container.textContent).not.toMatch(/think \(\d+\.\d+%\)/);
   });
 
   it("Total Out StatTile omits thinking subtitle when zero", async () => {
@@ -137,7 +145,7 @@ describe("PerformanceMeter", () => {
     const { container } = render(<PerformanceMeter />);
     await flushEffects();
 
-    expect(container).not.toHaveTextContent("thinking");
+    expect(container).not.toHaveTextContent("think");
   });
 
   it("keeps model cards visible when error and stats coexist", async () => {

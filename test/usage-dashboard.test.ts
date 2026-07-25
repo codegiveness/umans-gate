@@ -244,10 +244,12 @@ describe("SQL DDL: schema + views execute on SQLite", () => {
       model: string;
       request_count: number;
       ttft_mean: number | null;
+      ttft_max: number | null;
       ttft_p10: number | null;
       ttft_p50: number | null;
       ttft_p95: number | null;
       tps_mean: number | null;
+      tps_min: number | null;
       tps_p10: number | null;
       tps_p50: number | null;
       tps_p95: number | null;
@@ -255,11 +257,13 @@ describe("SQL DDL: schema + views execute on SQLite", () => {
     const modelNull = rows.find((r) => r.model === "model-null");
     expect(modelNull).toBeDefined();
     expect(modelNull!.request_count).toBe(5);
-    // Non-null tps values are [10, 20, 30]; mean=20
+    // Non-null tps values are [10, 20, 30]; mean=20, min=10
     expect(modelNull!.tps_mean).toBe(20);
+    expect(modelNull!.tps_min).toBe(10);
     expect(modelNull!.tps_p50).toBe(20);
-    // Non-null ttft values are [100, 200, 300]; mean=200
+    // Non-null ttft values are [100, 200, 300]; mean=200, max=300
     expect(modelNull!.ttft_mean).toBe(200);
+    expect(modelNull!.ttft_max).toBe(300);
     expect(modelNull!.ttft_p50).toBe(200);
 
     // Insert a model with all-null tps/ttft — stats should be null
@@ -273,13 +277,17 @@ describe("SQL DDL: schema + views execute on SQLite", () => {
       model: string;
       request_count: number;
       tps_mean: number | null;
+      tps_min: number | null;
       ttft_mean: number | null;
+      ttft_max: number | null;
     }>;
     const allNull = afterAllNull.find((r) => r.model === "model-all-null");
     expect(allNull).toBeDefined();
     expect(allNull!.request_count).toBe(3);
     expect(allNull!.tps_mean).toBeNull();
+    expect(allNull!.tps_min).toBeNull();
     expect(allNull!.ttft_mean).toBeNull();
+    expect(allNull!.ttft_max).toBeNull();
   });
 
   test("PERFORMANCE_STATS_SQL computes nearest-rank percentiles for clustered values", () => {
@@ -295,10 +303,12 @@ describe("SQL DDL: schema + views execute on SQLite", () => {
       model: string;
       request_count: number;
       ttft_mean: number;
+      ttft_max: number;
       ttft_p10: number;
       ttft_p50: number;
       ttft_p95: number;
       tps_mean: number;
+      tps_min: number;
       tps_p10: number;
       tps_p50: number;
       tps_p95: number;
@@ -307,15 +317,17 @@ describe("SQL DDL: schema + views execute on SQLite", () => {
     expect(pct).toBeDefined();
     expect(pct!.request_count).toBe(10);
 
-    // TTFT values are 100..190 (step 10); mean = (100+190)/2 = 145
+    // TTFT values are 100..190 (step 10); mean = (100+190)/2 = 145, max = 190
     expect(pct!.ttft_mean).toBe(145);
+    expect(pct!.ttft_max).toBe(190);
     // nearest-rank: ceil(0.10*10)=1 → value 100; ceil(0.50*10)=5 → value 140; ceil(0.95*10)=10 → value 190
     expect(pct!.ttft_p10).toBe(100);
     expect(pct!.ttft_p50).toBe(140);
     expect(pct!.ttft_p95).toBe(190);
 
-    // TPS values are 50..59 (integer); mean = (50+59)/2 = 54.5
+    // TPS values are 50..59 (integer); mean = (50+59)/2 = 54.5, min = 50
     expect(pct!.tps_mean).toBe(54.5);
+    expect(pct!.tps_min).toBe(50);
     expect(pct!.tps_p10).toBe(50);
     expect(pct!.tps_p50).toBe(54);
     expect(pct!.tps_p95).toBe(59);

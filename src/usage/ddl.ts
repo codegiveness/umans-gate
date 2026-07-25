@@ -92,10 +92,12 @@ SELECT
     ELSE 0
   END AS cached_pct,
   AVG(r.ttft_ms) AS ttft_mean,
+  MAX(r.ttft_ms) AS ttft_max,
   MAX(p.ttft_p10)      AS ttft_p10,
   MAX(p.ttft_p50)      AS ttft_p50,
   MAX(p.ttft_p95)      AS ttft_p95,
   AVG(r.tps) AS tps_mean,
+  MIN(r.tps) AS tps_min,
   MAX(p.tps_p10)       AS tps_p10,
   MAX(p.tps_p50)       AS tps_p50,
   MAX(p.tps_p95)       AS tps_p95
