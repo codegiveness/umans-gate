@@ -1,5 +1,6 @@
 // Shared types for the umans-gate capture proxy.
 
+import type { VersionInfo } from "./updater.js";
 import type { UsageMetrics } from "./usage-extract.js";
 
 /** HTTP protocol used for the upstream connection. */
@@ -151,7 +152,8 @@ export type WsMessage =
       tupleKind: "priority" | "service_mode";
       transition: "onset" | "resolved" | "morph";
       fetchedAt: number;
-    };
+    }
+  | { type: "version"; version: VersionInfo };
 
 /** Configuration object resolved from environment variables. */
 export interface ProxyConfig {

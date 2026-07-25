@@ -24,6 +24,12 @@ export interface UsageEventWsDetail {
   fetchedAt: number;
 }
 
+/** Window event dispatched by useCapturesSocket when a `version` WS message
+ *  arrives (ticket 02). `detail` carries the latest VersionInfo. */
+export const VERSION_EVENT = "umans-gate:version";
+
+export type VersionWsDetail = import("../hooks/use-version").VersionInfo;
+
 /** Maximum captures retained in the frontend list. Matches the REST fetch limit
  *  so WS-driven growth doesn't diverge from the server's ring buffer. */
 export const MAX_CAPTURES = 200;

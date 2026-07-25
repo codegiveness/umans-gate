@@ -154,9 +154,7 @@ function VersionCard({
                     ? "already up to date"
                     : updateError === "not_service_managed"
                       ? "not running as a service"
-                      : updateError === "token_not_set"
-                        ? "dashboard token not configured"
-                        : "unexpected error"}
+                      : "unexpected error"}
                 </p>
                 <Button
                   size="sm"
@@ -268,9 +266,7 @@ function VersionCard({
           <AlertDialogHeader>
             <AlertDialogTitle>Cannot update automatically</AlertDialogTitle>
             <AlertDialogDescription>
-              {version.canUpdateReason === "no_token" ? (
-                "One-click update requires DASHBOARD_TOKEN to be set. Configure it in the Config tab and restart the server."
-              ) : version.canUpdateReason === "no_service" ? (
+              {version.canUpdateReason === "no_service" ? (
                 <>
                   One-click update requires the proxy to run as a managed service. Run{" "}
                   <code className="rounded bg-muted px-1 py-0.5 text-xs">

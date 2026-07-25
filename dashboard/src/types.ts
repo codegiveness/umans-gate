@@ -184,7 +184,8 @@ export type WsMessage =
       tupleKind: "priority" | "service_mode";
       transition: "onset" | "resolved" | "morph";
       fetchedAt: number;
-    };
+    }
+  | { type: "version"; version: import("./hooks/use-version").VersionInfo };
 
 export interface ServiceMode {
   current: string;

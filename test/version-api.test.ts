@@ -49,11 +49,18 @@ describe("version API — without dashboard token", () => {
     expect(typeof data.lastCheckedAt).toBe("number");
   });
 
-  test("canUpdate is false and canUpdateReason is no_token without dashboard token", async () => {
+  test("canUpdate reflects service state without dashboard token", async () => {
     const res = await fetch(`${proxy.baseUrl}/dashboard/api/version/check`, { method: "POST" });
     const data = (await res.json()) as VersionInfo;
-    expect(data.canUpdate).toBe(false);
-    expect(data.canUpdateReason).toBe("no_token");
+    // Token no longer gates update; only service-manager check applies.
+    const serviceInstalled = await isServiceInstalled();
+    if (serviceInstalled) {
+      expect(data.canUpdate).toBe(true);
+      expect(data.canUpdateReason).toBeNull();
+    } else {
+      expect(data.canUpdate).toBe(false);
+      expect(data.canUpdateReason).toBe("no_service");
+    }
   });
 });
 
@@ -123,12 +130,19 @@ describe("update API — POST /dashboard/api/update", () => {
       await proxy.kill();
     });
 
-    test("returns 400 token_not_set when no dashboard token is configured", async () => {
+    test("returns not_service_managed when no service installed (token no longer required)", async () => {
+      const serviceInstalled = await isServiceInstalled();
       const res = await fetch(`${proxy.baseUrl}/dashboard/api/update`, { method: "POST" });
-      expect(res.status).toBe(400);
-      const data = (await res.json()) as { ok: boolean; error: string };
-      expect(data.ok).toBe(false);
-      expect(data.error).toBe("token_not_set");
+      const data = (await res.json()) as { ok: boolean; error?: string; targetVersion?: string };
+      if (serviceInstalled) {
+        // Service installed but no update is available in the test env.
+        expect(data.ok).toBe(false);
+        expect(data.error === "already_up_to_date").toBe(true);
+      } else {
+        expect(res.status).toBe(400);
+        expect(data.ok).toBe(false);
+        expect(data.error).toBe("not_service_managed");
+      }
     });
   });
 

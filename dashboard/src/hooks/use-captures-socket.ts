@@ -6,6 +6,7 @@ import {
   USAGE_SAMPLE_EVENT,
   type UsageEventWsDetail,
   type UsageSampleWsDetail,
+  VERSION_EVENT,
 } from "@/lib/constants";
 import type { CaptureState, CaptureSummary, GateStats, WsMessage } from "@/types";
 
@@ -112,6 +113,9 @@ export function useCapturesSocket({
           fetchedAt: msg.fetchedAt,
         };
         window.dispatchEvent(new CustomEvent(USAGE_EVENT_EVENT, { detail }));
+      },
+      version: (msg) => {
+        window.dispatchEvent(new CustomEvent(VERSION_EVENT, { detail: msg.version }));
       },
     };
 

@@ -28,7 +28,7 @@ import type { CaptureStore } from "./queue.js";
 import { WriteQueue } from "./queue.js";
 import { SlidingWindowRateLimiter } from "./rate.js";
 import type { GateStats, ProxyConfig, UsageSnapshot } from "./types.js";
-import { refreshVersionCheck } from "./updater.js";
+import { getCachedVersionInfo, refreshVersionCheck } from "./updater.js";
 import { selectMostUrgentBudget } from "./usage/budget.js";
 import { UmansUsageClient } from "./usage.js";
 import {
@@ -858,9 +858,13 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     },
   });
 
-  void refreshVersionCheck(pkg.version, config.dashboardToken).catch(() => {
-    // Network errors are captured into VersionInfo.error internally.
-  });
+  void refreshVersionCheck(pkg.version)
+    .then(() => {
+      ws.broadcast({ type: "version", version: getCachedVersionInfo(pkg.version) });
+    })
+    .catch(() => {
+      // Network errors are captured into VersionInfo.error internally.
+    });
 
   if (options.banner !== false) {
     printBanner(config);

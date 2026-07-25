@@ -601,18 +601,15 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
       method: "POST",
       pattern: `${VIEWER}/api/version/check`,
       handler: async (ctx) => {
-        await refreshVersionCheck(pkg.version, ctx.config.dashboardToken);
+        await refreshVersionCheck(pkg.version);
+        ctx.ws.broadcast({ type: "version", version: getCachedVersionInfo(pkg.version) });
         return Response.json(getCachedVersionInfo(pkg.version));
       },
     },
     {
       method: "POST",
       pattern: `${VIEWER}/api/update`,
-      handler: (ctx) => {
-        // Pre-flight: token must be configured for one-click update to be safe.
-        if (!ctx.config.dashboardToken) {
-          return Response.json({ ok: false, error: "token_not_set" }, { status: 400 });
-        }
+      handler: () => {
         // Pre-flight: must be running as a managed service so the process
         // comes back after stop/start.
         return (async () => {

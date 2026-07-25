@@ -203,18 +203,6 @@ describe("VersionSection update button", () => {
     expect(btn).not.toBeDisabled();
   });
 
-  it("opens blocker dialog with DASHBOARD_TOKEN guidance when canUpdate=false and reason is no_token", async () => {
-    const user = userEvent.setup();
-    mockVersionGet({ ...versionData, canUpdate: false, canUpdateReason: "no_token" });
-    render(<VersionSection />);
-    const btn = await screen.findByRole("button", { name: /Update to v0\.3\.15/i });
-    expect(btn).not.toBeDisabled();
-    await user.click(btn);
-    expect(screen.getByText(/Cannot update automatically/i)).toBeInTheDocument();
-    expect(screen.getByText(/DASHBOARD_TOKEN/i)).toBeInTheDocument();
-    expect(screen.queryByText(/Update to v0\.3\.15\?/i)).not.toBeInTheDocument();
-  });
-
   it("opens blocker dialog with service install guidance when canUpdate=false and reason is no_service", async () => {
     const user = userEvent.setup();
     mockVersionGet({ ...versionData, canUpdate: false, canUpdateReason: "no_service" });

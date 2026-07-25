@@ -411,7 +411,7 @@ export interface VersionInfo {
   /** Release notes (markdown) from the GitHub Release when `updateAvailable` is true, else `null`. */
   releaseNotes: string | null;
   canUpdate: boolean;
-  /** `null`, `"no_service"`, or `"no_token"`. */
+  /** `null` or `"no_service"`. */
   canUpdateReason: string | null;
 }
 
@@ -434,12 +434,9 @@ export function getCachedVersionInfo(currentVersion: string): VersionInfo {
 
 /**
  * Fetch the latest version, compare against `currentVersion`, update the cache.
- * Token check takes precedence over service check.
+ * `canUpdate` is true iff a service manager is installed.
  */
-export async function refreshVersionCheck(
-  currentVersion: string,
-  dashboardToken: string | null,
-): Promise<VersionInfo> {
+export async function refreshVersionCheck(currentVersion: string): Promise<VersionInfo> {
   const { version: latest, error } = await fetchLatestVersion();
 
   const updateAvailable = latest !== null && compareVersions(currentVersion, latest) < 0;
@@ -452,18 +449,9 @@ export async function refreshVersionCheck(
     }
   }
 
-  let canUpdate = false;
-  let canUpdateReason: string | null = null;
-  if (!dashboardToken) {
-    canUpdateReason = "no_token";
-  } else {
-    const installed = await isServiceInstalled();
-    if (!installed) {
-      canUpdateReason = "no_service";
-    } else {
-      canUpdate = true;
-    }
-  }
+  const installed = await isServiceInstalled();
+  const canUpdate = installed;
+  const canUpdateReason: string | null = installed ? null : "no_service";
 
   versionCache = {
     current: currentVersion,

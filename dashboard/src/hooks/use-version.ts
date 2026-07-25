@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { apiFetch } from "@/lib/api";
-import { VERSION_API_BASE } from "@/lib/constants";
+import { VERSION_API_BASE, VERSION_EVENT } from "@/lib/constants";
 
 export interface VersionInfo {
   current: string;
@@ -25,6 +25,8 @@ export function useVersion(): UseVersionResult {
   const [version, setVersion] = useState<VersionInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState(false);
+  const setVersionRef = useRef(setVersion);
+  setVersionRef.current = setVersion;
 
   const fetchVersion = useCallback(async () => {
     try {
@@ -52,6 +54,19 @@ export function useVersion(): UseVersionResult {
       cancelled = true;
     };
   }, [fetchVersion]);
+
+  useEffect(() => {
+    function handler(e: Event) {
+      const detail = (e as CustomEvent<VersionInfo>).detail;
+      if (detail && typeof detail.current === "string") {
+        setVersionRef.current(detail);
+      }
+    }
+    window.addEventListener(VERSION_EVENT, handler);
+    return () => {
+      window.removeEventListener(VERSION_EVENT, handler);
+    };
+  }, []);
 
   const checkNow = useCallback(async () => {
     setChecking(true);
