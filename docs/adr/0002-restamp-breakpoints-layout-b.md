@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed — supersedes the rejection in ADR 0001 §"Stabilize historical messages".
+Accepted — supersedes the rejection in ADR 0001 §"Stabilize historical messages". Implemented in `src/stamp-pipeline.ts` (`RestampBreakpointsStep`).
 
 ## Context
 
@@ -103,9 +103,6 @@ restamp is off.
   already have Claude Code style enabled — which is the intended audience
   (the drops only affect Anthropic-route traffic that Claude Code style
   targets anyway).
-- ADR 0001's cause #2 should be read as "Breakpoint repositioning" per
-  the corrected `CONTEXT.md` glossary, not as "context compaction /
-  message mutation."
 - ADR 0001's cause #2 should be read as "Breakpoint repositioning" per
   the corrected `CONTEXT.md` glossary, not as "context compaction /
   message mutation."

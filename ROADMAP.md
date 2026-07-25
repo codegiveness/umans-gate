@@ -1,12 +1,12 @@
 # Roadmap
 
-> **Applies to:** umans-gate v0.3.19 · **Last updated:** 2026-07-25
+> **Applies to:** umans-gate v0.3.20 · **Last updated:** 2026-07-25
 
 This document outlines the planned direction for umans-gate. It is a living
 document — priorities may shift based on upstream API changes and personal
 development needs.
 
-## Current State (v0.3.18)
+## Current State (v0.3.19)
 
 - ✅ Capture proxy with SQLite storage, WAL mode, and zstd body compression
 - ✅ Anthropic `cache_control` TTL stamping via unified stamp pipeline

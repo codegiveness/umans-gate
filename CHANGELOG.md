@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.20] - 2026-07-25
+
+### Fixed
+
+- **AGENTS.md private paths** — v0.3.19 published AGENTS.md with private
+  local paths (absolute home directory, VMware mount). Sanitized: removed
+  all absolute home paths, mount references, and username. Database
+  name corrected from stale `capture.db` to `umans-gate.db`.
+- **docs/ARCHITECTURE.md** — `context_management` injection condition
+  corrected from "anthropic-version is 2023-06-01" to actual gate:
+  `stampClaudeCode && !isOpenAi && thinking enabled`. Worker pipeline
+  description corrected from "offloads writes" to "exists but disabled".
+- **README.md** — `CONCURRENCY_HARD_CAP`/`SOFT_LIMIT` descriptions
+  corrected from "non-configurable" to "auto-derived from `/v1/usage`".
+- **docs/proxy-modifications.md** — 4 nonexistent constants removed,
+  HOP set path fixed (`helpers.ts` → `shared/http-headers.ts`), 15+ stale
+  line number references updated, `warmer_path` corrected to hardcoded.
+- **ROADMAP.md** — Current State version stamp fixed (v0.3.18 → v0.3.19).
+
+### Changed
+
+- **ADR-0006** — `model-policy.ts` references corrected to `stamp-catalog.ts`.
+- **ADR-0008** — added superseded-by note pointing to ADR-0011.
+- **ADR-0002** — status updated from "Proposed" to "Accepted"; duplicated
+  paragraph removed.
+- **ADR-0004** — status updated from "Proposed" to "Accepted".
+- **ADR-0013** — status updated from "proposed" to "Accepted".
+- **ADR-0014** — "Applies to" stamp updated from v0.3.18+ to v0.3.19+.
+- **ADR-0005** — handoff.ts line count prediction corrected from ~500 to ~638.
+
+### Added
+
+- **scripts/scan-private-info.sh** — CI gate that blocks absolute home
+  paths, VMware mount paths, and usernames from tracked files. Runs on
+  every PR/push and pre-release.
+
 ## [0.3.19] - 2026-07-25
 
 ### Changed
@@ -22,13 +58,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   config, dev workflow, code style, SOLID principles, testing, release
   process, and common mistakes. AI-agent behavioral rules stay in the
   private `CLAUDE.md` (gitignored). (ADR-0014)
-- **docs/adr/ is now public** — 14 existing ADRs (ADR-0001 through
-  ADR-0013) were gitignored and invisible to public contributors. Now
+- **docs/adr/ is now public** — 15 existing ADRs (ADR-0001 through
+  ADR-0014) were gitignored and invisible to public contributors. Now
   tracked. Reviewed for private info — none found. (ADR-0014)
 - **All docs stamps updated** — `docs/ARCHITECTURE.md`,
   `docs/BENCHMARKS.md`, `docs/PRODUCT.md`, `docs/TROUBLESHOOTING.md`,
   `docs/proxy-modifications.md` were stamped v0.1.4 (14 versions stale).
-  All now stamped v0.3.18. `update-docs.ts` extended to update all
+  All now stamped v0.3.19. `update-docs.ts` extended to update all
   docs/*.md stamps automatically on every release. (ADR-0014)
 
 ### Added

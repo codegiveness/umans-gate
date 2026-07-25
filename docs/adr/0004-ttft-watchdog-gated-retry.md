@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed.
+Accepted. Implemented in `src/experiments/ttft-watchdog-state.ts` with config fields (`ttft_watchdog_*`) and tests.
 
 ## Context
 

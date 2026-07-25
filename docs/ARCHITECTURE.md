@@ -1,6 +1,6 @@
 # Architecture
 
-> **Applies to:** umans-gate v0.3.19 · **Last updated:** 2026-07-25
+> **Applies to:** umans-gate v0.3.20 · **Last updated:** 2026-07-25
 
 This document describes the system architecture, data flow, and key design
 decisions of umans-gate.
@@ -58,7 +58,7 @@ defined order when `stamp_claude_code_enabled` is on:
 2. **`top_k` injection** (`stamp-topk.ts`) — injects `top_k: 20` after `model`
 3. **`temperature` stamping** (`stamp-temperature.ts`) — forces `temperature: 1.0`
 4. **`max_tokens` / `thinking` / `output_config`** (`stamp-thinking.ts`) — model-aware injection
-5. **`context_management`** — injected when `anthropic-version` is `2023-06-01`
+5. **`context_management`** — injected when `stamp_claude_code_enabled` is on, route is Anthropic, and thinking is enabled
 
 For OpenAI-compatible requests, `stamp-reasoning.ts` handles
 `reasoning_effort` injection separately.
@@ -100,7 +100,7 @@ For OpenAI-compatible requests, `stamp-reasoning.ts` handles
         │
         ▼
 ┌───────────────────┐
-│ 5. context_mgmt   │  injected when anthropic-version = 2023-06-01
+│ 5. context_mgmt   │  injected when stampClaudeCode && !isOpenAi && thinking enabled
 │   + clear_thinking │  → { edits: [{ type: clear_thinking_20251015,
 │     keep: "all"   │       keep: "all" }] }
 └───────┬───────────┘
@@ -164,7 +164,7 @@ TransformStream → write-behind queue → worker → SQLite (WAL)
 
 - Request/response bodies captured at the TransformStream layer
 - WriteQueue (`src/queue.ts`) batches writes to minimize I/O blocking
-- Worker pipeline (`src/workers/`) offloads capture writes from the main thread
+- Worker pipeline (`src/workers/`) exists but is disabled (`useWriteWorker = false` in config/loader.ts)
 - Bodies optionally compressed with zstd (`src/compress.ts`)
 - Ring buffer: oldest captures evicted when `max_captures` is exceeded
 

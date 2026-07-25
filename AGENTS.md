@@ -5,16 +5,11 @@ human contributors working on this repository.
 
 ## Project paths
 
-- **This project** (`~/umans-gate`): the active Bun-based proxy.
-- **Do NOT confuse** with `/mnt/hgfs/Windows/umans-gate` (old, discontinued
-  Rust rewrite). They share a name but are different codebases. The old Rust
-  project still exists on disk with `Cargo.toml` and `crates/`, but **no Rust
-  code is used by this project** — it is pure Bun/TypeScript.
+- **This project** (`umans-gate`): a Bun-based LLM capture proxy. Pure
+  Bun/TypeScript — no Rust code is used.
 
-The old Rust project left a 110 MB `capture.db` at
-`/home/agungliang168/capture.db`. The active project's database lives at
-`./capture.db` (relative to the project root). When inspecting capture data,
-always read from the project's own `capture.db`, never the home-directory one.
+The project's database lives at `./umans-gate.db` (relative to the
+project root). When inspecting capture data, read from this file only.
 
 ## Project overview
 
@@ -77,12 +72,16 @@ The dashboard's Config tab can save changes and trigger a hot reload
 via `POST /dashboard/api/config/reload`. Hot-reloadable fields (e.g.
 `stamp_claude_code_enabled`, `breaker_*`, `rate_limit_*`) apply live;
 fields marked `restartRequired` (e.g. `port`, `db_path`,
-`upstream_protocol`, `vision_*`) require a server restart.
+`upstream_protocol`) require a server restart. The 7 intent-aware
+vision fields (`vision_intent_strategy`, `vision_decomposition_enabled`,
+`vision_decomposition_timeout_ms`, `vision_crafting_timeout_ms`,
+`vision_adjacent_text_max_chars`, `vision_recent_messages_count`,
+`vision_system_prompt_max_chars`) are hot-reloadable.
 
 ## Development workflow
 
 ```bash
-bun install                  # Install deps (use npm install --no-bin-links on vmhgfs)
+bun install                  # Install deps
 bun run dev                  # Start proxy server (reads config.json + env)
 bun run typecheck            # TypeScript checking
 bun run lint                 # Biome lint

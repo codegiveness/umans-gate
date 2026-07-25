@@ -1,7 +1,7 @@
 # Catalog-driven stamp policy via local overlay
 
 The stamp pipeline made model-aware decisions via hardcoded prefix
-matching scattered across `model-policy.ts`, `stamp-thinking.ts`, and
+matching scattered across `stamp-catalog.ts`, `stamp-thinking.ts`, and
 `stamp-topk.ts`:
 
 ```typescript
@@ -52,7 +52,7 @@ const STAMP_OVERLAY: Record<string, StampPolicy> = {
 
 ### Consumers
 
-`model-policy.ts` shrinks to a single lookup:
+`stamp-catalog.ts` shrinks to a single lookup:
 
 ```typescript
 function resolveStampPolicy(modelName, catalog): StampPolicy {
@@ -88,7 +88,7 @@ of truth: the catalog answers "what should we stamp this model with?"
 
 ## Consequences
 
-- `model-policy.ts` shrinks from scattered `startsWith` branches to a
+- `stamp-catalog.ts` shrinks from scattered `startsWith` branches to a
   single `resolveStampPolicy(modelName, catalog)` lookup.
 - Adding a new model family is a single row in `STAMP_OVERLAY`, not
   code changes across 3+ files.

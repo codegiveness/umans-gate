@@ -1,6 +1,6 @@
 # Dashboard body-state distinction and update-button UX
 
-**Status**: proposed
+**Status**: Accepted. Implemented in `dashboard/src/components/body-renderer.tsx`, `capture-detail.tsx`, `version-section.tsx`, and `usage-heatmap.tsx`.
 
 ## Context
 

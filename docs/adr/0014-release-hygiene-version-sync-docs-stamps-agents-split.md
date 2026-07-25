@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-25
 **Status:** Accepted
-**Applies to:** umans-gate v0.3.18+
+**Applies to:** umans-gate v0.3.19+
 
 ## Context
 

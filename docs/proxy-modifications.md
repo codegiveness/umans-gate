@@ -1,6 +1,6 @@
 # Proxy Modifications Inventory
 
-> **Applies to:** umans-gate v0.3.19 · **Last updated:** 2026-07-25
+> **Applies to:** umans-gate v0.3.20 · **Last updated:** 2026-07-25
 
 Complete inventory of every modification the umans-gate proxy applies to
 request/response traffic. Grouped by layer: HTTP headers, request body, and
@@ -19,8 +19,8 @@ Each entry lists: **what** it does, **where** in the code, **when** it applies
   Stripped set: `connection`, `keep-alive`, `proxy-authenticate`,
   `proxy-authorization`, `te`, `trailers`, `transfer-encoding`, `upgrade`,
   `content-length`, `host`.
-- **Where**: `src/proxy.ts:193-197` (forwarded header loop), HOP set defined
-  in `src/helpers.ts:13-24`.
+- **Where**: `src/proxy.ts:288-291` (forwarded header loop), HOP set defined
+  in `src/shared/http-headers.ts:4-15`.
 - **When**: Unconditional — applies to every proxied request, all routes.
 - **Config**: None (always on).
 - **Rationale**: RFC 7230 §6.1 mandates hop-by-hop headers be stripped by
@@ -31,7 +31,7 @@ Each entry lists: **what** it does, **where** in the code, **when** it applies
 ### 1.2 `accept-encoding: identity` (request)
 
 - **What**: Forces `accept-encoding: identity` on every upstream request.
-- **Where**: `src/proxy.ts:202`.
+- **Where**: `src/proxy.ts:296`.
 - **When**: Unconditional — overwrites any client-supplied `accept-encoding`.
 - **Config**: None (always on).
 - **Rationale**: The proxy decodes response bodies for capture (see 1.3) and
@@ -43,7 +43,7 @@ Each entry lists: **what** it does, **where** in the code, **when** it applies
 
 - **What**: Strips `content-encoding` from the upstream response headers
   before forwarding to the client.
-- **Where**: `src/proxy.ts:297` (inside the response header filter loop).
+- **Where**: `src/proxy.ts:998` (inside the response header filter loop).
 - **When**: Unconditional.
 - **Config**: None (always on).
 - **Rationale**: Because we force `accept-encoding: identity` upstream (1.2),
@@ -55,7 +55,7 @@ Each entry lists: **what** it does, **where** in the code, **when** it applies
 ### 1.4 Hop-by-hop header stripping (response)
 
 - **What**: Same HOP set as 1.1, applied to response headers.
-- **Where**: `src/proxy.ts:296-298`.
+- **Where**: `src/proxy.ts:997-999`.
 - **When**: Unconditional.
 - **Config**: None.
 
@@ -74,11 +74,13 @@ Each entry lists: **what** it does, **where** in the code, **when** it applies
   - `src/stamp-topk.ts` — `top_k` injection after `model` field
   - `src/stamp-temperature.ts` — forces `temperature: 1.0`
   - `src/stamp-thinking.ts` — `max_tokens`, `thinking`, `output_config`
-  - `src/config.ts` — stamp value constants (`STAMP_CACHE_TTL_VALUE`,
+  - `src/config/constants.ts` — stamp value constants (`STAMP_CACHE_TTL_VALUE`,
     `STAMP_TOP_K_VALUE`, `STAMP_TEMPERATURE_VALUE`, `STAMP_THINKING_VALUE`,
-    `STAMP_MAX_TOKENS_VALUE`, `STAMP_MAX_TOKENS_GLM_VALUE`,
-    `STAMP_OUTPUT_CONFIG_VALUE`, `STAMP_OUTPUT_CONFIG_GLM_VALUE`,
     `STAMP_CONTEXT_MANAGEMENT_VALUE`)
+  - `src/stamp-catalog.ts` — per-model `max_tokens` and `effort` values
+    declared in the `STAMP_OVERLAY` table (`max_tokens: 131071` for
+    `umans-glm*`, `32767` for others; `effort: "max"` for `umans-glm*`,
+    `"high"` for others)
 - **When**: Anthropic route only (`/v1/messages`), gated by
   `config.stampClaudeCodeEnabled`.
 - **Config**:
@@ -177,8 +179,8 @@ Each entry lists: **what** it does, **where** in the code, **when** it applies
 ### 3.1 Upstream HTTP protocol
 
 - **What**: Selects HTTP/1.1 or HTTP/2 for upstream `fetch` calls.
-- **Where**: `src/proxy.ts:260` (`protocol` option in fetch),
-  `src/config.ts:232-236` (resolver).
+- **Where**: `src/proxy.ts:862` (`protocol` option in fetch),
+  `src/config/env.ts:7-11` (resolver).
 - **When**: Unconditional — applies to every upstream request.
 - **Config**:
   - `upstream_protocol` JSON (default: `http1.1`)
@@ -192,7 +194,7 @@ Each entry lists: **what** it does, **where** in the code, **when** it applies
 ### 3.2 `server.timeout(req, 0)` (incoming)
 
 - **What**: Disables the per-request idle timeout for proxy routes.
-- **Where**: `src/index.ts:205`.
+- **Where**: `src/index.ts:248`.
 - **When**: Unconditional — applied to every request that matches an LLM route.
 - **Config**: None.
 - **Rationale**: LLM streaming responses (SSE) can be long-lived. Bun's
@@ -202,7 +204,7 @@ Each entry lists: **what** it does, **where** in the code, **when** it applies
 ### 3.3 Server `idleTimeout`
 
 - **What**: Sets the global idle timeout for incoming connections.
-- **Where**: `src/index.ts:179`.
+- **Where**: `src/index.ts:836`.
 - **When**: Unconditional.
 - **Config**:
   - `idle_timeout` JSON (default: `255`, max: `255` for Bun.serve)
@@ -213,7 +215,7 @@ Each entry lists: **what** it does, **where** in the code, **when** it applies
 ### 3.4 `reusePort: true`
 
 - **What**: Enables `SO_REUSEPORT` on the listening socket.
-- **Where**: `src/index.ts:178`.
+- **Where**: `src/index.ts:835`.
 - **When**: Unconditional (hardcoded).
 - **Config**: None.
 - **Rationale**: Allows multiple proxy instances to bind the same port for
@@ -222,7 +224,8 @@ Each entry lists: **what** it does, **where** in the code, **when** it applies
 ### 3.5 `incomingProtocol: http1.1`
 
 - **What**: Sets the incoming (client→proxy) protocol to HTTP/1.1.
-- **Where**: `src/config.ts:401`, used in `src/index.ts:175`.
+- **Where**: `src/config/loader.ts:305` (hardcoded `"http1.1"`), used in
+  `src/index.ts:832` (`Bun.serve` options).
 - **When**: Unconditional (hardcoded).
 - **Config**: None.
 - **Rationale**: HTTP/1.1 for incoming is standard for LLM API proxies.
@@ -232,7 +235,7 @@ Each entry lists: **what** it does, **where** in the code, **when** it applies
 ### 3.6 AbortSignal forwarding
 
 - **What**: Forwards the client's `AbortSignal` to the upstream `fetch`.
-- **Where**: `src/proxy.ts:261` (`signal: req.signal` in fetch options).
+- **Where**: `src/proxy.ts:863` (`signal: req.signal` in fetch options).
 - **When**: Unconditional.
 - **Config**: None.
 - **Rationale**: If the client disconnects mid-stream, the upstream request
@@ -246,12 +249,13 @@ Each entry lists: **what** it does, **where** in the code, **when** it applies
 - **What**: Periodically pings `/v1/models` on the upstream to keep the TLS
   connection warm. Skips the ping if real traffic occurred in the last
   interval.
-- **Where**: `src/warmer.ts:45-61`.
+- **Where**: `src/warmer.ts:47-60` (the `ping()` method).
 - **When**: Background interval, gated by `config.warmerEnabled`.
 - **Config**:
   - `warmer_enabled` JSON (default: `true`)
   - `warmer_interval_ms` (default: `20000`)
-  - `warmer_path` (default: `/v1/models`)
+  - `warmer_path` — hardcoded constant `WARMER_PATH` in
+    `src/config/constants.ts:8` (value: `/v1/models`; not configurable)
 - **Rationale**: Prevents TLS handshake overhead (~750ms) on the first
   request after startup or extended idle. The ping uses
   `accept-encoding: identity` and the configured upstream protocol.

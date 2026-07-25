@@ -1,5 +1,11 @@
 # Respect-if-present stamping for thinking, reasoning_effort, and temperature
 
+> **Superseded by [ADR-0011](0011-adaptive-thinking-forcing-and-can-disable.md).**
+> The respect-if-present rules below were the initial approach. ADR-0011
+> replaced them with model-aware forcing rules (`canDisableThinking`,
+> adaptive thinking, OpenAI `reasoning_effort` truth table). Refer to
+> ADR-0011 for the current stamping rules.
+
 ## Context
 
 The stamp pipeline's `AnthropicBodyStep` and `OpenAiReasoningStep`

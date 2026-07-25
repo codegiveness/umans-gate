@@ -60,3 +60,6 @@ jobs:
 
       - name: Validate docs (links + structure)
         run: bun run scripts/update-docs.ts
+
+      - name: Scan for private paths
+        run: bash scripts/scan-private-info.sh

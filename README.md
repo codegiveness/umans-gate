@@ -429,8 +429,8 @@ All configuration variables have JSON equivalents using `snake_case`
 | `DASHBOARD_TOKEN` | _(empty)_ | When set, secures all dashboard API routes, `/health`, `/metrics`, and WebSocket with Bearer token auth |
 | `USAGE_REFRESH_MS` | `60000` | `/v1/usage` poll interval in ms |
 | `MODELS_REFRESH_MS` | `3600000` | `/v1/models` poll interval in ms |
-| `CONCURRENCY_HARD_CAP` | `16` | Maximum concurrent upstream requests (hard ceiling, non-configurable — derived from `/v1/usage`) |
-| `CONCURRENCY_SOFT_LIMIT` | `8` | Soft limit (driven by `/v1/usage`, non-configurable) |
+| `CONCURRENCY_HARD_CAP` | `16` | Maximum concurrent upstream requests (hard ceiling; auto-derived from `/v1/usage` when `UMANS_API_KEY` is set) |
+| `CONCURRENCY_SOFT_LIMIT` | `8` | Soft limit (driven by `/v1/usage` when `UMANS_API_KEY` is set) |
 | `USE_HARD_CAP` | `false` | When `true`, effective limit = hard cap (16); when `false`, effective limit = soft limit (8) |
 | `CONCURRENCY_MAIN_RESERVATION` | `1` | Reserved slots for main requests |
 | `CONCURRENCY_VISION_RESERVATION` | `1` | Reserved slots for vision requests |

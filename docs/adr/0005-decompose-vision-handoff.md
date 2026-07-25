@@ -55,7 +55,7 @@ a `VisionRequestBuilder` strategy pattern would be premature.
 
 ## Consequences
 
-- `handoff.ts` shrinks from ~1605 to ~500 lines; the extracted logic
+- `handoff.ts` shrinks from ~1605 to ~638 lines; the extracted logic
   lives in `wrapper.ts` (pure functions, already exists) and a new
   `vision/image-processor.ts` (~400 lines).
 - The public API is unchanged; `proxy.ts`, `index.ts`, `viewer.ts`,
