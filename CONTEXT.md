@@ -1,463 +1,237 @@
-# umans-gate
+# umans-gate — Domain Glossary
 
-A capture proxy for LLM APIs (Anthropic + OpenAI-compatible). It intercepts
-traffic, stamps `ttl` onto `cache_control` ephemeral blocks, stores
-requests/responses in SQLite, and serves a live inspection dashboard.
+Pure glossary of domain terms. Definitions only — no implementation
+details, file paths, or code references.
 
-## Language
+## Caching
 
-### Caching
-
-**Cache hit**:
-A request whose prefix (system + tools + messages, up to a `cache_control`
-breakpoint) byte-for-byte matches a prior cache entry written within the TTL.
-Reported by the upstream API as `cache_read_input_tokens > 0`.
+**Cache hit** — a request whose prefix (system + tools + messages, up to a
+`cache_control` breakpoint) byte-for-byte matches a prior cache entry
+written within the TTL. Reported as `cache_read_input_tokens > 0`.
 _Avoid_: cache match, cached request.
 
-**Cache write**:
-The first request that establishes a cache entry for a given prefix. Reported
-as `cache_creation_input_tokens > 0`. A cache write is the seeding operation;
-the same request cannot also be a cache hit (writes happen during response
-generation, not before).
-_Avoid_: cache creation, cache store, cache populate.
+**Cache write** — the first request that establishes a cache entry for a
+given prefix. Reported as `cache_creation_input_tokens > 0`. The same
+request cannot also be a cache hit (writes happen during response
+generation). _Avoid_: cache creation, cache store, cache populate.
 
-**Cache miss**:
-A request where no prior cache entry exists for the prefix (cold start, TTL
-expired, or prefix changed). Reported as `cache_creation_input_tokens = 0 AND
-cache_read_input_tokens = 0`. Distinct from a cache write (which intentionally
-establishes a new entry) — a miss is when even the write doesn't happen
-(prefix below model minimum, or no `cache_control` breakpoint).
+**Cache miss** — a request where no prior cache entry exists for the prefix
+(cold start, TTL expired, or prefix changed). Reported as
+`cache_creation_input_tokens = 0 AND cache_read_input_tokens = 0`. Distinct
+from a cache write (which intentionally establishes a new entry).
 _Avoid_: cache fault, uncached.
 
-**Breakpoint**:
-A content block annotated with `cache_control: { type: "ephemeral", ttl:
-"1h" }`. Anthropic writes one cache entry per breakpoint, hashing the
-cumulative prefix from request start through that block. Maximum 4 per
-request; opencode places 3 (system + 2 message-tip).
-_Avoid_: cache marker, cache point.
+**Breakpoint** — a content block annotated with
+`cache_control: { type: "ephemeral", ttl: "1h" }`. Anthropic writes one
+cache entry per breakpoint, hashing the cumulative prefix from request
+start through that block. Maximum 4 per request. _Avoid_: cache marker,
+cache point.
 
-**Lookback window**:
-The 20-block window Anthropic searches backward from a breakpoint for a
-prior cache write. If no write exists within 20 blocks, the breakpoint is a
-miss regardless of prefix stability.
-_Avoid_: search window, cache scan range.
+**Lookback window** — the 20-block window Anthropic searches backward from
+a breakpoint for a prior cache write. If no write exists within 20 blocks,
+the breakpoint is a miss regardless of prefix stability. _Avoid_: search
+window, cache scan range.
 
-### Metrics
+## Metrics
 
-**cached_pct**:
-The aggregate cache metric on the Performance tab. Computed in SQL
-(`src/usage/ddl.ts`) as `SUM(cache_read_tokens) / SUM(total_input_tokens) *
-100` over the latest 100 done captures per model. Structurally cannot reach
-100% because `total_input_tokens` includes fresh `input_tokens` (the new user
-message) on every request.
-_Avoid_: cache ratio, hit ratio, cache efficiency.
+**cached_pct** — the aggregate cache metric on the Performance tab.
+Computed as `SUM(cache_read_tokens) / SUM(total_input_tokens) * 100`.
+Structurally cannot reach 100% because `total_input_tokens` includes fresh
+`input_tokens` on every request. _Avoid_: cache ratio, hit ratio.
 
-**Cache hit rate (per-row)**:
-The per-capture badge shown in capture rows. Computed as
-`fmtCachePct(cache_read_tokens, total_input_tokens)` — same ratio as
+**Cache hit rate (per-row)** — the per-capture badge. Same ratio as
 `cached_pct` but per row. Cannot reach 100% for the same structural reason.
 _Avoid_: cache percentage, row hit rate.
 
-**total_input_tokens**:
-`input_tokens + cache_creation_input_tokens + cache_read_input_tokens`.
-The full input bill for a request. Used as the denominator in both
-`cached_pct` and the per-row badge.
-_Avoid_: prompt tokens, input total.
+**total_input_tokens** — `input_tokens + cache_creation_input_tokens +
+cache_read_input_tokens`. The full input bill; denominator in cache
+metrics. _Avoid_: prompt tokens, input total.
 
-**input_tokens**:
-The uncached portion of input — the new user message plus any prefix not
-covered by a cache hit or cache write. Always > 0 on any real request,
-which is why no cache hit rate formula using `total_input_tokens` as the
-denominator can reach 100%.
+**input_tokens** — the uncached portion of input (new user message plus
+any prefix not covered by hit/write). Always > 0 on any real request.
 _Avoid_: fresh tokens, new tokens.
 
-**total_output_tokens**:
-The full output bill for a request — `output_tokens` (Anthropic) or
-`completion_tokens` (OpenAI). Includes thinking tokens as a subset.
+**total_output_tokens** — the full output bill (`output_tokens` for
+Anthropic, `completion_tokens` for OpenAI). Includes thinking tokens.
 _Avoid_: completion tokens, response tokens.
 
-**thinking_tokens**:
-The subset of `total_output_tokens` spent on internal reasoning, not
-visible to the end user. Extracted from `output_tokens_details.thinking_tokens`
-(Anthropic) or `completion_tokens_details.reasoning_tokens` (OpenAI);
-null when the provider does not report thinking.
-_Avoid_: reasoning tokens.
+**thinking_tokens** — the subset of output spent on internal reasoning.
+Extracted from `output_tokens_details.thinking_tokens` (Anthropic) or
+`completion_tokens_details.reasoning_tokens` (OpenAI); null when not
+reported. _Avoid_: reasoning tokens.
 
-### Stamping
+## Stamping
 
-**Stamp policy**:
-The per-model tuning values applied to a request body by the stamp
-pipeline: `max_tokens`, `effort` ("high" or "max"), `thinking` (whether
-to inject `{ type: "adaptive" }`), and `top_k` (null or a number).
-Distinct from model capabilities (upstream-reported, e.g.
-`max_completion_tokens`, `reasoning.supported`) — stamp values are
-proxy-specific tuning that may differ from upstream limits. Resolved
-via `resolveStampPolicy(modelName, catalog)`, which looks up the
-model in the parsed catalog's `stamps` field.
-_Avoid_: stamp config, stamp values, model tuning.
+**Stamp policy** — the per-model tuning values applied by the stamp
+pipeline: `max_tokens`, `effort` ("high" or "max"), `thinking` (whether to
+inject `{ type: "adaptive" }`), and `top_k` (null or a number). Distinct
+from model capabilities (upstream-reported). _Avoid_: stamp config, model
+tuning.
 
-**Stamp overlay**:
-The local declarative table mapping model-family patterns (e.g.
-`"umans-glm*"`) to stamp policies, merged into `ParsedModelInfo` at
-`parseModelInfoResponse()` time. The overlay owns the proxy-specific
-tuning; the upstream `/v1/models/info` owns the capabilities. Adding
-a new model family is a single row in the overlay, not a code change.
-_Avoid_: stamp table, stamp mapping, model overrides.
+**Stamp overlay** — the declarative table mapping model-family patterns
+(e.g. `"umans-glm*"`) to stamp policies. The overlay owns proxy-specific
+tuning; upstream `/v1/models/info` owns capabilities. Adding a new model
+family is a single row, not a code change. _Avoid_: stamp table, model
+overrides.
 
-### Architecture
+## Architecture
 
-**TTFT watchdog**:
-A wall-clock timer started at fetch initiation; fires if no first chunk
-arrives from `upstream.body` within `ttft_timeout_ms`. Distinct from the
-absolute `upstream_timeout_ms` (5-min ceiling on the whole fetch lifecycle)
-and from the semantic `ttft_ms` metric (first `content_block_delta` for
-Anthropic, first non-empty delta for OpenAI — computed post-hoc from parsed
-SSE). The watchdog races the existing `firstChunkSent` flag in the
-`TransformStream.transform` callback — same perception, no dual concept. When
-the watchdog fires, the fetch is aborted (distinguishable from client-abort
-and absolute-timeout) and a gated retry may follow.
-_Avoid_: first-byte timeout, stream timeout (those belong to LiteLLM/kiro).
+**TTFT watchdog** — a wall-clock timer started at fetch initiation; fires
+if no first chunk arrives within `ttft_timeout_ms`. Distinct from the
+absolute `upstream_timeout_ms` (whole-fetch ceiling) and from the semantic
+`ttft_ms` metric (first delta, computed post-hoc). When it fires, the fetch
+is aborted and a gated retry may follow. _Avoid_: first-byte timeout.
 
-**TTFT retry**:
-A retry triggered by TTFT-watchdog timeout, as distinct from a 502/529
-rewrite-id retry. The retry reuses the original permit (single-release
-contract preserved) and is exempt from the rate limiter (the original token
-was already consumed). Gated by upstream-load signals: breaker state, gate
-saturation, and recent retry-failure rate. When the gate suppresses retry,
-the client gets a 504.
-_Avoid_: stream retry, first-byte retry.
+**TTFT retry** — a retry triggered by TTFT-watchdog timeout, distinct from
+a 502/529 rewrite-id retry. Reuses the original permit and is exempt from
+the rate limiter. Gated by upstream-load signals. When suppressed, the
+client gets a 504. _Avoid_: stream retry, first-byte retry.
 
-**Attempt**:
-A single upstream fetch within a TTFT-retry lifecycle. Attempt 1 is the
-original fetch; attempt 2 is the same-key retry; attempt 3 is the
-rewrite-id escalation (when eligible). The WS `retryAttempt` field
-counts retries, not attempts — `retryAttempt: 1` = attempt 2 in flight.
-Distinct from "request" (the client-initiated operation, which may
-span multiple attempts under one capture row).
-_Avoid_: try, fetch number, run.
+**Attempt** — a single upstream fetch within a TTFT-retry lifecycle.
+Attempt 1 is the original; attempt 2 is the same-key retry; attempt 3 is
+the rewrite-id escalation. Distinct from "request" (the client-initiated
+operation, which may span multiple attempts under one capture row).
+_Avoid_: try, fetch number.
 
-**Retry state**:
-The live phase of a TTFT-retry lifecycle as seen by the dashboard:
-`cooldown` (between attempts, waiting out `ttft_retry_cooldown_ms`),
-`retry N` (attempt N+1 fetch in flight), `retried` (terminal — the
-request completed after at least one retry). Surfaced as per-row
-indicators matching NN/g's "Indicator" pattern (conditional, contextual,
-passive). Distinct from the final `x-proxy-retry-attempt` /
-`x-proxy-ttft-exceeded` headers, which arrive only with the response.
-_Avoid_: retry status, retry phase.
+**Retry state** — the live phase of a TTFT-retry lifecycle as seen by the
+dashboard: `cooldown`, `retry N`, `retried`. Distinct from the final
+`x-proxy-retry-attempt` / `x-proxy-ttft-exceeded` headers. _Avoid_: retry
+status, retry phase.
 
-**Stop gate**:
-The concurrency admission layer in `src/limiter/` — `ConcurrencyGate` (a
-semaphore) composed with a `CircuitBreaker`. Acquires a permit before
+**Stop gate** — the concurrency admission layer. Acquires a permit before
 forwarding upstream; rejects with `GateError` codes (`circuit_open`,
 `queue_full`, `timeout`, `aborted`) when the breaker is open or the queue
-overflows. Gate-rejected captures are stored with `status_source: "gate"`
-and `gate_reason` set, and are excluded from `cached_pct` by the
-`usage_missing = 0` filter. The stop gate does not influence cache hit rate
-computation.
-_Avoid_: limiter, circuit breaker (those are components), admission control.
+overflows. Gate-rejected captures are excluded from `cached_pct`. Does not
+influence cache hit rate. _Avoid_: limiter, admission control.
 
-**Permit**:
-The concurrency slot lease returned by `ConcurrencyGate.acquire()`. A
-permit is acquired before forwarding upstream and must be released exactly
-once. Release paths (all idempotent via `permitReleased` flag):
-1. `TransformStream.flush()` — normal stream completion.
-2. `onAbort` listener on `req.signal` — client disconnect.
-3. `onAbort` listener on `upstreamSignal` — upstream timeout/client-abort
-   propagated to the fetch signal (`AbortSignal.any([req.signal,
-   ttftController?.signal, AbortSignal.timeout(upstreamTimeoutMs)])`).
-   Fires when the upstream hangs after the Response has been returned to
-   Bun.serve (the `req.signal` alone does not abort in this case).
-4. `finally` block if streaming never started (`!streamingStarted`).
-5. Per-request watchdog timer — safety net that fires at
-   `upstream_timeout_ms + 5s` if none of the above fired. Catches
-   pathological cases where the stream errors but no signal aborts.
-A permit has a `weight` (scaled by `SCALE=1000`) and an `intention`
-(`"main"` or `"vision"`). Releases are batched and deferred by
-`release_cooldown_ms` (default 1000ms) — the slot counter decrements after
-the cooldown timer fires, not immediately on `release()`.
-_Avoid_: slot lease, concurrency token, gate ticket.
+**Permit** — the concurrency slot lease. Acquired before forwarding;
+released exactly once. Has a `weight` (scaled) and an `intention` (`"main"`
+or `"vision"`). Releases are batched and deferred by `release_cooldown_ms`.
+_Avoid_: slot lease, concurrency token.
 
-**Permit leak**:
-A bug where a permit is acquired but never released, causing the gate's
-`active` counter to stay elevated permanently (until process restart).
-Distinct from a slow release (the cooldown delay): a leak means
-`releasePermit()` was never called at all. Symptoms: `active` exceeds
-the true in-flight count, and captures remain stuck in `state="streaming"`
-with no terminal status. Root cause: when the upstream sends some data
-then hangs (post-return), `AbortSignal.timeout(upstreamTimeoutMs)` aborts
-the `upstreamSignal`, but `req.signal` does NOT abort (the client is still
-connected). On Bun 1.3.14, `TransformStream.flush()` does not fire on
-abnormal termination, and `TransformStream.cancel()` is not called
-(contradicts WHATWG spec but empirically confirmed). Before the fix,
-`onAbort` listened only on `req.signal`, so the permit leaked. Fixed by
-also listening on `upstreamSignal` (Part A), fixing the already-aborted
-`req.signal` branch (Part B), and adding a per-request watchdog timer
-(Part C).
-_Avoid_: slot leak, concurrency leak, stuck slot.
+**Permit leak** — a bug where a permit is acquired but never released,
+causing the `active` counter to stay elevated permanently. Distinct from
+a slow release (the cooldown delay). _Avoid_: slot leak, stuck slot.
 
-**Breakpoint repositioning**:
-A harness-side behavior (opencode) where `cache_control` breakpoints are
-placed on the rolling message tip — the last assistant `tool_use` and last
-user `tool_result`. Each turn, as new messages arrive, the harness *strips*
-the breakpoint from the previously-tip blocks and re-adds it to the new tip.
-Content is byte-identical; only the `cache_control` field moves. Because
-Anthropic hashes the cumulative prefix through each breakpoint, removing a
-breakpoint from a mid-prefix block invalidates the hash from that point
-forward, forcing a partial cache re-read on the next request. Not a proxy
-behavior; the proxy faithfully forwards whatever the harness sends.
-_Avoid_: cache_control stripping, breakpoint moving, tip shifting.
+**Breakpoint repositioning** — a harness-side behavior where
+`cache_control` breakpoints are placed on the rolling message tip. Each
+turn the harness strips the breakpoint from the previously-tip blocks and
+re-adds it to the new tip. Invalidates the hash from that point forward.
+Not a proxy behavior. _Avoid_: cache_control stripping, tip shifting.
 
-**Message truncation**:
-A harness-side behavior (opencode or the DCP plugin) where historical
-messages are dropped from the request body mid-session — e.g. msgs
-shrinking 7→3 or 11→7 between consecutive requests. Distinct from
-breakpoint repositioning: here the *content* itself is removed, not just
-the breakpoint annotation. Invalidates the cache from the truncation
-point forward. Not a proxy behavior; the proxy faithfully forwards
-whatever the harness sends.
+**Message truncation** — a harness-side behavior where historical messages
+are dropped mid-session. Distinct from breakpoint repositioning: content
+itself is removed, not just the annotation. Invalidates cache from the
+truncation point. Not a proxy behavior. _Avoid_: context compression,
+message compaction.
 
-Mitigation is harness-side: in `~/.config/opencode/dcp.jsonc`, raise
-`compress.minContextLimit` / `compress.maxContextLimit` (e.g. to `60%` /
-`75%`) so compression triggers less often, or set `compress.mode: "off"`
-and rely only on `deduplication` + `purgeErrors`. Every compression event
-is a cache drop. See ADR 0001.
-_Avoid_: context compression, message compaction, summarization.
+**Cold start** — the first request of a new conversation (or subagent
+invocation with a different system prompt). Always reports
+`cache_read_input_tokens = 0` because no cache entry exists yet.
+Architecturally unavoidable. _Avoid_: first-turn miss, warmup miss.
 
-**Cold start**:
-The first request of a new conversation (or a new subagent invocation
-with a different system prompt). Always reports `cache_read_input_tokens
-= 0` because no cache entry exists yet. Architecturally unavoidable — the
-cache write happens during the first response, so the seeding request
-cannot read it.
+**Session-scoped cache** — the upstream appears to key cache lookup by
+`x-session-id` request header. When the harness assigns a new session ID
+per invocation, the first request misses the cache even with identical
+prompts. Not a proxy behavior. _Avoid_: session cache, per-session cache.
 
-For subagents specifically: the cold start is compounded by system prompt
-structure. The agent-specific persona prefix comes first and differs at
-byte 0 across agent types, so even though main and subagent system prompts
-share a large common suffix (AGENTS.md, CLAUDE.md, skills, env), that
-suffix is never cacheable across agents — Anthropic hashes from request
-start. See ADR 0003.
-_Avoid_: first-turn miss, warmup miss.
+## Usage History
 
-**Session-scoped cache**:
-The upstream (umans-glm-5.2) appears to key cache lookup by `x-session-id`
-request header. opencode assigns a new `x-session-id` (and matching
-`x-session-affinity`) per slash-command invocation, so even when the system
-prompt, breakpoint, and TTL are all identical and within window, the
-slash-command's first request misses the cache established by the parent
-conversation. Not a proxy behavior; the proxy forwards whatever headers
-the harness sends. See ADR 0003.
-_Avoid_: session cache, per-session cache.
+**Priority tuple** — the composite priority state `{ priorityLow,
+boxedUntil, boxedReason, unitsDemoted, demotedUntil }`. One event per
+tuple change (not per field). _Avoid_: priority state, priority flags.
 
-### Usage History
+**Service_mode tuple** — the composite service-mode state `{ current,
+resetsAt }`. One event per tuple change. `current = "normal"` with
+`resetsAt = null` is the all-clear. _Avoid_: service state, mode tuple.
 
-**Priority tuple**:
-The composite priority state `{ priorityLow, boxedUntil, boxedReason,
-unitsDemoted, demotedUntil }` derived from a `/v1/usage` snapshot. The
-usage-history event detector emits exactly one `usage_events` row per
-tuple change (not per field) — so "entered priority-low AND boxed AND
-demoted in a single poll" is one onset event, not three. A change is
-detected by structural equality of the whole tuple.
-_Avoid_: priority state, priority fields, priority flags.
+**Dimension A (accumulated active hours)** — sum of minutes between
+non-byte-identical adjacent samples within the gap threshold. Actual
+activity time, excluding idle gaps. Bot-detection theory: "humans work
+≤8h, bots work 24h." _Avoid_: active hours, working hours.
 
-**Service_mode tuple**:
-The composite service-mode state `{ current, resetsAt }` derived from a
-`/v1/usage` snapshot. Like the priority tuple, one event per tuple change:
-entering non-normal service_mode is one onset, regardless of how many
-fields flipped. `current = "normal"` with `resetsAt = null` is the
-all-clear state.
-_Avoid_: service state, service flags, mode tuple.
+**Dimension B (UTC clock span)** — the wall-clock span of activity within a
+UTC day (`last_activity_utc − first_activity_utc`). Bot-detection theory:
+"span > 8h = bot." Distinct from Dimension A. _Avoid_: clock span,
+activity span.
 
-**Dimension A (accumulated active hours)**:
-Sum of minutes between non-byte-identical adjacent `usage_samples` rows
-within the configured gap threshold — i.e. actual activity time,
-excluding idle-coalesce gaps where nothing changed. Stored on the
-`usage_daily` row as `accumulated_active_minutes` and bucketed by UTC hour
-in `active_minutes_by_utc_hour`. Bot-detection theory: "humans work ≤8h,
-bots work 24h." Distinct from Dimension B.
-_Avoid_: active hours, activity minutes, working hours.
+**day_completeness** — flag describing how completely the UTC day was
+observed. Values: `full`, `partial_start`, `partial_end`, `partial_both`,
+`missing`, `incomplete_window`. Used to filter partial days in the heatmap.
+_Avoid_: completeness flag, day quality.
 
-**Dimension B (UTC clock span)**:
-The wall-clock span of activity within a UTC day, computed as
-`last_activity_utc − first_activity_utc`. Stored on the `usage_daily` row
-as `utc_clock_span_minutes` (plus `first_activity_utc_hour` and
-`last_activity_utc_hour` for at-a-glance visibility). Bot-detection
-theory: "umans simplistically computes span, assumes span > 8h = bot."
-Distinct from Dimension A: a human working 08:00–12:00 + 23:00–01:00
-has Dimension A = 7h but Dimension B = 16h (on day N, if split at UTC
-midnight).
-_Avoid_: clock span, activity span, wall-clock hours.
+**cacheHitRate (history variant)** — the aggregate cache-hit metric stored
+on usage rows, computed as `tokensCached / (tokensIn + tokensOut +
+tokensCached)`, stored as 0–1. Distinct from `cached_pct` (per-capture,
+uses `total_input_tokens` denominator). _Avoid_: cache hit rate (without
+qualifier).
 
-**day_completeness**:
-The completeness flag on a `usage_daily` row describing how completely
-the UTC day was observed by the proxy. Values: `full` (proxy ran the
-whole day with no mid-day gaps above `usage_gap_threshold_minutes` between
-non-byte-identical adjacent samples), `partial_start` (first sample's UTC
-hour > 0 — proxy started mid-day), `partial_end` (last sample's UTC hour
-< 23 — proxy stopped mid-day), `partial_both` (both), `missing` (proxy
-was down all day — backfilled with NULL activity fields so the long-term
-calendar shows a clear "no data" marker), `incomplete_window` (a mid-day
-gap above the threshold existed between non-identical adjacent samples).
-Used to filter or annotate partial days in the heatmap so they aren't
-treated as valid full-day pattern data points.
-_Avoid_: completeness flag, day quality, coverage.
+**Priority budget** — an upstream account-level usage budget category,
+returned by `/v1/usage` with `category`, `label`, `models[]`, `used_pct`,
+`over_budget_today`, `mode`, `resets_at`. The upstream enforces the budget;
+the proxy only surfaces it. _Avoid_: budget tier, spending cap.
 
-**cacheHitRate (history variant)**:
-The aggregate cache-hit metric stored on `usage_samples` and
-`usage_events` rows, computed as
-`tokensCached / (tokensIn + tokensOut + tokensCached)`, stored as a real
-number 0–1 (null when the denominator is zero). Distinct from the
-existing `cached_pct` (which uses `total_input_tokens` as the denominator
-and is a per-capture metric on the Performance tab, not a `/v1/usage`-
-derived metric). The history variant uses the upstream `/v1/usage` token
-counters (`tokens_in`, `tokens_out`, `tokens_cached`), not per-request
-capture data, so it reflects account-level cache efficiency at the
-moment of the poll.
-_Avoid_: cache hit rate (without qualifier), hit ratio, cache efficiency.
+**Most urgent budget** — the single `priority_budget` entry selected for
+the compact GateStatus badge: over-budget entries first, otherwise highest
+`used_pct`. _Avoid_: top budget, worst budget.
 
-**Priority budget**:
-An upstream account-level usage budget category (e.g. "frontier"),
-returned by `/v1/usage` as an array entry with `category`, `label`,
-`models[]`, `used_pct`, `over_budget_today`, `mode`, and `resets_at`.
-Distinct from the proxy's internal rate-limiting gate: the upstream
-enforces the budget, the proxy only surfaces it for display. Not
-persisted in `usage_samples` or `usage_events`; served live on
-`UsageSnapshot.priorityBudget` and summarized as
-`GateStats.priorityBudgetSummary`.
-_Avoid_: budget tier, spending cap, model budget.
+**Admission state** — the composite degradation state derived from the
+priority tuple and service_mode tuple together. Distinct from budget state
+(a quota gauge). _Avoid_: gate state, degradation flags.
 
-**Most urgent budget**:
-The single `priority_budget` entry selected for the compact GateStatus
-badge via `selectMostUrgentBudget()` (`src/usage/budget.ts`): over-budget
-entries first (highest `used_pct` among them), otherwise highest
-`used_pct` overall. Hidden when the array is empty or all entries
-report `used_pct = 0`. The Usage tab shows all entries regardless; only
-the header badge uses the selection.
-_Avoid_: top budget, worst budget, active budget.
+**Gate health** — the composite badge merging admission state and most
+urgent budget into a single indicator. Label is severity-ordered
+(`boxed` > `demoted` > budget-over-80% > low-mode > `high`). _Avoid_:
+combined badge, unified indicator.
 
-**Admission state**:
-The composite degradation state derived from the priority tuple
-(`{ priorityLow, boxedUntil, boxedReason, unitsDemoted, demotedUntil }`)
-and the service_mode tuple (`{ current, resetsAt }`) together. Already
-merged by `computeStatus()` in `dashboard/src/components/gate-status.tsx`
-using precedence: boxed → demoted → low service_mode → non-normal
-service_mode → priorityLow → high. Distinct from budget state (a quota
-gauge, not a discrete mode). The `mode` field on `priority_budget`
-entries mirrors `service_mode.current` — it is denormalized context,
-not a third independent dimension.
-_Avoid_: gate state (reserved for the whole GateStats panel), priority
-state, degradation flags.
+## Design system
 
-**Gate health**:
-The composite badge shown in the GateStatus header, merging the
-admission state and the most-urgent budget into a single compact
-indicator. Label is severity-ordered: the worst active segment leads
-(`boxed` > `demoted` > budget-over-80% > low-mode > non-normal-mode >
-`high`), with budget appended when present and not already the leader
-(e.g. `"boxed · frontier 87%"`, `"frontier 87% · interactive"`,
-`"interactive · frontier 49%"`, `"high"`). Color reflects the worst
-color-tier across all visible segments (so `"interactive · frontier 95%"`
-is amber, not blue). Tooltip carries full detail per dimension.
-Replaces the prior two-badge layout (separate budget + status badges).
-_Avoid_: combined badge, merged status, unified indicator.
+**Accent Hue** — the violet (HSL 263°) used for focus rings, chart series,
+and sidebar-primary. Chosen for perceptual distinctness from the neutral
+base palette and traffic-light status colors. _Avoid_: brand color, theme
+color.
 
-### Design system
+**Functional Border** — a border delimiting an interactive element (inputs,
+select triggers) that must meet WCAG 1.4.11 (3:1). Distinct from decorative
+borders (exempt). _Avoid_: input border, outline.
 
-**Accent Hue**:
-The violet (HSL 263°) used for focus rings, chart series, and sidebar-primary across both light and dark themes. Chosen for brand consistency with the dark theme's existing violet sidebar-primary and for perceptual distinctness from the neutral base palette and the traffic-light status colors (green success, red destructive, amber warning). Replaces the prior pure-gray ring and chart palette that failed WCAG 2.2 AA contrast thresholds in light theme.
-_Avoid_: brand color, primary color (reserved for the `--primary` token), theme color.
+**Chart Palette** — the five-hue sequence: violet (263°), cyan (200°),
+amber (30°), rose (340°), teal (160°). Each tuned per-theme for WCAG
+1.4.11. _Avoid_: chart colors, data colors.
 
-**Functional Border**:
-A border that delimits an interactive element (e.g. input fields, select triggers) and must meet WCAG 1.4.11 non-text contrast (3:1). Distinct from decorative borders (section dividers, card outlines) which are exempt from the contrast requirement. The `--input` token is a functional border; `--border` is decorative.
-_Avoid_: input border (too narrow — only one of several functional borders), outline.
+**Badge Tint Tier** — the Tailwind shade step for light-theme semantic
+badge backgrounds (`*-100` for success/warning/info, `*-200` for gold).
+Equal-weight philosophy: hue carries meaning, not lightness. _Avoid_:
+badge shade, status fill.
 
-**Chart Palette**:
-The five-hue sequence used for data visualization: violet (263°), cyan (200°), amber (30°), rose (340°), teal (160°). Replaces the prior five-step grayscale palette that was visually indistinguishable as data series in both themes. Each hue is tuned per-theme (lower lightness in light theme, higher in dark) to meet WCAG 1.4.11 (3:1) against the respective background.
-_Avoid_: chart colors, data colors, series colors.
+## Version & Updates
 
-**Badge Tint Tier**:
-The Tailwind shade step used for light-theme semantic badge backgrounds. The dashboard uses `*-100` for success/warning/info and `*-200` for gold, producing a 4–8% lightness delta from the white surface — enough for figure-ground separation without the visual noise of dark-fill pills. Distinct from text contrast (handled by `*-900` text, which already clears AA 7:1) and from the dark theme (which uses `*-800` fills at equal weight across semantics). The equal-weight philosophy means all semantic badges share the same shade tier — hue carries the meaning, not lightness — matching the dark theme's approach. See ADR 0012.
-_Avoid_: badge shade, badge lightness, status fill.
+**Version check** — comparison of the running version against the latest
+published npm version, with GitHub Releases as fallback. Performed at boot
+and on-demand. Distinct from the CLI's `update --check`. _Avoid_: update
+check, version poll.
 
-### Version & Updates
+**One-click update** — a dashboard-initiated self-update, available only
+when running as a managed service with `DASHBOARD_TOKEN` set. Performs
+pre-flight, then asynchronously stops/updates/starts the service.
+_Avoid_: dashboard update, auto-update.
 
-**Version check**:
-A comparison of the running version (from `package.json`, read at boot
-and cached in memory) against the latest published version on the npm
-registry, with GitHub Releases as fallback. Performed once on server
-startup and on-demand via `POST /dashboard/api/version/check`. Result
-is cached in a module-level variable and served by
-`GET /dashboard/api/version` — the dashboard never calls the registry
-or GitHub directly. Distinct from the CLI's `umans-gate update --check`,
-which uses the same `fetchLatestVersion()` but runs in the CLI process.
-_Avoid_: update check, version poll, latest-version fetch.
+**Update availability indicator** — a minimal visual cue in the dashboard
+header that appears only when `updateAvailable: true`. Zero visual cost
+when up-to-date. _Avoid_: version badge, update notification.
 
-**One-click update**:
-A dashboard-initiated self-update via `POST /dashboard/api/update`,
-available only when the proxy is running as a managed service
-(`isServiceInstalled()` is true) and `DASHBOARD_TOKEN` is set. The
-backend performs a pre-flight (re-confirms an update exists, returns
-the target version to the client immediately), then asynchronously
-stops the service, runs `performUpdate()`, and starts the service.
-The client enters a dedicated "updating" state with `/health` polling
-and auto-reconnects when the server returns. The Update button is
-always enabled in the UI; when the prerequisites are not met
-(`canUpdate=false`), clicking it opens a dialog explaining the specific
-blocker (`no_token` or `no_service`) rather than being greyed out.
-Distinct from the CLI's `umans-gate update`, which is the unguarded,
-always-available path.
-_Avoid_: dashboard update, in-browser update, auto-update.
+**Release notes** — the markdown body of the GitHub Release for the latest
+version, fetched only when an update is detected. Rendered as a
+collapsible "What's new" section. _Avoid_: changelog snippet.
 
-**Update availability indicator**:
-A minimal visual cue in the dashboard header — a small dot or badge
-icon that appears only when `GET /dashboard/api/version` reports
-`updateAvailable: true`. No version text is shown in the header (the
-header is space-constrained on mobile). Clicking the indicator
-navigates to the Config tab, where the full version display, latest
-available, release notes, and the update action live. When the proxy
-is up-to-date, the indicator is absent — zero visual cost.
-_Avoid_: version badge, update notification, version pill.
+**Body render state** — the phase of a capture's lifecycle as seen by the
+body renderer, derived from the capture `state`. Three cases: in-flight
+(spinner), done + null body (muted message), empty string. _Avoid_: body
+status, body phase.
 
-**Release notes**:
-The markdown body of the GitHub Release corresponding to the latest
-published version, fetched from the GitHub Releases API only when an
-update is detected (not on every version check). Rendered as a
-collapsible "What's new" section in the Config tab using shadcn
-`Button` and `ScrollArea`. Not fetched when the proxy is up-to-date,
-so the GitHub API is called at most once per actual update cycle.
-_Avoid_: changelog snippet, release body, what's-new text.
+## Configuration
 
-**Body render state**:
-The phase of a capture's lifecycle as seen by `BodyRenderer`, derived
-from the capture `state` field. Three rendering cases: **in-flight**
-(`enqueued` | `streaming` | `cooling_down`) shows a spinner and
-"Response still streaming…"; **done + null body** shows "Response body
-not captured" (muted, not destructive — covers both "no body stored"
-and "decompression failed" without distinguishing them, since the user
-cannot act on the distinction); **empty string** shows "empty body".
-The request body is always available immediately (stored at
-`startCapture`), so state-dependent rendering applies only to the
-response body tab. Distinct from the capture's `state` field itself,
-which is the source of truth — `BodyRenderer` consumes it, does not
-own it.
-_Avoid_: body status, body phase, body condition.
-
-### Configuration
-
-**experimental** (label):
-A humility claim about unmeasured user-visible effects, not a
-statement about code quality or maturity. Applied via
-`FieldDef.experimental` (`config-sections.ts:45`), rendered as a
-Beaker-icon badge (`config-fields.tsx:281`). Five fields carry it:
-`stamp_claude_code_enabled`, `stamp_reasoning_effort_enabled`,
-`experiment_rewrite_ids`, `experiment_ttft_watchdog`,
-`experiment_strip_omo_reminder` — all default `false` in
-`DEFAULT_CONFIG` (`defaults.ts:6`). The label refuses to over-claim
-felt benefits (higher cache hit rate, lower frustration, faster TTFT)
-that have not been benchmarked against a control. ADR-backed code
-(ADR-0004, ADR-0006, ADR-0008, ADR-0011) does not graduate a field
-out of the label — the label tracks evidence level for the
-user-visible benefit, not production-readiness. Graduation requires
-a measured benchmark documented in a new ADR superseding ADR-0016.
-See: `docs/adr/0016-experimental-means-humility-claim.md`.
-_Avoid_: prototype, beta, unstable, provisional.
+**experimental** (label) — a humility claim about unmeasured user-visible
+effects, not a statement about code quality. Applied to fields whose felt
+benefits have not been benchmarked against a control. _Avoid_: prototype,
+beta, unstable.

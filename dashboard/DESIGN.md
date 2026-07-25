@@ -1,66 +1,55 @@
 # Dashboard Design System
 
-This document is the single source of truth for all visual, motion, and
-accessibility decisions in the `dashboard/` React application. Every token listed
-here is backed by `src/index.css`, `tailwind.config.ts`, or `components.json`;
-no component may introduce a color, spacing value, or font size that is not
-declared in this file first.
+Single source of truth for visual, motion, and accessibility decisions in
+the `dashboard/` React app. Every token is backed by `src/index.css`,
+`tailwind.config.ts`, or `components.json`; no component may introduce a
+color, spacing value, or font size not declared here.
 
 ## Design Tokens Source
 
-- **shadcn/ui style:** `base-nova` (Base UI preset, Nova theme — Lucide icons, Geist font)
-- **Primitive library:** `@base-ui/react@1.6.0` — **Base UI only.** No `@radix-ui/*`
-  packages, no hand-rolled primitives. Every component in `src/components/ui/`
-  MUST be a stock shadcn Base UI wrapper; if a behavior is missing, extend via
-  the wrapper's `className` / `render` prop, never by forking the primitive.
+- **shadcn/ui style:** `base-nova` (Base UI preset, Nova theme — Lucide
+  icons, Geist font)
+- **Primitive library:** `@base-ui/react@1.6.0` — Base UI only. No
+  `@radix-ui/*` packages. Every component in `src/components/ui/` MUST be
+  a stock shadcn Base UI wrapper; extend via `className` / `render` prop,
+  never by forking the primitive.
 - **Base color:** neutral
 - **Theming mode:** CSS variables via `data-theme` / `.dark` class
 - **Tailwind config:** `dashboard/tailwind.config.ts`
 - **Global styles:** `dashboard/src/index.css` (HSL tokens)
-- **Component aliases:** `@/components`, `@/components/ui`, `@/lib/utils`, `@/lib`, `@/hooks`
+- **Component aliases:** `@/components`, `@/components/ui`, `@/lib/utils`,
+  `@/lib`, `@/hooks`
 
-> **Why Base UI, not Radix.** Radix's `ScrollArea` defaulted to `type="hover"`,
-> which has no touch equivalent — the thumb never appeared on mobile capture
-> lists. Base UI drops that prop entirely and drives thumb visibility through
-> `data-hovering` / `data-scrolling` data attributes, which work identically
-> across pointer and touch. The mandate also removes `asChild` (replaced by
-> `render`) and standardizes `data-open` / `data-closed` over Radix's
-> `data-[state=open]`. No new primitive may be introduced that is not from
-> `@base-ui/react`.
+> **Why Base UI, not Radix.** Radix's `ScrollArea` defaulted to
+> `type="hover"`, which has no touch equivalent — the thumb never appeared
+> on mobile. Base UI drops that prop and drives thumb visibility through
+> `data-hovering` / `data-scrolling` attributes, which work across pointer
+> and touch. The mandate also removes `asChild` (replaced by `render`) and
+> standardizes `data-open` / `data-closed`. No new primitive may be
+> introduced that is not from `@base-ui/react`.
 
 ## Palette
 
-All tokens are HSL, defined in `src/index.css` and exposed as Tailwind color
-aliases in `tailwind.config.ts`. The full token list (background, foreground,
-card, popover, primary, secondary, muted, accent, destructive, border, input,
-ring, chart-*, sidebar-*) lives in `src/index.css`; that file is the source of
-truth — copy tables here go stale.
+All tokens are HSL, defined in `src/index.css`. The full token list lives
+there — copy tables here go stale.
 
 ### Color strategy
 
 **Restrained, near-neutral with a violet accent.** The Nova preset ships a
-grayscale identity (HSL saturation 0 across light and dark) so that the data
-the tool captures — HTTP methods, status codes, SSE streams — carries the only
-color on screen. Semantic accents (`destructive` red, `warning` amber, `success`
-green, `info` blue) remain the saturated status hues. This is a deliberate shift
-from the previous azure (hue 212) primary: the earlier accent fought the
-traffic-light status colors and left focus rings hard to distinguish from
-selection state on the capture list. Grayscale primary + colored status is the
-cleaner information hierarchy for a capture tool.
+grayscale identity so that the data the tool captures — HTTP methods, status
+codes, SSE streams — carries the only color on screen. Semantic accents
+(`destructive` red, `warning` amber, `success` green, `info` blue) remain
+the saturated status hues.
 
 **Chromatic accent for functional color.** Violet (HSL 263°) is used for
 focus rings (`--ring`), chart series (`--chart-1` through `--chart-5`), and
-`--sidebar-primary`. The hue extends the existing "colored status is the
-cleaner information hierarchy" philosophy from status badges to functional
-color: focus states and data-viz need a recognizable accent that is distinct
-from both the neutral base palette and the traffic-light status colors. The
-dark theme already used violet for `--sidebar-primary`; mirroring it in light
-theme unifies brand identity across modes.
+`--sidebar-primary`. The hue is distinct from both the neutral base palette
+and the traffic-light status colors.
 
-### Semantic aliases used by components
+### Semantic aliases
 
-Components reference these tokens via Tailwind classes. Any new component MUST
-use the same aliases rather than raw color values.
+Components reference these tokens via Tailwind classes. New components MUST
+use the same aliases, not raw color values.
 
 | Alias | Purpose |
 |-------|---------|
@@ -68,7 +57,7 @@ use the same aliases rather than raw color values.
 | `bg-card` / `text-card-foreground` | Sidebar / panel surfaces |
 | `bg-popover` / `text-popover-foreground` | Floating layers (Tooltip, Menu, Select, Sheet) |
 | `bg-primary` / `text-primary-foreground` | Primary action (Button default) |
-| `bg-secondary` / `text-secondary-foreground` | Secondary surfaces (Badge secondary, Tabs inactive) |
+| `bg-secondary` / `text-secondary-foreground` | Secondary surfaces |
 | `bg-muted` / `text-muted-foreground` | Inactive chrome, metadata text |
 | `bg-accent` / `text-accent-foreground` | Hover/active row tint |
 | `bg-destructive` / `text-destructive-foreground` | Destructive actions, error status |
@@ -78,8 +67,8 @@ use the same aliases rather than raw color values.
 ### Status → Badge variant mapping
 
 HTTP status classes use the shadcn Badge Custom Colors pattern — Tailwind
-palette classes applied via `className` from `@/lib/badge-colors`, layered on
-top of the `secondary` stock variant:
+palette classes via `className` from `@/lib/badge-colors`, layered on the
+`secondary` stock variant:
 
 | `statusClass()` | Badge `variant` | Semantic `className` |
 |-----------------|-----------------|----------------------|
@@ -89,144 +78,105 @@ top of the `secondary` stock variant:
 | `err` (5xx) | `destructive` | — |
 | `""` (unknown) | `secondary` | — |
 
-The same semantic color constants (`badgeSuccess`, `badgeWarning`, `badgeInfo`)
-are reused for non-HTTP badges with matching semantics: WebSocket live/down,
-capture queued/running/live, vision call ok/cache_hit, gate priority
-high/low/stale, and config experimental/Umans API badges.
+The same constants (`badgeSuccess`, `badgeWarning`, `badgeInfo`) are reused
+for non-HTTP badges with matching semantics: WebSocket live/down, capture
+queued/running/live, vision call ok/cache_hit, gate priority high/low/stale,
+config experimental/Umans API badges.
 
 ## Typography
 
-- **Body / sans:** `Geist Variable` (loaded via `@fontsource-variable/geist`),
-  exposed as the Tailwind `font-sans` / default `font-family`. Nova preset
-  default; no manual font stacks in components.
-- **Monospace stack (Tailwind):** `ui-monospace`, `"SF Mono"`, `Menlo`, `monospace`
-- **Method badge text:** `font-mono text-[11px] font-bold` — one-off pixel size for HTTP verbs only
+- **Body / sans:** `Geist Variable` (via `@fontsource-variable/geist`),
+  Tailwind `font-sans` / default `font-family`. Nova preset default; no
+  manual font stacks.
+- **Monospace (Tailwind):** `ui-monospace`, `"SF Mono"`, `Menlo`, `monospace`
+- **Method badge text:** `font-mono text-[11px] font-bold` — one-off pixel
+  size for HTTP verbs only
 - **Row metadata:** `text-[11px] text-muted-foreground tabular-nums`
 
-No other custom font sizes or line heights are defined; use Tailwind's default
-type scale for `text-xs`, `text-sm`, `text-base`, `text-lg`, etc.
+No other custom font sizes or line heights; use Tailwind's default type
+scale (`text-xs`, `text-sm`, `text-base`, `text-lg`, etc.).
 
 ## Radius & Spacing
 
 - **Base radius:** `--radius: 0.625rem` (Nova preset default)
-- **Derived radii:** Tailwind's `rounded-sm` / `rounded-md` / `rounded-lg` map
-  onto `calc(var(--radius) - <offset>)` per the Tailwind config; no custom
-  radius utilities are defined.
+- **Derived radii:** Tailwind's `rounded-sm` / `rounded-md` / `rounded-lg`
+  map onto `calc(var(--radius) - <offset>)`. No custom radius utilities.
 - **Badge radius:** `rounded-full` (pill)
-- **Spacing convention:** Tailwind default scale. Component-internal rhythms
-  observed in the baseline:
+- **Spacing:** Tailwind default scale. Observed rhythms:
   - Section padding: `px-4 py-3`
   - Inline gap: `gap-1.5`, `gap-2`, `gap-3`
   - Compact controls: `h-7`, `h-8`, `h-9`, `px-3`
   - List row padding: `px-4 py-2`
 
-The baseline does **not** include a global custom scrollbar stylesheet. The
-`.scrollbar-none` utility in `src/index.css` is the only scrollbar override —
-it hides the scrollbar gutter on horizontally-scrolling tab strips on mobile
-while preserving touch scrolling.
+The `.scrollbar-none` utility in `src/index.css` is the only scrollbar
+override — hides the gutter on horizontally-scrolling tab strips on mobile.
 
 ## Focus & Motion
 
 - **Focus rings:**
-  - `Button` uses `focus-visible:border-ring focus-visible:ring-3
-    focus-visible:ring-ring/50` with a `focus-visible:outline-none` reset
-    (Nova preset). `ring-3` (not `ring-1`) widens the ring for visibility.
-  - `Badge` uses `focus:ring-2 focus:ring-ring focus:ring-offset-2`.
-  - Interactive rows (e.g. `CaptureRowItem`) and the WS status button use
+  - `Button`: `focus-visible:border-ring focus-visible:ring-3
+    focus-visible:ring-ring/50` with `focus-visible:outline-none` (Nova
+    preset). `ring-3` (not `ring-1`) widens for visibility.
+  - `Badge`: `focus:ring-2 focus:ring-ring focus:ring-offset-2`.
+  - Interactive rows (`CaptureRowItem`) and WS status button:
     `focus-visible:ring-2 focus-visible:ring-ring rounded`.
-- **Color transitions:** `transition-colors` is applied to `Button`, `Badge`, and
+- **Color transitions:** `transition-colors` on `Button`, `Badge`, and
   interactive list rows (`hover:bg-accent`).
-- **Functional motion:** The WebSocket "down" state uses `animate-pulse` on the
-  status dot to signal connection loss. This is informational motion and must be
-  reduced-motion safe (`@media (prefers-reduced-motion: reduce)` should freeze or
-  hide the pulse in later phases).
-- **No layout animation:** `transform`/`opacity` only if motion is added; the
-  virtualized list already uses absolute positioning with `translateY` for
-  scrolling.
+- **Functional motion:** WebSocket "down" state uses `animate-pulse` on the
+  status dot. Must be reduced-motion safe.
+- **No layout animation:** `transform`/`opacity` only if motion is added;
+  the virtualized list uses absolute positioning with `translateY`.
 - **Reduced motion:** `@media (prefers-reduced-motion: reduce)` in
-  `src/index.css` disables transitions and animations globally. Any new motion
-  MUST be covered by this block or an equivalent per-component override.
+  `src/index.css` disables transitions and animations globally. Any new
+  motion MUST be covered by this block.
 
 ## Accessibility Contract
 
-1. **Single h1:** The application shell exposes exactly one top-level `<h1>`
-   ("umans-gate"). Region headers inside sidebars/cards use `<h2>` or are
-   visually-hidden labels.
-2. **Listbox semantics:** The virtualized capture list rows are implemented as
-   `role="option"` / `aria-selected` selectable items inside a `role="listbox"`
-   container.
-3. **Live region:** WebSocket status changes are announced via an `aria-live`
-   region with `polite` so screen-reader users know when the list is stale.
+1. **Single h1:** Exactly one top-level `<h1>` ("umans-gate"). Region
+   headers use `<h2>` or are visually-hidden.
+2. **Listbox semantics:** Virtualized capture list rows are `role="option"`
+   / `aria-selected` inside a `role="listbox"` container.
+3. **Live region:** WebSocket status changes announced via `aria-live`
+   `polite`.
 4. **Contrast:** All functional text/background pairs meet WCAG AA (4.5:1)
-   for small text, and non-text UI components (focus rings, inputs, functional
-   borders, chart series) meet WCAG 1.4.11 (3:1) in both light and dark themes.
-   Decorative borders (`--border`) are exempt under WCAG 1.4.11 in both themes.
-   The light theme was brought into compliance by darkening `--muted-foreground`,
-   `--input`, and `--border`, and by introducing violet (HSL 263°) for
-   `--ring`, `--chart-*`, and `--sidebar-primary`. The dark theme was brought
-   into compliance by darkening `--destructive` (56%→52%) and `--sidebar-primary`
-   (65%→60%) to meet 4.5:1 for their foreground text, increasing `--input` alpha
-   (15%→35%) to meet 3:1, and gaining the same violet accent for `--ring`,
-   `--sidebar-ring`, and `--chart-*`. Tooltip secondary text uses
-   `text-background/70` on `bg-foreground` instead of `text-muted-foreground`
-   to maintain 4.5:1 on the inverted tooltip surface.
-5. **Keyboard-first:** All interactive elements are reachable and operable by
-   keyboard; focus rings are not removed without a replacement.
-6. **No emoji icons:** Use SVG icon sets only (`lucide-react`). Emojis are not
-   used as semantic icon replacements.
+   for small text; non-text UI components (focus rings, inputs, functional
+   borders, chart series) meet WCAG 1.4.11 (3:1) in both themes. Decorative
+   borders (`--border`) are exempt. Light theme brought into compliance by
+   darkening `--muted-foreground`, `--input`, `--border` and introducing
+   violet (263°) for `--ring`, `--chart-*`, `--sidebar-primary`. Dark theme
+   by darkening `--destructive` (56%→52%) and `--sidebar-primary` (65%→60%),
+   increasing `--input` alpha (15%→35%), gaining the same violet accent.
+5. **Keyboard-first:** All interactive elements reachable and operable by
+   keyboard; focus rings not removed without a replacement.
+6. **No emoji icons:** SVG icon sets only (`lucide-react`).
 
 ## Primitives Inventory
 
-### Primitive library — Base UI only
+### Base UI only
 
-Every file in `src/components/ui/` wraps `@base-ui/react`. The stock shadcn
-`base-nova` wrappers are the baseline; the following local modifications are
-documented so they are not accidentally reverted by a future `shadcn add`:
+Every file in `src/components/ui/` wraps `@base-ui/react`. Local
+modifications documented so they are not reverted by a future
+`shadcn add`:
 
 | File | Local change vs. stock `base-nova` | Reason |
 |------|-------------------------------------|--------|
-| `scroll-area.tsx` | Restored custom `viewportRef?: React.Ref<HTMLDivElement>` prop, forwarded to `<ScrollArea.Viewport ref={viewportRef}>` | `capture-list.tsx` feeds the viewport DOM node to `@tanstack/react-virtual` (`getScrollElement: () => viewportRef.current`). Stock shadcn drops this prop. |
-| `tabs.tsx` | `TabsList` defaults `activateOnFocus` to `true` (Base UI defaults to `false`) | Preserves the original Radix keyboard behavior where ArrowRight both focuses and activates the next tab. |
-| `alert-dialog.tsx` | `AlertDialogAction` wraps `AlertDialogPrimitive.Close` with `render={<Button …/>}` instead of being a plain `Button` | Radix's `Action` auto-closed the dialog; stock Base UI `AlertDialogAction` did not. |
-| `button.tsx` | `size` prop type widened to include `"icon-xs" \| "icon-sm" \| "icon-lg"` literals | cva `VariantProps` loses literal-string types for hyphenated keys; `sheet.tsx` passes `size="icon-sm"` for its close button. |
+| `scroll-area.tsx` | Restored custom `viewportRef?: React.Ref<HTMLDivElement>` prop | `capture-list.tsx` feeds the viewport to `@tanstack/react-virtual`. Stock shadcn drops this prop. |
+| `tabs.tsx` | `TabsList` defaults `activateOnFocus` to `true` | Preserves original Radix keyboard behavior (ArrowRight both focuses and activates) |
+| `alert-dialog.tsx` | `AlertDialogAction` wraps `AlertDialogPrimitive.Close` with `render={<Button …/>}` | Radix's `Action` auto-closed the dialog; stock Base UI did not |
+| `button.tsx` | `size` prop type widened to include `"icon-xs" \| "icon-sm" \| "icon-lg"` | cva `VariantProps` loses literal-string types; `sheet.tsx` passes `size="icon-sm"` |
 
 Any future `shadcn add --overwrite` on these files will revert the local
-changes; re-apply them from this table.
+changes; re-apply from this table.
 
 ### Existing shadcn/ui primitives (`src/components/ui/`)
 
-1. `alert-dialog.tsx` — modal confirmation dialogs
-2. `badge.tsx` — semantic status pills (`default`, `secondary`, `destructive`,
-   `outline`). Custom variants (`sse`, `proto`, etc.) are **not** wired in.
-3. `button.tsx` — `default`, `destructive`, `outline`, `secondary`, `ghost`, `link`
-4. `card.tsx` — surface containers
-5. `dropdown-menu.tsx` — floating menus
-6. `input.tsx` — text inputs
-7. `label.tsx` — form labels (styled native `<label>`, not a Base UI primitive)
-8. `scroll-area.tsx` — custom scroll containers (Base UI; `viewportRef` extension)
-9. `select.tsx` — dropdown selects
-10. `separator.tsx` — visual dividers
-11. `skeleton.tsx` — loading placeholders
-12. `sonner.tsx` — toast notifications
-13. `switch.tsx` — toggles
-14. `table.tsx` — tabular data
-15. `tabs.tsx` — tab panels (horizontal-scroll on mobile via `App.tsx`)
-16. `textarea.tsx` — multi-line inputs
-17. `tooltip.tsx` — hover/focus tooltips
+`alert-dialog.tsx`, `badge.tsx`, `button.tsx`, `card.tsx`,
+`dropdown-menu.tsx`, `input.tsx`, `label.tsx`, `scroll-area.tsx`,
+`select.tsx`, `separator.tsx`, `skeleton.tsx`, `sonner.tsx`, `switch.tsx`,
+`table.tsx`, `tabs.tsx`, `textarea.tsx`, `tooltip.tsx`.
 
-### Planned composite primitives
-
-These do not exist yet. They are declared here so downstream tasks build against
-a named contract.
-
-- **StatusDot** (`src/components/status-dot.tsx`) — colored indicator used by
-  `WsStatusBadge`; wraps token-driven `span` and enforces reduced-motion handling.
-- **PageHeader** (`src/components/page-header.tsx`) — a reusable
-  `<header>` + `<h2>` + action slot used by the application chrome and full-page
-  tabs. The app-level `<h1>` lives in `App.tsx`.
-- **MasterDetailLayout** (`src/components/master-detail-layout.tsx`) —
-  flex row with fixed sidebar width and a stretchy detail panel; extracts the
-  inline `flex h-full` layout used by the Captures tab.
+Custom Badge variants (`sse`, `proto`, etc.) are **not** wired in — only
+`default`, `secondary`, `destructive`, `outline`.
 
 ### Composition tree
 
@@ -239,73 +189,64 @@ App
 │   ├── TabsContent "captures"
 │   │   └── MasterDetailLayout
 │   │       ├── CaptureList
-│   │       │   ├── PageHeader
-│   │       │   ├── WsStatusBadge (Badge + StatusDot + Tooltip)
+│   │       │   ├── WsStatusBadge (Badge + Tooltip)
 │   │       │   ├── GateStatus
 │   │       │   └── VirtualizedRows (CaptureRowItem)
 │   │       └── CaptureDetailPanel
-│   ├── TabsContent "vision" → VisionCalls
-│   ├── TabsContent "performance" → PerformanceMeter
-│   └── TabsContent "config" → ConfigTab
+│   ├── TabsContent "vision" → VisionCalls (lazy)
+│   ├── TabsContent "performance" → PerformanceMeter (lazy)
+│   ├── TabsContent "economics" → EconomicsTab (lazy)
+│   ├── TabsContent "usage" → UsageTab (lazy)
+│   ├── TabsContent "models" → ModelsTab (lazy)
+│   └── TabsContent "config" → ConfigTab (lazy)
 └── Toaster
 ```
 
+Dashboard tabs (App.tsx wiring): captures, vision, performance, economics,
+usage, models, config. Vision/performance/economics/usage/models/config
+are lazy-loaded. Also lazy: `ModeToggle`, `UpdateIndicator`. Non-lazy:
+`CaptureList`, `CaptureDetailPanel` (always loaded for captures tab).
+
 ## Accepted Debt
 
-The following tradeoffs are intentional in the current baseline and are
-scheduled for later work:
-
-1. **Fixed-width capture list (desktop).** The desktop sidebar is locked to
-   `w-[380px]` (`min-w-[380px]`). On mobile the list is rendered inside a
-   `Sheet` (Base UI Dialog) at the same width, which is wider than most phone
-   viewports; the Sheet clamps to `w-3/4 sm:max-w-sm` so it fits. Adaptive
-   desktop sidebar width is deferred to a later phase.
-2. **BodyRenderer edge-case branches preserved.** The body renderer in
-   `capture-detail.tsx` has several edge-case branches for unusual content types
-   (empty bodies, non-JSON, binary). These are preserved as-is to avoid
-   regressions; T4 will route the empty-body branch through a new `<EmptyState>`
-   primitive but will not refactor the other branches.
-3. **Bundle-size / lazy-loading deferred.** No route-level code splitting or
-   lazy loading is in place. The dashboard is a single bundle. This is
-   acceptable for an internal tool; deferred until a measured need arises.
-4. **No external error-monitoring.** No Sentry, LogRocket, or equivalent is
-   wired. Runtime errors surface via Sonner toasts and the console. Acceptable
-   for the current operational scope.
+1. **Fixed-width capture list (desktop).** Sidebar locked to
+   `w-[380px]`. On mobile, rendered inside a `Sheet` clamped to
+   `w-3/4 sm:max-w-sm`. Adaptive width deferred.
+2. **BodyRenderer edge-case branches preserved.** Several branches for
+   unusual content types (empty bodies, non-JSON, binary). Preserved as-is
+   to avoid regressions.
+3. **No route-level code splitting.** Dashboard is a single bundle.
+   Acceptable for an internal tool.
+4. **No external error-monitoring.** Runtime errors surface via Sonner
+   toasts and the console.
 
 ## Mobile responsiveness
 
-The app shell is designed desktop-first; mobile is supported via the following
-adaptive patterns. Any new tab or panel MUST follow the same patterns.
+Desktop-first; mobile supported via these patterns. Any new tab or panel
+MUST follow them.
 
-- **Top-level tabs:** `TabsList` is wrapped in a
-  `.tab-scroll flex-1 min-w-0 overflow-x-auto overflow-y-hidden scrollbar-none`
-  container so the tab strip scrolls horizontally on narrow screens instead of
-  wrapping or cramping. Two utilities (in `src/index.css`) make this work:
-  `.scrollbar-none` hides the scrollbar gutter while preserving touch scrolling,
-  and `.tab-scroll` applies a right-edge `mask-image` fade on mobile only
-  (`max-width: 767px`) to signal that more tabs exist beyond the visible edge.
-  On `md+` the `TabsList` is `w-full` so all tabs fit without scrolling.
-- **Master/detail (captures tab):** On `md+` the layout is a flex row (sidebar
-  `w-[380px] shrink-0` + detail `flex-1 min-w-0`). Below `md`, the capture list
-  is rendered inside a left `Sheet` (`master-detail-layout.tsx`); selecting a
-  row closes the sheet and shows the detail panel full-width.
-- **Sheet width on mobile:** The mobile `SheetContent` uses
-  `data-[side=left]:w-[85vw] data-[side=left]:sm:w-[380px]`. The `data-[side=left]`
-  variant prefix is required so `tailwind-merge` deduplicates against the stock
-  shadcn `data-[side=left]:w-3/4` in the sheet variant; an unprefixed `w-[380px]`
-  would NOT override it (tailwind-merge treats them as different variants) and
-  the sheet would render at 75% viewport width.
+- **Top-level tabs:** `TabsList` wrapped in
+  `.tab-scroll flex-1 min-w-0 overflow-x-auto overflow-y-hidden
+  scrollbar-none`. Two utilities in `src/index.css`: `.scrollbar-none`
+  hides the scrollbar gutter; `.tab-scroll` applies a right-edge
+  `mask-image` fade on mobile only (`max-width: 767px`). On `md+` the
+  `TabsList` is `w-full`.
+- **Master/detail (captures tab):** `md+` is a flex row (sidebar
+  `w-[380px] shrink-0` + detail `flex-1 min-w-0`). Below `md`, the capture
+  list is rendered inside a left `Sheet` (`master-detail-layout.tsx`);
+  selecting a row closes the sheet.
+- **Sheet width on mobile:** `SheetContent` uses
+  `data-[side=left]:w-[85vw] data-[side=left]:sm:w-[380px]`. The
+  `data-[side=left]` prefix is required so `tailwind-merge` deduplicates
+  against the stock `data-[side=left]:w-3/4`.
 - **Capture list height chain:** The `CaptureList` root `<aside>` MUST be
-  `h-full w-full min-w-0 flex-col`. Without `h-full` the aside grows to fit all
-  content and the `ScrollArea` viewport has nothing to scroll
-  (`clientHeight ≈ scrollHeight`). The `ScrollArea` itself must be
-  `min-h-0 flex-1 overflow-hidden` so the flex child can shrink below content
-  size and produce a scroll range.
-- **Capture list scrolling:** `ScrollArea` wraps the virtualized list. Base UI's
-  `ScrollArea` (unlike Radix's) has no `type="hover"` default, so the thumb
-  appears on touch devices via `data-scrolling` / `data-hovering` data
-  attributes. The thumb uses `bg-muted-foreground/40 hover:bg-muted-foreground/60`
-  (NOT `bg-border`, which is near-white and invisible on `bg-card`). Do not
-  re-introduce a hover-only thumb or a `bg-border` thumb.
-- **Header:** The `MobileDrawerTrigger` (hamburger) is `md:hidden`; the full
+  `h-full w-full min-w-0 flex-col`. The `ScrollArea` must be
+  `min-h-0 flex-1 overflow-hidden` so the flex child can shrink below
+  content size and produce a scroll range.
+- **Capture list scrolling:** `ScrollArea` wraps the virtualized list.
+  Base UI's `ScrollArea` has no `type="hover"` default; the thumb appears on
+  touch via `data-scrolling` / `data-hovering`. Thumb uses
+  `bg-muted-foreground/40 hover:bg-muted-foreground/60` (NOT `bg-border`).
+  Do not re-introduce a hover-only thumb or a `bg-border` thumb.
+- **Header:** `MobileDrawerTrigger` (hamburger) is `md:hidden`; the full
   `TabsList` + `ModeToggle` chrome is shown from `md` up.
