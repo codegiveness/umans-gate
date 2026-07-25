@@ -1,6 +1,6 @@
 # Architecture
 
-> **Applies to:** umans-gate v0.3.22 · **Last updated:** 2026-07-25
+> **Applies to:** umans-gate v0.3.24 · **Last updated:** 2026-07-25
 
 This document describes the system architecture, data flow, and key design
 decisions of umans-gate.
