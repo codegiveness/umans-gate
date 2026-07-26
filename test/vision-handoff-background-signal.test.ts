@@ -153,7 +153,12 @@ describe("V2: background vision signal not tied to client disconnect", () => {
       expect(result.changed).toBe(false);
 
       // Wait for background vision to complete despite client abort.
-      await new Promise((r) => setTimeout(r, 400));
+      // Poll instead of a fixed sleep: the background fetch takes ≥100ms
+      // and CI runners can be slow, so allow up to 2s for the cache write.
+      const deadline = Date.now() + 2000;
+      while (cache.size === 0 && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, 25));
+      }
 
       // The description must have been cached — proving background vision
       // completed successfully rather than aborting with the client signal.
