@@ -1,5 +1,32 @@
 export type CaptureState = "enqueued" | "streaming" | "cooling_down" | "done";
 
+// Keep in sync with src/incidents.ts
+export type ResponsibleParty = "upstream" | "proxy" | "client";
+
+// Keep in sync with src/incidents.ts
+export type IncidentType =
+  | "upstream_error"
+  | "ttft_timeout"
+  | "id_rewrite"
+  | "rate_limited"
+  | "gate_rejected"
+  | "client_aborted";
+
+export interface IncidentRow {
+  id: number;
+  capture_id: number;
+  responsible_party: ResponsibleParty;
+  incident_type: IncidentType;
+  upstream_status: number | null;
+  served_status: number;
+  reason: string | null;
+  retry_attempt: number | null;
+  ttft_exceeded: number | null;
+  created_at: number;
+  capture_model: string | null;
+  capture_path: string | null;
+}
+
 export interface CaptureSummary {
   id: number;
   method: string;

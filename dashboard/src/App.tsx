@@ -36,6 +36,9 @@ const EconomicsTab = lazy(() =>
 const UsageTab = lazy(() =>
   import("@/components/usage-tab").then((m) => ({ default: m.UsageTab })),
 );
+const IncidentsTab = lazy(() =>
+  import("@/components/incidents-tab").then((m) => ({ default: m.IncidentsTab })),
+);
 const VisionCalls = lazy(() =>
   import("@/components/vision-calls").then((m) => ({ default: m.VisionCalls })),
 );
@@ -167,6 +170,11 @@ export function App() {
                       tip="Raw /v1/usage samples polled from upstream"
                     />
                     <TabTriggerWithTip
+                      value="incidents"
+                      label="Incidents"
+                      tip="Non-200 capture attribution"
+                    />
+                    <TabTriggerWithTip
                       value="models"
                       label="Models"
                       tip="Upstream model catalog with pricing"
@@ -250,6 +258,15 @@ export function App() {
                 <TabsContent value="usage" className="min-h-0 flex-1 overflow-hidden" keepMounted>
                   <Suspense fallback={<TabPanelFallback />}>
                     <UsageTab />
+                  </Suspense>
+                </TabsContent>
+                <TabsContent
+                  value="incidents"
+                  className="min-h-0 flex-1 overflow-hidden"
+                  keepMounted
+                >
+                  <Suspense fallback={<TabPanelFallback />}>
+                    <IncidentsTab />
                   </Suspense>
                 </TabsContent>
                 <TabsContent value="config" className="min-h-0 flex-1 overflow-hidden" keepMounted>

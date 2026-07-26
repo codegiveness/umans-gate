@@ -267,6 +267,52 @@ effects, not a statement about code quality. Applied to fields whose felt
 benefits have not been benchmarked against a control. _Avoid_: prototype,
 beta, unstable.
 
+## Incidents
+
+**Incident** — a captured request whose final `response_status` is not
+200, attributed to exactly one responsible party. Stored in the
+`incidents` table with one row per `capture_id` (UNIQUE). Distinct from
+the capture itself (which records the full request/response) — an
+incident is the attribution overlay that answers "who or what caused
+this non-200?" _Avoid_: failure record, error log entry.
+
+**Responsible party** — the single attribution target for a non-200
+incident. Three values: `upstream` (the LLM endpoint returned a real
+non-200), `proxy` (the gate synthesized the status — rate-limit,
+breaker, queue, TTFT timeout), `client` (the client disconnected,
+yielding 499). Mutually exclusive: a capture is attributed to exactly
+one party. _Avoid_: blame target, fault source.
+
+**Upstream status** — the HTTP status the upstream endpoint returned,
+when one was received. Null when no upstream response arrived (TTFT
+timeout before first byte, client abort before fetch, gate rejection
+before fetch). Distinct from `served_status` (what the client actually
+saw). Equals the final `upstream.status` at `doneRes()` time.
+_Avoid_: origin status, real status.
+
+**Served status** — the HTTP status the proxy returned to the client.
+Equals `upstream_status` for pass-through non-200s; synthesized by the
+proxy for gate-injected statuses (429, 503, 504, 499). _Avoid_:
+response status (ambiguous with `captures.response_status`).
+
+**Incident type** — the categorical cause within a responsible party.
+Six values: `upstream_error`, `ttft_timeout`, `id_rewrite`,
+`rate_limited`, `gate_rejected`, `client_aborted`. Anchored at first
+insert; does not change if the capture transitions. The `reason` column
+carries the human-readable detail (e.g. suppression cause for
+`ttft_timeout`). _Avoid_: error type, failure class.
+
+**TTFT suppression reason** — the sub-cause appended to a `ttft_timeout`
+incident's `reason` when retry was suppressed. Four values:
+`breaker_open` (upstream failing — breaker tripped on 429s),
+`gate_saturated` (proxy overloaded — active permits at saturation
+threshold), `auto_disabled` (TTFT watchdog disabled itself after
+repeated retry failures), `cap_reached` (per-request retry budget
+exhausted, or rewrite escalation not eligible). Distinct from
+`incident_type` (which is always `ttft_timeout`); this is the
+audit-level detail of why the proxy declined to retry.
+_Avoid_: retry reason, suppress cause.
+
 ## Dashboard navigation
 
 **Config sub-tab** — a secondary tab strip rendered inside the Config
@@ -275,6 +321,12 @@ Advanced). Distinct from the top-level tab strip in the app header
 (Captures, Vision, …, Config). Replaces the prior flat single-scroll
 rendering of all config groups. _Avoid_: config tab (ambiguous with the
 top-level tab), config section (that's a `SectionDef`).
+
+**Incidents sub-tab** — a secondary tab strip rendered inside the
+Incidents top-level tab, one pane per responsible party (All, Upstream,
+Proxy, Client). Defaults to Upstream. Server-side filtered via the
+`?responsible_party=` query param. Distinct from the top-level tab
+strip. _Avoid_: incident filter, incident view.
 
 **First-run gate** — the modal shown when `config.has_api_key` is false
 (`ApiKeyGate` component). Collects the Umans API key before any other

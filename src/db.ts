@@ -342,6 +342,36 @@ export function migrateCaptureSchema(db: Database): void {
       ON id_rewrite_audit(capture_id);
   `);
 
+  // Incidents table — one row per non-200 capture, attributed at first write site.
+  // No FOREIGN KEY on capture_id (mirrors id_rewrite_audit precedent — ring-buffer
+  // eviction of captures breaks FK constraints; cleanup is explicit via onPrune).
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS incidents (
+      id                INTEGER PRIMARY KEY AUTOINCREMENT,
+      capture_id        INTEGER NOT NULL UNIQUE,
+      responsible_party TEXT NOT NULL,
+      incident_type     TEXT NOT NULL,
+      upstream_status   INTEGER,
+      served_status     INTEGER NOT NULL,
+      reason            TEXT,
+      retry_attempt     INTEGER,
+      ttft_exceeded     INTEGER,
+      created_at        INTEGER NOT NULL
+    );
+  `);
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_incidents_created
+      ON incidents(created_at DESC);
+  `);
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_incidents_party
+      ON incidents(responsible_party, created_at DESC);
+  `);
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_incidents_type
+      ON incidents(incident_type, created_at DESC);
+  `);
+
   // Economics schema (model_pricing + daily_usage tables, usage_accounted column).
   migrateEconomicsSchema(db);
   // Account captures from before the economics migration.
@@ -664,6 +694,7 @@ export class CaptureDB {
   /** Delete all captures. */
   clear(): void {
     this.db.prepare("DELETE FROM captures").run();
+    this.db.prepare("DELETE FROM incidents").run();
     this.rowCount = 0;
   }
 
@@ -965,5 +996,61 @@ export class CaptureDB {
         $fields: params.fieldsRewritten.join(","),
         $tool_count: params.toolUseIdsRewritten,
       });
+  }
+
+  /** Insert or update an incident row. Direct sync write (bypasses WriteQueue
+   *  per ADR-0022). ON CONFLICT(capture_id) updates only mutable columns —
+   *  responsible_party and incident_type are anchored at first insert
+   *  (ADR-0021) and never overwritten. */
+  recordIncident(params: {
+    captureId: number;
+    responsibleParty: "upstream" | "proxy" | "client";
+    incidentType:
+      | "upstream_error"
+      | "ttft_timeout"
+      | "id_rewrite"
+      | "rate_limited"
+      | "gate_rejected"
+      | "client_aborted";
+    upstreamStatus: number | null;
+    servedStatus: number;
+    reason: string | null;
+    retryAttempt?: number | null;
+    ttftExceeded?: number | null;
+  }): void {
+    this.db
+      .prepare(
+        `INSERT INTO incidents
+           (capture_id, responsible_party, incident_type, upstream_status,
+            served_status, reason, retry_attempt, ttft_exceeded, created_at)
+         VALUES ($capture_id, $responsible_party, $incident_type, $upstream_status,
+                 $served_status, $reason, $retry_attempt, $ttft_exceeded, $created_at)
+         ON CONFLICT(capture_id) DO UPDATE SET
+           served_status = excluded.served_status,
+           reason = excluded.reason,
+           upstream_status = COALESCE(excluded.upstream_status, incidents.upstream_status)`,
+      )
+      .run({
+        $capture_id: params.captureId,
+        $responsible_party: params.responsibleParty,
+        $incident_type: params.incidentType,
+        $upstream_status: params.upstreamStatus,
+        $served_status: params.servedStatus,
+        $reason: params.reason,
+        $retry_attempt: params.retryAttempt ?? null,
+        $ttft_exceeded: params.ttftExceeded ?? null,
+        $created_at: Date.now(),
+      });
+  }
+
+  /** Delete incident rows older than `cutoffMs`. When omitted, uses the
+   *  configured retention window. Real retention wiring (startup sweep,
+   *  eviction cleanup) is in ticket 03. */
+  sweepIncidents(cutoffMs?: number): number {
+    const cutoff = cutoffMs ?? Date.now();
+    const result = this.db
+      .prepare("DELETE FROM incidents WHERE created_at < $cutoff")
+      .run({ $cutoff: cutoff });
+    return Number(result.changes);
   }
 }

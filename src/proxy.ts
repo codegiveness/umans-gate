@@ -17,6 +17,7 @@ import {
   textDecoder,
   textEncoder,
 } from "./helpers.js";
+import { deriveIncident, maybeRecordUpstreamIncident } from "./incidents.js";
 import type { ConcurrencyGate, GateError } from "./limiter/index.js";
 import { createLogger } from "./logger.js";
 import { extractModelName } from "./models/name.js";
@@ -414,7 +415,7 @@ async function runVisionHandoff(ctx: ProxyContext, deps: ProxyDeps): Promise<voi
 // ─── Phase 6: weighted rate limit check ───────────────────────────────────
 
 function checkRateLimit(ctx: ProxyContext, deps: ProxyDeps): Response | undefined {
-  const { queue } = deps;
+  const { queue, db } = deps;
   const weight = computeRequestWeight(ctx.reqModelName ?? undefined, deps.models);
   ctx.weight = weight;
   ctx.reqMeta.request_size = ctx.reqBuf ? ctx.reqBuf.byteLength : 0;
@@ -424,6 +425,7 @@ function checkRateLimit(ctx: ProxyContext, deps: ProxyDeps): Response | undefine
   const rc = rate.check(weight);
   if (rc.allowed) return;
 
+  const gateReason = `Rate limit exceeded — retry after ${rc.retryAfterSeconds}s`;
   queue.queueUpdate(ctx.capId, ctx.reqMeta, {
     $status: 429,
     $rh: JSON.stringify({ error: "rate_limit_exceeded" }),
@@ -434,8 +436,25 @@ function checkRateLimit(ctx: ProxyContext, deps: ProxyDeps): Response | undefine
     $dur: Date.now() - ctx.startedAt,
     $fin: Date.now(),
     $status_source: "gate",
-    $gate_reason: `Rate limit exceeded — retry after ${rc.retryAfterSeconds}s`,
+    $gate_reason: gateReason,
   });
+  try {
+    const { responsibleParty, incidentType } = deriveIncident({
+      status: 429,
+      statusSource: "gate",
+      clientAborted: false,
+    });
+    db.recordIncident({
+      captureId: ctx.capId,
+      responsibleParty,
+      incidentType,
+      upstreamStatus: null,
+      servedStatus: 429,
+      reason: gateReason,
+    });
+  } catch {
+    // Non-blocking: incident persistence failure must not break the response path.
+  }
   return new Response(
     JSON.stringify({
       error: "rate_limit_exceeded",
@@ -475,6 +494,17 @@ async function acquirePermit(ctx: ProxyContext, deps: ProxyDeps): Promise<Respon
       : err.code === "circuit_open" || err.code === "queue_full" || err.code === "timeout"
         ? 503
         : 502;
+    const gateReason = aborted
+      ? "Client disconnected while enqueued"
+      : err.code === "circuit_open"
+        ? "Circuit breaker open — upstream concurrency 429s exceeded threshold"
+        : err.code === "queue_full"
+          ? "Concurrency queue full — too many requests waiting for a slot"
+          : err.code === "timeout"
+            ? "Queue timeout — request waited too long for a concurrency slot"
+            : err.code === "invalid_weight"
+              ? "Invalid weight — model weight must be positive"
+              : err.message;
     queue.queueUpdate(ctx.capId, ctx.reqMeta, {
       $status: status,
       $rh: JSON.stringify({ error: err.code }),
@@ -485,18 +515,28 @@ async function acquirePermit(ctx: ProxyContext, deps: ProxyDeps): Promise<Respon
       $dur: Date.now() - ctx.startedAt,
       $fin: Date.now(),
       $status_source: "gate",
-      $gate_reason: aborted
-        ? "Client disconnected while enqueued"
-        : err.code === "circuit_open"
-          ? "Circuit breaker open — upstream concurrency 429s exceeded threshold"
-          : err.code === "queue_full"
-            ? "Concurrency queue full — too many requests waiting for a slot"
-            : err.code === "timeout"
-              ? "Queue timeout — request waited too long for a concurrency slot"
-              : err.code === "invalid_weight"
-                ? "Invalid weight — model weight must be positive"
-                : err.message,
+      $gate_reason: gateReason,
     });
+    // Incident attribution — gate rejection (circuit_open/queue_full/timeout/
+    // invalid_weight → gate_rejected; aborted → client_aborted). No upstream
+    // response was received. Non-blocking: try/catch swallows DB errors.
+    try {
+      const { responsibleParty, incidentType } = deriveIncident({
+        status,
+        statusSource: "gate",
+        clientAborted: aborted,
+      });
+      db.recordIncident({
+        captureId: ctx.capId,
+        responsibleParty,
+        incidentType,
+        upstreamStatus: null,
+        servedStatus: status,
+        reason: gateReason,
+      });
+    } catch {
+      // Non-blocking: incident persistence failure must not break the response path.
+    }
     if (aborted) return new Response(null, { status: 499 });
     return new Response(JSON.stringify({ error: err.code, message: err.message }), {
       status,
@@ -706,11 +746,15 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
         ws.broadcast({ type: "gate", stats: getGateStats() });
       }
     }
-    queueTtftTimeout(
-      504,
-      "TTFT watchdog exceeded — no first byte within threshold",
-      "ttft_watchdog_exceeded",
-    );
+    // When retry was attempted (retryAttempt > 0), the reason stays generic —
+    // the retry_attempt column carries the signal. When suppressed without a
+    // retry, append the suppression cause so operators can audit why the
+    // proxy declined to retry.
+    const ttftReason =
+      retryAttempt > 0
+        ? "TTFT watchdog exceeded — no first byte within threshold"
+        : `TTFT watchdog exceeded — no first byte within threshold (retry suppressed: ${suppressReason})`;
+    queueTtftTimeout(504, ttftReason, "ttft_watchdog_exceeded");
     const errHeaders: Record<string, string> = { "content-type": "text/plain" };
     applyTtftHeaders(errHeaders);
     return {
@@ -1150,6 +1194,13 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
 
   if (!upstream.body) {
     queue.queueUpdate(capId, reqMeta, { ...doneRes(), $rb: "", $rs: 0 });
+    maybeRecordUpstreamIncident({
+      db: deps.db,
+      captureId: capId,
+      status: upstream.status,
+      statusSource: "upstream",
+      clientAborted: false,
+    });
     return new Response(null, { status: upstream.status, headers: outHeaders });
   }
 
@@ -1211,6 +1262,13 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
     } catch {
       // Non-critical: capture persistence failure must not block permit release
     }
+    maybeRecordUpstreamIncident({
+      db: deps.db,
+      captureId: capId,
+      status: upstream.status,
+      statusSource: "upstream",
+      clientAborted: false,
+    });
   };
   ctx.flushCaptureRef = flushCapture;
 

@@ -636,6 +636,46 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
         })();
       },
     },
+    {
+      method: "GET",
+      pattern: `${VIEWER}/api/incidents`,
+      handler: (ctx) => {
+        const limit = Math.min(Number(ctx.url.searchParams.get("limit") ?? 200), 1000);
+        const sinceParam = ctx.url.searchParams.get("since");
+        const since = sinceParam ? Number(sinceParam) : null;
+        const party = ctx.url.searchParams.get("responsible_party");
+        const type = ctx.url.searchParams.get("incident_type");
+        const conditions: string[] = [];
+        const params: Record<string, unknown> = { $limit: limit };
+        if (since !== null && !Number.isNaN(since)) {
+          conditions.push("i.created_at > $since");
+          params.$since = since;
+        }
+        if (party === "upstream" || party === "proxy" || party === "client") {
+          conditions.push("i.responsible_party = $party");
+          params.$party = party;
+        }
+        if (type) {
+          conditions.push("i.incident_type = $type");
+          params.$type = type;
+        }
+        const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+        const rows = ctx.db.rawDb
+          .prepare(
+            `SELECT i.id, i.capture_id, i.responsible_party, i.incident_type,
+                    i.upstream_status, i.served_status, i.reason,
+                    i.retry_attempt, i.ttft_exceeded, i.created_at,
+                    c.model AS capture_model, c.path AS capture_path
+             FROM incidents i
+             LEFT JOIN captures c ON c.id = i.capture_id
+             ${where}
+             ORDER BY i.created_at DESC
+             LIMIT $limit`,
+          )
+          .all(params as unknown as never) as Array<Record<string, unknown>>;
+        return Response.json(rows);
+      },
+    },
     // DETAIL_RE regex route — must come after all exact-match API routes and
     // before static file fallback. Uses the capture id from match[1].
     {
