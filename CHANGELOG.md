@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.25] - 2026-07-26
+
+### Fixed
+
+- **Hybrid idle timeout stops over-logging idle-but-open sessions** (`src/usage-history/daily.ts`):
+  the usage tracking idle timeout now uses a hybrid approach that distinguishes
+  between truly idle sessions and sessions that are open but not actively
+  exchanging tokens. Previously, sessions that were open (e.g. waiting on a
+  long generation) were incorrectly logged as idle time, inflating the idle
+  minute count. The fix gates idle detection on `concurrent_sessions === 0`
+  so that open sessions continue to count as active even without token movement.
+
+- **Dashboard empty state centering and perf tab layout** (`dashboard/`): the
+  empty state placeholder is now properly centered, the performance tab layout
+  is tightened, and usage tooltip separators render correctly across all
+  viewport sizes.
+
+### Changed
+
+- **Reference docs reorganized** — documentation files under `docs/` have been
+  reorganized for clearer navigation. `AGENTS.md` tightened with consolidated
+  config field table. `.github/AGENT_RULES.md` added for AI agent behavioral
+  rules (thinking stamping, reasoning_effort stamping rules).
+
+### Added
+
+- **Sleep/wake gap test** — new integration test covering the usage tracking
+  behavior across system sleep/wake gaps, ensuring that gaps in sampling data
+  (e.g. laptop sleep) are handled correctly without spurious idle time.
+
 ## [0.3.24] - 2026-07-25
 
 ### Added
