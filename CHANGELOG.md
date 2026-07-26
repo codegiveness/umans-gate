@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-26
+
 ### Added
 
 - **Version-gated GLM 5.2 Preserved Thinking toggle** (`stamp_glm_5_2_thinking_enabled`):
