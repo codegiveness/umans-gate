@@ -73,6 +73,10 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     env.USAGE_GAP_THRESHOLD_MINUTES ?? raw.usage_gap_threshold_minutes,
     DEFAULT_CONFIG.usage_gap_threshold_minutes ?? 60,
   );
+  const usageIdleSessionTimeoutMinutes = num(
+    env.USAGE_IDLE_SESSION_TIMEOUT_MINUTES ?? raw.usage_idle_session_timeout_minutes,
+    DEFAULT_CONFIG.usage_idle_session_timeout_minutes ?? 5,
+  );
   const modelsRefreshMs = num(env.MODELS_REFRESH_MS ?? raw.models_refresh_ms, 3600000);
   const concurrencyHardCap = num(env.CONCURRENCY_HARD_CAP ?? raw.concurrency_hard_cap, 16);
   const concurrencySoftLimit = num(env.CONCURRENCY_SOFT_LIMIT ?? raw.concurrency_soft_limit, 8);
@@ -315,6 +319,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     usageHistoryEnabled,
     usageRawRetentionDays,
     usageGapThresholdMinutes,
+    usageIdleSessionTimeoutMinutes,
     modelsRefreshMs,
     concurrencyHardCap,
     concurrencySoftLimit,

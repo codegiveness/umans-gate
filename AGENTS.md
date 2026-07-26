@@ -78,6 +78,7 @@ are never overwritten. All env vars have `snake_case` JSON equivalents.
 | `usage_history_enabled` | `true` |
 | `usage_raw_retention_days` | `7` |
 | `usage_gap_threshold_minutes` | `60` |
+| `usage_idle_session_timeout_minutes` | `5` |
 | `models_refresh_ms` | `3600000` |
 | `concurrency_hard_cap` | `16` |
 | `concurrency_soft_limit` | `8` |
@@ -137,8 +138,10 @@ are never overwritten. All env vars have `snake_case` JSON equivalents.
 
 The Config tab can save and hot-reload via
 `POST /dashboard/api/config/reload`. Hot-reloadable fields:
-`stamp_claude_code_enabled`, `breaker_*`, `rate_limit_*`, and the 7
-intent-aware vision fields (`vision_intent_strategy`,
+`stamp_claude_code_enabled`, `breaker_*`, `rate_limit_*`, `usage_*`
+(`usage_history_enabled`, `usage_raw_retention_days`,
+`usage_gap_threshold_minutes`, `usage_idle_session_timeout_minutes`),
+and the 7 intent-aware vision fields (`vision_intent_strategy`,
 `vision_decomposition_enabled`, `vision_decomposition_timeout_ms`,
 `vision_crafting_timeout_ms`, `vision_adjacent_text_max_chars`,
 `vision_recent_messages_count`, `vision_system_prompt_max_chars`).

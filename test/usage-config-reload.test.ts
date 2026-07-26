@@ -93,6 +93,20 @@ describe("Integration: usage-history config hot-reload (ticket 07)", () => {
     expect(after.usage_gap_threshold_minutes).toBe(newValue);
   });
 
+  test("usage_idle_session_timeout_minutes applies live via reload", async () => {
+    const before = await getConfig(proxy);
+    const initialValue = before.usage_idle_session_timeout_minutes;
+    expect(typeof initialValue).toBe("number");
+
+    const newValue = (initialValue as number) + 3;
+    await saveConfig(proxy, { usage_idle_session_timeout_minutes: newValue });
+    const reloadResult = await reloadConfig(proxy);
+    expect(reloadResult.applied).toContain("usage_idle_session_timeout_minutes");
+
+    const after = await getConfig(proxy);
+    expect(after.usage_idle_session_timeout_minutes).toBe(newValue);
+  });
+
   test("usage_history_enabled applies live via reload", async () => {
     // Toggle off → reload → verify samples stop being written.
     await saveConfig(proxy, { usage_history_enabled: false });

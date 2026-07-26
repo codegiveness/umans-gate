@@ -27,12 +27,15 @@ export type DayCompleteness =
 export interface DownsampleOptions {
   /** Gap threshold in minutes (decision 11). */
   gapThresholdMinutes: number;
+  /** Idle session timeout in minutes. Consecutive open-session intervals with no token movement exceeding this are treated as idle. */
+  idleSessionTimeoutMinutes: number;
 }
 
 export interface DownsampleDayInput {
   store: UsageHistoryStore;
   dayUtc: string;
   gapThresholdMinutes: number;
+  idleSessionTimeoutMinutes: number;
 }
 
 /** Convert ms epoch to YYYY-MM-DD UTC. */
@@ -144,7 +147,7 @@ const NULL_TRIGGER: TriggerMomentFields = {
 /** Compute the daily aggregate row for one UTC day from samples + events.
  *  Does NOT persist; caller writes via store.upsertDailyRow(). */
 export function computeDailyRow(input: DownsampleDayInput): UsageDailyRow {
-  const { store, dayUtc, gapThresholdMinutes } = input;
+  const { store, dayUtc, gapThresholdMinutes, idleSessionTimeoutMinutes } = input;
   const startMs = utcMidnightMs(dayUtc);
   const endMs = startMs + MS_PER_DAY;
   const downsampledAt = Date.now();
@@ -225,10 +228,23 @@ export function computeDailyRow(input: DownsampleDayInput): UsageDailyRow {
   // Dimension A: accumulated active minutes. Sum of (next - prev) in minutes
   // for adjacent pairs where interval ≤ gapThresholdMinutes. Gaps excluded.
   // Also build active_minutes_by_utc_hour (24-bucket JSON).
+  //
+  // Hybrid idle timeout: when tokens haven't advanced but a session is open,
+  // count the interval as active ONLY if the consecutive no-token-movement
+  // streak hasn't exceeded idleSessionTimeoutMinutes. Once the streak exceeds
+  // the threshold, the user is likely idle (went to lunch, left tab open) and
+  // those intervals are skipped. A token advance resets the streak.
   const hourBuckets = new Array<number>(24).fill(0);
   let accumulatedActiveMinutes = 0;
   let hasGap = false;
   const gapMs = gapThresholdMinutes * MS_PER_MINUTE;
+  const idleTimeoutMs = idleSessionTimeoutMinutes * MS_PER_MINUTE;
+  // Streak semantics are coupled to usage_refresh_ms: grace ≈ floor(threshold /
+  // poll_interval) × poll_interval. With 60s polls and 5min threshold, exactly
+  // 5min of idle-with-session counts before intervals are skipped. Long
+  // generations (>threshold) may under-count if upstream doesn't update token
+  // counters until stream completion — raise threshold if that's a concern.
+  let idleStreakMs = 0;
   for (let i = 1; i < samples.length; i++) {
     const prev = samples[i - 1];
     const next = samples[i];
@@ -236,23 +252,39 @@ export function computeDailyRow(input: DownsampleDayInput): UsageDailyRow {
     const identical = ambientKey(prev) === ambientKey(next);
     if (intervalMs > gapMs && !identical) {
       hasGap = true;
+      idleStreakMs = 0;
       continue;
     }
-    if (activityKey(prev) === activityKey(next)) {
-      // Skip only when truly idle: no concurrent session in either sample.
-      // If a session is open (concurrent_sessions > 0) the user is "working"
-      // even if no tokens advanced during this 60s poll window (reading code,
-      // waiting on a long generation, thinking). This makes "active minute"
-      // mean "minute with an open session" rather than "minute with token
-      // throughput" — which is what the work-hours heatmap is meant to show.
-      if (prev.concurrent_sessions === 0 && next.concurrent_sessions === 0) {
-        continue;
+    const tokensAdvanced =
+      next.tokens_in !== prev.tokens_in ||
+      next.tokens_out !== prev.tokens_out ||
+      next.tokens_cached !== prev.tokens_cached;
+    const activityUnchanged = activityKey(prev) === activityKey(next);
+    const bothIdle = prev.concurrent_sessions === 0 && next.concurrent_sessions === 0;
+
+    if (tokensAdvanced) {
+      idleStreakMs = 0;
+      accumulatedActiveMinutes += intervalMs / MS_PER_MINUTE;
+      const bucketHour = new Date(prev.fetched_at).getUTCHours();
+      hourBuckets[bucketHour] += intervalMs / MS_PER_MINUTE;
+    } else if (bothIdle) {
+      idleStreakMs = 0;
+    } else if (activityUnchanged) {
+      // Session open but no token movement — accumulate idle streak.
+      idleStreakMs += intervalMs;
+      if (idleStreakMs <= idleTimeoutMs) {
+        accumulatedActiveMinutes += intervalMs / MS_PER_MINUTE;
+        const bucketHour = new Date(prev.fetched_at).getUTCHours();
+        hourBuckets[bucketHour] += intervalMs / MS_PER_MINUTE;
       }
+    } else {
+      // Activity changed (e.g. concurrent_sessions changed) but no token
+      // advance — still counts as active (session opened/closed).
+      idleStreakMs = 0;
+      accumulatedActiveMinutes += intervalMs / MS_PER_MINUTE;
+      const bucketHour = new Date(prev.fetched_at).getUTCHours();
+      hourBuckets[bucketHour] += intervalMs / MS_PER_MINUTE;
     }
-    const intervalMin = intervalMs / MS_PER_MINUTE;
-    accumulatedActiveMinutes += intervalMin;
-    const bucketHour = new Date(prev.fetched_at).getUTCHours();
-    hourBuckets[bucketHour] += intervalMin;
   }
 
   // Dimension B: UTC clock span.
@@ -447,8 +479,9 @@ export function downsampleDay(
   store: UsageHistoryStore,
   dayUtc: string,
   gapThresholdMinutes: number,
+  idleSessionTimeoutMinutes: number,
 ): UsageDailyRow {
-  const row = computeDailyRow({ store, dayUtc, gapThresholdMinutes });
+  const row = computeDailyRow({ store, dayUtc, gapThresholdMinutes, idleSessionTimeoutMinutes });
   store.upsertDailyRow(row);
   log.info(`downsampled ${dayUtc} → ${row.day_completeness}`);
   return row;
@@ -464,7 +497,7 @@ export function downsampleRange(
   toUtc: string,
   opts: DownsampleOptions & { retentionDays: number; force?: boolean },
 ): UsageDailyRow[] {
-  const { gapThresholdMinutes, retentionDays, force = false } = opts;
+  const { gapThresholdMinutes, idleSessionTimeoutMinutes, retentionDays, force = false } = opts;
   const results: UsageDailyRow[] = [];
   const now = Date.now();
   const retentionCutoffMs = now - retentionDays * MS_PER_DAY;
@@ -474,7 +507,7 @@ export function downsampleRange(
     const dayStartMs = utcMidnightMs(cursor);
     const existing = store.getDailyRow(cursor);
     if (force || existing === null) {
-      const row = downsampleDay(store, cursor, gapThresholdMinutes);
+      const row = downsampleDay(store, cursor, gapThresholdMinutes, idleSessionTimeoutMinutes);
       results.push(row);
       // Prune raw samples for this day if it's older than retention.
       if (dayStartMs < retentionCutoffMs) {

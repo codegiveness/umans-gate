@@ -494,11 +494,13 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
       if (from < retentionCutoffDay) {
         downsampleRange(usageHistory, from, addDays(retentionCutoffDay, -1), {
           gapThresholdMinutes: config.usageGapThresholdMinutes,
+          idleSessionTimeoutMinutes: config.usageIdleSessionTimeoutMinutes,
           retentionDays: config.usageRawRetentionDays,
         });
       }
       downsampleRange(usageHistory, retentionCutoffDay, today, {
         gapThresholdMinutes: config.usageGapThresholdMinutes,
+        idleSessionTimeoutMinutes: config.usageIdleSessionTimeoutMinutes,
         retentionDays: config.usageRawRetentionDays,
         force: true,
       });
@@ -519,7 +521,12 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     if (!usageHistory) return;
     try {
       const today = dayUtcOf(Date.now());
-      downsampleDay(usageHistory, today, config.usageGapThresholdMinutes);
+      downsampleDay(
+        usageHistory,
+        today,
+        config.usageGapThresholdMinutes,
+        config.usageIdleSessionTimeoutMinutes,
+      );
     } catch (err) {
       log.error("refresh-today downsample failed", {
         error: err instanceof Error ? err.message : String(err),

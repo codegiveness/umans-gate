@@ -319,7 +319,7 @@ function DayTooltip({
       <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
         <span>Activity:</span>
         <span className="text-right font-mono">{fmtMinutes(row.accumulated_active_minutes)}</span>
-        <span>Clock span:</span>
+        <span>Observed span:</span>
         <span className="text-right font-mono">{fmtMinutes(row.utc_clock_span_minutes)}</span>
         <span>Cache hit:</span>
         <span className="text-right font-mono">{fmtPct(row.cache_hit_rate_avg)}</span>

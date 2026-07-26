@@ -191,6 +191,8 @@ export interface ProxyConfig {
   usageRawRetentionDays: number;
   /** Gap threshold (minutes) for marking a UTC day as incomplete_window. Hot-reloadable. */
   usageGapThresholdMinutes: number;
+  /** Idle session timeout (minutes). Consecutive open-session intervals with no token movement exceeding this are treated as idle. Hot-reloadable. */
+  usageIdleSessionTimeoutMinutes: number;
   /** Polling interval for /v1/models fetch (model weights + listing), in ms. */
   modelsRefreshMs: number;
   /** Persisted concurrency hard cap (from /v1/usage, editable for robustness testing). */

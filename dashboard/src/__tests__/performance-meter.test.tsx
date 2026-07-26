@@ -134,7 +134,7 @@ describe("PerformanceMeter", () => {
     expect(container.textContent).not.toMatch(/think \(\d+\.\d+%\)/);
   });
 
-  it("Total Out StatTile omits thinking subtitle when zero", async () => {
+  it("Total Out StatTile always shows thinking count even when zero", async () => {
     mockUsePerformanceStats.mockReturnValueOnce({
       stats: [{ ...mockRow.row, total_thinking_tokens: 0 }],
       loading: false,
@@ -145,7 +145,7 @@ describe("PerformanceMeter", () => {
     const { container } = render(<PerformanceMeter />);
     await flushEffects();
 
-    expect(container).not.toHaveTextContent("think");
+    expect(container).toHaveTextContent("0 think");
   });
 
   it("keeps model cards visible when error and stats coexist", async () => {

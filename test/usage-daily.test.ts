@@ -276,6 +276,7 @@ describe("Integration: usage daily (ticket 03)", () => {
       WARMER_ENABLED: "false",
       USAGE_RAW_RETENTION_DAYS: "7",
       USAGE_GAP_THRESHOLD_MINUTES: "60",
+      USAGE_IDLE_SESSION_TIMEOUT_MINUTES: "5",
     });
     // Wait for the proxy to be ready and run at least one poll.
     await sleep(400);
@@ -748,6 +749,118 @@ describe("Integration: usage daily (ticket 03)", () => {
     expect(rows.length).toBe(1);
     expect(rows[0].accumulated_active_minutes).toBe(0);
   });
+
+  test("idle session exceeding timeout is not counted as active", async () => {
+    const day = utcDate(9);
+    const t0 = utcMidnightMs(9);
+    // 7 samples, 1 min apart, all with concurrent_sessions=1 but identical
+    // tokens (no token movement). idleSessionTimeoutMinutes=5 (from env).
+    // Intervals 1-5 count as active (streak ≤ 5min). Intervals 6+ are skipped
+    // (streak > 5min). Total active = 5min.
+    const base = {
+      plan: "Code Pro",
+      concurrency_soft_limit: 8,
+      concurrency_hard_cap: 16,
+      tokens_in: 1000,
+      tokens_out: 500,
+      tokens_cached: 100,
+      concurrent_sessions: 1,
+      weighted_concurrent_sessions: 1,
+      requests_in_window: 1,
+      weighted_requests_in_window: 1,
+      requests_limit: 480,
+      requests_hard_cap: 720,
+      requests_window_seconds: 21600,
+      requests_remaining: 479,
+      weighted_remaining_requests: 479,
+    };
+    for (let m = 0; m <= 7; m++) {
+      insertSample(db, { ...base, fetched_at: t0 + 10 * 3600_000 + m * 60_000 });
+    }
+    await triggerDownsample(proxy, day, day);
+    const rows = await fetchDaily(proxy, day, day);
+    expect(rows.length).toBe(1);
+    // 7 intervals of 1 min each. First 5 count (streak ≤ 5min), last 2 skipped.
+    expect(rows[0].accumulated_active_minutes).toBe(5);
+  });
+
+  test("token advance resets idle streak", async () => {
+    const day = utcDate(9);
+    const t0 = utcMidnightMs(9);
+    // 6 samples: 3 idle (streak=3min), then token advance, then 3 more idle.
+    // All 6 intervals should count: first 3 (streak≤5), then token advance
+    // resets streak, then next 3 (streak≤5 again). Total = 6min.
+    const base = {
+      plan: "Code Pro",
+      concurrency_soft_limit: 8,
+      concurrency_hard_cap: 16,
+      tokens_out: 500,
+      tokens_cached: 100,
+      concurrent_sessions: 1,
+      weighted_concurrent_sessions: 1,
+      requests_in_window: 1,
+      weighted_requests_in_window: 1,
+      requests_limit: 480,
+      requests_hard_cap: 720,
+      requests_window_seconds: 21600,
+      requests_remaining: 479,
+      weighted_remaining_requests: 479,
+    };
+    // t=0,1,2: idle (tokens_in=1000)
+    for (const m of [0, 1, 2]) {
+      insertSample(db, { ...base, tokens_in: 1000, fetched_at: t0 + 10 * 3600_000 + m * 60_000 });
+    }
+    // t=3: token advance (tokens_in=2000)
+    insertSample(db, { ...base, tokens_in: 2000, fetched_at: t0 + 10 * 3600_000 + 3 * 60_000 });
+    // t=4,5,6: idle again (tokens_in=2000)
+    for (const m of [4, 5, 6]) {
+      insertSample(db, { ...base, tokens_in: 2000, fetched_at: t0 + 10 * 3600_000 + m * 60_000 });
+    }
+    await triggerDownsample(proxy, day, day);
+    const rows = await fetchDaily(proxy, day, day);
+    expect(rows.length).toBe(1);
+    // 6 intervals × 1min = 6min. Both idle streaks (3min each) are under 5min.
+    expect(rows[0].accumulated_active_minutes).toBe(6);
+  });
+
+  test("session close transition counts as active even without token advance", async () => {
+    const day = utcDate(9);
+    const t0 = utcMidnightMs(9);
+    // prev: cs=1 (session open), next: cs=0 (session closed). No token advance.
+    // activityKey differs (cs changed) → branch 4 (else) → counts + resets streak.
+    const base = {
+      plan: "Code Pro",
+      concurrency_soft_limit: 8,
+      concurrency_hard_cap: 16,
+      tokens_in: 1000,
+      tokens_out: 500,
+      tokens_cached: 100,
+      requests_in_window: 1,
+      weighted_requests_in_window: 1,
+      requests_limit: 480,
+      requests_hard_cap: 720,
+      requests_window_seconds: 21600,
+      requests_remaining: 479,
+      weighted_remaining_requests: 479,
+    };
+    insertSample(db, {
+      ...base,
+      concurrent_sessions: 1,
+      weighted_concurrent_sessions: 1,
+      fetched_at: t0 + 10 * 3600_000,
+    });
+    insertSample(db, {
+      ...base,
+      concurrent_sessions: 0,
+      weighted_concurrent_sessions: 0,
+      fetched_at: t0 + 10 * 3600_000 + 5 * 60_000,
+    });
+    await triggerDownsample(proxy, day, day);
+    const rows = await fetchDaily(proxy, day, day);
+    expect(rows.length).toBe(1);
+    // The 5-min interval where session closed counts as active.
+    expect(rows[0].accumulated_active_minutes).toBe(5);
+  });
 });
 
 // ─── Direct unit tests: timer code path + retention-aware heal ───
@@ -775,7 +888,7 @@ describe("Unit: downsampleDay + retention-aware split (timer code path)", () => 
       tokens_cached: 100,
       concurrent_sessions: 1,
     });
-    downsampleDay(store, day, 60);
+    downsampleDay(store, day, 60, 5);
     const count = storeDb.prepare("SELECT COUNT(*) AS n FROM usage_samples").get() as { n: number };
     expect(count.n).toBe(1);
   });
@@ -795,7 +908,7 @@ describe("Unit: downsampleDay + retention-aware split (timer code path)", () => 
       tokens_cached: 100,
       concurrent_sessions: 1,
     });
-    downsampleDay(store, day, 60);
+    downsampleDay(store, day, 60, 5);
     const row1 = store.getDailyRow(day);
     expect(row1?.tokens_in_total).toBe(1000);
 
@@ -806,7 +919,7 @@ describe("Unit: downsampleDay + retention-aware split (timer code path)", () => 
       tokens_cached: 200,
       concurrent_sessions: 1,
     });
-    downsampleDay(store, day, 60);
+    downsampleDay(store, day, 60, 5);
     const row2 = store.getDailyRow(day);
     const rowCount = storeDb
       .prepare("SELECT COUNT(*) AS n FROM usage_daily WHERE day_utc = $day")
@@ -839,7 +952,7 @@ describe("Unit: downsampleDay + retention-aware split (timer code path)", () => 
       tokens_cached: 10,
       concurrent_sessions: 1,
     });
-    downsampleDay(store, withinDay, 60);
+    downsampleDay(store, withinDay, 60, 5);
     const staleRow = store.getDailyRow(withinDay);
     expect(staleRow?.tokens_in_total).toBe(100);
 
@@ -858,7 +971,7 @@ describe("Unit: downsampleDay + retention-aware split (timer code path)", () => 
       tokens_cached: 50,
       concurrent_sessions: 1,
     });
-    downsampleDay(store, beyondDay, 60);
+    downsampleDay(store, beyondDay, 60, 5);
     const beyondRow = store.getDailyRow(beyondDay);
     expect(beyondRow?.tokens_in_total).toBe(500);
     store.deleteSamplesInRange(beyondDay, beyondDay);
@@ -867,11 +980,13 @@ describe("Unit: downsampleDay + retention-aware split (timer code path)", () => 
     if (beyondDay < retentionCutoffDay) {
       downsampleRange(store, beyondDay, addDays(retentionCutoffDay, -1), {
         gapThresholdMinutes: 60,
+        idleSessionTimeoutMinutes: 5,
         retentionDays,
       });
     }
     downsampleRange(store, retentionCutoffDay, today, {
       gapThresholdMinutes: 60,
+      idleSessionTimeoutMinutes: 5,
       retentionDays,
       force: true,
     });

@@ -32,6 +32,8 @@ export interface RawConfig {
   usage_raw_retention_days?: number;
   /** Gap threshold in minutes for marking a UTC day as incomplete_window. Hot-reloadable. */
   usage_gap_threshold_minutes?: number;
+  /** Idle session timeout in minutes. Consecutive open-session intervals with no token movement exceeding this are treated as idle (not counted as active). Hot-reloadable. */
+  usage_idle_session_timeout_minutes?: number;
   models_refresh_ms?: number;
   concurrency_hard_cap?: number;
   concurrency_soft_limit?: number;

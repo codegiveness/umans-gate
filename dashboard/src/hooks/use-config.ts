@@ -59,6 +59,7 @@ export interface UsageHistoryRawConfig {
    *  or from daily + events (old, ticket 06). */
   usage_raw_retention_days?: number;
   usage_gap_threshold_minutes?: number;
+  usage_idle_session_timeout_minutes?: number;
 }
 
 export interface ServerRawConfig {

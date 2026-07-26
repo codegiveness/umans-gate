@@ -363,6 +363,7 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
         const toParam = ctx.url.searchParams.get("to") ?? today;
         const rows = downsampleRange(ctx.usageHistory, fromParam, toParam, {
           gapThresholdMinutes: ctx.config.usageGapThresholdMinutes,
+          idleSessionTimeoutMinutes: ctx.config.usageIdleSessionTimeoutMinutes,
           retentionDays: ctx.config.usageRawRetentionDays,
           force: true,
         });

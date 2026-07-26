@@ -55,6 +55,7 @@ const baseConfig = {
   usage_history_enabled: true,
   usage_raw_retention_days: 7,
   usage_gap_threshold_minutes: 60,
+  usage_idle_session_timeout_minutes: 5,
   upstream_timeout_ms: 300000,
   experiment_ttft_watchdog: false,
   ttft_timeout_ms: 60000,

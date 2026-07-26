@@ -75,6 +75,12 @@ const RELOAD_FIELDS: Array<{
     },
   },
   {
+    rawKey: "usage_idle_session_timeout_minutes",
+    apply: (live, fresh) => {
+      live.usageIdleSessionTimeoutMinutes = fresh.usageIdleSessionTimeoutMinutes;
+    },
+  },
+  {
     rawKey: "stamp_reasoning_effort_enabled",
     apply: (live, fresh) => {
       live.stampReasoningEffort = fresh.stampReasoningEffort;

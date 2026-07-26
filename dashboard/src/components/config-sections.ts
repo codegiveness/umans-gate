@@ -502,6 +502,16 @@ const USAGE_HISTORY_FIELDS: FieldDef[] = [
     min: 5,
     suffix: "min",
   },
+  {
+    key: "usage_idle_session_timeout_minutes",
+    label: "Idle Session Timeout",
+    kind: "number",
+    description:
+      "Minutes of consecutive open-session intervals with no token movement before the heatmap stops counting them as active. Filters idle-but-open sessions (user walked away, left tab open). Short bursts below this threshold still count as active (reading/thinking). Default: 5.",
+    required: true,
+    min: 1,
+    suffix: "min",
+  },
 ];
 
 export interface SectionDef {
