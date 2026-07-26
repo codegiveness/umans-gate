@@ -1,6 +1,6 @@
 # Product
 
-> **Applies to:** umans-gate v0.3.24 · **Last updated:** 2026-07-25
+> **Applies to:** umans-gate v0.3.25 · **Last updated:** 2026-07-26
 
 ## Project Goals
 

@@ -3,12 +3,12 @@
 **Status**: accepted
 
 Supersedes the `DASHBOARD_TOKEN` update-guard portions of
-[ADR-0011](0011-dashboard-one-click-update.md) and
+[ADR-0018](0018-dashboard-one-click-update.md) and
 [ADR-0013](0013-dashboard-body-state-and-update-ux.md).
 
 ## Context
 
-ADR-0011 gated one-click update on **both** `DASHBOARD_TOKEN` being set
+ADR-0018 gated one-click update on **both** `DASHBOARD_TOKEN` being set
 **and** the proxy running as a managed service. The token guard's
 stated rationale: "without the token, anyone on localhost could trigger
 a binary replacement."
@@ -34,7 +34,7 @@ A second issue surfaced in the same discussion: the dashboard only
 learns about version availability via `GET /dashboard/api/version` on
 mount and `POST /dashboard/api/version/check` on manual click. If an
 update becomes available while the dashboard is open, the user must
-reload the browser. The WebSocket layer (ADR-0011 explicitly chose
+reload the browser. The WebSocket layer (ADR-0018 explicitly chose
 "no interval timer") was underused.
 
 ## Decision
@@ -84,7 +84,7 @@ a newly-available update. The existing HTTP fallback (`GET
 initial load and explicit re-check; the WS push is additive.
 
 No interval timer is added on either side. The proxy still checks once
-on startup and on-demand. This keeps ADR-0011's "no interval timer"
+on startup and on-demand. This keeps ADR-0018's "no interval timer"
 stance intact while removing the browser-reload friction.
 
 ## Considered options
@@ -104,7 +104,7 @@ stance intact while removing the browser-reload friction.
   asked for this, but it still leaves the default-config user unable
   to one-click update — the exact complaint that surfaced this issue.
   The service-manager guard is sufficient and consistent.
-- **Interval timer for version checks (rejected):** ADR-0011 already
+- **Interval timer for version checks (rejected):** ADR-0018 already
   rejected this. The WS push on startup + on-demand covers the
   "dashboard is already open when an update drops" case without
   polling.

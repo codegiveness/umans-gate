@@ -1,9 +1,10 @@
 # What Works With umans-gate
 
-> umans-gate v0.3.24 — a Bun-based LLM capture proxy.
-> Maps umans-gate features to the
-> [umans-open-stack](https://github.com/umans-ai/umans-open-stack) playbook
-> categories.
+> **Applies to:** umans-gate v0.3.25 · **Last updated:** 2026-07-26
+
+Maps umans-gate v0.3.25 — a Bun-based LLM capture proxy — to the
+[umans-open-stack](https://github.com/umans-ai/umans-open-stack) playbook
+categories.
 
 umans-gate is a **proxy**, not a configuration. It does not "implement" the
 playbooks below. It **provides building blocks** — observable, stamping-aware
@@ -203,4 +204,3 @@ configuration in their own application.
   economics, usage, models, config)
 - `docs/adr/` — 18 architecture decision records
 - `AGENTS.md` — contributor guide with stamping truth tables (ADR-0011)
-- Source of truth: `/tmp/opencode/source-of-truth.md` (v0.3.24)

@@ -6,7 +6,7 @@ This document outlines the planned direction for umans-gate. It is a living
 document — priorities may shift based on upstream API changes and personal
 development needs.
 
-## Current State (v0.3.19)
+## Current State (v0.3.25)
 
 - ✅ Capture proxy with SQLite storage, WAL mode, and zstd body compression
 - ✅ Anthropic `cache_control` TTL stamping via unified stamp pipeline
@@ -31,6 +31,16 @@ development needs.
 - ✅ CodeQL code scanning (weekly + on push/PR)
 - ✅ Release automation: version sync, docs update, pre-release validation
 - ✅ CI version consistency gate (version-check.yml)
+- ✅ Model-specific thinking block shapes (ADR-0017): `umans-glm*` and
+  `umans-kimi*`/`umans-coder` force preserved-thinking shapes; other families
+  keep `{ type: "adaptive" }`
+- ✅ One-click dashboard update without `DASHBOARD_TOKEN` requirement
+  (ADR-0015); version info pushed over WebSocket
+- ✅ Performance stats: `ttft_max` and `tps_min` alongside mean/percentile
+- ✅ Hybrid idle timeout: open sessions count as active even without token
+  movement
+- ✅ Reference docs reorganized; `.github/AGENT_RULES.md` for AI agent
+  behavioral rules
 
 ## Near-Term
 

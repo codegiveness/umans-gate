@@ -27,4 +27,6 @@
 ## Reference
 
 - [CHANGELOG.md](../CHANGELOG.md) — version history
+- [what-work-with-umans.md](what-work-with-umans.md) — feature mappings to umans-open-stack playbooks
+- [reference/](reference/) — per-tab reference (captures, config, economics, models, performance, usage, vision)
 - [Dashboard Design System](../dashboard/DESIGN.md) — design tokens and component guidelines

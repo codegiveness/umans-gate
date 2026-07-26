@@ -1,6 +1,6 @@
 # Benchmarks
 
-> **Applies to:** umans-gate v0.3.24 · **Last updated:** 2026-07-25
+> **Applies to:** umans-gate v0.3.25 · **Last updated:** 2026-07-26
 
 This document describes the benchmark methodology and summarizes results for
 umans-gate proxy optimizations.
@@ -71,6 +71,6 @@ bun run <benchmark-script>.ts
 
 ## Historical Results
 
-Benchmark results are summarized in the table above. Raw result files
-were excluded from the repository to avoid shipping stale data; run the
-benchmark scripts to generate fresh results for regression tracking.
+Benchmark results are summarized in the table above. Raw result files are
+in `benchmark/proxy-optimizations/results/` — run the benchmark scripts to
+regenerate for regression tracking.
