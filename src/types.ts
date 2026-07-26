@@ -172,6 +172,8 @@ export interface ProxyConfig {
   stampClaudeCode: boolean;
   /** When true and stampClaudeCode is on, stamps GLM 5.2 Preserved Thinking (clear_thinking: false) for models matching "5.2". */
   stampGlm52Thinking: boolean;
+  /** When true and stampClaudeCode is on, stamps Kimi K2.7-Code Preserved Thinking (keep: "all") for models matching "k2.7-code". */
+  stampKimiK27CodeThinking: boolean;
   /** Value to inject as `reasoning_effort` on OpenAI request bodies. Null = disabled. */
   stampReasoningEffort: "high" | "max" | null;
   openaiPath: string;
@@ -329,6 +331,7 @@ export interface ProtocolConfig {
 export interface StampConfig {
   stampClaudeCode: ProxyConfig["stampClaudeCode"];
   stampGlm52Thinking: ProxyConfig["stampGlm52Thinking"];
+  stampKimiK27CodeThinking: ProxyConfig["stampKimiK27CodeThinking"];
   stampReasoningEffort: ProxyConfig["stampReasoningEffort"];
   openaiPath: ProxyConfig["openaiPath"];
   experimentStripOmoReminder: ProxyConfig["experimentStripOmoReminder"];

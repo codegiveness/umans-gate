@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { applyGlm52ThinkingOverride, type StampPolicy } from "../src/stamp-catalog.js";
+import { applyModelSpecificThinkingOverride, type StampPolicy } from "../src/stamp-catalog.js";
 
 /** A representative GLM overlay policy used as the input base. */
 const GLM_BASE: StampPolicy = {
@@ -11,9 +11,12 @@ const GLM_BASE: StampPolicy = {
   thinkingShape: { type: "enabled", clear_thinking: false, budget_tokens: 32000 },
 };
 
-describe("applyGlm52ThinkingOverride", () => {
+describe("applyModelSpecificThinkingOverride — GLM 5.2 toggle", () => {
   it("overrides thinkingShape to GLM Preserved Thinking when child ON + version matches", () => {
-    const out = applyGlm52ThinkingOverride(GLM_BASE, "umans-glm-5.2", true);
+    const out = applyModelSpecificThinkingOverride(GLM_BASE, "umans-glm-5.2", {
+      stampGlm52Thinking: true,
+      stampKimiK27CodeThinking: false,
+    });
     expect(out.thinkingShape).toEqual({
       type: "enabled",
       clear_thinking: false,
@@ -22,22 +25,34 @@ describe("applyGlm52ThinkingOverride", () => {
   });
 
   it("falls back to adaptive when child ON but version does NOT match", () => {
-    const out = applyGlm52ThinkingOverride(GLM_BASE, "umans-glm-5.1", true);
+    const out = applyModelSpecificThinkingOverride(GLM_BASE, "umans-glm-5.1", {
+      stampGlm52Thinking: true,
+      stampKimiK27CodeThinking: false,
+    });
     expect(out.thinkingShape).toEqual({ type: "adaptive" });
   });
 
   it("falls back to adaptive when child OFF (regardless of model)", () => {
-    const out = applyGlm52ThinkingOverride(GLM_BASE, "umans-glm-5.2", false);
+    const out = applyModelSpecificThinkingOverride(GLM_BASE, "umans-glm-5.2", {
+      stampGlm52Thinking: false,
+      stampKimiK27CodeThinking: false,
+    });
     expect(out.thinkingShape).toEqual({ type: "adaptive" });
   });
 
   it("does NOT override canDisableThinking — stays from the base policy", () => {
-    const out = applyGlm52ThinkingOverride(GLM_BASE, "umans-glm-5.2", true);
+    const out = applyModelSpecificThinkingOverride(GLM_BASE, "umans-glm-5.2", {
+      stampGlm52Thinking: true,
+      stampKimiK27CodeThinking: false,
+    });
     expect(out.canDisableThinking).toBe(GLM_BASE.canDisableThinking);
   });
 
   it("does NOT override max_tokens, effort, top_k, thinking", () => {
-    const out = applyGlm52ThinkingOverride(GLM_BASE, "umans-glm-5.2", true);
+    const out = applyModelSpecificThinkingOverride(GLM_BASE, "umans-glm-5.2", {
+      stampGlm52Thinking: true,
+      stampKimiK27CodeThinking: false,
+    });
     expect(out.max_tokens).toBe(GLM_BASE.max_tokens);
     expect(out.effort).toBe(GLM_BASE.effort);
     expect(out.top_k).toBe(GLM_BASE.top_k);
@@ -46,14 +61,19 @@ describe("applyGlm52ThinkingOverride", () => {
 
   it("returns a new object (does not mutate the input policy)", () => {
     const input = { ...GLM_BASE };
-    const out = applyGlm52ThinkingOverride(input, "umans-glm-5.2", true);
+    const out = applyModelSpecificThinkingOverride(input, "umans-glm-5.2", {
+      stampGlm52Thinking: true,
+      stampKimiK27CodeThinking: false,
+    });
     expect(out).not.toBe(input);
-    // Original input's thinkingShape is unchanged.
     expect(input.thinkingShape).toEqual(GLM_BASE.thinkingShape);
   });
 
   it("matches version segment with suffix (umans-glm-5.2-turbo)", () => {
-    const out = applyGlm52ThinkingOverride(GLM_BASE, "umans-glm-5.2-turbo", true);
+    const out = applyModelSpecificThinkingOverride(GLM_BASE, "umans-glm-5.2-turbo", {
+      stampGlm52Thinking: true,
+      stampKimiK27CodeThinking: false,
+    });
     expect(out.thinkingShape).toEqual({
       type: "enabled",
       clear_thinking: false,
@@ -62,7 +82,10 @@ describe("applyGlm52ThinkingOverride", () => {
   });
 
   it("falls back to adaptive for undefined model name even when child is ON", () => {
-    const out = applyGlm52ThinkingOverride(GLM_BASE, undefined, true);
+    const out = applyModelSpecificThinkingOverride(GLM_BASE, undefined, {
+      stampGlm52Thinking: true,
+      stampKimiK27CodeThinking: false,
+    });
     expect(out.thinkingShape).toEqual({ type: "adaptive" });
   });
 });

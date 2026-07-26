@@ -428,3 +428,67 @@ test("GLM 5.2 child ON: disabled thinking respected when canDisableThinking=true
   expect(stampThinking(body, { thinking: true, policy })).toBe(false);
   expect(body.thinking as { type?: string }).toEqual({ type: "disabled" });
 });
+
+// ─── Kimi K2.7-Code child-toggle: overridden thinkingShape (ADR-0019) ────────
+
+test("Kimi K2.7-Code child ON: stampThinking forces to Kimi Preserved Thinking shape", () => {
+  const body: AnthropicBody = {
+    model: "umans-kimi-k2.7-code",
+    thinking: { type: "adaptive" },
+    messages: [],
+  };
+  const policy: StampPolicy = {
+    max_tokens: NON_GLM_MAX_TOKENS,
+    effort: "high",
+    thinking: true,
+    top_k: null,
+    canDisableThinking: false,
+    thinkingShape: { type: "enabled", keep: "all", budget_tokens: 32000 },
+  };
+  expect(stampThinking(body, { thinking: true, policy })).toBe(true);
+  expect(body.thinking).toEqual({
+    type: "enabled",
+    keep: "all",
+    budget_tokens: 32000,
+  });
+});
+
+test("Kimi K2.7-Code child OFF: stampThinking forces to adaptive shape", () => {
+  const body: AnthropicBody = {
+    model: "umans-kimi-k2.7-code",
+    thinking: { type: "enabled", keep: "all", budget_tokens: 32000 } as never,
+    messages: [],
+  };
+  const policy: StampPolicy = {
+    max_tokens: NON_GLM_MAX_TOKENS,
+    effort: "high",
+    thinking: true,
+    top_k: null,
+    canDisableThinking: false,
+    thinkingShape: { type: "adaptive" },
+  };
+  expect(stampThinking(body, { thinking: true, policy })).toBe(true);
+  expect(body.thinking).toEqual({ type: "adaptive" });
+});
+
+test("Kimi K2.7-Code child ON: disabled thinking forced to Kimi Preserved Thinking (canDisable=false)", () => {
+  const body: AnthropicBody = {
+    model: "umans-kimi-k2.7-code",
+    thinking: { type: "disabled" } as never,
+    messages: [],
+  };
+  const policy: StampPolicy = {
+    max_tokens: NON_GLM_MAX_TOKENS,
+    effort: "high",
+    thinking: true,
+    top_k: null,
+    canDisableThinking: false,
+    thinkingShape: { type: "enabled", keep: "all", budget_tokens: 32000 },
+  };
+  expect(stampThinking(body, { thinking: true, policy })).toBe(true);
+  expect(body.thinking).toEqual({
+    type: "enabled",
+    keep: "all",
+    budget_tokens: 32000,
+  });
+});

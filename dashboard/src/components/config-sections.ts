@@ -157,6 +157,15 @@ const STAMP_FIELDS: FieldDef[] = [
     dependsOn: "stamp_claude_code_enabled",
   },
   {
+    key: "stamp_kimi_k2_7_code_thinking_enabled",
+    label: "Kimi K2.7-Code Preserved Thinking",
+    kind: "toggle",
+    description:
+      'When on (and Claude Code Style is on), stamps Kimi K2.7-Code Preserved Thinking (keep: "all") on models whose name contains \'k2.7-code\'. Moonshot docs: \'kimi-k2.7-code: thinking is always on, Preserved Thinking is always on. Only {"type":"enabled","keep":"all"} is accepted; any other configuration returns an error.\' When off, falls back to {type: \'adaptive\'}. Default: off.',
+    experimental: true,
+    dependsOn: "stamp_claude_code_enabled",
+  },
+  {
     key: "stamp_reasoning_effort_enabled",
     label: "Reasoning Effort (OpenAI)",
     kind: "toggle",

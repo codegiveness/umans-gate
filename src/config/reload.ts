@@ -63,6 +63,12 @@ const RELOAD_FIELDS: Array<{
     },
   },
   {
+    rawKey: "stamp_kimi_k2_7_code_thinking_enabled",
+    apply: (live, fresh) => {
+      live.stampKimiK27CodeThinking = fresh.stampKimiK27CodeThinking;
+    },
+  },
+  {
     rawKey: "usage_history_enabled",
     apply: (live, fresh) => {
       live.usageHistoryEnabled = fresh.usageHistoryEnabled;

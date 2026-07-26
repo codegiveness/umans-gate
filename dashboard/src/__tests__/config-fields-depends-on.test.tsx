@@ -114,4 +114,32 @@ describe("useConfigDraft auto-reset", () => {
     expect(result.current.draft?.stamp_claude_code_enabled).toBe(true);
     expect(result.current.draft?.stamp_glm_5_2_thinking_enabled).toBe(false);
   });
+
+  it("resets stamp_kimi_k2_7_code_thinking_enabled to false when parent stamp turns off", () => {
+    const initial: RawConfig = {
+      stamp_claude_code_enabled: true,
+      stamp_kimi_k2_7_code_thinking_enabled: true,
+    } as RawConfig;
+    const { result } = renderHook(() => useConfigDraft(initial));
+    act(() => {
+      result.current.updateField("stamp_claude_code_enabled", false);
+    });
+    expect(result.current.draft?.stamp_claude_code_enabled).toBe(false);
+    expect(result.current.draft?.stamp_kimi_k2_7_code_thinking_enabled).toBe(false);
+  });
+
+  it("resets both GLM and Kimi children when parent turns off", () => {
+    const initial: RawConfig = {
+      stamp_claude_code_enabled: true,
+      stamp_glm_5_2_thinking_enabled: true,
+      stamp_kimi_k2_7_code_thinking_enabled: true,
+    } as RawConfig;
+    const { result } = renderHook(() => useConfigDraft(initial));
+    act(() => {
+      result.current.updateField("stamp_claude_code_enabled", false);
+    });
+    expect(result.current.draft?.stamp_claude_code_enabled).toBe(false);
+    expect(result.current.draft?.stamp_glm_5_2_thinking_enabled).toBe(false);
+    expect(result.current.draft?.stamp_kimi_k2_7_code_thinking_enabled).toBe(false);
+  });
 });

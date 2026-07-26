@@ -74,6 +74,19 @@ tuning; upstream `/v1/models/info` owns capabilities. Adding a new model
 family is a single row, not a code change. _Avoid_: stamp table, model
 overrides.
 
+**Preserved Thinking** — a capability where the model retains reasoning
+content across turns. GLM exposes it via `clear_thinking: false` (Z.ai,
+coding-scenario, default off on standard API). Kimi exposes it via
+`keep: "all"` on the `thinking` block (Moonshot). Same concept, different
+field. The proxy stamps the family-specific shape when the matching child
+toggle is ON and the model version matches. _Avoid_: reasoning retention,
+thinking continuity.
+
+**Code-focused thinking model** — Kimi K2.7-Code: always-thinking,
+fixed thinking shape (`{"type":"enabled","keep":"all"}`), code-optimized.
+Cannot disable thinking. Does not support `reasoning_effort` (K3-only).
+_Avoid_: code model, coder thinking.
+
 ## Architecture
 
 **TTFT watchdog** — a wall-clock timer started at fetch initiation; fires

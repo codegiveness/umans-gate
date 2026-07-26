@@ -34,6 +34,10 @@ describe("modelVersionMatches", () => {
     expect(modelVersionMatches("umans-kimi-k2.6", "k2.7-code")).toBe(false);
   });
 
+  it("matches Kimi k2.7-code with highspeed suffix", () => {
+    expect(modelVersionMatches("umans-kimi-k2.7-code-highspeed", "k2.7-code")).toBe(true);
+  });
+
   it("returns false for empty target version", () => {
     // Empty target would match everything via includes; guard against it.
     expect(modelVersionMatches("umans-glm-5.2", "")).toBe(false);

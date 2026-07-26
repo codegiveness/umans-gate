@@ -31,6 +31,7 @@ function makeCtx(overrides: Partial<StampContext> = {}): StampContext {
     config: {
       stampClaudeCode: true,
       stampGlm52Thinking: false,
+      stampKimiK27CodeThinking: false,
       stampReasoningEffort: null,
       openaiPath: "chat/completions",
       target: "https://api.code.umans.ai",

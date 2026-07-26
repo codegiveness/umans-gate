@@ -43,9 +43,10 @@ export function useConfigDraft(initialConfig: RawConfig | null): UseConfigDraftR
     setDraft((prev) => {
       if (!prev) return prev;
       const next = { ...prev, [key]: v };
-      // Auto-reset GLM 5.2 thinking child when parent stamp turns off
+      // Auto-reset child thinking toggles when parent stamp turns off
       if (key === "stamp_claude_code_enabled" && v === false) {
         next.stamp_glm_5_2_thinking_enabled = false;
+        next.stamp_kimi_k2_7_code_thinking_enabled = false;
       }
       return next;
     });

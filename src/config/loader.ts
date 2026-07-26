@@ -47,6 +47,10 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     env.STAMP_GLM_5_2_THINKING_ENABLED ?? raw.stamp_glm_5_2_thinking_enabled,
     false,
   );
+  const stampKimiK27CodeThinking = bool(
+    env.STAMP_KIMI_K2_7_CODE_THINKING_ENABLED ?? raw.stamp_kimi_k2_7_code_thinking_enabled,
+    false,
+  );
   const stampReasoningEffortEnabled = bool(
     env.STAMP_REASONING_EFFORT_ENABLED ?? raw.stamp_reasoning_effort_enabled,
     false,
@@ -313,6 +317,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     incomingProtocol: "http1.1" as IncomingProtocol,
     stampClaudeCode,
     stampGlm52Thinking,
+    stampKimiK27CodeThinking,
     stampReasoningEffort,
     openaiPath,
     warmerEnabled,

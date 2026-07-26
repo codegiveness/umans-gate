@@ -6,6 +6,7 @@ import { API_BASE, CONFIG_API_BASE } from "@/lib/constants";
 export interface StampRawConfig {
   stamp_claude_code_enabled?: boolean;
   stamp_glm_5_2_thinking_enabled?: boolean;
+  stamp_kimi_k2_7_code_thinking_enabled?: boolean;
   stamp_reasoning_effort_enabled?: boolean;
 }
 

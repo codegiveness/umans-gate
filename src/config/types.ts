@@ -20,6 +20,8 @@ export interface RawConfig {
   stamp_claude_code_enabled?: boolean;
   /** When true and stamp_claude_code_enabled is on, stamps GLM 5.2 Preserved Thinking (clear_thinking: false). Only applies to models whose name contains "5.2". Default false. */
   stamp_glm_5_2_thinking_enabled?: boolean;
+  /** When true and stamp_claude_code_enabled is on, stamps Kimi K2.7-Code Preserved Thinking (keep: "all"). Only applies to models whose name contains "k2.7-code". Default false. */
+  stamp_kimi_k2_7_code_thinking_enabled?: boolean;
   /** When true, stamps reasoning_effort onto OpenAI-compatible requests (effort=max for umans-glm* models, effort=high for all others) and removes max_tokens/thinking. */
   stamp_reasoning_effort_enabled?: boolean;
   warmer_enabled?: boolean;

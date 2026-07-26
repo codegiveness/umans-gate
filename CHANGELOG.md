@@ -18,6 +18,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to `{ type: "adaptive" }`. Default OFF — existing users must explicitly
   opt in. See ADR-0019.
 
+- **Version-gated Kimi K2.7-Code Preserved Thinking toggle**
+  (`stamp_kimi_k2_7_code_thinking_enabled`): a new child toggle of
+  `stamp_claude_code_enabled` that gates the Kimi K2.7-Code Preserved
+  Thinking shape (`keep: "all"`). When the child is ON and the request
+  model name contains "k2.7-code", the stamp pipeline overrides
+  `thinkingShape` to `{ type: "enabled", keep: "all", budget_tokens:
+  32000 }` (Moonshot Preserved Thinking). When OFF, falls back to
+  `{ type: "adaptive" }`. Default OFF — existing users must explicitly
+  opt in. See ADR-0019.
+
 ### Changed
 
 - **GLM thinking shape is now opt-in**: existing users with
@@ -25,6 +35,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   models instead of the unconditional `clear_thinking: false` shape. Enable
   `stamp_glm_5_2_thinking_enabled` to restore the previous behavior for
   GLM 5.2 models.
+
+- **Kimi/Coder thinking shape is now opt-in**: existing users with
+  `stamp_claude_code_enabled=true` now get `{ type: "adaptive" }` for
+  Kimi K2.7-Code and Coder models instead of the unconditional
+  `keep: "all"` shape. Enable `stamp_kimi_k2_7_code_thinking_enabled`
+  to restore the previous behavior for K2.7-Code models.
 
 ## [0.3.27] - 2026-07-26
 

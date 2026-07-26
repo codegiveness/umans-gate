@@ -73,6 +73,25 @@ shapes are gated behind dedicated config fields, each a child of
   | ON | ON | YES | `{ type: "enabled", clear_thinking: false, budget_tokens: 32000 }` |
   | ON | ON | NO | `{ type: "adaptive" }` (silent fallback) |
 
+### 1b. `stamp_kimi_k2_7_code_thinking_enabled`
+
+- Default: `false` (opt-in — existing users must explicitly enable).
+- Type: boolean. Hot-reloadable. Lives in `RawConfig`, `ProxyConfig`
+  (`stampKimiK27CodeThinking`), `StampConfig`.
+- Behavior matrix:
+
+  | Parent (`stamp_claude_code_enabled`) | Child (`stamp_kimi_k2_7_code_thinking_enabled`) | Model name matches "k2.7-code" | `thinkingShape` applied |
+  |---|---|---|---|
+  | OFF | (any) | (any) | No stamping at all |
+  | ON | OFF | (any) | `{ type: "adaptive" }` |
+  | ON | ON | YES | `{ type: "enabled", keep: "all", budget_tokens: 32000 }` |
+  | ON | ON | NO | `{ type: "adaptive" }` (silent fallback) |
+
+- `canDisableThinking` is NOT overridden — stays `false` from the Kimi
+  overlay. A client-sent `{ type: "disabled" }` on a K2.7-Code request is
+  forced to the overridden shape when the child is ON, or to adaptive
+  when OFF.
+
 ### 2. Version matching via substring
 
 A new helper `modelVersionMatches(modelName, targetVersion)` in
@@ -92,9 +111,10 @@ enough that false positives are not a real risk. `5.22` would match
 
 ### 3. Override is post-resolution
 
-The override function `applyGlm52ThinkingOverride(policy, modelName,
-stampGlm52Thinking)` runs **after** `resolveStampPolicy` returns the
-overlay-derived policy. It:
+The override function `applyModelSpecificThinkingOverride(policy,
+modelName, config)` runs **after** `resolveStampPolicy` returns the
+overlay-derived policy. It checks both GLM 5.2 and Kimi K2.7-Code child
+toggles in order (first match wins) and:
 
 - Returns a new `StampPolicy` object (shallow spread) — the base
   `STAMP_OVERLAY` entries are never mutated.
@@ -140,8 +160,8 @@ true; Kimi/Coder's `false` stays false.
   an explicit opt-in for matching Kimi models.
 
 - **Single seam for future toggles.** The
-  `applyGlm52ThinkingOverride` pattern extends cleanly: each new
-  family/version toggle becomes another override step in the pipeline,
+  `applyModelSpecificThinkingOverride` pattern extends cleanly: each new
+  family/version toggle becomes another branch in the override function,
   with the same shape — version match → family shape; otherwise
   adaptive fallback.
 
@@ -149,3 +169,34 @@ true; Kimi/Coder's `false` stays false.
 
 Moonshot references for the Kimi K2.7-Code toggle (Ticket 03) will be
 appended here once that toggle lands.
+
+## Moonshot official references (Kimi K2.7-Code)
+
+**Thinking Models guide**
+(https://platform.kimi.ai/docs/guide/use-kimi-k2-thinking-model):
+
+> `kimi-k2.7-code`: code-focused; thinking is always on, and Preserved
+> Thinking is always on. Only `{"type": "enabled", "keep": "all"}` is
+> accepted; any other configuration returns an error.
+
+> Multi-turn `reasoning_content` replay is mandatory: the caller must
+> return the complete, unmodified `reasoning_content` from prior assistant
+> turns back to the API for Preserved Thinking to function.
+
+**Model Parameter Reference**
+(https://platform.kimi.ai/docs/api/models-overview):
+
+> `keep: "all"` is the fixed thinking shape for `kimi-k2.7-code`. The
+> model does not accept alternative thinking configurations.
+
+**Version differences** (Moonshot Thinking Models guide):
+
+| Model | Thinking | Preserved Thinking | `reasoning_effort` |
+|---|---|---|---|
+| `kimi-k2.6` | On by default, can disable | Opt-in via `thinking.keep: "all"` | Not supported |
+| `kimi-k2.7-code` | Always on, cannot disable | Always on | Not supported (K3-only) |
+| `kimi-k3` | Always reasons | N/A (uses `reasoning_effort`) | Supported |
+
+`reasoning_effort` is a K3-only feature. The proxy must never stamp it
+on K2.7-Code — the existing `reasoning_effort` stripping on Anthropic
+routes (rule 6) handles this regardless of child toggle state.

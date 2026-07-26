@@ -270,3 +270,66 @@ test("claude code toggle with thinking present stamps max_tokens + output_config
     await raw3.close();
   }
 });
+
+// ─── Kimi K2.7-Code child toggle ON restores Preserved Thinking (ADR-0019) ──
+
+test("Kimi K2.7-Code child ON: captured body has keep: 'all' (Kimi Preserved Thinking)", async () => {
+  const raw4 = await startRawUpstream();
+  const proxy4 = await startProxy({
+    TARGET: `http://127.0.0.1:${raw4.port}`,
+    STAMP_CLAUDE_CODE_ENABLED: "true",
+    STAMP_KIMI_K2_7_CODE_THINKING_ENABLED: "true",
+  });
+  try {
+    raw4.getLastRequest();
+    await fetch(`${proxy4.baseUrl}/v1/messages`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        model: "umans-kimi-k2.7-code",
+        thinking: { type: "adaptive" },
+        messages: [{ role: "user", content: "hi" }],
+      }),
+    }).catch(() => {});
+    await sleep(150);
+    const r = raw4.getLastRequest();
+    expect(r).not.toBeNull();
+    const parsed = JSON.parse(r!.body);
+    expect(parsed.thinking).toEqual({ type: "enabled", keep: "all", budget_tokens: 32000 });
+    expect(parsed.max_tokens).toBe(32767);
+    expect(parsed.output_config).toEqual({ effort: "high" });
+    expect(parsed.temperature).toBe(1.0);
+  } finally {
+    await proxy4.kill();
+    await raw4.close();
+  }
+});
+
+test("Kimi K2.7-Code child ON: k2.6 model falls back to adaptive (version mismatch)", async () => {
+  const raw5 = await startRawUpstream();
+  const proxy5 = await startProxy({
+    TARGET: `http://127.0.0.1:${raw5.port}`,
+    STAMP_CLAUDE_CODE_ENABLED: "true",
+    STAMP_KIMI_K2_7_CODE_THINKING_ENABLED: "true",
+  });
+  try {
+    raw5.getLastRequest();
+    await fetch(`${proxy5.baseUrl}/v1/messages`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        model: "umans-kimi-k2.6",
+        thinking: { type: "adaptive" },
+        messages: [{ role: "user", content: "hi" }],
+      }),
+    }).catch(() => {});
+    await sleep(150);
+    const r = raw5.getLastRequest();
+    expect(r).not.toBeNull();
+    const parsed = JSON.parse(r!.body);
+    expect(parsed.thinking).toEqual({ type: "adaptive" });
+  } finally {
+    await proxy5.kill();
+    await raw5.close();
+  }
+});

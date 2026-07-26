@@ -110,15 +110,42 @@ When thinking is **enabled** (present and not disabled):
 
 - `thinking` present + disabled form + `canDisableThinking: true` → respected.
 - `thinking` present + disabled form + `canDisableThinking: false` (Kimi,
-  Coder) → forced to `{ type: "adaptive" }`.
-- `thinking` present + any non-disabled shape → forced to
-  `{ type: "adaptive" }`.
+  Coder) → forced to the resolved `thinkingShape`.
+- `thinking` present + any non-disabled shape → forced to the resolved
+  `thinkingShape`.
 - `max_tokens` — stamped from policy
 - `output_config` — stamped from policy effort
 - `temperature` — forced to 1.0
 - `top_k` — stamped for GLM models
 - `context_management` — stamped
 - `reasoning_effort` — **always stripped** from Anthropic bodies
+
+### Child-toggle gating (ADR-0019)
+
+The `thinkingShape` forced above is resolved by
+`applyModelSpecificThinkingOverride(policy, modelName, config)`, which
+checks the child toggles in order (first match wins):
+
+- `stamp_glm_5_2_thinking_enabled` ON + model name contains `"5.2"` →
+  GLM Preserved Thinking `{ type: "enabled", clear_thinking: false, budget_tokens: 32000 }`
+- `stamp_kimi_k2_7_code_thinking_enabled` ON + model name contains
+  `"k2.7-code"` → Kimi Preserved Thinking
+  `{ type: "enabled", keep: "all", budget_tokens: 32000 }`
+- Otherwise → `{ type: "adaptive" }` (adaptive fallback)
+
+When a child toggle is OFF or the version does not match, the shape is
+`{ type: "adaptive" }` — even for models whose overlay declares a
+family-specific shape. This is a deliberate behavior change: the previous
+unconditional family-specific shapes are now opt-in via the child toggles.
+
+`canDisableThinking` is **not overridden** by the child toggles — it stays
+from the resolved overlay policy (GLM=true, Kimi=false). This means a
+client-sent disabled thinking block on a Kimi request is still forced (to
+the overridden shape when the Kimi child is ON, or to adaptive when OFF).
+
+`reasoning_effort` is never stamped on Kimi K2.7-Code (K3-only feature).
+The existing `reasoning_effort` stripping on Anthropic routes handles
+this regardless of child toggle state.
 
 `canDisableThinking` comes from `/v1/models/info` `reasoning.can_disable`,
 overridden at parse time. See ADR-0011 for the full truth table.

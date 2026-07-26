@@ -69,6 +69,8 @@ are never overwritten. All env vars have `snake_case` JSON equivalents.
 | `idle_timeout` | `255` |
 | `upstream_protocol` | `http1.1` |
 | `stamp_claude_code_enabled` | `false` |
+| `stamp_glm_5_2_thinking_enabled` | `false` |
+| `stamp_kimi_k2_7_code_thinking_enabled` | `false` |
 | `stamp_reasoning_effort_enabled` | `false` |
 | `warmer_enabled` | `true` |
 | `warmer_interval_ms` | `20000` |
@@ -138,7 +140,9 @@ are never overwritten. All env vars have `snake_case` JSON equivalents.
 
 The Config tab can save and hot-reload via
 `POST /dashboard/api/config/reload`. Hot-reloadable fields:
-`stamp_claude_code_enabled`, `breaker_*`, `rate_limit_*`, `usage_*`
+`stamp_claude_code_enabled`, `stamp_glm_5_2_thinking_enabled`,
+`stamp_kimi_k2_7_code_thinking_enabled`, `breaker_*`,
+`rate_limit_*`, `usage_*`
 (`usage_history_enabled`, `usage_raw_retention_days`,
 `usage_gap_threshold_minutes`, `usage_idle_session_timeout_minutes`),
 and the 7 intent-aware vision fields (`vision_intent_strategy`,

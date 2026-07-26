@@ -149,16 +149,26 @@ const GLM_52_THINKING_SHAPE: ThinkingConfig = {
   budget_tokens: 32000,
 };
 
+/** Kimi K2.7-Code Preserved Thinking shape (Moonshot keep: "all"). */
+const KIMI_K27_CODE_THINKING_SHAPE: ThinkingConfig = {
+  type: "enabled",
+  keep: "all",
+  budget_tokens: 32000,
+};
+
 /** Adaptive fallback shape used when no child toggle activates a family-specific shape. */
 const ADAPTIVE_THINKING_SHAPE: ThinkingConfig = { type: "adaptive" };
 
 /**
  * Override the `thinkingShape` on a resolved StampPolicy based on the
- * GLM 5.2 child toggle and model version match (ADR-0019).
+ * model-specific child toggles and model version match (ADR-0019).
  *
- * When `stampGlm52Thinking` is true and the model name contains "5.2",
- * the shape is overridden to GLM Preserved Thinking
- * (`{ type: "enabled", clear_thinking: false, budget_tokens: 32000 }`).
+ * Toggles are checked in order; first match wins. When a child toggle is ON
+ * and the model name matches the toggle's version segment, the shape is
+ * overridden to the family-specific Preserved Thinking shape:
+ * - GLM 5.2: `{ type: "enabled", clear_thinking: false, budget_tokens: 32000 }`
+ * - Kimi K2.7-Code: `{ type: "enabled", keep: "all", budget_tokens: 32000 }`
+ *
  * Otherwise the shape falls back to `{ type: "adaptive" }`.
  *
  * `canDisableThinking` and all other policy fields are NOT overridden —
@@ -167,13 +177,16 @@ const ADAPTIVE_THINKING_SHAPE: ThinkingConfig = { type: "adaptive" };
  * Returns a new StampPolicy object (shallow spread) so the base
  * STAMP_OVERLAY entries are not mutated.
  */
-export function applyGlm52ThinkingOverride(
+export function applyModelSpecificThinkingOverride(
   policy: StampPolicy,
   modelName: string | undefined,
-  stampGlm52Thinking: boolean,
+  config: { stampGlm52Thinking: boolean; stampKimiK27CodeThinking: boolean },
 ): StampPolicy {
-  if (stampGlm52Thinking && modelVersionMatches(modelName, "5.2")) {
+  if (config.stampGlm52Thinking && modelVersionMatches(modelName, "5.2")) {
     return { ...policy, thinkingShape: GLM_52_THINKING_SHAPE };
+  }
+  if (config.stampKimiK27CodeThinking && modelVersionMatches(modelName, "k2.7-code")) {
+    return { ...policy, thinkingShape: KIMI_K27_CODE_THINKING_SHAPE };
   }
   return { ...policy, thinkingShape: ADAPTIVE_THINKING_SHAPE };
 }
