@@ -43,6 +43,10 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     env.STAMP_CLAUDE_CODE_ENABLED ?? raw.stamp_claude_code_enabled,
     false,
   );
+  const stampGlm52Thinking = bool(
+    env.STAMP_GLM_5_2_THINKING_ENABLED ?? raw.stamp_glm_5_2_thinking_enabled,
+    false,
+  );
   const stampReasoningEffortEnabled = bool(
     env.STAMP_REASONING_EFFORT_ENABLED ?? raw.stamp_reasoning_effort_enabled,
     false,
@@ -308,6 +312,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     upstreamProtocol,
     incomingProtocol: "http1.1" as IncomingProtocol,
     stampClaudeCode,
+    stampGlm52Thinking,
     stampReasoningEffort,
     openaiPath,
     warmerEnabled,

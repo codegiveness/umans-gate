@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { matchStampOverlay } from "../src/stamp-catalog.js";
+import { matchStampOverlay, type StampPolicy } from "../src/stamp-catalog.js";
 import { isThinkingDisabled, isThinkingEnabled, stampThinking } from "../src/stamp-thinking.js";
 import type { AnthropicBody } from "../src/types.js";
 
@@ -367,4 +367,64 @@ test("uses custom output_config object when thinking is enabled", () => {
 test("no-op when no toggles enabled", () => {
   const body: AnthropicBody = { model: "umans-coder", messages: [] };
   expect(stampThinking(body, {})).toBe(false);
+});
+
+// ─── GLM 5.2 child-toggle: overridden thinkingShape (ADR-0019) ────────────────
+
+test("GLM 5.2 child ON: stampThinking forces to GLM Preserved Thinking shape", () => {
+  const body: AnthropicBody = {
+    model: "umans-glm-5.2",
+    thinking: { type: "adaptive" },
+    messages: [],
+  };
+  const policy: StampPolicy = {
+    max_tokens: GLM_MAX_TOKENS,
+    effort: "max",
+    thinking: true,
+    top_k: 20,
+    canDisableThinking: true,
+    thinkingShape: { type: "enabled", clear_thinking: false, budget_tokens: 32000 },
+  };
+  expect(stampThinking(body, { thinking: true, policy })).toBe(true);
+  expect(body.thinking).toEqual({
+    type: "enabled",
+    clear_thinking: false,
+    budget_tokens: 32000,
+  });
+});
+
+test("GLM 5.2 child OFF: stampThinking forces to adaptive shape", () => {
+  const body: AnthropicBody = {
+    model: "umans-glm-5.2",
+    thinking: { type: "enabled", clear_thinking: false, budget_tokens: 32000 } as never,
+    messages: [],
+  };
+  const policy: StampPolicy = {
+    max_tokens: GLM_MAX_TOKENS,
+    effort: "max",
+    thinking: true,
+    top_k: 20,
+    canDisableThinking: true,
+    thinkingShape: { type: "adaptive" },
+  };
+  expect(stampThinking(body, { thinking: true, policy })).toBe(true);
+  expect(body.thinking).toEqual({ type: "adaptive" });
+});
+
+test("GLM 5.2 child ON: disabled thinking respected when canDisableThinking=true (GLM overlay default)", () => {
+  const body: AnthropicBody = {
+    model: "umans-glm-5.2",
+    thinking: { type: "disabled" } as never,
+    messages: [],
+  };
+  const policy: StampPolicy = {
+    max_tokens: GLM_MAX_TOKENS,
+    effort: "max",
+    thinking: true,
+    top_k: 20,
+    canDisableThinking: true,
+    thinkingShape: { type: "enabled", clear_thinking: false, budget_tokens: 32000 },
+  };
+  expect(stampThinking(body, { thinking: true, policy })).toBe(false);
+  expect(body.thinking as { type?: string }).toEqual({ type: "disabled" });
 });

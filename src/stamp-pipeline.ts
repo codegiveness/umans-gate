@@ -18,7 +18,7 @@ import { createLogger } from "./logger.js";
 import type { ParsedModelInfo } from "./model-info-parser.js";
 import { restampBreakpoints } from "./restamp-breakpoints.js";
 import { stampCacheTtl } from "./stamp.js";
-import { resolveStampPolicy } from "./stamp-catalog.js";
+import { applyGlm52ThinkingOverride, resolveStampPolicy } from "./stamp-catalog.js";
 import { stampReasoning } from "./stamp-reasoning.js";
 import { stampTemperature } from "./stamp-temperature.js";
 import { isThinkingEnabled, stampThinking } from "./stamp-thinking.js";
@@ -131,7 +131,12 @@ export const AnthropicBodyStep: StampStep = {
     if (body === null || typeof body !== "object") return false;
     const b = body as AnthropicBody;
     let changed = false;
-    const policy = resolveStampPolicy(ctx.modelName, ctx.catalog);
+    const basePolicy = resolveStampPolicy(ctx.modelName, ctx.catalog);
+    const policy = applyGlm52ThinkingOverride(
+      basePolicy,
+      ctx.modelName,
+      ctx.config.stampGlm52Thinking,
+    );
     if (
       stampThinking(b, {
         maxTokens: true,

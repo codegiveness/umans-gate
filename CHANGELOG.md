@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Version-gated GLM 5.2 Preserved Thinking toggle** (`stamp_glm_5_2_thinking_enabled`):
+  a new child toggle of `stamp_claude_code_enabled` that gates the GLM 5.2
+  Preserved Thinking shape (`clear_thinking: false`). When the child is ON
+  and the request model name contains "5.2", the stamp pipeline overrides
+  `thinkingShape` to `{ type: "enabled", clear_thinking: false,
+  budget_tokens: 32000 }` (Z.ai Preserved Thinking). When OFF, falls back
+  to `{ type: "adaptive" }`. Default OFF — existing users must explicitly
+  opt in. See ADR-0019.
+
+### Changed
+
+- **GLM thinking shape is now opt-in**: existing users with
+  `stamp_claude_code_enabled=true` now get `{ type: "adaptive" }` for GLM
+  models instead of the unconditional `clear_thinking: false` shape. Enable
+  `stamp_glm_5_2_thinking_enabled` to restore the previous behavior for
+  GLM 5.2 models.
+
 ## [0.3.27] - 2026-07-26
 
 ### Added

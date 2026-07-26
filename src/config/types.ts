@@ -18,6 +18,8 @@ export interface RawConfig {
   upstream_protocol?: string;
   /** When true, applies the full Claude Code stamp bundle on Anthropic requests (TTL, top_k, max_tokens, thinking, output_config, context_management). */
   stamp_claude_code_enabled?: boolean;
+  /** When true and stamp_claude_code_enabled is on, stamps GLM 5.2 Preserved Thinking (clear_thinking: false). Only applies to models whose name contains "5.2". Default false. */
+  stamp_glm_5_2_thinking_enabled?: boolean;
   /** When true, stamps reasoning_effort onto OpenAI-compatible requests (effort=max for umans-glm* models, effort=high for all others) and removes max_tokens/thinking. */
   stamp_reasoning_effort_enabled?: boolean;
   warmer_enabled?: boolean;

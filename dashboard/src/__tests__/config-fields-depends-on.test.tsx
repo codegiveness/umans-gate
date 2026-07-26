@@ -1,9 +1,10 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, renderHook, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { FieldRow } from "@/components/config-fields";
 import type { FieldDef } from "@/components/config-sections";
 import type { RawConfig } from "@/hooks/use-config";
+import { useConfigDraft } from "@/hooks/use-config-draft";
 import { flushEffects } from "@/test/utils";
 
 // Minimal RawConfig for testing — only needs the dependsOn target field.
@@ -84,5 +85,33 @@ describe("FieldRow dependsOn", () => {
     const both: FieldDef = { ...toggleDef, disabled: true };
     await renderFieldRow(both, values);
     expect(getSwitch()).toHaveAttribute("data-disabled");
+  });
+});
+
+describe("useConfigDraft auto-reset", () => {
+  it("resets stamp_glm_5_2_thinking_enabled to false when parent stamp turns off", () => {
+    const initial: RawConfig = {
+      stamp_claude_code_enabled: true,
+      stamp_glm_5_2_thinking_enabled: true,
+    } as RawConfig;
+    const { result } = renderHook(() => useConfigDraft(initial));
+    act(() => {
+      result.current.updateField("stamp_claude_code_enabled", false);
+    });
+    expect(result.current.draft?.stamp_claude_code_enabled).toBe(false);
+    expect(result.current.draft?.stamp_glm_5_2_thinking_enabled).toBe(false);
+  });
+
+  it("does not reset child when parent turns on", () => {
+    const initial: RawConfig = {
+      stamp_claude_code_enabled: false,
+      stamp_glm_5_2_thinking_enabled: false,
+    } as RawConfig;
+    const { result } = renderHook(() => useConfigDraft(initial));
+    act(() => {
+      result.current.updateField("stamp_claude_code_enabled", true);
+    });
+    expect(result.current.draft?.stamp_claude_code_enabled).toBe(true);
+    expect(result.current.draft?.stamp_glm_5_2_thinking_enabled).toBe(false);
   });
 });

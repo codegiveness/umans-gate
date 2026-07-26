@@ -170,6 +170,8 @@ export interface ProxyConfig {
   incomingProtocol: IncomingProtocol;
   /** Apply the Claude Code stamp bundle on Anthropic requests (TTL, top_k, max_tokens, thinking, output_config, context_management). */
   stampClaudeCode: boolean;
+  /** When true and stampClaudeCode is on, stamps GLM 5.2 Preserved Thinking (clear_thinking: false) for models matching "5.2". */
+  stampGlm52Thinking: boolean;
   /** Value to inject as `reasoning_effort` on OpenAI request bodies. Null = disabled. */
   stampReasoningEffort: "high" | "max" | null;
   openaiPath: string;
@@ -326,6 +328,7 @@ export interface ProtocolConfig {
 /** Stamp-related fields used by the proxy stamp pipeline. */
 export interface StampConfig {
   stampClaudeCode: ProxyConfig["stampClaudeCode"];
+  stampGlm52Thinking: ProxyConfig["stampGlm52Thinking"];
   stampReasoningEffort: ProxyConfig["stampReasoningEffort"];
   openaiPath: ProxyConfig["openaiPath"];
   experimentStripOmoReminder: ProxyConfig["experimentStripOmoReminder"];

@@ -12,6 +12,7 @@
 // touching the lookup logic.
 
 import type { ParsedModelInfo } from "./model-info-parser.js";
+import { modelVersionMatches } from "./models/version.js";
 import type { ThinkingConfig } from "./types.js";
 
 /**
@@ -139,4 +140,40 @@ export function matchStampOverlay(modelName: string): StampPolicy {
   }
   // Unreachable — STAMP_OVERLAY always has a "*" fallback.
   return STAMP_OVERLAY["*"];
+}
+
+/** GLM 5.2 Preserved Thinking shape (Z.ai clear_thinking: false). */
+const GLM_52_THINKING_SHAPE: ThinkingConfig = {
+  type: "enabled",
+  clear_thinking: false,
+  budget_tokens: 32000,
+};
+
+/** Adaptive fallback shape used when no child toggle activates a family-specific shape. */
+const ADAPTIVE_THINKING_SHAPE: ThinkingConfig = { type: "adaptive" };
+
+/**
+ * Override the `thinkingShape` on a resolved StampPolicy based on the
+ * GLM 5.2 child toggle and model version match (ADR-0019).
+ *
+ * When `stampGlm52Thinking` is true and the model name contains "5.2",
+ * the shape is overridden to GLM Preserved Thinking
+ * (`{ type: "enabled", clear_thinking: false, budget_tokens: 32000 }`).
+ * Otherwise the shape falls back to `{ type: "adaptive" }`.
+ *
+ * `canDisableThinking` and all other policy fields are NOT overridden —
+ * they stay from the resolved overlay policy.
+ *
+ * Returns a new StampPolicy object (shallow spread) so the base
+ * STAMP_OVERLAY entries are not mutated.
+ */
+export function applyGlm52ThinkingOverride(
+  policy: StampPolicy,
+  modelName: string | undefined,
+  stampGlm52Thinking: boolean,
+): StampPolicy {
+  if (stampGlm52Thinking && modelVersionMatches(modelName, "5.2")) {
+    return { ...policy, thinkingShape: GLM_52_THINKING_SHAPE };
+  }
+  return { ...policy, thinkingShape: ADAPTIVE_THINKING_SHAPE };
 }

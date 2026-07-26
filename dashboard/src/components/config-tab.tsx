@@ -120,6 +120,7 @@ export function ConfigTab() {
 
   const experimentalActive = Boolean(
     draft?.stamp_claude_code_enabled ||
+      draft?.stamp_glm_5_2_thinking_enabled ||
       draft?.stamp_reasoning_effort_enabled ||
       draft?.experiment_rewrite_ids ||
       draft?.experiment_strip_omo_reminder ||

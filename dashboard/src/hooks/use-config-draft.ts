@@ -40,7 +40,15 @@ export function useConfigDraft(initialConfig: RawConfig | null): UseConfigDraftR
   }
 
   function updateField(key: keyof RawConfig, v: unknown) {
-    setDraft((prev) => (prev ? { ...prev, [key]: v } : prev));
+    setDraft((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, [key]: v };
+      // Auto-reset GLM 5.2 thinking child when parent stamp turns off
+      if (key === "stamp_claude_code_enabled" && v === false) {
+        next.stamp_glm_5_2_thinking_enabled = false;
+      }
+      return next;
+    });
   }
 
   return { draft, setDraft, resetDraft, updateField, isDirty: dirtyKeys.size > 0, dirtyKeys };

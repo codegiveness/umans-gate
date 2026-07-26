@@ -148,6 +148,15 @@ const STAMP_FIELDS: FieldDef[] = [
     experimental: true,
   },
   {
+    key: "stamp_glm_5_2_thinking_enabled",
+    label: "GLM 5.2 Preserved Thinking",
+    kind: "toggle",
+    description:
+      "When on (and Claude Code Style is on), stamps GLM 5.2 Preserved Thinking (clear_thinking: false) on models whose name contains '5.2'. Z.ai docs: 'Preserved Thinking retains reasoning content across turns — set clear_thinking: false and return unmodified reasoning_content.' When off, falls back to {type: 'adaptive'}. Only affects thinkingShape — TTL, top_k, max_tokens, output_config, context_management continue per parent overlay. Default: off.",
+    experimental: true,
+    dependsOn: "stamp_claude_code_enabled",
+  },
+  {
     key: "stamp_reasoning_effort_enabled",
     label: "Reasoning Effort (OpenAI)",
     kind: "toggle",

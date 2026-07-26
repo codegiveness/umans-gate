@@ -57,6 +57,12 @@ const RELOAD_FIELDS: Array<{
     },
   },
   {
+    rawKey: "stamp_glm_5_2_thinking_enabled",
+    apply: (live, fresh) => {
+      live.stampGlm52Thinking = fresh.stampGlm52Thinking;
+    },
+  },
+  {
     rawKey: "usage_history_enabled",
     apply: (live, fresh) => {
       live.usageHistoryEnabled = fresh.usageHistoryEnabled;

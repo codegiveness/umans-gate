@@ -30,6 +30,7 @@ function makeCtx(overrides: Partial<StampContext> = {}): StampContext {
   return {
     config: {
       stampClaudeCode: true,
+      stampGlm52Thinking: false,
       stampReasoningEffort: null,
       openaiPath: "chat/completions",
       target: "https://api.code.umans.ai",
@@ -39,6 +40,7 @@ function makeCtx(overrides: Partial<StampContext> = {}): StampContext {
       backgroundVision: false,
       concurrencyHardCap: 10,
       concurrencySoftLimit: 5,
+      useHardCap: false,
       rateLimitRequests: 0,
       queueTimeoutMs: 30000,
       maxQueueDepth: 100,
@@ -51,6 +53,7 @@ function makeCtx(overrides: Partial<StampContext> = {}): StampContext {
       incomingProtocol: "http1.1",
       upstreamProtocol: "http1.1",
       upstreamTimeoutMs: 300000,
+      experimentStripOmoReminder: false,
     },
     isOpenAi: false,
     headers: { "content-type": "application/json" },
@@ -228,6 +231,7 @@ beforeAll(async () => {
   proxy = await startProxy({
     TARGET: `http://127.0.0.1:${raw.port}`,
     STAMP_CLAUDE_CODE_ENABLED: "true",
+    STAMP_GLM_5_2_THINKING_ENABLED: "true",
   });
 });
 
@@ -454,13 +458,14 @@ test("umans-coder with non-adaptive thinking: forced to adaptive end-to-end", as
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
 
-  expect(parsed.thinking).toEqual({ type: "enabled", keep: "all", budget_tokens: 32000 });
+  // GLM 5.2 child toggle is ON but umans-coder does not match "5.2" → adaptive fallback.
+  expect(parsed.thinking).toEqual({ type: "adaptive" });
   expect(parsed.output_config).toEqual({ effort: "high" });
   expect(parsed.temperature).toBe(1.0);
   expect(parsed.max_tokens).toBe(32767);
 });
 
-test("umans-coder with disabled thinking: forced to Kimi Preserved Thinking (canDisable=false)", async () => {
+test("umans-coder with disabled thinking: forced to adaptive (canDisable=false)", async () => {
   const body = JSON.stringify({
     model: "umans-coder",
     thinking: { type: "disabled" },
@@ -480,7 +485,8 @@ test("umans-coder with disabled thinking: forced to Kimi Preserved Thinking (can
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
 
-  expect(parsed.thinking).toEqual({ type: "enabled", keep: "all", budget_tokens: 32000 });
+  // canDisableThinking=false forces the block; shape is adaptive (GLM 5.2 toggle version mismatch).
+  expect(parsed.thinking).toEqual({ type: "adaptive" });
   expect(parsed.output_config).toEqual({ effort: "high" });
   expect(parsed.temperature).toBe(1.0);
 });
