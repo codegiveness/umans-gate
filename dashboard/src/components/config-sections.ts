@@ -49,6 +49,8 @@ export interface FieldDef {
   umansSourced?: boolean;
   /** optional tooltip text shown next to the field label via an info icon */
   tooltip?: string;
+  /** when set, field is disabled when the referenced field's value is falsy */
+  dependsOn?: keyof RawConfig;
 }
 
 const SERVER_FIELDS: FieldDef[] = [

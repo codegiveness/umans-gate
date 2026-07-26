@@ -46,18 +46,31 @@ interface RendererProps {
   id: string;
   isInvalid: boolean;
   placeholder: string | undefined;
+  disabled: boolean;
 }
 
 type FieldRenderer = (props: RendererProps) => React.JSX.Element;
 
-function BooleanRenderer({ id, value, onChange }: RendererProps) {
-  return <Switch id={id} checked={Boolean(value)} onCheckedChange={(c) => onChange(c)} />;
+function BooleanRenderer({ id, value, onChange, disabled }: RendererProps) {
+  return (
+    <Switch
+      id={id}
+      checked={Boolean(value)}
+      onCheckedChange={(c) => onChange(c)}
+      disabled={disabled}
+    />
+  );
 }
 
-function ToggleRenderer({ id, value, onChange }: RendererProps) {
+function ToggleRenderer({ id, value, onChange, disabled }: RendererProps) {
   return (
     <div className="flex items-center gap-2">
-      <Switch id={id} checked={Boolean(value)} onCheckedChange={(c) => onChange(c)} />
+      <Switch
+        id={id}
+        checked={Boolean(value)}
+        onCheckedChange={(c) => onChange(c)}
+        disabled={disabled}
+      />
       <span className="text-xs text-muted-foreground">{value ? "On" : "Off"}</span>
     </div>
   );
@@ -241,6 +254,7 @@ export function FieldRow({
   warning,
   onRefreshSource,
   refreshing,
+  values,
 }: {
   def: FieldDef;
   value: unknown;
@@ -250,11 +264,14 @@ export function FieldRow({
   warning?: string;
   onRefreshSource?: () => void;
   refreshing?: boolean;
+  values: RawConfig;
 }) {
   const id = `cfg-${def.key}`;
   const hasError = Boolean(error);
   const isInvalid = hasError;
   const placeholder = def.placeholder ?? def.patternHint ?? undefined;
+  const depDisabled = def.dependsOn ? !values[def.dependsOn] : false;
+  const disabled = def.disabled || depDisabled;
 
   return (
     <div className="grid grid-cols-1 gap-1.5 py-2.5 sm:grid-cols-[minmax(200px,1fr)_2fr] sm:items-start sm:gap-4">
@@ -320,6 +337,7 @@ export function FieldRow({
               id,
               isInvalid,
               placeholder,
+              disabled,
             })}
           </div>
           {def.refreshSource && onRefreshSource ? (
@@ -394,6 +412,7 @@ export function SectionBlock({
           warning={warnings[f.key as string]}
           onRefreshSource={f.refreshSource ? onRefreshSource : undefined}
           refreshing={refreshingSource}
+          values={values}
         />
       ))}
       {!isLast ? <Separator className="my-2" /> : null}
