@@ -554,6 +554,50 @@ describe("Integration: usage daily (ticket 03)", () => {
     expect(rows[0].day_completeness).not.toBe("incomplete_window");
   });
 
+  test("byte-identical long gap skips interval and resets idle streak", async () => {
+    const day = utcDate(7);
+    const t0 = utcMidnightMs(7);
+    // Simulate sleep/wake: active session, then 90min gap with byte-identical
+    // samples (coalescing produced no new sample during sleep), then activity
+    // resumes. The gap interval (90min, identical) must be skipped and the
+    // idle streak reset so post-wake intervals count fresh.
+    const base = {
+      plan: "Code Pro",
+      concurrency_soft_limit: 8,
+      concurrency_hard_cap: 16,
+      tokens_in: 1000,
+      tokens_out: 500,
+      tokens_cached: 100,
+      requests_in_window: 5,
+      weighted_requests_in_window: 5,
+      concurrent_sessions: 1,
+      weighted_concurrent_sessions: 1,
+      requests_limit: 480,
+      requests_hard_cap: 720,
+      requests_window_seconds: 21600,
+      requests_remaining: 475,
+      weighted_remaining_requests: 475,
+    };
+    // t=0: active sample
+    insertSample(db, { ...base, fetched_at: t0 + 10 * 3600_000 });
+    // t=90min: byte-identical (ambientKey equal → identical=true)
+    insertSample(db, { ...base, fetched_at: t0 + 10 * 3600_000 + 90 * 60_000 });
+    // t=91min: tokens advance (activity resumes after wake)
+    insertSample(db, {
+      ...base,
+      tokens_in: 2000,
+      tokens_out: 1000,
+      tokens_cached: 200,
+      fetched_at: t0 + 10 * 3600_000 + 91 * 60_000,
+    });
+    await triggerDownsample(proxy);
+    const rows = await fetchDaily(proxy, day, day);
+    expect(rows.length).toBe(1);
+    // The 90min identical gap is skipped (not counted). The 1min post-wake
+    // interval with token advance counts. Total active = 1min.
+    expect(rows[0].accumulated_active_minutes).toBe(1);
+  });
+
   test("retention pruning: samples older than retention_days are deleted", async () => {
     // Insert a sample from 10 days ago — beyond the 7-day retention.
     const oldDay = utcDate(10);
