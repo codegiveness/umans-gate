@@ -266,7 +266,11 @@ export function App() {
                   keepMounted
                 >
                   <Suspense fallback={<TabPanelFallback />}>
-                    <IncidentsTab />
+                    <IncidentsTab
+                      selectCapture={selectCapture}
+                      navigateToCaptures={() => setActiveTab("captures")}
+                      captures={captures}
+                    />
                   </Suspense>
                 </TabsContent>
                 <TabsContent value="config" className="min-h-0 flex-1 overflow-hidden" keepMounted>

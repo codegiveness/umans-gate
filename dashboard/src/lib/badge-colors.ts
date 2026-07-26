@@ -28,6 +28,18 @@ export const dotSuccess = "bg-green-500 dark:bg-green-400";
 /** Dot color for warning indicators (e.g. WebSocket reconnecting dot). */
 export const dotWarning = "bg-amber-500 dark:bg-amber-400";
 
+/**
+ * Responsible-party badge colors for the Incidents tab.
+ * Hue mapping per spec: upstream = 200° (chart-2 cyan), proxy = 30°
+ * (chart-3 amber), client = 340° (chart-4 rose).
+ */
+export const badgeUpstream =
+  "border-transparent bg-cyan-100 dark:bg-cyan-900 text-cyan-900 dark:text-cyan-100";
+export const badgeProxy =
+  "border-transparent bg-amber-100 dark:bg-amber-900 text-amber-900 dark:text-amber-100";
+export const badgeClient =
+  "border-transparent bg-rose-100 dark:bg-rose-900 text-rose-900 dark:text-rose-100";
+
 export function budgetTier(entry: {
   overBudgetToday: boolean;
   usedPct: number;
