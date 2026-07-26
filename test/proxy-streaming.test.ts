@@ -41,7 +41,7 @@ describe("proxy streaming/SSE characterization", () => {
   test("streaming Anthropic request returns full SSE response", async () => {
     const path = "/v1/messages";
     const reqBody = {
-      model: "claude-sonnet-4-5",
+      model: "umans-glm-5.2",
       max_tokens: 50,
       stream: true,
       messages: [{ role: "user", content: "Hello streaming test" }],
@@ -68,7 +68,7 @@ describe("proxy streaming/SSE characterization", () => {
   test("capture is marked done and contains full SSE response body with usage", async () => {
     const path = "/v1/messages";
     const reqBody = {
-      model: "claude-sonnet-4-5",
+      model: "umans-glm-5.2",
       max_tokens: 50,
       stream: true,
       messages: [{ role: "user", content: "Capture streaming test" }],
@@ -92,7 +92,7 @@ describe("proxy streaming/SSE characterization", () => {
     expect(cap!.response_body).toContain("event: content_block_delta");
     expect(cap!.response_body).toContain("event: message_delta");
     expect(cap!.response_body).toContain("event: message_stop");
-    expect(cap!.model).toBe("claude-sonnet-4-5");
+    expect(cap!.model).toBe("umans-glm-5.2");
     expect(cap!.input_tokens).not.toBeNull();
     expect(cap!.input_tokens! > 0).toBe(true);
     expect(cap!.output_tokens).not.toBeNull();
@@ -102,7 +102,7 @@ describe("proxy streaming/SSE characterization", () => {
   test("permit is released and a second streaming request succeeds immediately", async () => {
     const path = "/v1/messages";
     const reqBody = {
-      model: "claude-sonnet-4-5",
+      model: "umans-glm-5.2",
       max_tokens: 50,
       stream: true,
       messages: [{ role: "user", content: "Permit release test" }],
@@ -133,7 +133,7 @@ describe("proxy streaming/SSE characterization", () => {
   test("non-streaming Anthropic request returns JSON and capture has usage", async () => {
     const path = "/v1/messages";
     const reqBody = {
-      model: "claude-sonnet-4-5",
+      model: "umans-glm-5.2",
       max_tokens: 50,
       stream: false,
       messages: [{ role: "user", content: "Non-streaming test" }],
@@ -159,7 +159,7 @@ describe("proxy streaming/SSE characterization", () => {
     expect(cap!.state).toBe("done");
     expect(cap!.response_status).toBe(200);
     expect(cap!.is_sse).toBe(0);
-    expect(cap!.model).toBe("claude-sonnet-4-5");
+    expect(cap!.model).toBe("umans-glm-5.2");
     expect(cap!.input_tokens).not.toBeNull();
     expect(cap!.input_tokens! > 0).toBe(true);
     expect(cap!.output_tokens).not.toBeNull();
@@ -169,7 +169,7 @@ describe("proxy streaming/SSE characterization", () => {
   test("streaming capture duration_ms and ttft_ms are populated", async () => {
     const path = "/v1/messages";
     const reqBody = {
-      model: "claude-sonnet-4-5",
+      model: "umans-glm-5.2",
       max_tokens: 50,
       stream: true,
       messages: [{ role: "user", content: "Duration and TTFT test" }],
@@ -194,7 +194,7 @@ describe("proxy streaming/SSE characterization", () => {
   test("permit is released even when streaming response body is discarded", async () => {
     const path = "/v1/messages";
     const reqBody = {
-      model: "claude-sonnet-4-5",
+      model: "umans-glm-5.2",
       max_tokens: 50,
       stream: true,
       messages: [{ role: "user", content: "Discard body test" }],

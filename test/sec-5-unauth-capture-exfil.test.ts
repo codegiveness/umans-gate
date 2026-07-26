@@ -44,7 +44,7 @@ test("SEC-5a: GET /dashboard/api/captures returns capture list without auth", as
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-5",
+      model: "umans-glm-5.2",
       max_tokens: 16,
       messages: [{ role: "user", content: "secret prompt: the eagle lands at midnight" }],
     }),

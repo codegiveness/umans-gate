@@ -36,7 +36,7 @@ function startMockVisionUpstream(description: string): MockVisionHandle {
         id: "chatcmpl-vision-mock",
         object: "chat.completion",
         created: Math.floor(Date.now() / 1000),
-        model: "gpt-4o",
+        model: "umans-flash",
         choices: [
           {
             index: 0,
@@ -89,7 +89,7 @@ beforeAll(async () => {
     USAGE_REFRESH_MS: "999999",
     VISION_STRATEGY: "always",
     VISION_TARGET: `http://127.0.0.1:${vision.port}/v1/chat/completions`,
-    VISION_MODEL: "gpt-4o",
+    VISION_MODEL: "umans-flash",
     UMANS_API_KEY: "test-key",
   });
 });
@@ -105,7 +105,7 @@ test("post-handoff TTL re-stamp on modified body (Anthropic route)", async () =>
   upstream.reset();
 
   const sentBody = {
-    model: "claude-sonnet-4-5",
+    model: "umans-glm-5.2",
     max_tokens: 50,
     messages: [
       {

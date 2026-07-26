@@ -117,14 +117,14 @@ test("breaker: one concurrency 429 with low threshold opens circuit → next req
     const r1 = await fetch(`${proxy.baseUrl}/v1/messages`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 10, messages: [] }),
+      body: JSON.stringify({ model: "umans-glm-5.2", max_tokens: 10, messages: [] }),
     });
     expect(r1.status).toBe(429);
 
     const r2 = await fetch(`${proxy.baseUrl}/v1/messages`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 10, messages: [] }),
+      body: JSON.stringify({ model: "umans-glm-5.2", max_tokens: 10, messages: [] }),
     });
     expect(r2.status).toBe(503);
     const body2 = (await r2.json()) as { error?: string };
@@ -162,7 +162,7 @@ test("dead upstream port returns 502 with Bad Gateway body", async () => {
     const res = await fetch(`${proxy.baseUrl}/v1/messages`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 10, messages: [] }),
+      body: JSON.stringify({ model: "umans-glm-5.2", max_tokens: 10, messages: [] }),
     });
     expect(res.status).toBe(502);
     expect(await res.text()).toContain("Bad Gateway");
@@ -192,7 +192,7 @@ test("streaming request aborted mid-stream flushes capture with state done and s
       signal: controller.signal,
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
+        model: "umans-glm-5.2",
         max_tokens: 100,
         stream: true,
         messages: [{ role: "user", content: "go" }],
@@ -245,7 +245,7 @@ test("queue_full: zero max queue depth with hard cap 1 rejects second concurrent
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
+        model: "umans-glm-5.2",
         max_tokens: 50,
         stream: true,
         messages: [{ role: "user", content: "go" }],
@@ -259,7 +259,7 @@ test("queue_full: zero max queue depth with hard cap 1 rejects second concurrent
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
+        model: "umans-glm-5.2",
         max_tokens: 50,
         stream: true,
         messages: [{ role: "user", content: "go" }],

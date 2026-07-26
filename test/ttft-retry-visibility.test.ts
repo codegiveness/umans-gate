@@ -87,7 +87,7 @@ function startStreamingUpstream(): {
 }
 
 const MSG_BODY = JSON.stringify({
-  model: "claude-sonnet-4-5",
+  model: "umans-glm-5.2",
   max_tokens: 10,
   stream: true,
   messages: [{ role: "user", content: "test" }],

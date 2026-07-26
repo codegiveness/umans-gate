@@ -15,7 +15,7 @@ function makeConfig(): VisionHandoff["config"] {
   return {
     strategy: "always",
     target: "http://127.0.0.1:0/v1/chat/completions",
-    model: "gpt-4o",
+    model: "umans-flash",
     prompt: "Describe the image",
     promptVersion: 1,
     maxImages: 4,

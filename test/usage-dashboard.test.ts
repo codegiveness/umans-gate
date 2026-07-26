@@ -53,11 +53,11 @@ async function _getLatestCapture(
 
 describe("extractModel()", () => {
   test("extracts model from Anthropic request body", () => {
-    expect(extractModel({ model: "claude-sonnet-4-5", messages: [] })).toBe("claude-sonnet-4-5");
+    expect(extractModel({ model: "umans-glm-5.2", messages: [] })).toBe("umans-glm-5.2");
   });
 
   test("extracts model from OpenAI request body", () => {
-    expect(extractModel({ model: "gpt-4o", messages: [] })).toBe("gpt-4o");
+    expect(extractModel({ model: "umans-flash", messages: [] })).toBe("umans-flash");
   });
 
   test("returns 'unknown' when model missing", () => {

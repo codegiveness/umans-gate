@@ -142,7 +142,7 @@ async function handleAnthropic(
       type: "message",
       role: "assistant",
       content: [{ type: "text", text: "Hello from mock Anthropic!" }],
-      model: body?.model ?? "claude-sonnet-4-5",
+      model: body?.model ?? "umans-glm-5.2",
       stop_reason: "end_turn",
       stop_sequence: null,
       usage,
@@ -184,7 +184,7 @@ async function handleAnthropic(
               type: "message",
               role: "assistant",
               content: [],
-              model: body?.model ?? "claude-sonnet-4-5",
+              model: body?.model ?? "umans-glm-5.2",
               stop_reason: null,
               stop_sequence: null,
               usage: usageStart,
@@ -341,7 +341,7 @@ function handleOpenAi(body: MockRequestBody, _callCount: number): Response {
       id: "chatcmpl-mock",
       object: "chat.completion",
       created: Math.floor(Date.now() / 1000),
-      model: body?.model ?? "gpt-4o",
+      model: body?.model ?? "umans-flash",
       choices: [
         {
           index: 0,
@@ -371,7 +371,7 @@ function handleOpenAi(body: MockRequestBody, _callCount: number): Response {
               id: "chatcmpl-mock",
               object: "chat.completion.chunk",
               created: Math.floor(Date.now() / 1000),
-              model: body?.model ?? "gpt-4o",
+              model: body?.model ?? "umans-flash",
               choices: [
                 {
                   index: 0,
@@ -392,7 +392,7 @@ function handleOpenAi(body: MockRequestBody, _callCount: number): Response {
             id: "chatcmpl-mock",
             object: "chat.completion.chunk",
             created: Math.floor(Date.now() / 1000),
-            model: body?.model ?? "gpt-4o",
+            model: body?.model ?? "umans-flash",
             choices: [
               {
                 index: 0,
@@ -427,7 +427,7 @@ function handleOpenAi(body: MockRequestBody, _callCount: number): Response {
               id: "chatcmpl-mock",
               object: "chat.completion.chunk",
               created: Math.floor(Date.now() / 1000),
-              model: body?.model ?? "gpt-4o",
+              model: body?.model ?? "umans-flash",
               choices: [], // EMPTY array — spec
               usage,
             })}\n\n`,

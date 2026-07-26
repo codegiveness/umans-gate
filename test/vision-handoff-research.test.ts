@@ -86,7 +86,7 @@ describe("image-block detection: OpenAI", () => {
 describe("image-block detection: Anthropic", () => {
   test("detects base64 image source", () => {
     const body = {
-      model: "claude-3-5-sonnet-20241022",
+      model: "umans-glm-5.2",
       messages: [
         {
           role: "user",

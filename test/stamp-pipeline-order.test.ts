@@ -124,7 +124,7 @@ test("TopKStep.applies is false when stampClaudeCode is false (disabled)", () =>
 });
 
 test("TopKStep.applies is false for non-GLM models", () => {
-  const ctx = makeCtx({ modelName: "claude-sonnet-4" });
+  const ctx = makeCtx({ modelName: "umans-legacy" });
   expect(TopKStep.applies(ctx)).toBe(false);
 });
 
@@ -165,7 +165,7 @@ test("OpenAiStreamUsageStep.apply injects stream_options.include_usage on stream
     isOpenAi: true,
     config: { ...makeCtx().config, stampReasoningEffort: "high" },
   });
-  const body: Record<string, unknown> = { stream: true, model: "gpt-4" };
+  const body: Record<string, unknown> = { stream: true, model: "umans-flash" };
   const changed = OpenAiStreamUsageStep.apply(body, ctx);
   expect(changed).toBe(true);
   expect(body.stream_options).toEqual({ include_usage: true });
@@ -179,7 +179,7 @@ test("OpenAiStreamUsageStep.apply is idempotent when include_usage already true"
   const body: Record<string, unknown> = {
     stream: true,
     stream_options: { include_usage: true },
-    model: "gpt-4",
+    model: "umans-flash",
   };
   const changed = OpenAiStreamUsageStep.apply(body, ctx);
   expect(changed).toBe(false);
@@ -191,7 +191,7 @@ test("OpenAiStreamUsageStep.apply skips non-streaming requests", () => {
     isOpenAi: true,
     config: { ...makeCtx().config, stampReasoningEffort: "high" },
   });
-  const body: Record<string, unknown> = { model: "gpt-4" };
+  const body: Record<string, unknown> = { model: "umans-flash" };
   const changed = OpenAiStreamUsageStep.apply(body, ctx);
   expect(changed).toBe(false);
   expect(body.stream_options).toBeUndefined();

@@ -60,7 +60,7 @@ describe("E2E: Anthropic non-streaming usage extraction from proxy capture", () 
   test("captured response_body yields correct usage metrics", async () => {
     const path = "/v1/messages";
     const reqBody = {
-      model: "claude-sonnet-4-5",
+      model: "umans-glm-5.2",
       max_tokens: 50,
       messages: [{ role: "user", content: "Hello" }],
     };
@@ -92,7 +92,7 @@ describe("E2E: Anthropic streaming usage extraction from proxy capture", () => {
   test("captured SSE body yields correct usage metrics with TTFT", async () => {
     const path = "/v1/messages";
     const reqBody = {
-      model: "claude-sonnet-4-5",
+      model: "umans-glm-5.2",
       max_tokens: 50,
       stream: true,
       messages: [{ role: "user", content: "Hello" }],
@@ -143,7 +143,7 @@ describe("E2E: OpenAI non-streaming usage extraction from proxy capture", () => 
   test("captured response_body yields correct usage metrics", async () => {
     const path = "/v1/chat/completions";
     const reqBody = {
-      model: "gpt-4o",
+      model: "umans-flash",
       max_tokens: 50,
       messages: [{ role: "user", content: "Hello" }],
     };
@@ -173,7 +173,7 @@ describe("E2E: OpenAI streaming usage extraction from proxy capture", () => {
   test("with include_usage: captured SSE yields full usage", async () => {
     const path = "/v1/chat/completions";
     const reqBody = {
-      model: "gpt-4o",
+      model: "umans-flash",
       max_tokens: 50,
       stream: true,
       stream_options: { include_usage: true },
@@ -211,7 +211,7 @@ describe("E2E: OpenAI streaming usage extraction from proxy capture", () => {
   test("WITHOUT include_usage: usage_missing = true on captured SSE", async () => {
     const path = "/v1/chat/completions";
     const reqBody = {
-      model: "gpt-4o",
+      model: "umans-flash",
       max_tokens: 50,
       stream: true,
       // NO stream_options.include_usage

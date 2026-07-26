@@ -48,7 +48,7 @@ describe("Integration: usage extraction pipeline (happy paths)", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
+        model: "umans-glm-5.2",
         max_tokens: 50,
         messages: [{ role: "user", content: "Hello integration test" }],
       }),
@@ -58,7 +58,7 @@ describe("Integration: usage extraction pipeline (happy paths)", () => {
 
     const cap = await getLatestCapture(proxy, "/v1/messages");
     expect(cap).not.toBeNull();
-    expect(cap!.model).toBe("claude-sonnet-4-5");
+    expect(cap!.model).toBe("umans-glm-5.2");
     expect(cap!.provider).toBe("anthropic");
     expect(cap!.streaming).toBe(0);
     expect(cap!.input_tokens).not.toBeNull();
@@ -73,7 +73,7 @@ describe("Integration: usage extraction pipeline (happy paths)", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
+        model: "umans-glm-5.2",
         max_tokens: 50,
         stream: true,
         system: [
@@ -87,7 +87,7 @@ describe("Integration: usage extraction pipeline (happy paths)", () => {
 
     const cap = await getLatestCapture(proxy, "/v1/messages");
     expect(cap).not.toBeNull();
-    expect(cap!.model).toBe("claude-sonnet-4-5");
+    expect(cap!.model).toBe("umans-glm-5.2");
     expect(cap!.streaming).toBe(1);
     expect(cap!.ttft_ms).not.toBeNull();
     expect(cap!.ttft_ms! > 0).toBe(true);
@@ -99,7 +99,7 @@ describe("Integration: usage extraction pipeline (happy paths)", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        model: "gpt-4o",
+        model: "umans-flash",
         max_tokens: 50,
         messages: [{ role: "user", content: "Hello OpenAI" }],
       }),
@@ -109,7 +109,7 @@ describe("Integration: usage extraction pipeline (happy paths)", () => {
 
     const cap = await getLatestCapture(proxy, "/v1/chat/completions");
     expect(cap).not.toBeNull();
-    expect(cap!.model).toBe("gpt-4o");
+    expect(cap!.model).toBe("umans-flash");
     expect(cap!.provider).toBe("openai");
     expect(cap!.input_tokens).not.toBeNull();
     expect(cap!.output_tokens).not.toBeNull();
@@ -153,7 +153,7 @@ describe("Integration: malformed response handling", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
+        model: "umans-glm-5.2",
         max_tokens: 50,
         messages: [{ role: "user", content: "Test malformed response" }],
       }),
@@ -205,7 +205,7 @@ describe("Integration: HTTP 500 error path", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
+        model: "umans-glm-5.2",
         max_tokens: 50,
         messages: [{ role: "user", content: "Test 500 error" }],
       }),

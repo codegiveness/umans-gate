@@ -98,7 +98,7 @@ test("SEC-8b: WebSocket upgrade with local Origin succeeds (101)", async () => {
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-5",
+      model: "umans-glm-5.2",
       max_tokens: 16,
       messages: [{ role: "user", content: "ws-origin-test" }],
     }),

@@ -21,7 +21,7 @@ describe("vision capture merge", () => {
           id: "chatcmpl-vision-mock",
           object: "chat.completion",
           created: Math.floor(Date.now() / 1000),
-          model: "gpt-4o",
+          model: "umans-flash",
           choices: [
             {
               index: 0,
@@ -41,7 +41,7 @@ describe("vision capture merge", () => {
         WARMER_ENABLED: "false",
         VISION_STRATEGY: "always",
         VISION_TARGET: `http://127.0.0.1:${visionServer.port}/v1/chat/completions`,
-        VISION_MODEL: "gpt-4o",
+        VISION_MODEL: "umans-flash",
         UMANS_API_KEY: "test-key",
       },
     });
@@ -87,7 +87,7 @@ describe("vision capture merge", () => {
       const visionCaps = caps.filter((c) => c.is_vision);
       expect(visionCaps.length).toBeGreaterThanOrEqual(1);
       const vc = visionCaps[0];
-      expect(vc.model).toBe("gpt-4o");
+      expect(vc.model).toBe("umans-flash");
       expect(vc.state).toBe("done");
       expect(vc.incoming_protocol).toBe("http1.1");
       expect(vc.upstream_protocol).toBe("http1.1");
@@ -108,7 +108,7 @@ describe("vision capture merge", () => {
           id: "chatcmpl-vision-mock",
           object: "chat.completion",
           created: Math.floor(Date.now() / 1000),
-          model: "gpt-4o",
+          model: "umans-flash",
           choices: [
             {
               index: 0,
@@ -128,7 +128,7 @@ describe("vision capture merge", () => {
         WARMER_ENABLED: "false",
         VISION_STRATEGY: "always",
         VISION_TARGET: `http://127.0.0.1:${visionServer.port}/v1/chat/completions`,
-        VISION_MODEL: "gpt-4o",
+        VISION_MODEL: "umans-flash",
         UMANS_API_KEY: "test-key",
       },
     });
@@ -186,7 +186,7 @@ describe("vision capture merge", () => {
       const r = records[0];
       expect(typeof r.id).toBe("number");
       expect(typeof r.timestamp).toBe("number");
-      expect(r.model).toBe("gpt-4o");
+      expect(r.model).toBe("umans-flash");
       expect(typeof r.target).toBe("string");
       expect(typeof r.imageSize).toBe("number");
       expect(r.status).toBe("ok");

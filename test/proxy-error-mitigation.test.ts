@@ -97,7 +97,7 @@ test("proxy error responses are JSON, never HTML", async () => {
     const r2 = await fetch(`${proxy.baseUrl}/v1/messages`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ model: "claude-sonnet-4-5", max_tokens: 10, messages: [] }),
+      body: JSON.stringify({ model: "umans-glm-5.2", max_tokens: 10, messages: [] }),
     });
     expect(r2.status).toBe(200);
     await r2.text();
@@ -121,7 +121,7 @@ test("stamp pipeline succeeds with valid Anthropic body and cache_control", asyn
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
+        model: "umans-glm-5.2",
         max_tokens: 10,
         stream: true,
         messages: [{ role: "user", content: "test" }],
@@ -154,7 +154,7 @@ test("permit is released after upstream 500 — next request succeeds immediatel
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
+        model: "umans-glm-5.2",
         max_tokens: 10,
         stream: true,
         messages: [{ role: "user", content: "first" }],
@@ -170,7 +170,7 @@ test("permit is released after upstream 500 — next request succeeds immediatel
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
+        model: "umans-glm-5.2",
         max_tokens: 10,
         stream: true,
         messages: [{ role: "user", content: "second" }],
@@ -207,7 +207,7 @@ test(
         signal: controller.signal,
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: "umans-glm-5.2",
           max_tokens: 10,
           stream: true,
           messages: [{ role: "user", content: "first" }],
@@ -238,7 +238,7 @@ test(
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: "umans-glm-5.2",
           max_tokens: 10,
           stream: true,
           messages: [{ role: "user", content: "second" }],

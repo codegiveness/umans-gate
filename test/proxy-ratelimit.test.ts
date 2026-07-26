@@ -25,7 +25,7 @@ describe("handleProxy rate-limit rejection", () => {
 
   test("first two requests pass through to upstream", async () => {
     const reqBody = {
-      model: "gpt-4o",
+      model: "umans-flash",
       max_tokens: 10,
       messages: [{ role: "user", content: "hello" }],
     };
@@ -47,7 +47,7 @@ describe("handleProxy rate-limit rejection", () => {
 
   test("third request returns 429 with expected body and headers", async () => {
     const reqBody = {
-      model: "gpt-4o",
+      model: "umans-flash",
       max_tokens: 10,
       messages: [{ role: "user", content: "hello" }],
     };

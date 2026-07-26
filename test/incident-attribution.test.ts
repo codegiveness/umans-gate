@@ -36,7 +36,7 @@ function start500Upstream(): { port: number; close: () => Promise<void> } {
 }
 
 const MSG_BODY = JSON.stringify({
-  model: "claude-sonnet-4-5",
+  model: "umans-glm-5.2",
   max_tokens: 10,
   stream: false,
   messages: [{ role: "user", content: "test" }],
@@ -127,7 +127,7 @@ describe("Incident attribution — upstream 500", () => {
       expect(incidents[0].incident_type).toBe("upstream_error");
       expect(incidents[0].upstream_status).toBe(500);
       expect(incidents[0].served_status).toBe(500);
-      expect(incidents[0].capture_model).toBe("claude-sonnet-4-5");
+      expect(incidents[0].capture_model).toBe("umans-glm-5.2");
       expect(incidents[0].capture_path).toBe("/v1/messages");
     } finally {
       await proxy.kill();

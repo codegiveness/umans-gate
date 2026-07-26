@@ -79,7 +79,7 @@ describe("resolveStampPolicy", () => {
 
   it("falls back to the * policy for an unknown model", () => {
     const catalog = catalogWith("umans-coder");
-    const resolved = resolveStampPolicy("claude-sonnet-4", catalog);
+    const resolved = resolveStampPolicy("umans-legacy", catalog);
     expect(resolved).toEqual(STAMP_OVERLAY["*"]);
     expect(resolved.thinking).toBe(false);
     expect(resolved.top_k).toBeNull();
@@ -105,7 +105,7 @@ describe("matchStampOverlay", () => {
     ["umans-flash", STAMP_OVERLAY["umans-flash"]],
     ["umans-kimi-x", STAMP_OVERLAY["umans-kimi*"]],
     ["umans-qwen-y", STAMP_OVERLAY["umans-qwen*"]],
-    ["claude-sonnet-4", STAMP_OVERLAY["*"]],
+    ["umans-legacy", STAMP_OVERLAY["*"]],
   ];
 
   for (const [model, expected] of cases) {

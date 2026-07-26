@@ -14,7 +14,7 @@ describe("OpenAI non-streaming usage extraction", () => {
     const body = {
       id: "chatcmpl-1",
       object: "chat.completion",
-      model: "gpt-4o",
+      model: "umans-flash",
       choices: [
         {
           index: 0,

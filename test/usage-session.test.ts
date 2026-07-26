@@ -114,7 +114,7 @@ describe("Long-running Anthropic coding session (5 turns, cache warming)", () =>
 
     for (let i = 0; i < TURNS.length; i++) {
       const reqBody = {
-        model: "claude-sonnet-4-5",
+        model: "umans-glm-5.2",
         max_tokens: 100,
         system: [
           {
@@ -235,7 +235,7 @@ describe("Long-running OpenAI coding session (5 turns)", () => {
 
     for (let i = 0; i < TURNS.length; i++) {
       const reqBody = {
-        model: "gpt-4o",
+        model: "umans-flash",
         max_tokens: 100,
         messages: [
           { role: "system", content: CODING_SYSTEM_PROMPT },
@@ -314,7 +314,7 @@ describe("Long-running Anthropic STREAMING coding session (5 turns)", () => {
 
     for (let i = 0; i < TURNS.length; i++) {
       const reqBody = {
-        model: "claude-sonnet-4-5",
+        model: "umans-glm-5.2",
         max_tokens: 100,
         stream: true,
         system: [
@@ -421,7 +421,7 @@ describe("Long-running OpenAI STREAMING coding session (5 turns)", () => {
 
     for (let i = 0; i < TURNS.length; i++) {
       const reqBody = {
-        model: "gpt-4o",
+        model: "umans-flash",
         max_tokens: 100,
         stream: true,
         stream_options: { include_usage: true },

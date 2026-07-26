@@ -345,7 +345,7 @@ test("respects existing thinking type=adaptive and stamps output_config", () => 
 
 test("does NOT stamp output_config for unknown model with thinking=false policy", () => {
   const body: AnthropicBody = {
-    model: "claude-sonnet-4",
+    model: "umans-legacy",
     thinking: { type: "adaptive" } as never,
     messages: [],
   };

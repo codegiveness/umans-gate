@@ -26,7 +26,7 @@ describe("compression E2E", () => {
           type: "message",
           role: "assistant",
           content: [{ type: "text", text: "Hello from mock upstream" }],
-          model: body?.model ?? "claude-sonnet-4-5",
+          model: body?.model ?? "umans-glm-5.2",
           stop_reason: "end_turn",
           stop_sequence: null,
           usage: { input_tokens: 10, output_tokens: 5 },
@@ -56,7 +56,7 @@ describe("compression E2E", () => {
     // Build a request body whose content string exceeds 512 bytes.
     const largeContent = "x".repeat(600);
     const requestBody = {
-      model: "claude-sonnet-4-5",
+      model: "umans-glm-5.2",
       max_tokens: 50,
       messages: [{ role: "user", content: largeContent }],
     };

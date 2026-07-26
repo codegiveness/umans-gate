@@ -18,7 +18,7 @@ function makeConfig(target: string): VisionHandoff["config"] {
   return {
     strategy: "always",
     target,
-    model: "gpt-4o",
+    model: "umans-flash",
     prompt: "Describe the image",
     promptVersion: 1,
     maxImages: 4,
@@ -52,7 +52,7 @@ describe("vision update failure (V10)", () => {
           id: "chatcmpl-mock",
           object: "chat.completion",
           created: Math.floor(Date.now() / 1000),
-          model: "gpt-4o",
+          model: "umans-flash",
           choices: [
             {
               index: 0,

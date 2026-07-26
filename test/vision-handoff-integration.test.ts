@@ -77,7 +77,7 @@ function startMockVisionUpstream(opts: VisionMockOptions = {}): MockVisionHandle
         id: "chatcmpl-vision-mock",
         object: "chat.completion",
         created: Math.floor(Date.now() / 1000),
-        model: "gpt-4o",
+        model: "umans-flash",
         choices: [{ index: 0, message, finish_reason: "stop" }],
         usage: { prompt_tokens: 10, completion_tokens: 20, total_tokens: 30 },
       });
@@ -124,7 +124,7 @@ describe("Vision handoff integration", () => {
       USAGE_REFRESH_MS: "999999",
       VISION_STRATEGY: "catalog",
       VISION_TARGET: `http://127.0.0.1:${vision.port}/v1/chat/completions`,
-      VISION_MODEL: "gpt-4o",
+      VISION_MODEL: "umans-flash",
       UMANS_API_KEY: "test-key",
     });
 
@@ -134,7 +134,7 @@ describe("Vision handoff integration", () => {
       upstream.reset();
 
       const sentBody = {
-        model: "claude-sonnet-4-5",
+        model: "umans-glm-5.2",
         max_tokens: 50,
         messages: [{ role: "user", content: "Hello, no images here" }],
       };
@@ -171,7 +171,7 @@ describe("Vision handoff integration", () => {
       USAGE_REFRESH_MS: "999999",
       VISION_STRATEGY: "always",
       VISION_TARGET: `http://127.0.0.1:${vision.port}/v1/chat/completions`,
-      VISION_MODEL: "gpt-4o",
+      VISION_MODEL: "umans-flash",
       UMANS_API_KEY: "test-key",
     });
 
@@ -240,7 +240,7 @@ describe("Vision handoff integration", () => {
       USAGE_REFRESH_MS: "999999",
       VISION_STRATEGY: "always",
       VISION_TARGET: `http://127.0.0.1:${vision.port}/v1/chat/completions`,
-      VISION_MODEL: "gpt-4o",
+      VISION_MODEL: "umans-flash",
       UMANS_API_KEY: "test-key",
     });
 
@@ -320,7 +320,7 @@ describe("Vision handoff integration", () => {
       USAGE_REFRESH_MS: "999999",
       VISION_STRATEGY: "always",
       VISION_TARGET: `http://127.0.0.1:${vision.port}/v1/chat/completions`,
-      VISION_MODEL: "gpt-4o",
+      VISION_MODEL: "umans-flash",
       UMANS_API_KEY: "test-key",
     });
 
@@ -386,7 +386,7 @@ describe("Vision handoff integration", () => {
       USAGE_REFRESH_MS: "999999",
       VISION_STRATEGY: "always",
       VISION_TARGET: `http://127.0.0.1:${vision.port}/v1/chat/completions`,
-      VISION_MODEL: "gpt-4o",
+      VISION_MODEL: "umans-flash",
       UMANS_API_KEY: "test-key",
     });
 
@@ -457,7 +457,7 @@ describe("Vision handoff integration", () => {
       USAGE_REFRESH_MS: "999999",
       VISION_STRATEGY: "always",
       VISION_TARGET: `http://127.0.0.1:${vision.port}/v1/chat/completions`,
-      VISION_MODEL: "gpt-4o",
+      VISION_MODEL: "umans-flash",
       UMANS_API_KEY: "test-key",
     });
 
@@ -519,7 +519,7 @@ describe("Vision handoff integration", () => {
       USAGE_REFRESH_MS: "999999",
       VISION_STRATEGY: "always",
       VISION_TARGET: `http://127.0.0.1:${vision.port}/v1/chat/completions`,
-      VISION_MODEL: "gpt-4o",
+      VISION_MODEL: "umans-flash",
       UMANS_API_KEY: "test-key",
       VISION_CONCURRENCY: "1",
     });
@@ -586,7 +586,7 @@ describe("Vision handoff integration", () => {
           id: "chatcmpl-vision-mock",
           object: "chat.completion",
           created: Math.floor(Date.now() / 1000),
-          model: "gpt-4o",
+          model: "umans-flash",
           choices: [
             {
               index: 0,
@@ -606,7 +606,7 @@ describe("Vision handoff integration", () => {
       USAGE_REFRESH_MS: "999999",
       VISION_STRATEGY: "always",
       VISION_TARGET: `http://127.0.0.1:${visionServer.port}/v1/chat/completions`,
-      VISION_MODEL: "gpt-4o",
+      VISION_MODEL: "umans-flash",
       VISION_API_KEY: "test-key",
       VISION_CONCURRENCY: "1",
       CONCURRENCY_HARD_CAP: "1",
@@ -680,7 +680,7 @@ describe("Vision handoff integration", () => {
           id: "chatcmpl-vision-mock",
           object: "chat.completion",
           created: Math.floor(Date.now() / 1000),
-          model: "gpt-4o",
+          model: "umans-flash",
           choices: [
             {
               index: 0,
@@ -700,7 +700,7 @@ describe("Vision handoff integration", () => {
       USAGE_REFRESH_MS: "999999",
       VISION_STRATEGY: "always",
       VISION_TARGET: `http://127.0.0.1:${visionServer.port}/v1/chat/completions`,
-      VISION_MODEL: "gpt-4o",
+      VISION_MODEL: "umans-flash",
       VISION_API_KEY: "test-key",
       VISION_CONCURRENCY: "1",
       CONCURRENCY_HARD_CAP: "1",
@@ -829,7 +829,7 @@ describe("Vision handoff integration", () => {
       USAGE_REFRESH_MS: "999999",
       VISION_STRATEGY: "always",
       VISION_TARGET: `http://127.0.0.1:${visionPort}/v1/chat/completions`,
-      VISION_MODEL: "gpt-4o",
+      VISION_MODEL: "umans-flash",
       UMANS_API_KEY: "test-key",
       VISION_REASONING_EFFORT: "high",
     });
@@ -896,7 +896,7 @@ describe("Vision handoff integration", () => {
       USAGE_REFRESH_MS: "999999",
       VISION_STRATEGY: "always",
       VISION_TARGET: `http://127.0.0.1:${vision.port}/v1/chat/completions`,
-      VISION_MODEL: "gpt-4o",
+      VISION_MODEL: "umans-flash",
       UMANS_API_KEY: "test-key",
     });
 
@@ -905,7 +905,7 @@ describe("Vision handoff integration", () => {
       upstream.reset();
 
       const sentBody = {
-        model: "claude-sonnet-4-5",
+        model: "umans-glm-5.2",
         max_tokens: 50,
         messages: [
           {

@@ -139,7 +139,7 @@ describe("TTFT watchdog — feature off by default", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
+        model: "umans-glm-5.2",
         max_tokens: 10,
         stream: true,
         messages: [{ role: "user", content: "test" }],
@@ -181,7 +181,7 @@ describe("TTFT watchdog — feature ON, TTFT timeout", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
+        model: "umans-glm-5.2",
         max_tokens: 10,
         stream: true,
         messages: [{ role: "user", content: "test" }],
@@ -198,7 +198,7 @@ describe("TTFT watchdog — feature ON, TTFT timeout", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
+        model: "umans-glm-5.2",
         max_tokens: 10,
         stream: true,
         messages: [{ role: "user", content: "first" }],
@@ -244,7 +244,7 @@ describe("TTFT watchdog — client abort during TTFT race", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
+        model: "umans-glm-5.2",
         max_tokens: 10,
         stream: true,
         messages: [{ role: "user", content: "abort me" }],
@@ -290,7 +290,7 @@ describe("TTFT watchdog — client abort during cooldown between retries", () =>
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: "umans-glm-5.2",
           max_tokens: 10,
           stream: true,
           messages: [{ role: "user", content: "abort in cooldown" }],
@@ -346,7 +346,7 @@ describe("TTFT watchdog — first chunk arrives in time", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
+        model: "umans-glm-5.2",
         max_tokens: 10,
         stream: true,
         messages: [{ role: "user", content: "hello" }],
@@ -388,7 +388,7 @@ describe("TTFT watchdog — empty body (done:true on first read)", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        model: "claude-sonnet-4-5",
+        model: "umans-glm-5.2",
         max_tokens: 10,
         stream: true,
         messages: [{ role: "user", content: "empty" }],
@@ -446,7 +446,7 @@ describe("TTFT watchdog — ticket 03 same-key retry", () => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: "umans-glm-5.2",
           max_tokens: 10,
           stream: true,
           messages: [{ role: "user", content: "retry me" }],
@@ -481,7 +481,7 @@ describe("TTFT watchdog — ticket 03 same-key retry", () => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: "umans-glm-5.2",
           max_tokens: 10,
           stream: true,
           messages: [{ role: "user", content: "hello" }],
@@ -539,7 +539,7 @@ describe("TTFT watchdog — ticket 03 same-key retry", () => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: "umans-glm-5.2",
           max_tokens: 10,
           stream: true,
           messages: [{ role: "user", content: "retry me" }],
@@ -573,7 +573,7 @@ describe("TTFT watchdog — ticket 03 same-key retry", () => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: "umans-glm-5.2",
           max_tokens: 10,
           stream: true,
           messages: [{ role: "user", content: "hello" }],
@@ -637,7 +637,7 @@ describe("TTFT watchdog — ticket 03 same-key retry", () => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: "umans-glm-5.2",
           max_tokens: 10,
           stream: true,
           messages: [{ role: "user", content: "retry me" }],
@@ -677,7 +677,7 @@ describe("TTFT watchdog — ticket 03 same-key retry", () => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: "umans-glm-5.2",
           max_tokens: 10,
           stream: true,
           messages: [{ role: "user", content: "first" }],
@@ -693,7 +693,7 @@ describe("TTFT watchdog — ticket 03 same-key retry", () => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: "umans-glm-5.2",
           max_tokens: 10,
           stream: true,
           messages: [{ role: "user", content: "second" }],
@@ -729,7 +729,7 @@ describe("TTFT watchdog — ticket 03 same-key retry", () => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: "umans-glm-5.2",
           max_tokens: 10,
           stream: true,
           messages: [{ role: "user", content: "saturate" }],
@@ -768,7 +768,7 @@ describe("TTFT watchdog — ticket 03 same-key retry", () => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: "umans-glm-5.2",
           max_tokens: 10,
           stream: true,
           messages: [{ role: "user", content: "capped" }],
@@ -828,7 +828,7 @@ describe("TTFT watchdog — ticket 03 same-key retry", () => {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: "umans-glm-5.2",
           max_tokens: 10,
           stream: true,
           messages: [{ role: "user", content: "retry me" }],
@@ -887,7 +887,7 @@ describe("TTFT watchdog — ticket 04 auto-disable", () => {
     });
     try {
       const body = JSON.stringify({
-        model: "claude-sonnet-4-5",
+        model: "umans-glm-5.2",
         max_tokens: 10,
         stream: true,
         messages: [{ role: "user", content: "stall" }],
@@ -1023,7 +1023,7 @@ describe("TTFT watchdog — ticket 05 rewrite-id escalation", () => {
           "x-session-id": SESSION_ID,
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: "umans-glm-5.2",
           max_tokens: 10,
           stream: true,
           messages: [{ role: "user", content: "escalate" }],
@@ -1067,7 +1067,7 @@ describe("TTFT watchdog — ticket 05 rewrite-id escalation", () => {
           "x-session-id": SESSION_ID,
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: "umans-glm-5.2",
           max_tokens: 10,
           stream: true,
           messages: [{ role: "user", content: "recover" }],
@@ -1111,7 +1111,7 @@ describe("TTFT watchdog — ticket 05 rewrite-id escalation", () => {
           // NO x-session-id header → not rewrite-eligible
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: "umans-glm-5.2",
           max_tokens: 10,
           stream: true,
           messages: [{ role: "user", content: "no-session" }],
@@ -1156,7 +1156,7 @@ describe("TTFT watchdog — ticket 05 rewrite-id escalation", () => {
           "x-session-id": SESSION_ID,
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: "umans-glm-5.2",
           max_tokens: 10,
           stream: true,
           messages: [{ role: "user", content: "capped" }],
@@ -1216,7 +1216,7 @@ describe("TTFT watchdog — ticket 05 rewrite-id escalation", () => {
           "x-session-id": SESSION_ID,
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: "umans-glm-5.2",
           max_tokens: 10,
           stream: true,
           messages: [{ role: "user", content: "fifty-two" }],
@@ -1273,7 +1273,7 @@ describe("TTFT watchdog — client abort during rewrite-escalation fetch", () =>
           "x-session-id": SESSION_ID,
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: "umans-glm-5.2",
           max_tokens: 10,
           stream: true,
           messages: [{ role: "user", content: "abort attempt 3" }],
@@ -1304,7 +1304,7 @@ describe("TTFT watchdog — client abort during rewrite-escalation fetch", () =>
           "x-session-id": SESSION_ID,
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: "umans-glm-5.2",
           max_tokens: 10,
           stream: true,
           messages: [{ role: "user", content: "verify not disabled" }],

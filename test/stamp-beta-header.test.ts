@@ -93,7 +93,7 @@ test("OpenAI requests do not get ?beta=true or anthropic-beta header", async () 
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      model: "gpt-4",
+      model: "umans-flash",
       messages: [{ role: "user", content: "Hello" }],
     }),
   }).catch(() => {});

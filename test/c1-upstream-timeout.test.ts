@@ -62,7 +62,7 @@ test("upstream hang returns 504 Gateway Timeout, not 502", async () => {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      model: "claude-sonnet-4-5",
+      model: "umans-glm-5.2",
       max_tokens: 10,
       stream: true,
       messages: [{ role: "user", content: "test" }],
@@ -80,7 +80,7 @@ test("permit is released after upstream timeout — next request succeeds immedi
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      model: "claude-sonnet-4-5",
+      model: "umans-glm-5.2",
       max_tokens: 10,
       stream: true,
       messages: [{ role: "user", content: "first" }],
@@ -98,7 +98,7 @@ test("permit is released after upstream timeout — next request succeeds immedi
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
-      model: "claude-sonnet-4-5",
+      model: "umans-glm-5.2",
       max_tokens: 10,
       stream: true,
       messages: [{ role: "user", content: "second" }],
