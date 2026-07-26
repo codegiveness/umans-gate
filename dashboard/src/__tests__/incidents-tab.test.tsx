@@ -93,13 +93,13 @@ function defaultProps(overrides: Partial<Parameters<typeof IncidentsTab>[0]> = {
 }
 
 describe("IncidentsTab", () => {
-  it("renders default Upstream sub-tab and context-aware empty state", async () => {
+  it("renders default All sub-tab and context-aware empty state", async () => {
     mockIncidentsGet([]);
     render(<IncidentsTab {...defaultProps()} />);
     await flushEffects();
 
-    const upstreamTab = screen.getByRole("tab", { name: "Upstream" });
-    expect(upstreamTab).toHaveAttribute("aria-selected", "true");
+    const allTab = screen.getByRole("tab", { name: "All" });
+    expect(allTab).toHaveAttribute("aria-selected", "true");
     expect(screen.getByText("No upstream errors recorded in this window.")).toBeInTheDocument();
   });
 

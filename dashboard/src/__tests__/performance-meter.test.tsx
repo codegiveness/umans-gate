@@ -111,7 +111,15 @@ describe("PerformanceMeter", () => {
     expect(dls.length).toBe(0);
   });
 
-  it("badge shows thinking tokens with percentage of total output when present", async () => {
+  it("badge shows total request count", async () => {
+    const { container } = render(<PerformanceMeter />);
+    await flushEffects();
+
+    // mockRow: request_count = 10
+    expect(container).toHaveTextContent("10 req");
+  });
+
+  it("Total Out tile shows thinking tokens with percentage of total output when present", async () => {
     const { container } = render(<PerformanceMeter />);
     await flushEffects();
 
@@ -120,7 +128,7 @@ describe("PerformanceMeter", () => {
     expect(container).toHaveTextContent("(25.0%)");
   });
 
-  it("badge shows thinking count without percentage when output is zero", async () => {
+  it("Total Out tile shows thinking count without percentage when output is zero", async () => {
     mockUsePerformanceStats.mockReturnValueOnce({
       stats: [{ ...mockRow.row, total_output_tokens: 0, total_thinking_tokens: 3000 }],
       loading: false,
@@ -135,7 +143,7 @@ describe("PerformanceMeter", () => {
     expect(container.textContent).not.toMatch(/think \(\d+\.\d+%\)/);
   });
 
-  it("omits thinking badge when zero tokens and zero requests with thinking", async () => {
+  it("omits thinking sub on Total Out when zero tokens and zero requests with thinking", async () => {
     mockUsePerformanceStats.mockReturnValueOnce({
       stats: [{ ...mockRow.row, total_thinking_tokens: 0, requests_with_thinking: 0 }],
       loading: false,
@@ -150,7 +158,7 @@ describe("PerformanceMeter", () => {
     expect(container).not.toHaveTextContent("reason");
   });
 
-  it("badge shows unmeasured thinking when tokens absent but requests had thinking", async () => {
+  it("Total Out tile shows unmeasured thinking when tokens absent but requests had thinking", async () => {
     mockUsePerformanceStats.mockReturnValueOnce({
       stats: [{ ...mockRow.row, total_thinking_tokens: 0, requests_with_thinking: 7 }],
       loading: false,

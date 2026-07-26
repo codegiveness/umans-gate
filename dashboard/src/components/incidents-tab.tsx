@@ -84,7 +84,7 @@ export interface IncidentsTabProps {
 }
 
 export function IncidentsTab({ selectCapture, navigateToCaptures, captures }: IncidentsTabProps) {
-  const [subTab, setSubTab] = useState<SubTab>("upstream");
+  const [subTab, setSubTab] = useState<SubTab>("all");
   const [timeWindow, setTimeWindow] = useState<TimeWindow>("24h");
   const [incidentType, setIncidentType] = useState<IncidentType | "all">("all");
 

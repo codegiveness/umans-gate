@@ -103,8 +103,8 @@ export function PerformanceMeter() {
 }
 
 function ModelPerfCard({ row }: { row: PerformanceStatsRow }) {
-  const thinkingPct = fmtThinkingPct(row.total_thinking_tokens, row.total_output_tokens);
   const thinkingLabel = row.provider === "anthropic" ? "think" : "reason";
+  const thinkingPct = fmtThinkingPct(row.total_thinking_tokens, row.total_output_tokens);
   const thinkingSub =
     row.total_thinking_tokens > 0
       ? `${fmtTokensCompact(row.total_thinking_tokens)} ${thinkingLabel}${thinkingPct ? ` (${thinkingPct})` : ""}`
@@ -123,11 +123,9 @@ function ModelPerfCard({ row }: { row: PerformanceStatsRow }) {
               {row.provider} · {row.streaming_count} streaming
             </p>
           </div>
-          {thinkingSub && (
-            <Badge variant="secondary" className="shrink-0">
-              {thinkingSub}
-            </Badge>
-          )}
+          <Badge variant="secondary" className="shrink-0">
+            {row.request_count} req
+          </Badge>
         </div>
 
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
@@ -171,6 +169,7 @@ function ModelPerfCard({ row }: { row: PerformanceStatsRow }) {
             icon={<Cpu className="h-3.5 w-3.5" />}
             label="Total Out"
             primary={fmtTokensCompact(row.total_output_tokens)}
+            sub={thinkingSub}
           />
           <StatTile
             icon={<Activity className="h-3.5 w-3.5" />}
