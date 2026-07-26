@@ -1,6 +1,6 @@
 # Operations
 
-> **Applies to:** umans-gate v0.4.0 · **Last updated:** 2026-07-26
+> **Applies to:** umans-gate v0.4.1 · **Last updated:** 2026-07-26
 
 Day-to-day operations for running umans-gate. Covers start/stop, upgrades,
 health checks, backup, and config management. For reactive problem-solving,

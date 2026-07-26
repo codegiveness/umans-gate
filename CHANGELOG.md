@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-07-27
+
+### Added
+
+- **Incidents tab**: new dashboard tab showing a flat table of incidents
+  (gate rejections, rate-limit 429s, TTFT watchdog timeouts, client
+  aborts, id_rewrite events) with sub-tabs, filters, badges, and
+  capture-id deep links.
+
+- **Incident types**: `id_rewrite` incident type added to the incident
+  taxonomy, with insertion sites wired across gate/rate-limit/TTFT/
+  client-abort paths.
+
+- **`incident_retention_days` config field** (default `30`): controls how
+  long incident records persist before automatic sweep. Hot-reloadable —
+  no server restart needed. Exposed in the Config tab.
+
+- **Config sub-tabs**: the Config tab now organizes settings into
+  sub-tabs. Experimental settings (e.g. `experiment_*` flags) are
+  promoted behind the API key gate.
+
+### Fixed
+
+- **Vision background-signal test**: replaced fixed sleep with polling to
+  eliminate flaky timing.
+
 ## [0.4.0] - 2026-07-26
 
 ### Added
