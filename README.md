@@ -284,15 +284,24 @@ bun run build           # build server (tsup) + dashboard (vite)
 
 ## Documentation
 
+**Start here:** [Documentation Index](docs/README.md) — curated reading guide
+
+**Understand:**
 - [Architecture](docs/ARCHITECTURE.md) — system design and data flow
 - [Proxy Modifications](docs/proxy-modifications.md) — proxy modification inventory
+
+**Operate:**
+- [Operations](docs/OPERATIONS.md) — day-to-day ops: start/stop, upgrades, health, backup
 - [Troubleshooting](docs/TROUBLESHOOTING.md) — common issues
 - [Benchmarks](docs/BENCHMARKS.md) — benchmark results
-- [Dashboard Design System](dashboard/DESIGN.md) — design system
-- [Changelog](CHANGELOG.md) — version history
+
+**Develop:**
 - [Contributing](CONTRIBUTING.md) — how to contribute
 - [Security Policy](SECURITY.md) — vulnerability reporting
-- [Documentation Index](docs/README.md) — curated reading guide
+- [Changelog](CHANGELOG.md) — version history
+
+**Design:**
+- [Dashboard Design System](dashboard/DESIGN.md) — design tokens and components
 
 ## License
 

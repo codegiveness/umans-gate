@@ -229,6 +229,24 @@ body renderer, derived from the capture `state`. Three cases: in-flight
 (spinner), done + null body (muted message), empty string. _Avoid_: body
 status, body phase.
 
+## External references
+
+**umans-open-stack playbooks** — curated patterns documented in the
+external [umans-open-stack](https://github.com/umans-ai/umans-open-stack)
+repository (concurrency, caching, vision-handoff, workflows). umans-gate
+aligns with these patterns but does not implement them — it provides
+building blocks that map to the playbooks. _Avoid_: playbooks, open-stack
+patterns.
+
+## Project stance
+
+**Personal-use project** — a project stance where the maintainer builds for
+personal need, publishes source for transparency, and offers no SLA, no
+backward-compatibility commitment, and no production support tier. Source is
+MIT-licensed; PRs reviewed on a best-effort basis. Security vulnerabilities
+are the one exception (48-hour acknowledgment SLA). _Avoid_: open-source
+product, community project, supported project.
+
 ## Configuration
 
 **experimental** (label) — a humility claim about unmeasured user-visible

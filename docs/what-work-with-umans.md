@@ -1,10 +1,16 @@
 # What Works With umans-gate
 
-> **Applies to:** umans-gate v0.3.25 · **Last updated:** 2026-07-26
+> **Applies to:** umans-gate v0.3.27 · **Last updated:** 2026-07-26
 
-Maps umans-gate v0.3.25 — a Bun-based LLM capture proxy — to the
+Maps umans-gate v0.3.27 — a Bun-based LLM capture proxy — to the
 [umans-open-stack](https://github.com/umans-ai/umans-open-stack) playbook
 categories.
+
+> **When to read this:** read this if you follow the
+> [umans-open-stack](https://github.com/umans-ai/umans-open-stack) playbooks
+> and want to see how umans-gate's features map to them. Otherwise skip —
+> the primary documentation in [README.md](../README.md) and
+> [ARCHITECTURE.md](ARCHITECTURE.md) covers standalone use.
 
 umans-gate is a **proxy**, not a configuration. It does not "implement" the
 playbooks below. It **provides building blocks** — observable, stamping-aware

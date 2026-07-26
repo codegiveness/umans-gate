@@ -73,6 +73,18 @@ function updateAllDocStamps(): string[] {
         }
       }
     }
+    // Also stamp docs/reference/*.md — non-recursive scan above misses them
+    const referenceDir = join(docsDir, "reference");
+    if (existsSync(referenceDir)) {
+      for (const entry of readdirSync(referenceDir)) {
+        if (entry.endsWith(".md")) {
+          const fullPath = join(referenceDir, entry);
+          if (updateDocStamps(fullPath)) {
+            updated.push(`docs/reference/${entry}`);
+          }
+        }
+      }
+    }
   }
   return updated;
 }
@@ -207,6 +219,7 @@ function regenerateDocsIndex(): boolean {
     "",
     "## Operate it",
     "",
+    "- [OPERATIONS.md](OPERATIONS.md) — day-to-day operations: start/stop, upgrades, health checks, backup",
     "- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — common issues and solutions",
     "- [BENCHMARKS.md](BENCHMARKS.md) — performance characteristics and benchmark results",
     "",
@@ -221,8 +234,15 @@ function regenerateDocsIndex(): boolean {
     "",
     "- [CHANGELOG.md](../CHANGELOG.md) — version history",
     "- [what-work-with-umans.md](what-work-with-umans.md) — feature mappings to umans-open-stack playbooks",
-    "- [reference/](reference/) — per-tab reference (captures, config, economics, models, performance, usage, vision)",
     "- [Dashboard Design System](../dashboard/DESIGN.md) — design tokens and component guidelines",
+    "- Per-tab reference:",
+    "  - [captures.md](reference/captures.md) — Captures tab",
+    "  - [config.md](reference/config.md) — Config tab",
+    "  - [economics.md](reference/economics.md) — Economics tab",
+    "  - [models.md](reference/models.md) — Models tab",
+    "  - [performance.md](reference/performance.md) — Performance tab",
+    "  - [usage.md](reference/usage.md) — Usage tab",
+    "  - [vision.md](reference/vision.md) — Vision Calls tab",
   ];
 
   if (mode === "update") {

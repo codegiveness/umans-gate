@@ -1,6 +1,6 @@
 # Troubleshooting
 
-> **Applies to:** umans-gate v0.3.25 · **Last updated:** 2026-07-26
+> **Applies to:** umans-gate v0.3.27 · **Last updated:** 2026-07-26
 
 Common issues and solutions for umans-gate.
 
@@ -277,6 +277,7 @@ due to TLS handshake.
 
 ## Getting help
 
+- [Operations](OPERATIONS.md) — day-to-day operations: start/stop, upgrades, health checks, backup
 - [GitHub Issues](https://github.com/codegiveness/umans-gate/issues) — bug reports
 - [GitHub Discussions](https://github.com/codegiveness/umans-gate/discussions) — questions
 - [Proxy Modifications Inventory](proxy-modifications.md) — what the proxy changes

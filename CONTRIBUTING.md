@@ -142,9 +142,9 @@ No manual version editing needed — just run the release script.
 ```bash
 # 1. Ensure CHANGELOG.md has notes under [Unreleased]
 # 2. Run the release helper (handles everything else)
-bun run release              # patch: 0.3.25 → 0.3.26
-bun run release minor        # minor:  0.3.25 → 0.4.0
-bun run release major        # major:  0.3.25 → 1.0.0
+bun run release              # patch: 0.3.27 → 0.3.28
+bun run release minor        # minor:  0.3.27 → 0.4.0
+bun run release major        # major:  0.3.27 → 1.0.0
 bun run release 0.4.2        # explicit version
 ```
 

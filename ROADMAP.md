@@ -6,7 +6,7 @@ This document outlines the planned direction for umans-gate. It is a living
 document — priorities may shift based on upstream API changes and personal
 development needs.
 
-## Current State (v0.3.25)
+## Current State (v0.3.27)
 
 - ✅ Capture proxy with SQLite storage, WAL mode, and zstd body compression
 - ✅ Anthropic `cache_control` TTL stamping via unified stamp pipeline

@@ -1,6 +1,6 @@
 # Vision Calls Tab Reference
 
-> **Applies to:** umans-gate v0.3.25 · **Last updated:** 2026-07-26
+> **Applies to:** umans-gate v0.3.27 · **Last updated:** 2026-07-26
 
 ## Tab
 
