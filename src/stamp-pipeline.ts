@@ -197,6 +197,25 @@ export const OpenAiReasoningStep: StampStep = {
   },
 };
 
+export const OpenAiStreamUsageStep: StampStep = {
+  label: "openai-stream-usage",
+  applies(ctx) {
+    return ctx.isOpenAi && ctx.config.stampReasoningEffort !== null;
+  },
+  apply(body, ctx) {
+    if (body === null || typeof body !== "object") return false;
+    const b = body as OpenAiBody;
+    if (b.stream !== true) return false;
+    if (b.stream_options?.include_usage === true) return false;
+    b.stream_options = { include_usage: true };
+    log.info("stamped stream_options.include_usage", {
+      method: ctx.method,
+      path: ctx.url.pathname,
+    });
+    return true;
+  },
+};
+
 export const TopKStep: StampStep = {
   label: "top-k",
   applies(ctx) {
@@ -290,6 +309,7 @@ export const STAMP_PIPELINE: StampStep[] = [
   AnthropicBodyStep,
   ContextManagementStep,
   OpenAiReasoningStep,
+  OpenAiStreamUsageStep,
   TopKStep,
   TemperatureStep,
   StripOmoReminderStep,

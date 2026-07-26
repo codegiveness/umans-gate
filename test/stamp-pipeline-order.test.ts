@@ -10,6 +10,7 @@ import {
   CacheTtlStep,
   ContextManagementStep,
   OpenAiReasoningStep,
+  OpenAiStreamUsageStep,
   RestampBreakpointsStep,
   STAMP_PIPELINE,
   type StampContext,
@@ -65,13 +66,14 @@ test("STAMP_PIPELINE has at least 5 steps", () => {
   expect(STAMP_PIPELINE.length).toBeGreaterThanOrEqual(5);
 });
 
-test("STAMP_PIPELINE order is RestampBreakpoints, CacheTtl, AnthropicBody, ContextManagement, OpenAiReasoning, TopK", () => {
+test("STAMP_PIPELINE order is RestampBreakpoints, CacheTtl, AnthropicBody, ContextManagement, OpenAiReasoning, OpenAiStreamUsage, TopK", () => {
   expect(STAMP_PIPELINE[0]).toBe(RestampBreakpointsStep);
   expect(STAMP_PIPELINE[1]).toBe(CacheTtlStep);
   expect(STAMP_PIPELINE[2]).toBe(AnthropicBodyStep);
   expect(STAMP_PIPELINE[3]).toBe(ContextManagementStep);
   expect(STAMP_PIPELINE[4]).toBe(OpenAiReasoningStep);
-  expect(STAMP_PIPELINE[5]).toBe(TopKStep);
+  expect(STAMP_PIPELINE[5]).toBe(OpenAiStreamUsageStep);
+  expect(STAMP_PIPELINE[6]).toBe(TopKStep);
 });
 
 test("RestampBreakpointsStep.applies is true for Anthropic requests with stampClaudeCode enabled", () => {
@@ -128,6 +130,67 @@ test("OpenAiReasoningStep.applies is true for OpenAI requests with reasoning ena
     config: { ...makeCtx().config, stampReasoningEffort: "high" },
   });
   expect(OpenAiReasoningStep.applies(ctx)).toBe(true);
+});
+
+test("OpenAiStreamUsageStep.applies is true for OpenAI streaming requests with reasoning enabled", () => {
+  const ctx = makeCtx({
+    isOpenAi: true,
+    config: { ...makeCtx().config, stampReasoningEffort: "high" },
+  });
+  expect(OpenAiStreamUsageStep.applies(ctx)).toBe(true);
+});
+
+test("OpenAiStreamUsageStep.applies is false when stampReasoningEffort is null (disabled)", () => {
+  const ctx = makeCtx({
+    isOpenAi: true,
+    config: { ...makeCtx().config, stampReasoningEffort: null },
+  });
+  expect(OpenAiStreamUsageStep.applies(ctx)).toBe(false);
+});
+
+test("OpenAiStreamUsageStep.applies is false for Anthropic requests", () => {
+  const ctx = makeCtx({
+    isOpenAi: false,
+    config: { ...makeCtx().config, stampReasoningEffort: "high" },
+  });
+  expect(OpenAiStreamUsageStep.applies(ctx)).toBe(false);
+});
+
+test("OpenAiStreamUsageStep.apply injects stream_options.include_usage on streaming requests", () => {
+  const ctx = makeCtx({
+    isOpenAi: true,
+    config: { ...makeCtx().config, stampReasoningEffort: "high" },
+  });
+  const body: Record<string, unknown> = { stream: true, model: "gpt-4" };
+  const changed = OpenAiStreamUsageStep.apply(body, ctx);
+  expect(changed).toBe(true);
+  expect(body.stream_options).toEqual({ include_usage: true });
+});
+
+test("OpenAiStreamUsageStep.apply is idempotent when include_usage already true", () => {
+  const ctx = makeCtx({
+    isOpenAi: true,
+    config: { ...makeCtx().config, stampReasoningEffort: "high" },
+  });
+  const body: Record<string, unknown> = {
+    stream: true,
+    stream_options: { include_usage: true },
+    model: "gpt-4",
+  };
+  const changed = OpenAiStreamUsageStep.apply(body, ctx);
+  expect(changed).toBe(false);
+  expect(body.stream_options).toEqual({ include_usage: true });
+});
+
+test("OpenAiStreamUsageStep.apply skips non-streaming requests", () => {
+  const ctx = makeCtx({
+    isOpenAi: true,
+    config: { ...makeCtx().config, stampReasoningEffort: "high" },
+  });
+  const body: Record<string, unknown> = { model: "gpt-4" };
+  const changed = OpenAiStreamUsageStep.apply(body, ctx);
+  expect(changed).toBe(false);
+  expect(body.stream_options).toBeUndefined();
 });
 
 test("AnthropicBodyStep.applies is true when stampClaudeCode is enabled", () => {

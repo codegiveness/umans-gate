@@ -432,6 +432,12 @@ export interface OpenAiBody {
   temperature?: number;
   output_config?: unknown;
   context_management?: unknown;
+  /** OpenAI streaming flag — true when the client wants a streaming response. */
+  stream?: boolean;
+  /** OpenAI streaming usage options. `include_usage: true` makes the API
+   *  emit a final chunk with token counts. Without it, streaming requests
+   *  report no usage at all. */
+  stream_options?: { include_usage?: boolean } | null;
   [key: string]: unknown;
 }
 

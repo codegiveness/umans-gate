@@ -123,17 +123,11 @@ function ModelPerfCard({ row }: { row: PerformanceStatsRow }) {
               {row.provider} · {row.streaming_count} streaming
             </p>
           </div>
-          <Tooltip>
-            <TooltipTrigger render={<span className="shrink-0 inline-flex" />}>
-              <Badge variant="secondary">
-                {row.request_count} req{row.request_count === 1 ? "" : "s"}
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent side="left" className="max-w-[240px]">
-              {row.request_count} requests — {row.streaming_count} streamed ·{" "}
-              {row.request_count - row.streaming_count} non-streaming
-            </TooltipContent>
-          </Tooltip>
+          {thinkingSub && (
+            <Badge variant="secondary" className="shrink-0">
+              {thinkingSub}
+            </Badge>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
@@ -177,7 +171,6 @@ function ModelPerfCard({ row }: { row: PerformanceStatsRow }) {
             icon={<Cpu className="h-3.5 w-3.5" />}
             label="Total Out"
             primary={fmtTokensCompact(row.total_output_tokens)}
-            sub={thinkingSub}
           />
           <StatTile
             icon={<Activity className="h-3.5 w-3.5" />}
