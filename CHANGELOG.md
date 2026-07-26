@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.26] - 2026-07-26
+
+### Fixed
+
+- **Dashboard update button killed the proxy without updating** (`src/viewer.ts`,
+  `src/updater.ts`): the `POST /dashboard/api/update` handler ran
+  `stopService() → performUpdate() → startService()` inline, inside the proxy
+  process. Because the proxy lives in the service manager's cgroup (systemd
+  `KillMode=control-group`, launchd process group, NSSM process tree),
+  `stopService()` SIGTERM'd the proxy before `performUpdate()` could run —
+  leaving the system stopped and unupdated. The fix spawns the CLI `update`
+  command as a **detached process that escapes the service cgroup**
+  (`systemd-run --user --scope` on Linux, detached `spawn` + `unref()` on
+  macOS/Windows). The CLI already orchestrates stop → update → start correctly
+  from a separate process; the dashboard now delegates to it instead of
+  duplicating the orchestration inline. Regression test added
+  (`test/trigger-self-update.test.ts`) verifying no `systemctl stop` is
+  spawned from inside the proxy.
+
 ## [0.3.25] - 2026-07-26
 
 ### Fixed

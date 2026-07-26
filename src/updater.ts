@@ -2,7 +2,7 @@
 // Detects install method (npm global, standalone executable, or bun dev)
 // and performs the appropriate update action.
 
-import { execSync } from "node:child_process";
+import { execSync, spawn, spawnSync } from "node:child_process";
 import {
   chmodSync,
   closeSync,
@@ -15,7 +15,7 @@ import {
 } from "node:fs";
 import { arch, platform } from "node:os";
 import { dirname, join } from "node:path";
-
+import { detectPlatform } from "./service/detect.js";
 import { isServiceInstalled } from "./service/index.js";
 
 const GITHUB_API = "https://api.github.com/repos/codegiveness/umans-gate/releases/latest";
@@ -465,4 +465,108 @@ export async function refreshVersionCheck(currentVersion: string): Promise<Versi
   };
 
   return versionCache;
+}
+
+/**
+ * Resolve the umans-gate executable path (the CLI entry point).
+ * Used to spawn a detached update process from inside the running proxy.
+ */
+function resolveUmansGateBin(): string | null {
+  // Standalone compiled binary: process.execPath is the binary itself.
+  const execPath = process.execPath;
+  if (execPath.includes("umans-gate")) {
+    return execPath;
+  }
+
+  // npm global install / dev mode: find the CLI shim on PATH.
+  try {
+    const which = spawnSync("which", ["umans-gate"], { encoding: "utf-8" });
+    if (which.status === 0) {
+      const p = which.stdout.trim();
+      if (p && existsSync(p)) return p;
+    }
+  } catch {
+    // `which` unavailable on Windows; fall through.
+  }
+
+  try {
+    const where = spawnSync("where", ["umans-gate"], { encoding: "utf-8" });
+    if (where.status === 0) {
+      const p = where.stdout.trim().split("\n")[0]?.trim();
+      if (p && existsSync(p)) return p;
+    }
+  } catch {
+    // Not on Windows.
+  }
+
+  return null;
+}
+
+/**
+ * Trigger the self-update from inside the running proxy process.
+ *
+ * This must NOT run stop/update/start inline — the proxy itself lives inside
+ * the service manager's cgroup (systemd `KillMode=control-group`, launchd
+ * process group, NSSM process tree). Calling `stopService()` from here would
+ * SIGTERM this process before `performUpdate()` runs, leaving the system
+ * stopped and unupdated (the documented bug).
+ *
+ * Instead, spawn the CLI's `update` command as a detached process that
+ * escapes the service cgroup:
+ * - systemd: `systemd-run --user --scope` creates a transient unit outside
+ *   `umans-gate.service`'s cgroup.
+ * - launchd: a detached spawn + `unref()` escapes the tracked process group.
+ * - Windows/NSSM: a detached spawn escapes the parent process tree.
+ *
+ * The CLI `update` command already orchestrates stop → performUpdate → start
+ * correctly from a separate process — we just run it from outside the
+ * service cgroup so it survives the service stop.
+ *
+ * Returns `true` if the detached update process was spawned, `false` if the
+ * binary could not be resolved.
+ */
+export function triggerSelfUpdate(): boolean {
+  const bin = resolveUmansGateBin();
+  if (!bin) {
+    console.error("Could not resolve umans-gate binary for self-update.");
+    return false;
+  }
+
+  const platformId = detectPlatform();
+
+  try {
+    if (platformId === "systemd") {
+      // systemd-run --user --scope runs the command in a transient unit
+      // that is NOT in the umans-gate.service cgroup. The process survives
+      // when umans-gate.service is stopped.
+      spawn("systemd-run", ["--user", "--scope", "--unit=umans-gate-self-update", bin, "update"], {
+        detached: true,
+        stdio: "ignore",
+      }).unref();
+    } else if (platformId === "launchd") {
+      // launchd tracks processes by label (the LaunchAgent plist), not by
+      // cgroup. A detached spawn escapes the parent's process group, and
+      // launchd only restarts the labelled process — not arbitrary detached
+      // children. `unref()` lets the parent (proxy) exit without waiting.
+      spawn(bin, ["update"], {
+        detached: true,
+        stdio: "ignore",
+      }).unref();
+    } else {
+      // Windows (NSSM) or unsupported: detached spawn escapes the parent
+      // process tree. NSSM kills the service process tree on stop, but a
+      // detached process is not part of that tree.
+      spawn(bin, ["update"], {
+        detached: true,
+        stdio: "ignore",
+        shell: platformId === "unsupported",
+      }).unref();
+    }
+    return true;
+  } catch (err) {
+    console.error(
+      `Failed to spawn detached self-update: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return false;
+  }
 }

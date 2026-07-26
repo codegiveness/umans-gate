@@ -33,9 +33,9 @@ import type { TtftWatchdogState } from "./experiments/ttft-watchdog-state.js";
 import { summary } from "./helpers.js";
 import type { ConcurrencyGate } from "./limiter/index.js";
 import type { ModelsClient } from "./models.js";
-import { isServiceInstalled, startService, stopService } from "./service/index.js";
+import { isServiceInstalled } from "./service/index.js";
 import type { ProxyConfig } from "./types.js";
-import { getCachedVersionInfo, performUpdate, refreshVersionCheck } from "./updater.js";
+import { getCachedVersionInfo, refreshVersionCheck, triggerSelfUpdate } from "./updater.js";
 import { selectMostUrgentBudget } from "./usage/budget.js";
 import type { UmansUsageClient } from "./usage.js";
 import type { UsageHistoryStore } from "./usage-history/index.js";
@@ -623,14 +623,15 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
             return Response.json({ ok: false, error: "already_up_to_date" }, { status: 400 });
           }
           const targetVersion = info.latest;
-          // Schedule the stop/update/start cycle asynchronously so the
-          // HTTP response is flushed before the process goes down.
-          setImmediate(() => {
-            stopService()
-              .then(() => performUpdate(pkg.version))
-              .then(() => startService())
-              .catch((err) => console.error("Update failed:", err));
-          });
+          // Spawn the CLI `update` command as a detached process that escapes
+          // the service cgroup. Running stop/update/start inline would kill
+          // this proxy process (in the service cgroup) before the update
+          // completes. The detached CLI handles the full stop→update→start
+          // cycle from outside the cgroup.
+          const spawned = triggerSelfUpdate();
+          if (!spawned) {
+            return Response.json({ ok: false, error: "spawn_failed" }, { status: 500 });
+          }
           return Response.json({ ok: true, targetVersion });
         })();
       },
