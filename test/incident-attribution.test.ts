@@ -134,3 +134,224 @@ describe("Incident attribution — upstream 500", () => {
     }
   });
 });
+
+// Ticket 02 — Gate + rate-limit + client-abort + TTFT insertion sites.
+//
+// Covers the 5 pre-stream incident insertion sites wired in proxy.ts:
+//   - 429 rate-limit (checkRateLimit)
+//   - 504 TTFT timeout with suppression cause (queueTtftTimeout)
+//   - 499 client-abort (acquirePermit aborted path)
+
+/** Upstream that stalls forever — never sends the first byte. */
+function startStallForeverUpstream(): { port: number; close: () => Promise<void> } {
+  const server = Bun.serve({
+    port: 0,
+    async fetch() {
+      return new Response(new ReadableStream({ start() {} }), {
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+      });
+    },
+  });
+  return {
+    port: server.port!,
+    close: () =>
+      new Promise<void>((res) => {
+        server.stop();
+        setTimeout(res, 50);
+      }),
+  };
+}
+
+describe("Incident attribution — 429 rate limit", () => {
+  test("rate-limited request produces exactly one rate_limited incident", async () => {
+    const upstream = start500Upstream();
+    const proxy = await startProxy({
+      TARGET: `http://127.0.0.1:${upstream.port}`,
+      WARMER_ENABLED: "false",
+      USAGE_REFRESH_MS: "999999",
+      CONCURRENCY_HARD_CAP: "2",
+      CONCURRENCY_SOFT_LIMIT: "2",
+      RELEASE_COOLDOWN_MS: "0",
+      RATE_LIMIT_REQUESTS: "1",
+    });
+    try {
+      // First request consumes the 1-request budget (returns 500 from upstream).
+      const res1 = await fetch(`${proxy.baseUrl}/v1/messages`, {
+        method: "POST",
+        headers: MSG_HEADERS,
+        body: MSG_BODY,
+      });
+      await res1.text();
+      // Second request hits the rate limiter and is rejected with 429.
+      const res2 = await fetch(`${proxy.baseUrl}/v1/messages`, {
+        method: "POST",
+        headers: MSG_HEADERS,
+        body: MSG_BODY,
+      });
+      expect(res2.status).toBe(429);
+      await res2.text();
+
+      await sleep(300);
+
+      const db = new Database(proxy.dbPath, { readonly: true });
+      const rateLimited = db
+        .prepare(
+          "SELECT capture_id, responsible_party, incident_type, upstream_status, served_status FROM incidents WHERE incident_type = 'rate_limited'",
+        )
+        .all() as Array<{
+        capture_id: number;
+        responsible_party: string;
+        incident_type: string;
+        upstream_status: number | null;
+        served_status: number;
+      }>;
+      db.close();
+
+      expect(rateLimited.length).toBe(1);
+      expect(rateLimited[0].responsible_party).toBe("proxy");
+      expect(rateLimited[0].incident_type).toBe("rate_limited");
+      expect(rateLimited[0].upstream_status).toBe(null);
+      expect(rateLimited[0].served_status).toBe(429);
+    } finally {
+      await proxy.kill();
+      await upstream.close();
+    }
+  });
+});
+
+describe("Incident attribution — 504 TTFT timeout (retry suppressed: cap_reached)", () => {
+  test("TTFT timeout with retries disabled produces ttft_timeout incident", async () => {
+    const upstream = startStallForeverUpstream();
+    const proxy = await startProxy({
+      TARGET: `http://127.0.0.1:${upstream.port}`,
+      WARMER_ENABLED: "false",
+      USAGE_REFRESH_MS: "999999",
+      CONCURRENCY_HARD_CAP: "2",
+      CONCURRENCY_SOFT_LIMIT: "2",
+      RELEASE_COOLDOWN_MS: "0",
+      UPSTREAM_TIMEOUT_MS: "10000",
+      EXPERIMENT_TTFT_WATCHDOG: "true",
+      TTFT_TIMEOUT_MS: "500",
+      TTFT_RETRY_MAX_ATTEMPTS: "0",
+      TTFT_RETRY_COOLDOWN_MS: "0",
+    });
+    try {
+      const res = await fetch(`${proxy.baseUrl}/v1/messages`, {
+        method: "POST",
+        headers: MSG_HEADERS,
+        body: MSG_BODY,
+      });
+      expect(res.status).toBe(504);
+      await res.text();
+
+      await sleep(300);
+
+      const db = new Database(proxy.dbPath, { readonly: true });
+      const incidents = db
+        .prepare(
+          "SELECT capture_id, responsible_party, incident_type, upstream_status, served_status, reason FROM incidents",
+        )
+        .all() as Array<{
+        capture_id: number;
+        responsible_party: string;
+        incident_type: string;
+        upstream_status: number | null;
+        served_status: number;
+        reason: string | null;
+      }>;
+      db.close();
+
+      expect(incidents.length).toBe(1);
+      expect(incidents[0].responsible_party).toBe("proxy");
+      expect(incidents[0].incident_type).toBe("ttft_timeout");
+      expect(incidents[0].upstream_status).toBe(null);
+      expect(incidents[0].served_status).toBe(504);
+      expect(incidents[0].reason).toContain("cap_reached");
+    } finally {
+      await proxy.kill();
+      await upstream.close();
+    }
+  });
+});
+
+describe("Incident attribution — 499 client abort (acquirePermit)", () => {
+  test("client disconnect while enqueued produces client_aborted incident", async () => {
+    // Stall upstream so requests never complete; concurrency soft limit of 1
+    // so the second request enqueues. We then abort the second request's
+    // client signal, which surfaces as a 499 from acquirePermit's GateError
+    // catch (err.code === "aborted").
+    const upstream = startStallForeverUpstream();
+    const proxy = await startProxy({
+      TARGET: `http://127.0.0.1:${upstream.port}`,
+      WARMER_ENABLED: "false",
+      USAGE_REFRESH_MS: "999999",
+      CONCURRENCY_HARD_CAP: "1",
+      CONCURRENCY_SOFT_LIMIT: "1",
+      RELEASE_COOLDOWN_MS: "0",
+      UPSTREAM_TIMEOUT_MS: "10000",
+    });
+    try {
+      // First request holds the single concurrency slot forever. Fire and
+      // forget — we never await it; proxy.kill() in finally reaps it.
+      // Catch so the connection-reset on proxy shutdown doesn't surface as
+      // an unhandled rejection.
+      void fetch(`${proxy.baseUrl}/v1/messages`, {
+        method: "POST",
+        headers: MSG_HEADERS,
+        body: MSG_BODY,
+      }).catch(() => {
+        // proxy.kill() in finally may reset this socket — expected.
+      });
+      // Give the first request time to acquire the permit.
+      await sleep(150);
+      // Second request enqueues; abort the client immediately.
+      const ac2 = new AbortController();
+      const fetch2Promise = fetch(`${proxy.baseUrl}/v1/messages`, {
+        method: "POST",
+        headers: MSG_HEADERS,
+        body: MSG_BODY,
+        signal: ac2.signal,
+      });
+      await sleep(50);
+      ac2.abort();
+      let res2Status = 0;
+      try {
+        const res2 = await fetch2Promise;
+        res2Status = res2.status;
+        await res2.text();
+      } catch {
+        // AbortError on the client side is expected.
+      }
+      // The proxy returns 499 to the client (Bun surfaces it as a thrown
+      // AbortError, but the capture row records 499). Either way the
+      // incident row must be client_aborted.
+      expect([0, 499]).toContain(res2Status);
+
+      await sleep(300);
+
+      const db = new Database(proxy.dbPath, { readonly: true });
+      const aborted = db
+        .prepare(
+          "SELECT capture_id, responsible_party, incident_type, upstream_status, served_status FROM incidents WHERE incident_type = 'client_aborted'",
+        )
+        .all() as Array<{
+        capture_id: number;
+        responsible_party: string;
+        incident_type: string;
+        upstream_status: number | null;
+        served_status: number;
+      }>;
+      db.close();
+
+      expect(aborted.length).toBe(1);
+      expect(aborted[0].responsible_party).toBe("client");
+      expect(aborted[0].incident_type).toBe("client_aborted");
+      expect(aborted[0].upstream_status).toBe(null);
+      expect(aborted[0].served_status).toBe(499);
+    } finally {
+      await proxy.kill();
+      await upstream.close();
+    }
+  });
+});

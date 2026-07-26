@@ -208,13 +208,33 @@ async function attemptRewriteRetry(
         status: retryResponse.status,
       });
       experiment.clearSession(sessionId);
-    } else if (retryResponse.status === 502 || retryResponse.status === 529) {
-      log.warn("ID rewrite retry still got 502/529", {
-        captureId,
-        sessionId,
-        saltVersion: state.saltVersion,
-        status: retryResponse.status,
-      });
+    } else {
+      if (retryResponse.status === 502 || retryResponse.status === 529) {
+        log.warn("ID rewrite retry still got 502/529", {
+          captureId,
+          sessionId,
+          saltVersion: state.saltVersion,
+          status: retryResponse.status,
+        });
+      }
+      // Fire id_rewrite incident before doneRes so ON CONFLICT anchoring wins
+      // over the later upstream_error incident (same capture_id).
+      try {
+        captureDb.recordIncident({
+          captureId,
+          responsibleParty: "proxy",
+          incidentType: "id_rewrite",
+          upstreamStatus: retryResponse.status,
+          servedStatus: retryResponse.status,
+          reason: `ID rewrite retry failed (salt v${state.saltVersion}, ${rewriteResult.fieldsRewritten.join(",")})`,
+        });
+      } catch (incidentErr) {
+        log.warn("Failed to record id_rewrite incident", {
+          captureId,
+          sessionId,
+          error: (incidentErr as Error).message,
+        });
+      }
     }
 
     return { response: retryResponse, signal: upstreamSignal };
@@ -676,6 +696,30 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
       $retry_attempt: retryAttempt,
       $ttft_exceeded: ttftFired ? 1 : 0,
     });
+    // Incident attribution. 499 → client_aborted (pre-stream disconnect);
+    // 504 with ttftFired → ttft_timeout; 504 without ttftFired (absolute
+    // timeout) and 502 → gate_rejected. No upstream response received.
+    try {
+      const isClientAborted = status === 499;
+      const isTtftTimeout = status === 504 && ttftFired;
+      const { responsibleParty, incidentType } = isClientAborted
+        ? deriveIncident({ status, statusSource: "gate", clientAborted: true })
+        : isTtftTimeout
+          ? deriveIncident({ status, statusSource: "gate", clientAborted: false })
+          : { responsibleParty: "proxy" as const, incidentType: "gate_rejected" as const };
+      deps.db.recordIncident({
+        captureId: capId,
+        responsibleParty,
+        incidentType,
+        upstreamStatus: null,
+        servedStatus: status,
+        reason: gateReason,
+        retryAttempt,
+        ttftExceeded: ttftFired ? 1 : 0,
+      });
+    } catch {
+      // Non-blocking: incident persistence failure must not break the response path.
+    }
   };
 
   /**
