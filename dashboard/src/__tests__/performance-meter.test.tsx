@@ -15,6 +15,7 @@ const mockRow = vi.hoisted(() => {
     total_output_tokens: 12000,
     total_cache_read_tokens: 30000,
     total_thinking_tokens: 3000,
+    requests_with_thinking: 5,
     cached_pct: 60.0,
     ttft_mean: 500,
     ttft_max: 800,
@@ -134,9 +135,9 @@ describe("PerformanceMeter", () => {
     expect(container.textContent).not.toMatch(/think \(\d+\.\d+%\)/);
   });
 
-  it("Total Out StatTile always shows thinking count even when zero", async () => {
+  it("Total Out StatTile omits thinking sub-line when zero tokens and zero requests with thinking", async () => {
     mockUsePerformanceStats.mockReturnValueOnce({
-      stats: [{ ...mockRow.row, total_thinking_tokens: 0 }],
+      stats: [{ ...mockRow.row, total_thinking_tokens: 0, requests_with_thinking: 0 }],
       loading: false,
       error: null,
       refresh: () => {},
@@ -145,7 +146,22 @@ describe("PerformanceMeter", () => {
     const { container } = render(<PerformanceMeter />);
     await flushEffects();
 
-    expect(container).toHaveTextContent("0 think");
+    expect(container).not.toHaveTextContent("think");
+    expect(container).not.toHaveTextContent("reason");
+  });
+
+  it("Total Out StatTile shows unmeasured thinking when tokens absent but requests had thinking", async () => {
+    mockUsePerformanceStats.mockReturnValueOnce({
+      stats: [{ ...mockRow.row, total_thinking_tokens: 0, requests_with_thinking: 7 }],
+      loading: false,
+      error: null,
+      refresh: () => {},
+    });
+
+    const { container } = render(<PerformanceMeter />);
+    await flushEffects();
+
+    expect(container).toHaveTextContent("7 req w/ think (unmeasured)");
   });
 
   it("keeps model cards visible when error and stats coexist", async () => {

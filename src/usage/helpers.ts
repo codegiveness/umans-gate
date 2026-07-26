@@ -43,6 +43,7 @@ export function emptyMetrics(
     total_input_tokens: null,
     total_output_tokens: null,
     thinking_tokens: null,
+    thinking_block_count: null,
     ttft_ms: null,
     duration_ms: durationMs,
     tps: null,

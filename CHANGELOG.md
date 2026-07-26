@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.27] - 2026-07-26
+
+### Added
+
+- **Thinking block count tracking** (`src/usage/extract.ts`, `src/usage/types.ts`,
+  `src/usage/ddl.ts`, `src/db.ts`): counts thinking/reasoning content blocks
+  observed in both Anthropic and OpenAI streams. Bridges the gap when upstream
+  omits `thinking_tokens` / `reasoning_tokens` but emits thinking content —
+  the dashboard now shows "N req w/ think (unmeasured)" instead of hiding
+  thinking activity entirely.
+  - Anthropic: counts `content_block_start` events with `type: "thinking"`.
+  - OpenAI: counts chunks with `delta.reasoning_content` (streaming) or
+    non-empty `message.reasoning_content` (non-streaming).
+  - New `thinking_block_count` column in `captures` (DDL migration).
+  - Aggregated as `requests_with_thinking` in performance stats query.
+
+- **Dashboard: unmeasured-thinking indicator** (`dashboard/src/components/performance-meter.tsx`,
+  `dashboard/src/types.ts`): the "Total Out" StatTile now shows "N req w/
+  think (unmeasured)" when thinking tokens are absent but requests had
+  thinking blocks, instead of always showing "0 think". Hides the sub-line
+  entirely when both tokens and request count are zero.
+
+### Fixed
+
+- **Vitest teardown race in dashboard tests** (`dashboard/vitest.config.ts`):
+  the default forked worker pool raced console.log RPC delivery against
+  teardown, producing an `EnvironmentTeardownError` ("Closing rpc while
+  'onUserConsoleLog' was pending") that exited non-zero despite all tests
+  passing — failing CI. Set `fileParallelism: false` + `maxWorkers: 1` to
+  eliminate the race.
+
 ## [0.3.26] - 2026-07-26
 
 ### Fixed

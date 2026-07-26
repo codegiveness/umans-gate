@@ -86,6 +86,7 @@ interface VisionInsertParams {
   $total_input_tokens: number | null;
   $total_output_tokens: number | null;
   $thinking_tokens: number | null;
+  $thinking_block_count: number | null;
   $ttft_ms: number | null;
   $tps: number | null;
   $usage_missing: number | null;
@@ -115,6 +116,7 @@ export interface VisionUpdateParams {
   $total_input_tokens: number | null;
   $total_output_tokens: number | null;
   $thinking_tokens: number | null;
+  $thinking_block_count: number | null;
   $ttft_ms: number | null;
   $tps: number | null;
   $usage_missing: number | null;
@@ -135,6 +137,7 @@ export function flattenUsage(usage: UsageMetrics | null | undefined) {
       $total_input_tokens: null,
       $total_output_tokens: null,
       $thinking_tokens: null,
+      $thinking_block_count: null,
       $ttft_ms: null,
       $tps: null,
       $usage_missing: null,
@@ -151,6 +154,7 @@ export function flattenUsage(usage: UsageMetrics | null | undefined) {
     $total_input_tokens: usage.total_input_tokens,
     $total_output_tokens: usage.total_output_tokens,
     $thinking_tokens: usage.thinking_tokens,
+    $thinking_block_count: usage.thinking_block_count,
     $ttft_ms: usage.ttft_ms,
     $tps: usage.tps,
     $usage_missing: usage.usage_missing ? 1 : 0,
@@ -408,6 +412,7 @@ export class CaptureDB {
         total_input_tokens     = $total_input_tokens,
         total_output_tokens    = $total_output_tokens,
         thinking_tokens        = $thinking_tokens,
+        thinking_block_count   = $thinking_block_count,
         ttft_ms                = $ttft_ms,
         tps                    = $tps,
         usage_missing          = $usage_missing,
@@ -447,6 +452,7 @@ export class CaptureDB {
           provider, streaming, input_tokens, output_tokens,
           cache_creation_tokens, cache_read_tokens,
           total_input_tokens, total_output_tokens, thinking_tokens,
+          thinking_block_count,
           ttft_ms, tps, usage_missing, metrics_extracted_at)
        VALUES
          ($method, $path, $url, $rh, $rb, $rs,
@@ -457,6 +463,7 @@ export class CaptureDB {
           $provider, $streaming, $input_tokens, $output_tokens,
           $cache_creation_tokens, $cache_read_tokens,
           $total_input_tokens, $total_output_tokens, $thinking_tokens,
+          $thinking_block_count,
           $ttft_ms, $tps, $usage_missing, $metrics_extracted_at)`,
     );
     this.stmtUpdateVision = this.db.prepare(`
@@ -483,6 +490,7 @@ export class CaptureDB {
         total_input_tokens = $total_input_tokens,
         total_output_tokens = $total_output_tokens,
         thinking_tokens = $thinking_tokens,
+        thinking_block_count = $thinking_block_count,
         ttft_ms = $ttft_ms,
         tps = $tps,
         usage_missing = $usage_missing,
@@ -636,6 +644,7 @@ export class CaptureDB {
       total_output_tokens: Number(row.total_output_tokens) || 0,
       total_cache_read_tokens: Number(row.total_cache_read_tokens) || 0,
       total_thinking_tokens: Number(row.total_thinking_tokens) || 0,
+      requests_with_thinking: Number(row.requests_with_thinking) || 0,
       cached_pct: Number(row.cached_pct) || 0,
       ttft_mean: (row.ttft_mean as number | null) ?? null,
       ttft_max: (row.ttft_max as number | null) ?? null,

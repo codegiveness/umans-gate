@@ -44,6 +44,7 @@ export interface PerformanceStatsRow {
   total_output_tokens: number;
   total_cache_read_tokens: number;
   total_thinking_tokens: number;
+  requests_with_thinking: number;
   cached_pct: number;
   ttft_mean: number | null;
   ttft_max: number | null;

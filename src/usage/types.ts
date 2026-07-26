@@ -20,6 +20,11 @@ export interface UsageMetrics {
   total_output_tokens: number | null;
   /** Tokens spent on internal reasoning (optional, nullable). */
   thinking_tokens: number | null;
+  /** Thinking/reasoning content blocks observed in the stream (0 = confirmed
+   *  none, >0 = N blocks seen, null = not derivable e.g. non-streaming without
+   *  content inspection). Used when upstream omits thinking_tokens but emits
+   *  thinking content — lets dashboard show "thinking happened (unmetered)". */
+  thinking_block_count: number | null;
   /** Time-to-first-token in ms. DERIVED from event timing, never an API field. */
   ttft_ms: number | null;
   /** Full request duration in ms. */
@@ -117,6 +122,7 @@ export interface PerformanceStatsRow {
   total_output_tokens: number;
   total_cache_read_tokens: number;
   total_thinking_tokens: number;
+  requests_with_thinking: number;
   cached_pct: number;
   ttft_mean: number | null;
   ttft_max: number | null;

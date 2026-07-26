@@ -58,7 +58,7 @@ export function extractAnthropicNonStreaming(
   body: unknown,
   durationMs: number | null,
 ): UsageMetrics {
-  const b = body as { usage?: AnthropicUsage };
+  const b = body as { usage?: AnthropicUsage; content?: Array<{ type?: string }> };
   const u = b?.usage;
   if (!u) {
     return emptyMetrics("anthropic", false, durationMs);
@@ -69,6 +69,9 @@ export function extractAnthropicNonStreaming(
   const cacheRead = numOr(u.cache_read_input_tokens, 0);
   const totalInput = input + cacheCreate + cacheRead;
   const thinking = u.output_tokens_details?.thinking_tokens ?? null;
+  const thinkingBlockCount = Array.isArray(b?.content)
+    ? b.content.filter((c) => c?.type === "thinking").length
+    : null;
   return {
     provider: "anthropic",
     streaming: false,
@@ -79,6 +82,7 @@ export function extractAnthropicNonStreaming(
     total_input_tokens: totalInput,
     total_output_tokens: output,
     thinking_tokens: thinking,
+    thinking_block_count: thinkingBlockCount,
     ttft_ms: null, // TTFT not derivable from non-streaming response
     duration_ms: durationMs,
     tps: computeTps(output, durationMs, null),
@@ -106,6 +110,7 @@ export function extractAnthropicStreaming(
   let cacheCreate = 0;
   let cacheRead = 0;
   let thinking: number | null = null;
+  let thinkingBlockCount = 0;
   let ttftMs: number | null = null;
   let lastEventAt: number | null = null;
   let sawUsage = false;
@@ -138,6 +143,11 @@ export function extractAnthropicStreaming(
           thinking = u.output_tokens_details.thinking_tokens;
         }
       }
+    } else if (ev.type === "content_block_start") {
+      const blockType = (ev as { content_block?: { type?: string } }).content_block?.type;
+      if (blockType === "thinking") {
+        thinkingBlockCount++;
+      }
     } else if (ev.type === "content_block_delta" && ttftMs === null && ev.received_at) {
       ttftMs = ev.received_at - requestStartedAt;
     }
@@ -163,6 +173,7 @@ export function extractAnthropicStreaming(
     total_input_tokens: totalInput,
     total_output_tokens: output,
     thinking_tokens: thinking,
+    thinking_block_count: thinkingBlockCount,
     ttft_ms: ttftMs,
     duration_ms: durationMs,
     tps: computeTps(output, durationMs, ttftMs),
@@ -179,7 +190,10 @@ export function extractAnthropicStreaming(
  *  - completion_tokens_details.reasoning_tokens present for reasoning models
  */
 export function extractOpenAiNonStreaming(body: unknown, durationMs: number | null): UsageMetrics {
-  const b = body as { usage?: OpenAIUsage };
+  const b = body as {
+    usage?: OpenAIUsage;
+    choices?: Array<{ message?: { reasoning_content?: string } }>;
+  };
   const u = b?.usage;
   if (!u) {
     return emptyMetrics("openai", false, durationMs);
@@ -188,6 +202,9 @@ export function extractOpenAiNonStreaming(body: unknown, durationMs: number | nu
   const completion = num(u.completion_tokens);
   const cached = numOr(u.prompt_tokens_details?.cached_tokens, 0);
   const reasoning = u.completion_tokens_details?.reasoning_tokens ?? null;
+  const reasoningContent = b?.choices?.[0]?.message?.reasoning_content;
+  const thinkingBlockCount =
+    typeof reasoningContent === "string" && reasoningContent.length > 0 ? 1 : 0;
   return {
     provider: "openai",
     streaming: false,
@@ -198,6 +215,7 @@ export function extractOpenAiNonStreaming(body: unknown, durationMs: number | nu
     total_input_tokens: prompt,
     total_output_tokens: completion,
     thinking_tokens: reasoning,
+    thinking_block_count: thinkingBlockCount,
     ttft_ms: null,
     duration_ms: durationMs,
     tps: computeTps(completion, durationMs, null),
@@ -224,6 +242,7 @@ export function extractOpenAiStreaming(
   let usage: OpenAIUsage | null = null;
   let ttftMs: number | null = null;
   let lastChunkAt: number | null = null;
+  let sawReasoningContent = false;
 
   for (const ch of chunks) {
     if (ch.received_at) lastChunkAt = ch.received_at;
@@ -234,6 +253,9 @@ export function extractOpenAiStreaming(
       if (d && (d.content || d.reasoning_content || d.tool_calls)) {
         ttftMs = ch.received_at - requestStartedAt;
       }
+    }
+    if (ch.choices?.[0]?.delta?.reasoning_content) {
+      sawReasoningContent = true;
     }
     // Usage chunk: usage is non-null. Per OpenAI spec this is the final chunk
     // with choices: [], but compatible providers (e.g. umans-coder) send it
@@ -257,6 +279,7 @@ export function extractOpenAiStreaming(
     const m = emptyMetrics("openai", true, durationMs);
     m.ttft_ms = ttftMs;
     m.tps = computeTps(null, durationMs, ttftMs);
+    m.thinking_block_count = sawReasoningContent ? 1 : 0;
     m.usage_missing = true;
     return m;
   }
@@ -276,6 +299,7 @@ export function extractOpenAiStreaming(
     total_input_tokens: prompt,
     total_output_tokens: completion,
     thinking_tokens: reasoning,
+    thinking_block_count: sawReasoningContent ? 1 : 0,
     ttft_ms: ttftMs,
     duration_ms: durationMs,
     tps: computeTps(completion, durationMs, ttftMs),

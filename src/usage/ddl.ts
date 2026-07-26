@@ -19,6 +19,7 @@ ALTER TABLE captures ADD COLUMN cache_read_tokens INTEGER;
 ALTER TABLE captures ADD COLUMN total_input_tokens INTEGER;
 ALTER TABLE captures ADD COLUMN total_output_tokens INTEGER;
 ALTER TABLE captures ADD COLUMN thinking_tokens INTEGER;
+ALTER TABLE captures ADD COLUMN thinking_block_count INTEGER;
 ALTER TABLE captures ADD COLUMN ttft_ms REAL;
 ALTER TABLE captures ADD COLUMN tps REAL;
 ALTER TABLE captures ADD COLUMN usage_missing INTEGER DEFAULT 0;
@@ -41,7 +42,7 @@ WITH latest_per_model AS (
   SELECT model, provider, streaming,
     ttft_ms, tps,
     total_input_tokens, total_output_tokens,
-    cache_read_tokens, thinking_tokens,
+    cache_read_tokens, thinking_tokens, thinking_block_count,
     ROW_NUMBER() OVER (PARTITION BY model ORDER BY started_at DESC) AS rn
   FROM captures
   WHERE model IS NOT NULL AND state = 'done'
@@ -50,7 +51,7 @@ base AS (
   SELECT model, provider, streaming,
     ttft_ms, tps,
     total_input_tokens, total_output_tokens,
-    cache_read_tokens, thinking_tokens
+    cache_read_tokens, thinking_tokens, thinking_block_count
   FROM latest_per_model
   WHERE rn <= $limit
 ),
@@ -58,7 +59,7 @@ ranked AS (
   SELECT
     model, provider, streaming,
     ttft_ms, tps,
-    total_input_tokens, total_output_tokens, cache_read_tokens, thinking_tokens,
+    total_input_tokens, total_output_tokens, cache_read_tokens, thinking_tokens, thinking_block_count,
     ROW_NUMBER() OVER (PARTITION BY model ORDER BY ttft_ms NULLS LAST) AS ttft_rn,
     COUNT(ttft_ms)     OVER (PARTITION BY model) AS ttft_cnt,
     ROW_NUMBER() OVER (PARTITION BY model ORDER BY tps NULLS LAST) AS tps_rn,
@@ -86,6 +87,7 @@ SELECT
   SUM(r.total_output_tokens) AS total_output_tokens,
   SUM(r.cache_read_tokens)   AS total_cache_read_tokens,
   SUM(r.thinking_tokens)     AS total_thinking_tokens,
+  SUM(CASE WHEN r.thinking_block_count > 0 THEN 1 ELSE 0 END) AS requests_with_thinking,
   CASE
     WHEN SUM(r.total_input_tokens) > 0
     THEN CAST(SUM(r.cache_read_tokens) AS REAL) / SUM(r.total_input_tokens) * 100.0

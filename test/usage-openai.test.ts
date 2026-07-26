@@ -77,6 +77,25 @@ describe("OpenAI non-streaming usage extraction", () => {
     expect(m.output_tokens).toBe(200); // total (reasoning is inclusive)
   });
 
+  test("thinking_block_count set when reasoning_content present in non-streaming message", () => {
+    const body = {
+      usage: { prompt_tokens: 10, completion_tokens: 200, total_tokens: 210 },
+      choices: [{ message: { reasoning_content: "thinking hard..." } }],
+    };
+    const m = extractOpenAiNonStreaming(body, 2000);
+    expect(m.thinking_block_count).toBe(1);
+    expect(m.thinking_tokens).toBeNull();
+  });
+
+  test("thinking_block_count is 0 when reasoning_content absent in non-streaming", () => {
+    const body = {
+      usage: { prompt_tokens: 10, completion_tokens: 200, total_tokens: 210 },
+      choices: [{ message: { content: "answer" } }],
+    };
+    const m = extractOpenAiNonStreaming(body, 2000);
+    expect(m.thinking_block_count).toBe(0);
+  });
+
   test("usage absent → usage_missing = true", () => {
     const body = { id: "x", choices: [] };
     const m = extractOpenAiNonStreaming(body, 500);
@@ -236,6 +255,41 @@ describe("OpenAI streaming usage extraction", () => {
     const m = extractOpenAiStreaming(chunks, startedAt);
     expect(m.thinking_tokens).toBe(150);
     expect(m.output_tokens).toBe(200);
+  });
+
+  test("thinking_block_count set when reasoning_content deltas seen but reasoning_tokens absent", () => {
+    const startedAt = 1000;
+    const chunks: OpenAIStreamChunk[] = [
+      {
+        choices: [{ delta: { reasoning_content: "thinking..." } }],
+        usage: null,
+        received_at: 1100,
+      },
+      { choices: [{ delta: { content: "answer" } }], usage: null, received_at: 1200 },
+      {
+        choices: [],
+        usage: { prompt_tokens: 10, completion_tokens: 50, total_tokens: 60 },
+        received_at: 1300,
+      },
+    ];
+    const m = extractOpenAiStreaming(chunks, startedAt);
+    expect(m.thinking_tokens).toBeNull();
+    expect(m.thinking_block_count).toBe(1);
+    expect(m.output_tokens).toBe(50);
+  });
+
+  test("thinking_block_count is 0 when no reasoning_content deltas", () => {
+    const startedAt = 1000;
+    const chunks: OpenAIStreamChunk[] = [
+      { choices: [{ delta: { content: "answer" } }], usage: null, received_at: 1100 },
+      {
+        choices: [],
+        usage: { prompt_tokens: 10, completion_tokens: 50, total_tokens: 60 },
+        received_at: 1200,
+      },
+    ];
+    const m = extractOpenAiStreaming(chunks, startedAt);
+    expect(m.thinking_block_count).toBe(0);
   });
 
   test("TPS computed from (duration - TTFT)", () => {

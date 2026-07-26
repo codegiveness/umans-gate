@@ -101,6 +101,35 @@ describe("Anthropic non-streaming usage extraction", () => {
     expect(m.output_tokens).toBe(200); // total still 200 (thinking is inclusive)
   });
 
+  test("thinking_block_count counts thinking blocks in non-streaming content", () => {
+    const body = {
+      usage: { input_tokens: 100, output_tokens: 200 },
+      content: [
+        { type: "thinking", thinking: "reasoning..." },
+        { type: "text", text: "answer" },
+        { type: "thinking", thinking: "more reasoning" },
+      ],
+    };
+    const m = extractAnthropicNonStreaming(body, 3000);
+    expect(m.thinking_block_count).toBe(2);
+    expect(m.thinking_tokens).toBeNull();
+  });
+
+  test("thinking_block_count is 0 when non-streaming content has no thinking blocks", () => {
+    const body = {
+      usage: { input_tokens: 100, output_tokens: 200 },
+      content: [{ type: "text", text: "answer" }],
+    };
+    const m = extractAnthropicNonStreaming(body, 3000);
+    expect(m.thinking_block_count).toBe(0);
+  });
+
+  test("thinking_block_count is null when non-streaming content array absent", () => {
+    const body = { usage: { input_tokens: 100, output_tokens: 200 } };
+    const m = extractAnthropicNonStreaming(body, 3000);
+    expect(m.thinking_block_count).toBeNull();
+  });
+
   test("usage absent → usage_missing = true", () => {
     const body = { id: "msg_1", content: [] };
     const m = extractAnthropicNonStreaming(body, 500);
@@ -321,6 +350,87 @@ describe("Anthropic streaming usage extraction", () => {
     const m = extractAnthropicStreaming(events, startedAt);
     expect(m.thinking_tokens).toBe(150);
     expect(m.output_tokens).toBe(200);
+  });
+
+  test("thinking_block_count tracks thinking content blocks even when output_tokens_details absent", () => {
+    const startedAt = 1000;
+    const events: AnthropicSseEvent[] = [
+      {
+        type: "message_start",
+        message: { usage: { input_tokens: 10, output_tokens: 1 } },
+        received_at: 1000,
+      },
+      { type: "content_block_start", content_block: { type: "thinking" }, received_at: 1100 },
+      {
+        type: "content_block_delta",
+        delta: { type: "thinking_delta", thinking: "hm" },
+        received_at: 1200,
+      },
+      { type: "content_block_stop", received_at: 1300 },
+      { type: "content_block_start", content_block: { type: "text" }, received_at: 1400 },
+      { type: "content_block_delta", delta: { type: "text_delta", text: "hi" }, received_at: 1500 },
+      { type: "content_block_stop", received_at: 1600 },
+      {
+        type: "message_delta",
+        usage: { output_tokens: 50 },
+        delta: { stop_reason: "end_turn" },
+        received_at: 1700,
+      },
+      { type: "message_stop", received_at: 1700 },
+    ];
+    const m = extractAnthropicStreaming(events, startedAt);
+    expect(m.thinking_tokens).toBeNull();
+    expect(m.thinking_block_count).toBe(1);
+    expect(m.output_tokens).toBe(50);
+  });
+
+  test("thinking_block_count counts multiple thinking blocks", () => {
+    const startedAt = 1000;
+    const events: AnthropicSseEvent[] = [
+      {
+        type: "message_start",
+        message: { usage: { input_tokens: 10, output_tokens: 1 } },
+        received_at: 1000,
+      },
+      { type: "content_block_start", content_block: { type: "thinking" }, received_at: 1100 },
+      { type: "content_block_stop", received_at: 1200 },
+      { type: "content_block_start", content_block: { type: "thinking" }, received_at: 1300 },
+      { type: "content_block_stop", received_at: 1400 },
+      { type: "content_block_start", content_block: { type: "text" }, received_at: 1500 },
+      { type: "content_block_stop", received_at: 1600 },
+      {
+        type: "message_delta",
+        usage: { output_tokens: 80 },
+        delta: { stop_reason: "end_turn" },
+        received_at: 1700,
+      },
+      { type: "message_stop", received_at: 1700 },
+    ];
+    const m = extractAnthropicStreaming(events, startedAt);
+    expect(m.thinking_block_count).toBe(2);
+  });
+
+  test("thinking_block_count is 0 when no thinking content blocks", () => {
+    const startedAt = 1000;
+    const events: AnthropicSseEvent[] = [
+      {
+        type: "message_start",
+        message: { usage: { input_tokens: 10, output_tokens: 1 } },
+        received_at: 1000,
+      },
+      { type: "content_block_start", content_block: { type: "text" }, received_at: 1100 },
+      { type: "content_block_delta", delta: { type: "text_delta", text: "hi" }, received_at: 1200 },
+      { type: "content_block_stop", received_at: 1300 },
+      {
+        type: "message_delta",
+        usage: { output_tokens: 20 },
+        delta: { stop_reason: "end_turn" },
+        received_at: 1400,
+      },
+      { type: "message_stop", received_at: 1400 },
+    ];
+    const m = extractAnthropicStreaming(events, startedAt);
+    expect(m.thinking_block_count).toBe(0);
   });
 
   test("ping events ignored (no usage data)", () => {
