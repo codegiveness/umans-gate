@@ -797,10 +797,10 @@ describe("Integration: usage daily (ticket 03)", () => {
   test("idle session exceeding timeout is not counted as active", async () => {
     const day = utcDate(9);
     const t0 = utcMidnightMs(9);
-    // 7 samples, 1 min apart, all with concurrent_sessions=1 but identical
-    // tokens (no token movement). idleSessionTimeoutMinutes=5 (from env).
-    // Intervals 1-5 count as active (streak ≤ 5min). Intervals 6+ are skipped
-    // (streak > 5min). Total active = 5min.
+    // 8 samples (m=0..7), 1 min apart, all with concurrent_sessions=1 but
+    // identical tokens (no token movement). idleSessionTimeoutMinutes=5 (from
+    // env). 7 intervals of 1 min each. Intervals 1-5 count as active (streak
+    // ≤ 5min). Intervals 6+ are skipped (streak > 5min). Total active = 5min.
     const base = {
       plan: "Code Pro",
       concurrency_soft_limit: 8,
