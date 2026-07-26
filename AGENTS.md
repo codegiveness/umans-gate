@@ -86,7 +86,7 @@ are never overwritten. All env vars have `snake_case` JSON equivalents.
 | `concurrency_soft_limit` | `8` |
 | `use_hard_cap` | `false` |
 | `rate_limit_requests` | `0` |
-| `queue_timeout_ms` | `30000` |
+| `queue_timeout_ms` | `180000` |
 | `max_queue_depth` | `256` |
 | `release_cooldown_ms` | `1000` |
 | `breaker_threshold` | `5` |

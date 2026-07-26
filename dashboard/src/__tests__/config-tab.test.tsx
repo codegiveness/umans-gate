@@ -26,7 +26,7 @@ const baseConfig = {
   breaker_threshold: 5,
   breaker_window_ms: 300000,
   breaker_cooldown_ms: 60000,
-  queue_timeout_ms: 30000,
+  queue_timeout_ms: 180000,
   max_queue_depth: 256,
   queue_max_depth: 100,
   rate_limit_requests: 0,

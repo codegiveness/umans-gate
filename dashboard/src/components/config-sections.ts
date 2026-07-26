@@ -410,7 +410,7 @@ const QUEUE_FIELDS: FieldDef[] = [
     label: "Queue Timeout",
     kind: "number",
     description:
-      "Maximum time a request can wait in the concurrency queue before timing out and returning an error to the client. Default: 30,000 ms (30 s).",
+      "Maximum time a request can wait in the concurrency queue before timing out and returning an error to the client. Default: 180,000 ms (180 s).",
     required: true,
     min: 100,
     suffix: "ms",

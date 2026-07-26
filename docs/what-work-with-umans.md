@@ -143,7 +143,7 @@ streams. umans-gate's `WriteQueue` batches capture writes:
 
 - Buffer captures in memory, flush in batches to SQLite
 - `queue_max_depth` (default 100) caps buffer size
-- `queue_timeout_ms` (default 30000) bounds flush latency
+- `queue_timeout_ms` (default 180000) bounds flush latency
 - Broadcasts `update` WebSocket messages on flush (src/queue.ts:208)
 
 This decouples proxy latency from persistence — the workflows playbook's

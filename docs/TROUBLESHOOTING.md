@@ -118,7 +118,7 @@ GateError: Queue timeout exceeded
 ```
 
 The concurrency gate's queue is full or the wait exceeded `queue_timeout_ms`
-(30s default). Options:
+(180s default). Options:
 
 - Increase `concurrency_hard_cap` if your plan allows more concurrent requests
 - Increase `queue_timeout_ms` if you can wait longer
