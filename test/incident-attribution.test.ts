@@ -7,6 +7,7 @@
 
 import { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
+import { CaptureDB } from "../src/db.js";
 import { startProxy } from "./helpers/proxy.js";
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -403,10 +404,9 @@ describe("Incident retention purge", () => {
       ).run({ $cid: oldCaptureId, $ts: oldCreatedAt });
 
       const cutoff = Date.now() - 5 * 86_400_000;
-      const result = db
-        .prepare("DELETE FROM incidents WHERE created_at < $cutoff")
-        .run({ $cutoff: cutoff });
-      expect(result.changes).toBe(1);
+      const captureDb = new CaptureDB({ dbPath, maxCaptures: 200, incidentRetentionDays: 365 });
+      const deleted = captureDb.sweepIncidents(cutoff);
+      expect(deleted).toBe(1);
 
       const remaining = db
         .prepare(
@@ -428,10 +428,9 @@ describe("Incident retention purge", () => {
         `INSERT INTO incidents (capture_id, responsible_party, incident_type, upstream_status, served_status, reason, created_at)
          VALUES ($cid, 'upstream', 'upstream_error', 503, 503, 'synthetic old', $ts)`,
       ).run({ $cid: oldCaptureId, $ts: oldCreatedAt });
-      const keepAllResult = db
-        .prepare("DELETE FROM incidents WHERE created_at < $cutoff")
-        .run({ $cutoff: 0 });
-      expect(keepAllResult.changes).toBe(0);
+      const keepAllResult = captureDb.sweepIncidents(0);
+      expect(keepAllResult).toBe(0);
+      captureDb.close();
 
       const finalRows = db.prepare("SELECT COUNT(*) AS n FROM incidents").get() as { n: number };
       expect(finalRows.n).toBe(2);
