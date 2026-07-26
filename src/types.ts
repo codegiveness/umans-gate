@@ -315,6 +315,8 @@ export interface ProxyConfig {
   ttftRetryCooldownMs: number;
   /** Number of latest captures per model used for performance percentile computation. */
   performanceSampleCount: number;
+  /** Days to retain incident rows. Hot-reloadable. Default 30. */
+  incidentRetentionDays: number;
 }
 
 // Narrow config interfaces (ISP). ProxyConfig structurally satisfies each,

@@ -296,6 +296,12 @@ const RELOAD_FIELDS: Array<{
       live.performanceSampleCount = fresh.performanceSampleCount;
     },
   },
+  {
+    rawKey: "incident_retention_days",
+    apply: (live, fresh) => {
+      live.incidentRetentionDays = fresh.incidentRetentionDays;
+    },
+  },
 ];
 
 /**

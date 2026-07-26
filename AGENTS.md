@@ -135,6 +135,7 @@ are never overwritten. All env vars have `snake_case` JSON equivalents.
 | `ttft_retry_failure_threshold` | `3` |
 | `ttft_retry_cooldown_ms` | `30000` |
 | `performance_sample_count` | `200` |
+| `incident_retention_days` | `30` |
 
 ### Hot reload
 
@@ -145,7 +146,7 @@ The Config tab can save and hot-reload via
 `rate_limit_*`, `usage_*`
 (`usage_history_enabled`, `usage_raw_retention_days`,
 `usage_gap_threshold_minutes`, `usage_idle_session_timeout_minutes`),
-and the 7 intent-aware vision fields (`vision_intent_strategy`,
+`incident_retention_days`, and the 7 intent-aware vision fields (`vision_intent_strategy`,
 `vision_decomposition_enabled`, `vision_decomposition_timeout_ms`,
 `vision_crafting_timeout_ms`, `vision_adjacent_text_max_chars`,
 `vision_recent_messages_count`, `vision_system_prompt_max_chars`).

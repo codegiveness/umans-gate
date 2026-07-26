@@ -728,6 +728,11 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
       db.performanceSampleLimit = config.performanceSampleCount;
     }
 
+    if (applied.includes("incident_retention_days")) {
+      db.incidentRetentionDays = config.incidentRetentionDays;
+      db.sweepIncidents();
+    }
+
     if (applied.includes("rate_limit_requests")) {
       rateRef.current = createRateLimiter(config.rateLimitRequests, usage.getSnapshot());
     }

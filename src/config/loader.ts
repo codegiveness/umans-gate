@@ -302,6 +302,12 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     "performance_sample_count",
     DEFAULT_CONFIG.performance_sample_count ?? 200,
   );
+  const incidentRetentionDays = envOrRawNum(
+    env.INCIDENT_RETENTION_DAYS,
+    raw,
+    "incident_retention_days",
+    DEFAULT_CONFIG.incident_retention_days ?? 30,
+  );
 
   return {
     port,
@@ -389,5 +395,6 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     ttftRetryFailureThreshold,
     ttftRetryCooldownMs,
     performanceSampleCount,
+    incidentRetentionDays,
   };
 }

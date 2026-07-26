@@ -78,6 +78,7 @@ const DEFAULT_CONFIG: RawConfig = {
   ttft_retry_failure_threshold: 3,
   ttft_retry_cooldown_ms: 30000,
   performance_sample_count: 200,
+  incident_retention_days: 30,
 };
 
 export { DEFAULT_CONFIG };

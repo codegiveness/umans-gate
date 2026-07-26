@@ -494,6 +494,18 @@ const CREDENTIALS_FIELDS: FieldDef[] = [
   },
 ];
 
+const INCIDENT_FIELDS: FieldDef[] = [
+  {
+    key: "incident_retention_days",
+    label: "Incident Retention",
+    kind: "number",
+    description:
+      "Days to retain incident audit rows (non-200 captures). Older rows are purged on startup and on hot-reload to a smaller value. Default: 30.",
+    min: 1,
+    suffix: "d",
+  },
+];
+
 const USAGE_HISTORY_FIELDS: FieldDef[] = [
   {
     key: "usage_history_enabled",
@@ -634,6 +646,11 @@ export const GROUPS: GroupDef[] = [
         title: "Capture & Storage",
         description: "Body capture limits and WebSocket backpressure controls.",
         fields: CAPTURE_STORAGE_FIELDS,
+      },
+      {
+        title: "Incidents",
+        description: "Retention window for non-200 capture audit rows.",
+        fields: INCIDENT_FIELDS,
       },
     ],
   },

@@ -110,12 +110,18 @@ export interface ExperimentRawConfig {
   ttft_retry_cooldown_ms?: number;
 }
 
+export interface IncidentRawConfig {
+  /** Days to retain incident rows. Default 30. Minimum 1. Hot-reloadable. */
+  incident_retention_days?: number;
+}
+
 export type RawConfig = StampRawConfig &
   GateRawConfig &
   VisionRawConfig &
   ServerRawConfig &
   UsageHistoryRawConfig &
-  ExperimentRawConfig;
+  ExperimentRawConfig &
+  IncidentRawConfig;
 
 export interface ValidationResult {
   ok: boolean;

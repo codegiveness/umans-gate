@@ -119,6 +119,8 @@ export interface RawConfig {
   ttft_retry_cooldown_ms?: number;
   /** Number of latest captures per model used for performance percentile computation. Decoupled from max_captures. Hot-reloadable. Default 200. */
   performance_sample_count?: number;
+  /** Days to retain incident rows. Default 30. Minimum 1. Hot-reloadable. */
+  incident_retention_days?: number;
 }
 
 /**

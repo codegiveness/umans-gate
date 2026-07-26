@@ -97,6 +97,7 @@ export const INT_FIELDS: (keyof RawConfig)[] = [
   "vision_adjacent_text_max_chars",
   "vision_recent_messages_count",
   "vision_system_prompt_max_chars",
+  "incident_retention_days",
 ];
 
 /**
@@ -246,6 +247,14 @@ export const FIELD_RULES: FieldRule[] = [
       n.usage_raw_retention_days !== undefined &&
       (!Number.isInteger(n.usage_raw_retention_days) || n.usage_raw_retention_days < 1)
         ? ["usage_raw_retention_days must be an integer >= 1"]
+        : [],
+  },
+  {
+    name: "incident_retention_days",
+    errors: (n) =>
+      n.incident_retention_days !== undefined &&
+      (!Number.isInteger(n.incident_retention_days) || n.incident_retention_days < 1)
+        ? ["incident_retention_days must be an integer >= 1"]
         : [],
   },
   {

@@ -217,7 +217,7 @@ The Config tab can save and hot-reload via
 `POST /dashboard/api/config/reload`. Hot-reloadable: `stamp_claude_code_enabled`,
 `breaker_*`, `rate_limit_*`, `usage_*` (`usage_history_enabled`,
 `usage_raw_retention_days`, `usage_gap_threshold_minutes`,
-`usage_idle_session_timeout_minutes`), and the 7 intent-aware vision fields
+`usage_idle_session_timeout_minutes`), `incident_retention_days`, and the 7 intent-aware vision fields
 (`vision_intent_strategy`, `vision_decomposition_enabled`,
 `vision_decomposition_timeout_ms`, `vision_crafting_timeout_ms`,
 `vision_adjacent_text_max_chars`, `vision_recent_messages_count`,

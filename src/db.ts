@@ -401,7 +401,7 @@ export class CaptureDB {
   readonly maxCaptures: number;
   compressionEnabled: boolean;
   performanceSampleLimit: number;
-  private readonly incidentRetentionDays: number;
+  incidentRetentionDays: number;
   onPrune: ((prunedIds: number[]) => void) | null = null;
 
   constructor(
