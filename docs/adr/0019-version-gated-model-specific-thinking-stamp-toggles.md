@@ -165,11 +165,6 @@ true; Kimi/Coder's `false` stays false.
   with the same shape — version match → family shape; otherwise
   adaptive fallback.
 
-## Note
-
-Moonshot references for the Kimi K2.7-Code toggle (Ticket 03) will be
-appended here once that toggle lands.
-
 ## Moonshot official references (Kimi K2.7-Code)
 
 **Thinking Models guide**
