@@ -141,4 +141,110 @@ describe("ApiKeyGate", () => {
       expect(screen.queryByText("Umans API Key Required")).not.toBeInTheDocument();
     });
   });
+
+  describe("experimental features promotion", () => {
+    function getPromotionParagraph(): HTMLElement {
+      const heading = screen.getByText("One more thing.");
+      const paragraph = heading.closest("p");
+      if (!paragraph) throw new Error("Promotion paragraph not found");
+      return paragraph;
+    }
+
+    it("renders the promotion paragraph when the gate is shown", () => {
+      setup({
+        config: { has_api_key: false } as Record<string, unknown>,
+        loading: false,
+        error: null,
+      });
+      expect(screen.getByText("One more thing.")).toBeInTheDocument();
+      const text = getPromotionParagraph().textContent ?? "";
+      expect(text).toContain("Umans-gate ships optional experimental features");
+      expect(text).toContain("Toggle them in");
+      expect(text).toContain("after saving your key");
+    });
+
+    it("does not render the promotion when the gate is hidden", () => {
+      setup({
+        config: { has_api_key: true } as Record<string, unknown>,
+        loading: false,
+        error: null,
+      });
+      expect(screen.queryByText("One more thing.")).not.toBeInTheDocument();
+    });
+
+    it("uses the canonical 'experimental' label in the promotion copy", () => {
+      setup({
+        config: { has_api_key: false } as Record<string, unknown>,
+        loading: false,
+        error: null,
+      });
+      expect((getPromotionParagraph().textContent ?? "").toLowerCase()).toContain("experimental");
+    });
+
+    it("contains the humility phrase 'anecdotal, not benchmarked'", () => {
+      setup({
+        config: { has_api_key: false } as Record<string, unknown>,
+        loading: false,
+        error: null,
+      });
+      expect(getPromotionParagraph().textContent ?? "").toContain("anecdotal, not benchmarked");
+    });
+
+    it("contains the 'Config → Experimental' pointer", () => {
+      setup({
+        config: { has_api_key: false } as Record<string, unknown>,
+        loading: false,
+        error: null,
+      });
+      expect(getPromotionParagraph().textContent ?? "").toContain("Config → Experimental");
+    });
+
+    it("does not assert benefit-claiming outcomes", () => {
+      setup({
+        config: { has_api_key: false } as Record<string, unknown>,
+        loading: false,
+        error: null,
+      });
+      const text = getPromotionParagraph().textContent ?? "";
+      expect(text).not.toContain("boost");
+      expect(text).not.toContain("fix your");
+      expect(text).not.toContain("reduce TTFT");
+      expect(text).not.toContain("increase cache");
+      expect(text).not.toContain("improve cache");
+      expect(text).not.toMatch(/\bimproves?\s+(?:cache|hit|ttft|latency|throughput)/i);
+    });
+
+    it("renders the promotion paragraph after the 'Get one here' link in DOM order", () => {
+      setup({
+        config: { has_api_key: false } as Record<string, unknown>,
+        loading: false,
+        error: null,
+      });
+      const getOneHereLink = screen.getByText("Get one here");
+      const promotionHeading = screen.getByText("One more thing.");
+      const mask = getOneHereLink.compareDocumentPosition(promotionHeading);
+      expect(mask & Node.DOCUMENT_POSITION_FOLLOWING).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    });
+
+    it("is a plain <p> element, not an alert or status region", () => {
+      setup({
+        config: { has_api_key: false } as Record<string, unknown>,
+        loading: false,
+        error: null,
+      });
+      const paragraph = getPromotionParagraph();
+      expect(paragraph.getAttribute("role")).toBeNull();
+      expect(paragraph.getAttribute("aria-live")).toBeNull();
+    });
+
+    it("does not add a button, link, or interactive element inside the promotion", () => {
+      setup({
+        config: { has_api_key: false } as Record<string, unknown>,
+        loading: false,
+        error: null,
+      });
+      const paragraph = getPromotionParagraph();
+      expect(paragraph.querySelectorAll("a, button").length).toBe(0);
+    });
+  });
 });

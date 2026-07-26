@@ -123,6 +123,13 @@ export function ApiKeyGate() {
                 Get one here
               </a>
             </p>
+            <p className="mt-3 text-xs text-muted-foreground">
+              <strong>One more thing.</strong> Umans-gate ships optional experimental features —
+              request stamping (TTL/thinking/effort), TTFT watchdog with gated retry, and 502/529 ID
+              rewrite. The maintainer felt these improved the upstream experience; they are
+              anecdotal, not benchmarked. Toggle them in <strong>Config → Experimental</strong>{" "}
+              after saving your key.
+            </p>
           </CardContent>
         </Card>
       </div>

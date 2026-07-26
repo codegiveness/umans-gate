@@ -18,6 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { RawConfig } from "@/hooks/use-config";
 import { useConfigContext } from "@/hooks/use-config-context";
@@ -69,6 +70,7 @@ export function ConfigTab() {
   });
 
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [activeSubTab, setActiveSubTab] = useState<GroupDef["title"]>("General");
 
   const groupsWithOverrides = useMemo<GroupDef[]>(() => {
     const visionModels = (modelsData?.models ?? [])
@@ -285,37 +287,56 @@ export function ConfigTab() {
           </p>
         </div>
       )}
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="mx-auto w-full max-w-3xl px-6 py-6">
-          <Suspense fallback={null}>
-            <div className="mb-4">
-              <VersionSection />
-            </div>
-          </Suspense>
-          {groupsWithOverrides.map((g, gi) => (
-            <GroupBlock
-              key={g.title}
-              group={g}
-              values={draft}
-              originals={config ?? {}}
-              onField={onField}
-              errors={clientErrors}
-              warnings={clientWarnings}
-              isLast={gi === groupsWithOverrides.length - 1}
-              onRefreshSource={handleRefreshSource}
-              refreshingSource={mutationLoading.refreshingSource}
-            />
-          ))}
-          <div className="pt-6 text-xs text-muted-foreground">
-            Fields marked{" "}
-            <span className="text-muted-foreground">
-              <RotateCw className="inline h-3 w-3 mr-1" aria-hidden />
-              restart
-            </span>{" "}
-            require a server restart to take effect. Other fields are applied live when you save.
-          </div>
+      <Tabs
+        value={activeSubTab}
+        onValueChange={(v) => setActiveSubTab(v as GroupDef["title"])}
+        className="flex min-h-0 flex-1 flex-col"
+      >
+        <div className="sticky top-0 z-10 border-b border-border bg-card px-4 py-2">
+          <TabsList>
+            {GROUPS.map((g) => (
+              <TabsTrigger key={g.title} value={g.title}>
+                {g.title}
+              </TabsTrigger>
+            ))}
+          </TabsList>
         </div>
-      </ScrollArea>
+        <ScrollArea className="min-h-0 flex-1">
+          <div className="mx-auto w-full max-w-3xl px-6 py-6">
+            {activeSubTab === "General" && (
+              <Suspense fallback={null}>
+                <div className="mb-4">
+                  <VersionSection />
+                </div>
+              </Suspense>
+            )}
+            {groupsWithOverrides
+              .filter((g) => g.title === activeSubTab)
+              .map((g) => (
+                <GroupBlock
+                  key={g.title}
+                  group={g}
+                  values={draft}
+                  originals={config ?? {}}
+                  onField={onField}
+                  errors={clientErrors}
+                  warnings={clientWarnings}
+                  isLast
+                  onRefreshSource={handleRefreshSource}
+                  refreshingSource={mutationLoading.refreshingSource}
+                />
+              ))}
+            <div className="pt-6 text-xs text-muted-foreground">
+              Fields marked{" "}
+              <span className="text-muted-foreground">
+                <RotateCw className="inline h-3 w-3 mr-1" aria-hidden />
+                restart
+              </span>{" "}
+              require a server restart to take effect. Other fields are applied live when you save.
+            </div>
+          </div>
+        </ScrollArea>
+      </Tabs>
     </div>
   );
 }

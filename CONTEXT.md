@@ -266,3 +266,18 @@ product, community project, supported project.
 effects, not a statement about code quality. Applied to fields whose felt
 benefits have not been benchmarked against a control. _Avoid_: prototype,
 beta, unstable.
+
+## Dashboard navigation
+
+**Config sub-tab** — a secondary tab strip rendered inside the Config
+top-level tab, one pane per `GroupDef` (General, Experimental,
+Advanced). Distinct from the top-level tab strip in the app header
+(Captures, Vision, …, Config). Replaces the prior flat single-scroll
+rendering of all config groups. _Avoid_: config tab (ambiguous with the
+top-level tab), config section (that's a `SectionDef`).
+
+**First-run gate** — the modal shown when `config.has_api_key` is false
+(`ApiKeyGate` component). Collects the Umans API key before any other
+interaction. Distinct from `TokenGate` (dashboard auth). Also the surface
+for promoting experimental features on fresh install. _Avoid_: API key
+modal, onboarding dialog.

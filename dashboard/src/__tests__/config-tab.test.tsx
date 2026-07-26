@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ConfigTab } from "@/components/config-tab";
 import { flushEffects } from "@/test/utils";
@@ -120,6 +120,13 @@ vi.mock("sonner", () => ({
   },
 }));
 
+const versionState = {
+  current: vi.fn(() => ({ version: null, loading: false, checking: false, checkNow: vi.fn() })),
+};
+vi.mock("@/hooks/use-version", () => ({
+  useVersion: () => versionState.current(),
+}));
+
 describe("ConfigTab", () => {
   it("renders Save button disabled when no changes", async () => {
     render(<ConfigTab />);
@@ -206,6 +213,8 @@ describe("ConfigTab", () => {
     const user = userEvent.setup();
     render(<ConfigTab />);
     await flushEffects();
+    await user.click(screen.getByRole("tab", { name: "Advanced" }));
+    await flushEffects();
     const maxDescTokensInput = screen.getByLabelText("Max Description Tokens");
     await user.clear(maxDescTokensInput);
     await user.type(maxDescTokensInput, "0");
@@ -266,9 +275,13 @@ describe("ConfigTab", () => {
     const user = userEvent.setup();
     render(<ConfigTab />);
     await flushEffects();
+    await user.click(screen.getByRole("tab", { name: "Advanced" }));
+    await flushEffects();
     const timeoutInput = screen.getByLabelText("Timeout");
     await user.clear(timeoutInput);
     await user.type(timeoutInput, "0");
+    await flushEffects();
+    await user.click(screen.getByRole("tab", { name: "General" }));
     await flushEffects();
     const portInput = screen.getByLabelText("Port");
     await user.clear(portInput);
@@ -412,15 +425,23 @@ describe("ConfigTab", () => {
   });
 
   describe("group structure (Card wrap + breaker move + OMO reorder)", () => {
-    it("renders three group Cards with titles General, Experimental, Advanced", async () => {
+    it("renders the active group Card with its title, and switches per sub-tab", async () => {
+      const user = userEvent.setup();
       render(<ConfigTab />);
       await flushEffects();
-      const general = screen.getByText("General");
-      const experimental = screen.getByText("Experimental");
-      const advanced = screen.getByText("Advanced");
-      expect(general.closest("[data-group-card]")).not.toBeNull();
-      expect(experimental.closest("[data-group-card]")).not.toBeNull();
-      expect(advanced.closest("[data-group-card]")).not.toBeNull();
+      const generalCards = document.querySelectorAll("[data-group-card]");
+      expect(generalCards).toHaveLength(1);
+      expect(generalCards[0]?.textContent).toContain("General");
+      await user.click(screen.getByRole("tab", { name: "Experimental" }));
+      await flushEffects();
+      const experimentalCards = document.querySelectorAll("[data-group-card]");
+      expect(experimentalCards).toHaveLength(1);
+      expect(experimentalCards[0]?.textContent).toContain("Experimental");
+      await user.click(screen.getByRole("tab", { name: "Advanced" }));
+      await flushEffects();
+      const advancedCards = document.querySelectorAll("[data-group-card]");
+      expect(advancedCards).toHaveLength(1);
+      expect(advancedCards[0]?.textContent).toContain("Advanced");
     });
 
     it("places Circuit Breaker fields within the General group", async () => {
@@ -434,9 +455,12 @@ describe("ConfigTab", () => {
     });
 
     it("places oh-my-openagent as the last section of Experimental group", async () => {
+      const user = userEvent.setup();
       render(<ConfigTab />);
       await flushEffects();
-      const experimentalCard = screen.getByText("Experimental").closest("[data-group-card]");
+      await user.click(screen.getByRole("tab", { name: "Experimental" }));
+      await flushEffects();
+      const experimentalCard = document.querySelector("[data-group-card]");
       expect(experimentalCard).not.toBeNull();
       const sectionHeadings = Array.from(experimentalCard?.querySelectorAll("h4") ?? []).map(
         (h) => h.textContent ?? "",
@@ -471,5 +495,132 @@ describe("ConfigTab", () => {
       mockConfigResult.config = baseConfig;
       mockConfigResult.reload.mockResolvedValue(baseConfig);
     });
+  });
+});
+
+describe("ConfigTab sub-tabs", () => {
+  const upToDateVersion = {
+    current: "0.4.0",
+    latest: "0.4.0",
+    updateAvailable: false,
+    lastCheckedAt: Date.now(),
+    error: null,
+    releaseNotes: null,
+    canUpdate: false,
+    canUpdateReason: null,
+  };
+
+  beforeEach(() => {
+    versionState.current.mockReturnValue({
+      version: upToDateVersion,
+      loading: false,
+      checking: false,
+      checkNow: vi.fn(),
+    });
+  });
+
+  afterEach(() => {
+    versionState.current.mockReset();
+    mockConfigResult.config = baseConfig;
+    mockConfigResult.reload.mockResolvedValue(baseConfig);
+  });
+
+  it("renders three sub-tab triggers labeled General, Experimental, Advanced", async () => {
+    render(<ConfigTab />);
+    await flushEffects();
+    const triggers = screen.getAllByRole("tab");
+    const labels = triggers.map((t) => t.textContent ?? "");
+    expect(labels).toEqual(["General", "Experimental", "Advanced"]);
+  });
+
+  it("defaults to General pane on initial render (Port visible, VersionSection visible)", async () => {
+    render(<ConfigTab />);
+    await flushEffects();
+    expect(screen.getByLabelText("Port")).toBeInTheDocument();
+    expect(screen.getByText("v0.4.0")).toBeInTheDocument();
+  });
+
+  it("does not render Experimental or Advanced fields on initial render", async () => {
+    render(<ConfigTab />);
+    await flushEffects();
+    expect(screen.queryByLabelText("Claude Code Style")).toBeNull();
+    expect(screen.queryByLabelText("Queue Timeout")).toBeNull();
+  });
+
+  it("clicking Experimental shows Experimental content and hides General content", async () => {
+    const user = userEvent.setup();
+    render(<ConfigTab />);
+    await flushEffects();
+    expect(screen.getByLabelText("Port")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Experimental" }));
+    await flushEffects();
+    expect(screen.getByRole("switch", { name: "Claude Code Style" })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Port")).toBeNull();
+  });
+
+  it("clicking Advanced shows Advanced content and hides General + Experimental", async () => {
+    const user = userEvent.setup();
+    render(<ConfigTab />);
+    await flushEffects();
+    await user.click(screen.getByRole("tab", { name: "Advanced" }));
+    await flushEffects();
+    expect(screen.getByLabelText("Queue Timeout")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Port")).toBeNull();
+    expect(screen.queryByLabelText("Claude Code Style")).toBeNull();
+  });
+
+  it("shows the experimental-active banner on all three sub-tabs when an experimental flag is on", async () => {
+    const user = userEvent.setup();
+    const withExperimental = { ...baseConfig, stamp_claude_code_enabled: true };
+    mockConfigResult.config = withExperimental;
+    mockConfigResult.reload.mockResolvedValue(withExperimental);
+    render(<ConfigTab />);
+    await flushEffects();
+    expect(screen.getByText(/Experimental features active/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Experimental" }));
+    await flushEffects();
+    expect(screen.getByText(/Experimental features active/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Advanced" }));
+    await flushEffects();
+    expect(screen.getByText(/Experimental features active/i)).toBeInTheDocument();
+  });
+
+  it("renders the Save button regardless of active sub-tab", async () => {
+    const user = userEvent.setup();
+    render(<ConfigTab />);
+    await flushEffects();
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Experimental" }));
+    await flushEffects();
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Advanced" }));
+    await flushEffects();
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+  });
+
+  it("renders the restart-required footer note on all three sub-tabs", async () => {
+    const user = userEvent.setup();
+    render(<ConfigTab />);
+    await flushEffects();
+    expect(screen.getByText(/require a server restart to take effect/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Experimental" }));
+    await flushEffects();
+    expect(screen.getByText(/require a server restart to take effect/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Advanced" }));
+    await flushEffects();
+    expect(screen.getByText(/require a server restart to take effect/i)).toBeInTheDocument();
+  });
+
+  it("renders VersionSection only on General pane (not on Experimental or Advanced)", async () => {
+    const user = userEvent.setup();
+    render(<ConfigTab />);
+    await flushEffects();
+    expect(screen.getByText("v0.4.0")).toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Experimental" }));
+    await flushEffects();
+    expect(screen.queryByText("v0.4.0")).toBeNull();
+    await user.click(screen.getByRole("tab", { name: "Advanced" }));
+    await flushEffects();
+    expect(screen.queryByText("v0.4.0")).toBeNull();
   });
 });
