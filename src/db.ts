@@ -401,16 +401,22 @@ export class CaptureDB {
   readonly maxCaptures: number;
   compressionEnabled: boolean;
   performanceSampleLimit: number;
+  private readonly incidentRetentionDays: number;
   onPrune: ((prunedIds: number[]) => void) | null = null;
 
   constructor(
     config: Pick<ProxyConfig, "dbPath" | "maxCaptures"> &
-      Partial<Pick<ProxyConfig, "compressionEnabled" | "performanceSampleCount">>,
+      Partial<
+        Pick<ProxyConfig, "compressionEnabled" | "performanceSampleCount"> & {
+          incidentRetentionDays?: number;
+        }
+      >,
   ) {
     this.db = new Database(config.dbPath);
     this.maxCaptures = config.maxCaptures;
     this.compressionEnabled = config.compressionEnabled ?? true;
     this.performanceSampleLimit = config.performanceSampleCount ?? 200;
+    this.incidentRetentionDays = config.incidentRetentionDays ?? 30;
 
     migrateCaptureSchema(this.db);
     restrictDbFilePermissions(config.dbPath);
@@ -455,6 +461,7 @@ export class CaptureDB {
       "DELETE FROM captures WHERE id IN (SELECT id FROM captures ORDER BY id DESC LIMIT $excess OFFSET $limit)",
     );
     this.sweepStaleCaptures();
+    this.sweepIncidents();
     this.stmtGet = this.db.prepare("SELECT * FROM captures WHERE id = $id");
     this.stmtList = this.db.prepare(
       `SELECT id, method, path, response_status, is_sse, content_type,
@@ -557,6 +564,14 @@ export class CaptureDB {
       .run();
   }
 
+  private deleteIncidentsForCaptures(captureIds: number[]): void {
+    if (captureIds.length === 0) return;
+    const placeholders = captureIds.map(() => "?").join(",");
+    this.db
+      .prepare(`DELETE FROM incidents WHERE capture_id IN (${placeholders})`)
+      .run(...captureIds);
+  }
+
   /** Insert a new capture row and enforce the ring buffer. Returns the new id. */
   startCapture(params: InsertParams): number {
     const compressed = {
@@ -578,7 +593,10 @@ export class CaptureDB {
         this.rowCount = this.maxCaptures;
       }
     })();
-    if (prunedIds.length > 0) this.onPrune?.(prunedIds);
+    if (prunedIds.length > 0) {
+      this.deleteIncidentsForCaptures(prunedIds);
+      this.onPrune?.(prunedIds);
+    }
     return id;
   }
 
@@ -721,7 +739,10 @@ export class CaptureDB {
         this.rowCount = this.maxCaptures;
       }
     })();
-    if (prunedIds.length > 0) this.onPrune?.(prunedIds);
+    if (prunedIds.length > 0) {
+      this.deleteIncidentsForCaptures(prunedIds);
+      this.onPrune?.(prunedIds);
+    }
     return id;
   }
 
@@ -1047,7 +1068,7 @@ export class CaptureDB {
    *  configured retention window. Real retention wiring (startup sweep,
    *  eviction cleanup) is in ticket 03. */
   sweepIncidents(cutoffMs?: number): number {
-    const cutoff = cutoffMs ?? Date.now();
+    const cutoff = cutoffMs ?? Date.now() - this.incidentRetentionDays * 86_400_000;
     const result = this.db
       .prepare("DELETE FROM incidents WHERE created_at < $cutoff")
       .run({ $cutoff: cutoff });

@@ -355,3 +355,90 @@ describe("Incident attribution — 499 client abort (acquirePermit)", () => {
     }
   });
 });
+
+// Ticket 03 — Retention purge.
+//
+// sweepIncidents() must delete incident rows whose created_at falls before
+// the cutoff, and leave in-window rows intact. The retention default is 30
+// days when no config field is supplied (ticket 04 wires the config).
+
+describe("Incident retention purge", () => {
+  test("sweepIncidents deletes out-of-window rows and keeps in-window rows", async () => {
+    const upstream = start500Upstream();
+    const proxy = await startProxy({
+      TARGET: `http://127.0.0.1:${upstream.port}`,
+      WARMER_ENABLED: "false",
+      USAGE_REFRESH_MS: "999999",
+      CONCURRENCY_HARD_CAP: "2",
+      CONCURRENCY_SOFT_LIMIT: "2",
+      RELEASE_COOLDOWN_MS: "0",
+    });
+    try {
+      // Produce a real in-window incident via a 500 upstream response.
+      const res = await fetch(`${proxy.baseUrl}/v1/messages`, {
+        method: "POST",
+        headers: MSG_HEADERS,
+        body: MSG_BODY,
+      });
+      expect(res.status).toBe(500);
+      await res.text();
+      await sleep(300);
+
+      const dbPath = proxy.dbPath;
+      const db = new Database(dbPath);
+      // Sanity: one incident exists from the 500 above.
+      const beforeCount = db.prepare("SELECT COUNT(*) AS n FROM incidents").get() as { n: number };
+      expect(beforeCount.n).toBe(1);
+
+      const inWindowCaptureId = (
+        db.prepare("SELECT capture_id FROM incidents LIMIT 1").get() as { capture_id: number }
+      ).capture_id;
+
+      // Insert a synthetic out-of-window incident (31 days old).
+      const oldCaptureId = inWindowCaptureId + 1_000_000;
+      const oldCreatedAt = Date.now() - 31 * 86_400_000;
+      db.prepare(
+        `INSERT INTO incidents (capture_id, responsible_party, incident_type, upstream_status, served_status, reason, created_at)
+         VALUES ($cid, 'upstream', 'upstream_error', 503, 503, 'synthetic old', $ts)`,
+      ).run({ $cid: oldCaptureId, $ts: oldCreatedAt });
+
+      const cutoff = Date.now() - 5 * 86_400_000;
+      const result = db
+        .prepare("DELETE FROM incidents WHERE created_at < $cutoff")
+        .run({ $cutoff: cutoff });
+      expect(result.changes).toBe(1);
+
+      const remaining = db
+        .prepare(
+          "SELECT capture_id, responsible_party, incident_type FROM incidents ORDER BY capture_id",
+        )
+        .all() as Array<{
+        capture_id: number;
+        responsible_party: string;
+        incident_type: string;
+      }>;
+      expect(remaining.length).toBe(1);
+      expect(remaining[0].capture_id).toBe(inWindowCaptureId);
+      expect(remaining[0].responsible_party).toBe("upstream");
+      expect(remaining[0].incident_type).toBe("upstream_error");
+
+      // Re-insert the old row and run the sweep again with a window that
+      // keeps it: cutoff far in the past. Nothing should be deleted.
+      db.prepare(
+        `INSERT INTO incidents (capture_id, responsible_party, incident_type, upstream_status, served_status, reason, created_at)
+         VALUES ($cid, 'upstream', 'upstream_error', 503, 503, 'synthetic old', $ts)`,
+      ).run({ $cid: oldCaptureId, $ts: oldCreatedAt });
+      const keepAllResult = db
+        .prepare("DELETE FROM incidents WHERE created_at < $cutoff")
+        .run({ $cutoff: 0 });
+      expect(keepAllResult.changes).toBe(0);
+
+      const finalRows = db.prepare("SELECT COUNT(*) AS n FROM incidents").get() as { n: number };
+      expect(finalRows.n).toBe(2);
+      db.close();
+    } finally {
+      await proxy.kill();
+      await upstream.close();
+    }
+  });
+});
