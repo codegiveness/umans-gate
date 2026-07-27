@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.6] - 2026-07-27
+
+### Fixed
+
+- **CI: dashboard lockfile drift**: `dashboard/bun.lock` was out of sync
+  with `dashboard/package.json` after the dependency update in 045ad44,
+  causing `bun install --frozen-lockfile` to fail on every CI job
+  (Quality matrix on ubuntu/macos/windows + Tests). Regenerated the
+  lockfile so frozen installs resolve cleanly.
+
+- **TTFT-watchdog retry: `ttft_ms` excludes cooldown on retry**: when the
+  TTFT watchdog fired and a same-key or rewrite-escalation retry
+  succeeded, the recorded `ttft_ms` and `duration_ms` included the
+  watchdog timeout (60s) + cooldown (30s) + real upstream TTFT because
+  `ctx.startedAt` was set once at request entry and never reset. Retry
+  path now resets `startedAt` immediately before the re-dispatch, so
+  recorded metrics reflect only the successful attempt's real duration.
+  Incidents likewise survive a capture clear so the dashboard retains
+  the failure trail.
+
 ## [0.4.5] - 2026-07-27
 
 ### Fixed
