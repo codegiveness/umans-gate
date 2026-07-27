@@ -4,6 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
@@ -260,6 +268,7 @@ export function IncidentsTab({ selectCapture, navigateToCaptures, captures }: In
             <EmptyState subTab={subTab} />
           ) : (
             <IncidentsTable
+              key={`${subTab}-${timeWindow}-${incidentType}`}
               incidents={incidents}
               evictedIds={evictedIds}
               onSelectCapture={(id) => {
@@ -296,6 +305,20 @@ interface IncidentsTableProps {
 }
 
 function IncidentsTable({ incidents, evictedIds, onSelectCapture }: IncidentsTableProps) {
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
+
+  const pageCount = Math.max(1, Math.ceil(incidents.length / pageSize));
+  // Clamp page when the underlying list shrinks (filter change, refresh, evictions).
+  useEffect(() => {
+    if (page > pageCount) setPage(1);
+  }, [page, pageCount]);
+  const currentPage = Math.min(page, pageCount);
+  const pageRows = useMemo(
+    () => incidents.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [incidents, currentPage],
+  );
+
   return (
     <div className="rounded-md border border-border bg-card">
       <Table>
@@ -311,7 +334,7 @@ function IncidentsTable({ incidents, evictedIds, onSelectCapture }: IncidentsTab
           </TableRow>
         </TableHeader>
         <TableBody>
-          {incidents.map((row) => (
+          {pageRows.map((row) => (
             <TableRow key={row.id}>
               <TableCell className="whitespace-nowrap tabular-nums text-xs text-muted-foreground">
                 {fmtUtcTime(row.created_at)}
@@ -336,6 +359,37 @@ function IncidentsTable({ incidents, evictedIds, onSelectCapture }: IncidentsTab
           ))}
         </TableBody>
       </Table>
+      {pageCount > 1 && (
+        <div className="border-t border-border px-3 py-2">
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage <= 1}
+                >
+                  Previous
+                </PaginationPrevious>
+              </PaginationItem>
+              {Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => (
+                <PaginationItem key={p}>
+                  <PaginationLink isActive={p === currentPage} onClick={() => setPage(p)}>
+                    {p}
+                  </PaginationLink>
+                </PaginationItem>
+              ))}
+              <PaginationItem>
+                <PaginationNext
+                  onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+                  disabled={currentPage >= pageCount}
+                >
+                  Next
+                </PaginationNext>
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
     </div>
   );
 }

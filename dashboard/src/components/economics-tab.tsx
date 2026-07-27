@@ -7,12 +7,20 @@ import {
   RefreshCw,
   TrendingUp,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader } from "@/components/ui/loader";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
@@ -273,6 +281,8 @@ function SummaryCard({ summary }: { summary: EconomicsSummaryResponse }) {
 function DailyTable({ daily }: { daily: EconomicsDailyRow[] | null }) {
   const [sortKey, setSortKey] = useState<keyof EconomicsDailyRow>("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [page, setPage] = useState(1);
+  const pageSize = 15;
 
   const sorted = useMemo(() => {
     if (!daily) return [];
@@ -291,7 +301,20 @@ function DailyTable({ daily }: { daily: EconomicsDailyRow[] | null }) {
     return rows;
   }, [daily, sortKey, sortDir]);
 
+  // Reset page when data changes (different month, refresh, etc.) so we
+  // don't end up on a page that no longer exists.
+  const pageCount = Math.max(1, Math.ceil(sorted.length / pageSize));
+  useEffect(() => {
+    if (page > pageCount) setPage(1);
+  }, [page, pageCount]);
+  const currentPage = Math.min(page, pageCount);
+  const pageRows = useMemo(
+    () => sorted.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+    [sorted, currentPage],
+  );
+
   const toggleSort = (key: keyof EconomicsDailyRow) => {
+    setPage(1);
     if (sortKey === key) {
       setSortDir(sortDir === "asc" ? "desc" : "asc");
     } else {
@@ -342,7 +365,7 @@ function DailyTable({ daily }: { daily: EconomicsDailyRow[] | null }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sorted.map((row) => (
+            {pageRows.map((row) => (
               <TableRow key={`${row.date}-${row.model}`}>
                 <TableCell className="tabular-nums">{row.date}</TableCell>
                 <TableCell className="max-w-[180px] truncate" title={row.model}>
@@ -368,6 +391,37 @@ function DailyTable({ daily }: { daily: EconomicsDailyRow[] | null }) {
             ))}
           </TableBody>
         </Table>
+        {pageCount > 1 && (
+          <div className="py-3">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage <= 1}
+                  >
+                    Previous
+                  </PaginationPrevious>
+                </PaginationItem>
+                {Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => (
+                  <PaginationItem key={p}>
+                    <PaginationLink isActive={p === currentPage} onClick={() => setPage(p)}>
+                      {p}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
+                    disabled={currentPage >= pageCount}
+                  >
+                    Next
+                  </PaginationNext>
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

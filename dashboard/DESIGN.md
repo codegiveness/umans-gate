@@ -171,9 +171,10 @@ changes; re-apply from this table.
 ### Existing shadcn/ui primitives (`src/components/ui/`)
 
 `alert-dialog.tsx`, `badge.tsx`, `button.tsx`, `card.tsx`,
-`dropdown-menu.tsx`, `input.tsx`, `label.tsx`, `scroll-area.tsx`,
-`select.tsx`, `separator.tsx`, `skeleton.tsx`, `sonner.tsx`, `switch.tsx`,
-`table.tsx`, `tabs.tsx`, `textarea.tsx`, `tooltip.tsx`.
+`dropdown-menu.tsx`, `input.tsx`, `label.tsx`, `pagination.tsx`,
+`scroll-area.tsx`, `select.tsx`, `separator.tsx`, `skeleton.tsx`,
+`sonner.tsx`, `switch.tsx`, `table.tsx`, `tabs.tsx`, `textarea.tsx`,
+`tooltip.tsx`.
 
 Custom Badge variants (`sse`, `proto`, etc.) are **not** wired in — only
 `default`, `secondary`, `destructive`, `outline`.
