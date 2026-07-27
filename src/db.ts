@@ -343,8 +343,9 @@ export function migrateCaptureSchema(db: Database): void {
   `);
 
   // Incidents table — one row per non-200 capture, attributed at first write site.
-  // No FOREIGN KEY on capture_id (mirrors id_rewrite_audit precedent — ring-buffer
-  // eviction of captures breaks FK constraints; cleanup is explicit via onPrune).
+  // No FOREIGN KEY on capture_id: incidents have an independent lifecycle and are
+  // purged only by sweepIncidents() when they exceed incident_retention_days.
+  // Ring-buffer eviction of captures does NOT touch incidents.
   db.exec(`
     CREATE TABLE IF NOT EXISTS incidents (
       id                INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -564,14 +565,6 @@ export class CaptureDB {
       .run();
   }
 
-  private deleteIncidentsForCaptures(captureIds: number[]): void {
-    if (captureIds.length === 0) return;
-    const placeholders = captureIds.map(() => "?").join(",");
-    this.db
-      .prepare(`DELETE FROM incidents WHERE capture_id IN (${placeholders})`)
-      .run(...captureIds);
-  }
-
   /** Insert a new capture row and enforce the ring buffer. Returns the new id. */
   startCapture(params: InsertParams): number {
     const compressed = {
@@ -594,7 +587,6 @@ export class CaptureDB {
       }
     })();
     if (prunedIds.length > 0) {
-      this.deleteIncidentsForCaptures(prunedIds);
       this.onPrune?.(prunedIds);
     }
     return id;
@@ -739,7 +731,6 @@ export class CaptureDB {
       }
     })();
     if (prunedIds.length > 0) {
-      this.deleteIncidentsForCaptures(prunedIds);
       this.onPrune?.(prunedIds);
     }
     return id;
