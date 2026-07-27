@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Applies to:** umans-gate v0.4.6 · **Last updated:** 2026-07-27
+> **Applies to:** umans-gate v0.4.7 · **Last updated:** 2026-07-27
 
 umans-gate roadmap: planned direction and likely priorities. Items are not
 committed or scheduled — they shift based on upstream API changes and personal
