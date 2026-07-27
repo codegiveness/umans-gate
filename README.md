@@ -24,12 +24,9 @@ harness at the proxy URL — every request and response is captured.
 
 ## Who This Is For
 
-- **Claude Code users** who want to see what's actually on the wire — TTL
-  stamping, cache hits, thinking blocks — in real time.
-- **Prompt engineers** debugging cache_control TTL, reasoning effort, and
-  vision handoff against Anthropic or OpenAI-compatible APIs.
-- **Developers** who need traffic inspection, concurrency gating, and
-  rate-limit validation without modifying their LLM harness.
+- **umans.ai users** who want visibility into API traffic, cache behavior, and usage economics.
+- **Agent harness users** who need to inspect and debug what their harness sends upstream — stamps, thinking blocks, vision handoff.
+- **Developers** integrating Anthropic or OpenAI-compatible APIs who need traffic capture, concurrency gating, and rate-limit validation.
 
 ## What It Does
 
