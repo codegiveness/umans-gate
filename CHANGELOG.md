@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-07-27
+
+### Changed
+
+- **`queue_timeout_ms` default raised from 30s to 180s**: requests now
+  wait up to 3 minutes in the concurrency queue before timing out,
+  giving upstreams more headroom under sustained load.
+
+- **Incidents tab defaults to "All"**: the default sub-tab moved from
+  `upstream` to `all` so the full incident picture is visible on first
+  view.
+
+- **Performance badge shows total request count**: the Performance tab
+  badge now surfaces total requests at-a-glance. Thinking token count
+  and percentage moved to the "Total Out" tile as a sub-line where they
+  sit in better context.
+
 ## [0.4.1] - 2026-07-27
 
 ### Added
