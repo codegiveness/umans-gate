@@ -1366,6 +1366,22 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
   const onAbort = (): void => {
     flushCapture();
     ctx.releasePermit();
+    if (req.signal?.aborted) {
+      try {
+        deps.db.recordIncident({
+          captureId: capId,
+          responsibleParty: "client",
+          incidentType: "client_aborted",
+          upstreamStatus: upstream.status,
+          servedStatus: 499,
+          reason: "Client disconnected mid-stream",
+          retryAttempt,
+          ttftExceeded: ttftFired ? 1 : 0,
+        });
+      } catch {
+        // Non-blocking: incident persistence failure must not break the abort path.
+      }
+    }
   };
 
   if (req.signal) {
