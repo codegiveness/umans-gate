@@ -314,4 +314,4 @@ bun run build           # build server (tsup) + dashboard (vite)
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). This project provides [llms.txt](./llms.txt) for LLM discoverability.

@@ -11,7 +11,7 @@ npm install -g umans-gate
 # or: npx umans-gate (no install)
 ```
 
-## Quick start
+## Quick Start
 
 ```bash
 npx umans-gate
@@ -74,8 +74,8 @@ Key fields: `PORT` (1945), `MAX_CAPTURES` (200), `UPSTREAM_PROTOCOL`
 
 - npm: https://www.npmjs.com/package/umans-gate
 - GitHub: https://github.com/codegiveness/umans-gate
-- Docs: https://github.com/codegiveness/umans-gate/tree/main/docs
-- Architecture: https://github.com/codegiveness/umans-gate/blob/main/docs/ARCHITECTURE.md
+- Docs: https://github.com/codegiveness/umans-gate/tree/master/docs
+- Architecture: https://github.com/codegiveness/umans-gate/blob/master/docs/ARCHITECTURE.md
 - Issues: https://github.com/codegiveness/umans-gate/issues
 
 ## License
