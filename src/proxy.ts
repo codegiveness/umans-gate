@@ -584,7 +584,13 @@ async function acquirePermit(ctx: ProxyContext, deps: ProxyDeps): Promise<Respon
 async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Response> {
   const { queue, config, ws } = deps;
   const { rewriteExperiment, ttftState, getGateStats } = deps;
-  const { req, reqHeadersRaw, fwdHeaders, startedAt, finalTargetUrl } = ctx;
+  const { req, reqHeadersRaw, fwdHeaders, finalTargetUrl } = ctx;
+  // `startedAt` is destructured separately (not via const destructure) so the
+  // TTFT-retry path can reset it on a successful retry attempt — the local
+  // is read by the downstream capture/usage plumbing (e.g. doneRes(),
+  // extractUsage requestStartedAt) and must reflect the attempt that actually
+  // produced the response, not the original request entry.
+  let startedAt = ctx.startedAt;
   const capId = ctx.capId;
   const reqMeta = ctx.reqMeta;
   const reqBuf = ctx.reqBuf;
@@ -752,6 +758,12 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
           retryAttempt,
           cooldownEndsAt: Date.now() + config.ttftRetryCooldownMs,
         });
+        // Reset the attempt clock so the successful retry's TTFT and duration
+        // reflect the retry attempt, not the original (timed-out) entry.
+        // Both ctx.startedAt (read by downstream phases) and the local
+        // startedAt (read by doneRes()/extractUsage) must be reset together.
+        ctx.startedAt = Date.now();
+        startedAt = ctx.startedAt;
         return { continue: true };
       }
       attempt++;
@@ -768,6 +780,8 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
         retryAttempt,
         cooldownEndsAt: Date.now() + config.ttftRetryCooldownMs,
       });
+      ctx.startedAt = Date.now();
+      startedAt = ctx.startedAt;
       return { continue: true };
     }
     const suppressReason =
@@ -1205,6 +1219,26 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
     if (ttftArmed && isSSE) {
       if (retryAttempt > 0) {
         ttftState?.recordRetryOutcome(true);
+        // The watchdog fired on an earlier attempt, the proxy cut the
+        // connection, cooled down, and retried. Record the incident so every
+        // watchdog firing is auditable with proxy attribution — the terminal
+        // 504/499 paths record via queueTtftTimeout, but this success path
+        // previously dropped the incident. Non-blocking: DB errors must not
+        // break the response path.
+        try {
+          deps.db.recordIncident({
+            captureId: capId,
+            responsibleParty: "proxy",
+            incidentType: "ttft_timeout",
+            upstreamStatus: null,
+            servedStatus: 200,
+            reason: "TTFT watchdog fired; retry succeeded",
+            retryAttempt,
+            ttftExceeded: 1,
+          });
+        } catch {
+          // Non-blocking: incident persistence failure must not break the response path.
+        }
       } else {
         ttftState?.recordSuccess();
       }

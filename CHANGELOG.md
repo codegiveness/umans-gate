@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.4] - 2026-07-27
+
+### Fixed
+
+- **TTFT-watchdog retry path: reset `startedAt` on retry**: when the
+  TTFT watchdog fired and a same-key or rewrite-escalation retry
+  succeeded, the recorded `ttft_ms` and `duration_ms` included the
+  watchdog timeout (60s) + cooldown (30s) + real upstream TTFT because
+  `ctx.startedAt` was set once at request entry and never reset. The
+  proxy now resets `ctx.startedAt = Date.now()` immediately before each
+  retry `return { continue: true }` in `handleTtftTimeout`, so the
+  downstream `requestStartedAt` plumbing reads the successful attempt's
+  start. Verified: capture 20561 showed `ttft_ms=127153` (real TTFT
+  ~37s) pre-fix; post-fix retry-succeeded captures report `ttft_ms <
+  60000`.
+
+- **TTFT-watchdog retry path: record incident on success-after-retry**:
+  the success-after-retry path called `ttftState.recordRetryOutcome(true)`
+  and `gate.recordSuccess()` but never `db.recordIncident(...)`, so the
+  `incidents` table stayed empty even though the watchdog fired and the
+  proxy deliberately cut the connection, cooled down, and retried. The
+  terminal 504/499 paths already recorded incidents via `queueTtftTimeout`;
+  the success path now records a `ttft_timeout` incident with
+  `responsible_party="proxy"`, `served_status=200`, and
+  `reason="TTFT watchdog fired; retry succeeded"` so every watchdog firing
+  is auditable.
+
 ## [0.4.3] - 2026-07-27
 
 ### Changed

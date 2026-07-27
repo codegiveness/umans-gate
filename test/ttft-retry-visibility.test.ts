@@ -191,6 +191,66 @@ describe("TTFT retry visibility — persisted retry_attempt and ttft_exceeded", 
   });
 });
 
+describe("TTFT retry success — incident row + ttft_ms reset", () => {
+  test("success-after-retry records a ttft_timeout incident with proxy attribution", async () => {
+    // Stall on call 1, emit on call 2 → same-key retry succeeds.
+    const upstream = startCountedStallUpstream(1);
+    const proxy = await startProxy({
+      TARGET: `http://127.0.0.1:${upstream.port}`,
+      WARMER_ENABLED: "false",
+      USAGE_REFRESH_MS: "999999",
+      CONCURRENCY_HARD_CAP: "2",
+      CONCURRENCY_SOFT_LIMIT: "2",
+      RELEASE_COOLDOWN_MS: "0",
+      UPSTREAM_TIMEOUT_MS: "5000",
+      EXPERIMENT_TTFT_WATCHDOG: "true",
+      TTFT_TIMEOUT_MS: "200",
+      TTFT_RETRY_COOLDOWN_MS: "0",
+    });
+    try {
+      const res = await fetch(`${proxy.baseUrl}/v1/messages`, {
+        method: "POST",
+        headers: MSG_HEADERS,
+        body: MSG_BODY,
+      });
+      expect(res.status).toBe(200);
+      expect(res.headers.get("x-proxy-retry-attempt")).toBe("1");
+      expect(res.headers.get("x-proxy-ttft-exceeded")).toBe("1");
+      await res.text();
+      expect(upstream.getCallCount()).toBe(2);
+
+      await sleep(300);
+
+      // Incident row: every watchdog firing must be auditable with proxy
+      // attribution, even when the retry succeeds (served_status=200).
+      const incidentsRes = await fetch(
+        `${proxy.baseUrl}/dashboard/api/incidents?incident_type=ttft_timeout`,
+      );
+      expect(incidentsRes.status).toBe(200);
+      const incidents = (await incidentsRes.json()) as Array<{
+        capture_id: number;
+        responsible_party: string;
+        incident_type: string;
+        upstream_status: number | null;
+        served_status: number;
+        reason: string | null;
+        retry_attempt: number | null;
+        ttft_exceeded: number | null;
+      }>;
+      expect(incidents.length).toBe(1);
+      expect(incidents[0].responsible_party).toBe("proxy");
+      expect(incidents[0].incident_type).toBe("ttft_timeout");
+      expect(incidents[0].upstream_status).toBe(null);
+      expect(incidents[0].served_status).toBe(200);
+      expect(incidents[0].retry_attempt).toBe(1);
+      expect(incidents[0].ttft_exceeded).toBe(1);
+    } finally {
+      await proxy.kill();
+      await upstream.close();
+    }
+  });
+});
+
 describe("TTFT retry visibility — in-flight cooldown + retry WS broadcasts", () => {
   test("broadcasts cooling_down then streaming with retryAttempt on TTFT retry", async () => {
     const upstream = startCountedStallUpstream(1);
