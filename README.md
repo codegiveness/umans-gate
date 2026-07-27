@@ -1,4 +1,4 @@
-# umans-gate — A gate between you and umans.ai — capture, stamp, inspect
+# umans-gate — LLM API capture proxy for Anthropic and OpenAI-compatible endpoints
 
 [![npm version](https://img.shields.io/npm/v/umans-gate.svg)](https://www.npmjs.com/package/umans-gate)
 [![npm downloads](https://img.shields.io/npm/dm/umans-gate.svg)](https://www.npmjs.com/package/umans-gate)
@@ -6,8 +6,10 @@
 [![CI](https://github.com/codegiveness/umans-gate/actions/workflows/ci.yml/badge.svg)](https://github.com/codegiveness/umans-gate/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/codegiveness/umans-gate/actions/workflows/codeql.yml/badge.svg)](https://github.com/codegiveness/umans-gate/actions/workflows/codeql.yml)
 
-> A capture proxy for LLM APIs. Point your harness at it, and every
-> request/response is stored in SQLite with a live inspection dashboard.
+> **umans-gate** is a local capture proxy for LLM APIs. It intercepts
+> Anthropic and OpenAI-compatible traffic, stores every request and
+> response in SQLite, and serves a live inspection dashboard over
+> WebSocket. Run one command; point your harness at it; observe.
 >
 > **Personal-use project.** Not affiliated with, endorsed by, or an
 > official product of Umans.
@@ -18,32 +20,45 @@
 npx umans-gate
 ```
 
-The proxy starts on `http://localhost:1945`; the dashboard opens at
-`http://localhost:1945/dashboard/`. Point any Anthropic or OpenAI-compatible
-harness at the proxy URL — every request and response is captured.
+The proxy listens on `http://localhost:1945`. The dashboard is served at
+`http://localhost:1945/dashboard/`. Point any Anthropic or
+OpenAI-compatible harness at the proxy URL — every request and response
+is captured to SQLite.
 
-## Who This Is For
+## What Is umans-gate?
 
-- **umans.ai users** who want visibility into API traffic, cache behavior, and usage economics.
-- **Agent harness users** who need to inspect and debug what their harness sends upstream — stamps, thinking blocks, vision handoff.
-- **Developers** integrating Anthropic or OpenAI-compatible APIs who need traffic capture, concurrency gating, and rate-limit validation.
+umans-gate is a **local LLM API capture proxy** that sits between your
+agent harness and the upstream LLM provider. It stores every request and
+response in a SQLite ring buffer and exposes a React dashboard with live
+WebSocket updates for inspecting traffic, cache behavior, and usage
+economics.
 
-## What It Does
+## Who Should Use umans-gate?
+
+- **umans.ai users** who need visibility into API traffic, cache control
+  TTL behavior, and per-request token economics.
+- **Agent harness users** who must inspect and debug what their harness
+  sends upstream — stamp pipeline output, thinking blocks, vision handoff.
+- **Developers** integrating Anthropic or OpenAI-compatible APIs who need
+  traffic capture, concurrency gating, and rate-limit validation in one
+  local tool.
+
+## Features
 
 | Feature | Description |
 |---------|-------------|
-| **Capture proxy** | Intercepts LLM API traffic (Anthropic + OpenAI-compatible), stores in SQLite with optional zstd compression |
+| **Capture proxy** | Intercepts LLM API traffic (Anthropic + OpenAI-compatible); stores in SQLite with optional zstd compression |
 | **Stamp pipeline** | Applies TTL, `top_k`, `max_tokens`, `thinking`, `output_config`, `context_management`, `temperature` stamps — two toggles (Anthropic / OpenAI) |
 | **Vision handoff** | Replaces image blocks with text descriptions from a vision model; cached 7 days with persistent SQLite storage |
-| **Concurrency gate** | Semaphore + circuit breaker with intention-based reservations, hard cap, soft limit from `/v1/usage`, queue timeout |
-| **Rate limiting** | Sliding-window weighted rate limiter, auto-derived from `/v1/usage` or explicit |
+| **Concurrency gate** | Semaphore + circuit breaker with intention-based reservations; hard cap and soft limit auto-sized from `/v1/usage`; queue timeout |
+| **Rate limiting** | Sliding-window weighted rate limiter; auto-derived from `/v1/usage` or explicit configuration |
 | **Connection warmer** | Periodic `/v1/models` pings keep TLS warm; skips when real traffic occurred recently |
 | **Usage tracking** | Fetches `/v1/usage` to size concurrency, detect rate-boxing, manage priority demotion |
 | **Live inspector** | React + shadcn/ui dashboard with WebSocket live updates |
 | **SSE rendering** | Streaming responses captured and rendered with expandable event previews |
 | **Ring buffer storage** | Last N captures (default 200) in WAL-mode SQLite |
 | **Write-behind queue** | Batched DB writes to minimize blocking during streaming |
-| **Hop-by-hop header stripping** | Correct HTTP proxy behavior |
+| **Hop-by-hop header stripping** | Correct HTTP proxy behavior per RFC 7230 |
 | **Protocol flexibility** | Upstream HTTP/1.1 (default) or HTTP/2 |
 
 ## Important Notes
@@ -92,11 +107,19 @@ SLA on confirmed reports.
 supported by Umans AI. All upstream service names, model names, and API
 endpoints belong to their respective owners.
 
-## Install
+## How to Install umans-gate
 
-**npm (recommended):** `npm install -g umans-gate && umans-gate`
+**npm (recommended):**
 
-**npx (no install):** `npx umans-gate`
+```bash
+npm install -g umans-gate && umans-gate
+```
+
+**npx (no install):**
+
+```bash
+npx umans-gate
+```
 
 **Bun (for developers):**
 
@@ -116,7 +139,7 @@ cd umans-gate && bun install && bun src/cli.ts
 | Linux | x64/arm64 | `umans-gate-linux-{x64,arm64}` |
 | Windows | x64/arm64 | `umans-gate-win32-{x64,arm64}` |
 
-## Quick Start
+## How to Use umans-gate
 
 1. **Start the proxy:** `umans-gate`
 2. **Point your harness** to `http://localhost:1945`:
@@ -177,22 +200,23 @@ boot. API keys set via env var are stored securely (separate
 the service registry on Windows). When running as a managed service, the
 dashboard **Restart** button works automatically.
 
-## Configuration
+## How Configuration Works
+
+umans-gate loads configuration from a JSON file with environment variable
+overrides. On first run, `loadConfig()` writes defaults if the file does
+not exist; existing configs are never overwritten. All env vars have
+`snake_case` JSON equivalents.
 
 > **Dashboard-first:** Edit config via the **Config** tab at
 > `http://localhost:1945/dashboard/`. The dashboard validates, shows field
 > descriptions, and can hot-reload or restart.
-
-Config loads from a JSON file with env var overrides. On first run,
-`loadConfig()` writes defaults if the file doesn't exist; existing configs
-are never overwritten. All env vars have `snake_case` JSON equivalents.
 
 | OS | Path |
 |----|------|
 | Linux/macOS | `$XDG_CONFIG_HOME/umans-gate/config.json` or `~/.config/umans-gate/config.json` |
 | Windows | `%APPDATA%/umans-gate/config.json` |
 
-**Precedence:** env vars > JSON config > built-in defaults.
+**Precedence (highest to lowest):** env vars > JSON config > built-in defaults.
 
 ### Key config fields
 
@@ -230,35 +254,69 @@ The Config tab can save and hot-reload via
 `vision_system_prompt_max_chars`). Fields marked `restartRequired` (e.g.
 `port`, `db_path`, `upstream_protocol`) require a server restart.
 
-### Stamp pipeline
+### How the Stamp Pipeline Works
 
-When `STAMP_CLAUDE_CODE_ENABLED` is on, applies to Anthropic requests:
-TTL (`"1h"` on `cache_control` ephemeral), `top_k` (20), `temperature`
-(1.0), `max_tokens` (131071 for `umans-glm*`, 32767 others), `thinking`
-(`{ "type": "adaptive" }`), `output_config` (effort high/max),
-`context_management` (clear_thinking). For OpenAI-compatible,
-`STAMP_REASONING_EFFORT_ENABLED` injects `reasoning_effort` and removes
-`max_tokens`/`thinking`.
+When `STAMP_CLAUDE_CODE_ENABLED` is `true`, the proxy applies the
+following stamps to Anthropic requests before forwarding upstream:
 
-### Vision handoff
+- **TTL**: `"1h"` on `cache_control` ephemeral blocks
+- **`top_k`**: `20`
+- **`temperature`**: `1.0`
+- **`max_tokens`**: `131071` for `umans-glm*` models, `32767` for others
+- **`thinking`**: `{ "type": "adaptive" }`
+- **`output_config`**: effort `high` or `max`
+- **`context_management`**: `clear_thinking`
 
-Replaces image blocks with text descriptions from a vision model.
-Strategies: `catalog` (default, only if model lacks vision), `always`,
-`never`. Intent-aware prompting (`VISION_INTENT_STRATEGY`, default `auto`):
-`generic`, `slotted`, `crafted`, `decomposed`. Vision calls are serialized
-by the concurrency gate (default concurrency=1).
+For OpenAI-compatible requests, `STAMP_REASONING_EFFORT_ENABLED` injects
+`reasoning_effort` and removes `max_tokens` and `thinking` fields.
 
-### Concurrency gate
+### How Vision Handoff Works
 
-Semaphore (soft limit + hard cap) + circuit breaker (opens after
-`breaker_threshold` 429s in `breaker_window_ms`, blocks for
-`breaker_cooldown_ms`, then half-opens) + intention-based reservations +
-queue (`max_queue_depth`, `queue_timeout_ms`).
+The vision handoff replaces image blocks in requests with text
+descriptions generated by a vision model. This reduces token cost and
+enables text-only models to process image-bearing requests.
 
-### Rate limiting
+**Strategies** (`VISION_STRATEGY`):
 
-`rate_limit_requests: 0` = auto from `/v1/usage`; `-1` = unlimited; `N` =
-explicit weighted sliding window. Window size derived from `/v1/usage`.
+| Strategy | Behavior |
+|----------|----------|
+| `catalog` (default) | Replace images only if the target model lacks vision capability |
+| `always` | Always replace images with text descriptions |
+| `never` | Never replace images; pass through untouched |
+
+**Intent-aware prompting** (`VISION_INTENT_STRATEGY`, default `auto`):
+`generic`, `slotted`, `crafted`, or `decomposed`. Vision calls are
+serialized by the concurrency gate (default concurrency = 1). Descriptions
+are cached for 7 days in persistent SQLite storage.
+
+### How the Concurrency Gate Works
+
+The concurrency gate regulates upstream parallelism using three
+mechanisms:
+
+1. **Semaphore** — enforces a soft limit and a hard cap on concurrent
+   upstream requests. Both are auto-sized from `/v1/usage` when
+   `UMANS_API_KEY` is set.
+2. **Circuit breaker** — opens after `BREAKER_THRESHOLD` (default `5`)
+   HTTP 429 responses within `BREAKER_WINDOW_MS` (default 5 minutes),
+   blocks traffic for `BREAKER_COOLDOWN_MS` (default 60 seconds), then
+   half-opens to probe recovery.
+3. **Intention-based reservations + queue** — main and vision lanes hold
+   reserved slots; excess requests enter a bounded queue
+   (`MAX_QUEUE_DEPTH`, default 100) with a timeout
+   (`QUEUE_TIMEOUT_MS`, default 180 seconds).
+
+### How Rate Limiting Works
+
+The rate limiter is a sliding-window weighted counter with three modes:
+
+| `RATE_LIMIT_REQUESTS` | Behavior |
+|-----------------------|----------|
+| `0` (default) | Auto-derived from `/v1/usage` |
+| `-1` | Unlimited (no limiting) |
+| `N` (positive integer) | Explicit weighted sliding window of `N` requests |
+
+Window size is derived from `/v1/usage` when available.
 
 ## Programmatic API
 
