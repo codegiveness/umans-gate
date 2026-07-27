@@ -82,8 +82,8 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.5",
-    "@playwright/test": "^1.61.1",
-    "playwright": "^1.61.1",
+    "@playwright/test": "^1.62.0",
+    "playwright": "^1.62.0",
     "tsup": "^8.5.1",
     "typescript": "~5.9.3"
   },
@@ -91,5 +91,8 @@
     "@types/bun": "^1.3.14",
     "commander": "^15.0.0",
     "lru-cache": "^11.5.2"
+  },
+  "overrides": {
+    "esbuild": "^0.28.1"
   }
 }
