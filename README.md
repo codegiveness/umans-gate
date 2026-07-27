@@ -1,4 +1,4 @@
-# umans-gate — Capture proxy for LLM APIs
+# umans-gate — A gate between you and umans.ai — capture, stamp, inspect
 
 [![npm version](https://img.shields.io/npm/v/umans-gate.svg)](https://www.npmjs.com/package/umans-gate)
 [![npm downloads](https://img.shields.io/npm/dm/umans-gate.svg)](https://www.npmjs.com/package/umans-gate)
