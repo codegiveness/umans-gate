@@ -31,6 +31,7 @@ import {
 import { EMBEDDED_ASSET_PATHS } from "./embedded-assets.js";
 import type { TtftWatchdogState } from "./experiments/ttft-watchdog-state.js";
 import { summary } from "./helpers.js";
+import type { InFlightCooldowns } from "./in-flight-cooldowns.js";
 import type { ConcurrencyGate } from "./limiter/index.js";
 import type { ModelsClient } from "./models.js";
 import { isServiceInstalled } from "./service/index.js";
@@ -105,6 +106,7 @@ export interface CreateViewerRouterOptions {
   models: ModelsClient | null;
   authFailureLimiter?: AuthFailureLimiter;
   ttftState: TtftWatchdogState;
+  inFlightCooldowns: InFlightCooldowns;
   reloadConfig?: () => ReloadResult;
   refreshLimits?: () => Promise<
     | {
@@ -219,6 +221,7 @@ interface ViewerRouteContext {
   vision: VisionHandoff | null;
   models: ModelsClient | null;
   ttftState: TtftWatchdogState;
+  inFlightCooldowns: InFlightCooldowns;
   reloadConfig: (() => ReloadResult) | null;
   refreshLimits:
     | (() => Promise<
@@ -259,6 +262,7 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
     models,
     authFailureLimiter,
     ttftState,
+    inFlightCooldowns,
     reloadConfig,
     refreshLimits,
     restart,
@@ -286,7 +290,7 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
       handler: (ctx) => {
         const limit = Math.min(Number(ctx.url.searchParams.get("limit") ?? 200), 1000);
         const rows = ctx.db.list(limit);
-        return Response.json(rows.map(summary));
+        return Response.json(ctx.inFlightCooldowns.enrich(rows.map(summary)));
       },
     },
     {
@@ -686,7 +690,8 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
         if (!m) return new Response("not found", { status: 404 });
         const row = ctx.db.get(Number(m[1]));
         if (!row) return new Response("not found", { status: 404 });
-        return Response.json(row);
+        const enriched = ctx.inFlightCooldowns.enrich([row])[0];
+        return Response.json(enriched);
       },
     },
   ];
@@ -733,6 +738,7 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
       vision,
       models,
       ttftState,
+      inFlightCooldowns,
       reloadConfig: reloadConfig ?? null,
       refreshLimits: refreshLimits ?? null,
       restart: restart ?? null,

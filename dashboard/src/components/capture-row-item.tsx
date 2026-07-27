@@ -145,14 +145,14 @@ export function CaptureRowItem({
             </Badge>
           </RowTip>
         )}
-        {c.state === "cooling_down" && c.cooldownEndsAt != null && cooldownSeconds != null && (
+        {c.state === "cooling_down" && (
           <RowTip tip="Cooldown — waiting before retrying the upstream fetch">
             <Badge variant="secondary" size="sm" className={cn(badgeWarning, "tabular-nums")}>
-              cooldown {cooldownSeconds}s
+              {cooldownSeconds != null ? `cooldown ${cooldownSeconds}s` : "cooldown"}
             </Badge>
           </RowTip>
         )}
-        {(c.state === "streaming" || c.state === "cooling_down") && (
+        {c.state === "streaming" && (
           <RowTip tip="Running — upstream is streaming the response">
             <Badge variant="secondary" size="sm" className={badgeSuccess}>
               running

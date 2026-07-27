@@ -74,8 +74,11 @@ export function useCaptures(): UseCapturesResult {
         next[i] = {
           ...next[i],
           state,
-          ...(retryAttempt !== undefined ? { retryAttempt } : {}),
-          ...(cooldownEndsAt !== undefined ? { cooldownEndsAt } : {}),
+          // Always patch transient fields — undefined clears stale values
+          // left over from a prior cooling_down state (WS streaming message
+          // omits cooldownEndsAt, so the old value would otherwise persist).
+          retryAttempt,
+          cooldownEndsAt: state === "cooling_down" ? cooldownEndsAt : undefined,
         };
         return next;
       });

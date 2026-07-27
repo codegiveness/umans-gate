@@ -1,5 +1,5 @@
 import { AlertCircle, Check, Clock, Copy, RotateCcw, ScanSearch } from "lucide-react";
-import { lazy, Suspense, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { BodyRenderer } from "@/components/body-renderer";
@@ -10,13 +10,28 @@ import { Loader } from "@/components/ui/loader";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { badgeSuccess } from "@/lib/badge-colors";
+import { badgeSuccess, badgeWarning } from "@/lib/badge-colors";
 import { extractCacheTtl, fmtSize, fmtTime, fmtUtcDateTime, fmtUtcTime } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import type { CaptureDetail } from "@/types";
 
 const HeadersViewer = lazy(() =>
   import("@/components/headers-viewer").then((m) => ({ default: m.HeadersViewer })),
 );
+
+function useCooldownCountdown(
+  cooldownEndsAt: number | undefined,
+  isActive: boolean,
+): number | null {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!isActive || cooldownEndsAt == null) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [isActive, cooldownEndsAt]);
+  if (!isActive || cooldownEndsAt == null) return null;
+  return Math.max(0, Math.ceil((cooldownEndsAt - now) / 1000));
+}
 
 interface CaptureDetailProps {
   capture: CaptureDetail | null;
@@ -54,6 +69,10 @@ export function CaptureDetailPanel({
   const [activeTab, setActiveTab] = useState<TabValue>("response");
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">("idle");
   const didReportInitialRef = useRef(false);
+  const cooldownSeconds = useCooldownCountdown(
+    capture?.cooldownEndsAt,
+    capture?.state === "cooling_down",
+  );
 
   const copyLabel = useMemo(() => {
     if (copyStatus === "copied") return "Copied!";
@@ -255,6 +274,18 @@ export function CaptureDetailPanel({
                 </Badge>
               </TooltipTrigger>
               <TooltipContent side="top">Response is still streaming</TooltipContent>
+            </Tooltip>
+          )}
+          {capture.state === "cooling_down" && (
+            <Tooltip>
+              <TooltipTrigger render={<span className="inline-flex" />}>
+                <Badge variant="secondary" size="sm" className={cn(badgeWarning, "tabular-nums")}>
+                  {cooldownSeconds != null ? `cooldown ${cooldownSeconds}s` : "cooldown"}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                Cooldown — waiting before retrying the upstream fetch
+              </TooltipContent>
             </Tooltip>
           )}
         </div>

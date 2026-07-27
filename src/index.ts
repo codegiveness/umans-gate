@@ -19,6 +19,7 @@ import { syncPricing } from "./economics.js";
 import { RewriteIdExperiment } from "./experiments/rewrite-ids.js";
 import { TtftWatchdogState } from "./experiments/ttft-watchdog-state.js";
 import { computeRequestWeight } from "./helpers.js";
+import { InFlightCooldowns } from "./in-flight-cooldowns.js";
 import { ConcurrencyGate, GATE_RECONFIG_FIELDS, gateOptionsFromConfig } from "./limiter/index.js";
 import { createLogger } from "./logger.js";
 import { metrics } from "./metrics.js";
@@ -657,6 +658,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     failureThreshold: config.ttftRetryFailureThreshold,
     failureWindowMs: config.ttftRetryFailureWindowMs,
   }));
+  const inFlightCooldowns = new InFlightCooldowns();
   function buildGateStats(snap?: UsageSnapshot): GateStats {
     const effective = snap ?? usage.getSnapshot();
     const base = gate.getStats(effective);
@@ -682,6 +684,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     rewriteExperiment,
     ttftState,
     () => buildGateStats(),
+    inFlightCooldowns,
   );
   let lastRawConfig: RawConfig = readConfigFile();
 
@@ -833,6 +836,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     models,
     authFailureLimiter,
     ttftState,
+    inFlightCooldowns,
     reloadConfig,
     refreshLimits,
     restart: () => {

@@ -17,6 +17,7 @@ import {
   textDecoder,
   textEncoder,
 } from "./helpers.js";
+import { InFlightCooldowns } from "./in-flight-cooldowns.js";
 import { deriveIncident, maybeRecordUpstreamIncident } from "./incidents.js";
 import type { ConcurrencyGate, GateError } from "./limiter/index.js";
 import { createLogger } from "./logger.js";
@@ -125,6 +126,7 @@ interface ProxyDeps {
   rewriteExperiment?: RewriteIdExperiment | null;
   ttftState?: TtftWatchdogState | null;
   getGateStats?: () => GateStats;
+  inFlightCooldowns: InFlightCooldowns;
 }
 
 // ─── Attempt rewrite retry (helper for forwardUpstream) ───────────────────
@@ -758,6 +760,7 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
           retryAttempt,
           cooldownEndsAt: Date.now() + config.ttftRetryCooldownMs,
         });
+        deps.inFlightCooldowns.start(capId, retryAttempt, Date.now() + config.ttftRetryCooldownMs);
         // Reset of startedAt is deferred to the caller, AFTER `await
         // ttftCooldown()`, so the cooldown sleep is not counted in the
         // retry attempt's ttft_ms / duration_ms / extractUsage metrics.
@@ -777,6 +780,7 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
         retryAttempt,
         cooldownEndsAt: Date.now() + config.ttftRetryCooldownMs,
       });
+      deps.inFlightCooldowns.start(capId, retryAttempt, Date.now() + config.ttftRetryCooldownMs);
       // Reset of startedAt is deferred to the caller, AFTER `await
       // ttftCooldown()`, so the cooldown sleep is not counted in the
       // retry attempt's ttft_ms / duration_ms / extractUsage metrics.
@@ -992,6 +996,7 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
           const result = handleTtftTimeout();
           if ("continue" in result) {
             await ttftCooldown();
+            deps.inFlightCooldowns.clear(capId);
             // Reset the attempt clock AFTER cooldown so ttft_ms / duration_ms
             // reflect only the retry attempt, not the cooldown sleep.
             ctx.startedAt = Date.now();
@@ -1164,6 +1169,7 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
           const result = handleTtftTimeout();
           if ("continue" in result) {
             await ttftCooldown();
+            deps.inFlightCooldowns.clear(capId);
             // Reset the attempt clock AFTER cooldown so ttft_ms / duration_ms
             // reflect only the retry attempt, not the cooldown sleep.
             ctx.startedAt = Date.now();
@@ -1448,6 +1454,7 @@ export function createProxyHandler(
   rewriteExperiment?: RewriteIdExperiment | null,
   ttftState?: TtftWatchdogState | null,
   getGateStats?: () => GateStats,
+  inFlightCooldowns?: InFlightCooldowns,
 ) {
   const deps: ProxyDeps = {
     db,
@@ -1462,6 +1469,7 @@ export function createProxyHandler(
     rewriteExperiment,
     ttftState,
     getGateStats,
+    inFlightCooldowns: inFlightCooldowns ?? new InFlightCooldowns(),
   };
 
   async function handleProxy(req: Request, url: URL): Promise<Response> {
@@ -1564,6 +1572,7 @@ export function createProxyHandler(
       );
     } finally {
       if (!ctx.streamingStarted) ctx.releasePermit();
+      deps.inFlightCooldowns.clear(ctx.capId);
     }
   }
 

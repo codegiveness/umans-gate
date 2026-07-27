@@ -99,6 +99,10 @@ export interface CaptureSummary {
   retry_attempt: number | null;
   /** 1 if the TTFT watchdog fired on any attempt, 0 otherwise. Null if not applicable. */
   ttft_exceeded: number | null;
+  /** Transient (in-memory only, not persisted) — retry attempt ordinal during in-flight cooldown. */
+  retryAttempt?: number;
+  /** Transient (in-memory only, not persisted) — epoch ms when cooldown ends. */
+  cooldownEndsAt?: number;
 }
 
 /** Request metadata captured at proxy time. */

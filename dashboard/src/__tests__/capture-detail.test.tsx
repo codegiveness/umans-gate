@@ -252,6 +252,32 @@ describe("CaptureDetailPanel transitions", () => {
     expect(screen.getByText("live")).toBeInTheDocument();
   });
 
+  it("shows cooldown badge WITHOUT live badge when state is cooling_down", () => {
+    const capture = makeCapture({
+      state: "cooling_down",
+      cooldownEndsAt: Date.now() + 30000,
+      retryAttempt: 1,
+    });
+
+    render(
+      <CaptureDetailPanel capture={capture} isLoading={false} detailError={null} {...baseProps} />,
+    );
+
+    expect(screen.getByText(/cooldown/)).toBeInTheDocument();
+    expect(screen.queryByText("live")).not.toBeInTheDocument();
+  });
+
+  it("shows static 'cooldown' label when cooldownEndsAt is missing", () => {
+    const capture = makeCapture({ state: "cooling_down" });
+
+    render(
+      <CaptureDetailPanel capture={capture} isLoading={false} detailError={null} {...baseProps} />,
+    );
+
+    expect(screen.getByText("cooldown")).toBeInTheDocument();
+    expect(screen.queryByText("live")).not.toBeInTheDocument();
+  });
+
   it("renders not-captured placeholder when response_body is null", async () => {
     const capture = makeCapture({ response_body: null });
 

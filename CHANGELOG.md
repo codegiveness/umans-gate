@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.7] - 2026-07-27
+
+### Fixed
+
+- **Dashboard: simultaneous cooldown + running badges during TTFT retry**:
+  `capture-row-item.tsx` grouped `cooling_down` with `streaming` in the
+  running-badge condition, causing both "running" and "cooldown Ns"
+  badges to render simultaneously during TTFT-watchdog cooldown. The
+  running badge now shows only for `state === "streaming"`; the cooldown
+  badge shows whenever `state === "cooling_down"` with a fallback static
+  "cooldown" label when `cooldownEndsAt` is absent.
+
+- **Dashboard: cooldown badge lost after page refresh**: the
+  `cooling_down` state is transient WS-only — the DB `state` column
+  stays `streaming` during cooldown, so `/captures` returned no cooldown
+  signal after a refresh. Added `InFlightCooldowns`, an in-memory tracker
+  that the `/captures` and `/captures/:id` REST endpoints use to enrich
+  responses with live `cooling_down` state + `cooldownEndsAt`. The proxy
+  registers cooldown start/end; a `finally` block clears entries on all
+  terminal paths (abort, error, success).
+
+- **Dashboard: detail view showed no state badge during cooldown**:
+  `capture-detail.tsx` showed a green "live" badge only for `streaming`,
+  not `cooling_down`. Added an amber "cooldown Ns" badge to the detail
+  header for parity with the list view.
+
+- **Dashboard: stale `cooldownEndsAt` after cooldown ended**: the WS
+  `onCaptureState` handler left the old `cooldownEndsAt` value in memory
+  when the proxy broadcast `state: "streaming"` after cooldown (the WS
+  message omits `cooldownEndsAt`). The handler now explicitly clears
+  `cooldownEndsAt` to `undefined` when `state` transitions away from
+  `cooling_down`.
+
+- **Type-safety: server `CaptureSummary` missing transient fields**: the
+  server `CaptureSummary` type did not declare `retryAttempt?` or
+  `cooldownEndsAt?`, so the `enrich()` method's return type understated
+  the runtime shape. Added the optional fields to match the dashboard
+  type and tightened the `enrich` generic constraint from
+  `{id, state: string}` to `{id, state: CaptureState}`.
+
 ## [0.4.6] - 2026-07-27
 
 ### Fixed

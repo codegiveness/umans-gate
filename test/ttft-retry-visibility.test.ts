@@ -511,4 +511,127 @@ describe("TTFT retry — ttft_ms excludes cooldown", () => {
       await upstream.close();
     }
   });
+
+  test("/captures enriches with cooling_down state during active cooldown", async () => {
+    // Stall on call 1 → TTFT watchdog fires → proxy enters cooldown.
+    // While the cooldown is in flight, GET /captures should return
+    // state=cooling_down with cooldownEndsAt populated (refresh-survival).
+    const upstream = startCountedStallUpstream(1);
+    const proxy = await startProxy({
+      TARGET: `http://127.0.0.1:${upstream.port}`,
+      WARMER_ENABLED: "false",
+      USAGE_REFRESH_MS: "999999",
+      CONCURRENCY_HARD_CAP: "2",
+      CONCURRENCY_SOFT_LIMIT: "2",
+      RELEASE_COOLDOWN_MS: "0",
+      UPSTREAM_TIMEOUT_MS: "5000",
+      EXPERIMENT_TTFT_WATCHDOG: "true",
+      TTFT_TIMEOUT_MS: "200",
+      TTFT_RETRY_COOLDOWN_MS: "2000", // long enough to poll during cooldown
+    });
+    try {
+      // Fire the request but don't await it — it's still in flight during cooldown.
+      const resPromise = fetch(`${proxy.baseUrl}/v1/messages`, {
+        method: "POST",
+        headers: MSG_HEADERS,
+        body: MSG_BODY,
+      });
+
+      // Wait for TTFT watchdog to fire + cooldown to start.
+      await sleep(400);
+
+      const listRes = await fetch(`${proxy.baseUrl}/dashboard/api/captures`);
+      const captures = (await listRes.json()) as Array<{
+        id: number;
+        state: string;
+        cooldownEndsAt?: number;
+        retryAttempt?: number;
+      }>;
+      expect(captures.length).toBeGreaterThanOrEqual(1);
+      const cap = captures[0];
+      expect(cap.state).toBe("cooling_down");
+      expect(cap.cooldownEndsAt).toBeDefined();
+      expect(cap.cooldownEndsAt!).toBeGreaterThan(Date.now());
+      expect(cap.retryAttempt).toBeGreaterThanOrEqual(1);
+
+      // Detail endpoint should also be enriched.
+      const detailRes = await fetch(`${proxy.baseUrl}/dashboard/api/captures/${cap.id}`);
+      const detail = (await detailRes.json()) as {
+        state: string;
+        cooldownEndsAt?: number;
+      };
+      expect(detail.state).toBe("cooling_down");
+      expect(detail.cooldownEndsAt).toBeDefined();
+
+      // Wait for the retry to complete so the proxy can shut down cleanly.
+      await resPromise;
+    } finally {
+      await proxy.kill();
+      await upstream.close();
+    }
+  });
+
+  test("finally block clears cooldown entry on client abort during cooldown", async () => {
+    // Stall on call 1 → TTFT watchdog fires → proxy enters cooldown.
+    // Client aborts during the cooldown sleep. The finally block in
+    // handleProxy must clear the in-flight cooldown entry so /captures
+    // does not report cooling_down for an abandoned request.
+    const upstream = startCountedStallUpstream(1);
+    const proxy = await startProxy({
+      TARGET: `http://127.0.0.1:${upstream.port}`,
+      WARMER_ENABLED: "false",
+      USAGE_REFRESH_MS: "999999",
+      CONCURRENCY_HARD_CAP: "2",
+      CONCURRENCY_SOFT_LIMIT: "2",
+      RELEASE_COOLDOWN_MS: "0",
+      UPSTREAM_TIMEOUT_MS: "5000",
+      EXPERIMENT_TTFT_WATCHDOG: "true",
+      TTFT_TIMEOUT_MS: "200",
+      TTFT_RETRY_COOLDOWN_MS: "5000",
+    });
+    try {
+      const controller = new AbortController();
+      const resPromise = fetch(`${proxy.baseUrl}/v1/messages`, {
+        method: "POST",
+        headers: MSG_HEADERS,
+        body: MSG_BODY,
+        signal: controller.signal,
+      });
+
+      // Wait for TTFT watchdog to fire + cooldown to start.
+      await sleep(400);
+
+      // Verify cooldown is active.
+      const duringRes = await fetch(`${proxy.baseUrl}/dashboard/api/captures`);
+      const duringCaptures = (await duringRes.json()) as Array<{
+        state: string;
+        cooldownEndsAt?: number;
+      }>;
+      expect(duringCaptures[0].state).toBe("cooling_down");
+
+      // Abort the client request during cooldown.
+      controller.abort();
+      try {
+        await resPromise;
+      } catch {
+        // Expected — abort throws.
+      }
+
+      // Wait for the proxy to process the abort and run the finally block.
+      await sleep(300);
+
+      // The cooldown entry must be cleared — /captures should NOT report
+      // cooling_down for this capture anymore.
+      const afterRes = await fetch(`${proxy.baseUrl}/dashboard/api/captures`);
+      const afterCaptures = (await afterRes.json()) as Array<{
+        state: string;
+        cooldownEndsAt?: number;
+      }>;
+      expect(afterCaptures[0].state).not.toBe("cooling_down");
+      expect(afterCaptures[0].cooldownEndsAt).toBeUndefined();
+    } finally {
+      await proxy.kill();
+      await upstream.close();
+    }
+  });
 });

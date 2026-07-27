@@ -409,7 +409,7 @@ describe("CaptureList listbox keyboard navigation", () => {
     expect(within(option).queryByText(/^retry \d+$/)).not.toBeInTheDocument();
   });
 
-  it("keeps running badge visible when state=cooling_down", async () => {
+  it("shows cooldown badge WITHOUT running badge when state=cooling_down", async () => {
     const captures = [
       makeCapture({
         id: 1,
@@ -422,7 +422,7 @@ describe("CaptureList listbox keyboard navigation", () => {
     await flushEffects();
 
     const option = screen.getByRole("option");
-    expect(within(option).getByText("running")).toBeInTheDocument();
     expect(within(option).getByText(/cooldown \d+s/)).toBeInTheDocument();
+    expect(within(option).queryByText("running")).not.toBeInTheDocument();
   });
 });
