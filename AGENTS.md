@@ -91,6 +91,7 @@ are never overwritten. All env vars have `snake_case` JSON equivalents.
 | `breaker_cooldown_ms` | `60000` |
 | `vision_strategy` | `catalog` |
 | `vision_model` | `umans-flash` |
+| `vision_prompt` | _(long string — see `src/config/defaults.ts`)_ |
 | `vision_prompt_version` | `2` |
 | `vision_max_images` | `5` |
 | `vision_max_description_tokens` | `4096` |
@@ -137,18 +138,12 @@ are never overwritten. All env vars have `snake_case` JSON equivalents.
 ### Hot reload
 
 The Config tab can save and hot-reload via
-`POST /dashboard/api/config/reload`. Hot-reloadable fields:
-`stamp_claude_code_enabled`, `stamp_glm_5_2_thinking_enabled`,
-`stamp_kimi_k2_7_code_thinking_enabled`, `breaker_*`,
-`rate_limit_*`, `usage_*`
-(`usage_history_enabled`, `usage_raw_retention_days`,
-`usage_gap_threshold_minutes`, `usage_idle_session_timeout_minutes`),
-`incident_retention_days`, and the 7 intent-aware vision fields (`vision_intent_strategy`,
-`vision_decomposition_enabled`, `vision_decomposition_timeout_ms`,
-`vision_crafting_timeout_ms`, `vision_adjacent_text_max_chars`,
-`vision_recent_messages_count`, `vision_system_prompt_max_chars`).
-Fields marked `restartRequired` (e.g. `port`, `db_path`,
-`upstream_protocol`) require a server restart.
+`POST /dashboard/api/config/reload`. **All config fields are hot-reloadable
+except those marked `restartRequired`** (e.g. `port`, `db_path`,
+`upstream_protocol`, `vision_strategy`, `vision_model`, `warmer_*`,
+`umans_api_key`, `dashboard_token`). The full set of hot-reloadable fields
+is defined in `src/config/reload.ts` (`RELOAD_FIELDS`); restart-required
+fields are listed in `RESTART_REQUIRED_FIELDS` in the same file.
 
 ## Development workflow
 

@@ -6,7 +6,7 @@ umans-gate roadmap: planned direction and likely priorities. Items are not
 committed or scheduled — they shift based on upstream API changes and personal
 development needs.
 
-## What already exists in v0.3.27
+## What already exists in v0.4.5
 
 - ✅ Capture proxy with SQLite storage, WAL mode, and zstd body compression
 - ✅ Anthropic `cache_control` TTL stamping via unified stamp pipeline

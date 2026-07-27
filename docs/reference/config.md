@@ -49,7 +49,7 @@ All prefixed `/dashboard/api/`.
 
 ## What the Config Tab Does
 
-The Config tab edits proxy settings and applies hot-reloadable fields without a restart. Fields such as `stamp_claude_code_enabled`, `breaker_*`, `rate_limit_*`, and the 7 `vision_*` intent fields apply immediately. Fields marked `restartRequired` (e.g. `port`, `db_path`, `upstream_protocol`) require a server restart via `/restart` or a process manager.
+The Config tab edits proxy settings and applies hot-reloadable fields without a restart. **All config fields are hot-reloadable except those marked `restartRequired`** (e.g. `port`, `db_path`, `upstream_protocol`, `vision_strategy`, `vision_model`, `warmer_*`, `umans_api_key`, `dashboard_token`). The full hot-reloadable set is defined in `src/config/reload.ts` (`RELOAD_FIELDS`); restart-required fields are in `RESTART_REQUIRED_FIELDS` in the same file. Fields marked `restartRequired` require a server restart via `/restart` or a process manager.
 
 ## Config File
 

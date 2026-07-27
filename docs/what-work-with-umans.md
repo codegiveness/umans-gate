@@ -201,5 +201,5 @@ playbook configuration in their own application.
 
 - `docs/reference/` — per-tab reference (captures, vision, performance,
   economics, usage, models, config)
-- `docs/adr/` — 18 architecture decision records
+- `docs/adr/` — 24 architecture decision records
 - `AGENTS.md` — contributor guide with stamping truth tables (ADR-0011)

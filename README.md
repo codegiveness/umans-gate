@@ -237,15 +237,12 @@ See [AGENTS.md](AGENTS.md) for the complete config field table.
 ### Hot reload
 
 The Config tab can save and hot-reload via
-`POST /dashboard/api/config/reload`. Hot-reloadable: `stamp_claude_code_enabled`,
-`breaker_*`, `rate_limit_*`, `usage_*` (`usage_history_enabled`,
-`usage_raw_retention_days`, `usage_gap_threshold_minutes`,
-`usage_idle_session_timeout_minutes`), `incident_retention_days`, and the 7 intent-aware vision fields
-(`vision_intent_strategy`, `vision_decomposition_enabled`,
-`vision_decomposition_timeout_ms`, `vision_crafting_timeout_ms`,
-`vision_adjacent_text_max_chars`, `vision_recent_messages_count`,
-`vision_system_prompt_max_chars`). Fields marked `restartRequired` (e.g.
-`port`, `db_path`, `upstream_protocol`) require a server restart.
+`POST /dashboard/api/config/reload`. Hot-reloadable: all fields except
+those marked `restartRequired` (e.g. `port`, `db_path`, `upstream_protocol`,
+`vision_strategy`, `vision_model`, `warmer_*`, `umans_api_key`,
+`dashboard_token`). The full set of hot-reloadable fields is defined in
+`src/config/reload.ts` (`RELOAD_FIELDS`). Fields marked `restartRequired`
+require a server restart.
 
 ### How the Stamp Pipeline Works
 
@@ -275,9 +272,13 @@ The vision handoff replaces image blocks in requests with text descriptions gene
 | `never` | Never replace images; pass through untouched |
 
 **Intent-aware prompting** (`VISION_INTENT_STRATEGY`, default `auto`):
-`generic`, `slotted`, `crafted`, or `decomposed`. Vision calls are
-serialized by the concurrency gate (default concurrency = 1). Descriptions
-are cached for 7 days in persistent SQLite storage.
+accepts `off`, `slotted`, `crafted`, or `auto`. When `auto`, a
+deterministic triage function routes each request to one of four
+strategies (`generic`, `slotted`, `crafted`, `decomposed`) based on
+adjacent text, image count, and tool-result status. `off` forces
+`generic` only. Vision calls are serialized by the concurrency gate
+(default concurrency = 1). Descriptions are cached for 7 days in
+persistent SQLite storage.
 
 ### How the Concurrency Gate Works
 
