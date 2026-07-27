@@ -1,6 +1,6 @@
 name: Version & Docs Check
 
-# Runs on every PR and push to master. Ensures version consistency across:
+# Runs on every PR and push to main. Ensures version consistency across:
 #   - package.json (canonical source)
 #   - dashboard/package.json (must match)
 #   - CHANGELOG.md (must have a section for the current version)
@@ -12,7 +12,7 @@ name: Version & Docs Check
 
 on:
   pull_request:
-    branches: [master]
+    branches: [main]
     paths:
       - "package.json"
       - "dashboard/package.json"
@@ -23,7 +23,7 @@ on:
       - "scripts/sync-version.ts"
       - "scripts/update-docs.ts"
   push:
-    branches: [master]
+    branches: [main]
     paths:
       - "package.json"
       - "dashboard/package.json"

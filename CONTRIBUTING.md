@@ -40,7 +40,7 @@ bun run build           # build server (tsup) + dashboard (vite)
 
 ## Making changes
 
-1. Create a branch from `master`
+1. Create a branch from `main`
 2. Make your changes — keep the design intent intact
 3. Run `bun run typecheck && bun run lint && bun run test:all`
 4. If you changed the dashboard, verify it builds: `cd dashboard && bun run build`

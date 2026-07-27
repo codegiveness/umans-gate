@@ -13,7 +13,7 @@ set -euo pipefail
 #
 # Prerequisites:
 #   - Clean working tree (no uncommitted changes)
-#   - On master branch
+#   - On main branch
 #   - typecheck + lint + tests pass
 #   - CHANGELOG.md has a [## Unreleased] section
 #
@@ -30,8 +30,8 @@ cd "$(dirname "$0")/.."
 # ─── Guards ────────────────────────────────────────────────────────────────
 
 BRANCH=$(git branch --show-current)
-if [ "$BRANCH" != "master" ]; then
-  echo "❌ Not on master (current: $BRANCH). Switch to master first."
+if [ "$BRANCH" != "main" ]; then
+  echo "❌ Not on main (current: $BRANCH). Switch to main first."
   exit 1
 fi
 
@@ -122,7 +122,7 @@ git commit -m "release: v$NEW_VERSION
 - Regenerate docs/README.md index"
 
 git tag "v$NEW_VERSION"
-git push origin master
+git push origin main
 git push origin "v$NEW_VERSION"
 
 echo ""

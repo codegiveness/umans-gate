@@ -112,7 +112,7 @@ Security advisories trigger immediate PRs.
 
 ### Branch protection
 
-The `master` branch **should** have the following protection rules enabled
+The `main` branch **should** have the following protection rules enabled
 via GitHub Settings → Branches:
 
 - [ ] Require pull request reviews before merging (≥1 approval)
@@ -125,7 +125,7 @@ via GitHub Settings → Branches:
 To configure via `gh` CLI:
 
 ```bash
-gh api repos/codegiveness/umans-gate/rules/branches/master \
+gh api repos/codegiveness/umans-gate/rules/branches/main \
   -X PUT \
   -f "required_status_checks[strict]=true" \
   -f "required_pull_request_reviews[required_approving_review_count]=1" \
@@ -138,7 +138,7 @@ gh api repos/codegiveness/umans-gate/rules/branches/master \
 
 ### Code review
 
-- All changes go through pull requests — no direct commits to `master`
+- All changes go through pull requests — no direct commits to `main`
 - [CODEOWNERS](.github/CODEOWNERS) rules automatically request review
   from `@codegiveness` for all paths
 
