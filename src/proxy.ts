@@ -1352,6 +1352,7 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
       status: upstream.status,
       statusSource: "upstream",
       clientAborted: false,
+      upstreamResponseBody: fullBody,
     });
   };
   ctx.flushCaptureRef = flushCapture;

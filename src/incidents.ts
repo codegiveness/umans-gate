@@ -46,6 +46,31 @@ export function deriveIncident(input: DeriveIncidentInput): {
   return { responsibleParty: "proxy", incidentType: "gate_rejected" };
 }
 
+function isUpstreamError(value: unknown): value is { error: { type: string; message: string } } {
+  if (typeof value !== "object" || value === null) return false;
+  const err = (value as Record<string, unknown>).error;
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    typeof (err as Record<string, unknown>).type === "string" &&
+    typeof (err as Record<string, unknown>).message === "string"
+  );
+}
+
+function extractUpstreamReason(body: string | undefined): string | null {
+  if (!body) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return body.slice(0, 200);
+  }
+  if (isUpstreamError(parsed)) {
+    return `${parsed.error.type}: ${parsed.error.message}`.slice(0, 200);
+  }
+  return body.slice(0, 200);
+}
+
 /** Fire an upstream_error incident when the upstream returned a non-200.
  *  No-op unless status >= 400 && statusSource === "upstream".
  *  Wrapped in try/catch — a DB error on incident persistence must not break
@@ -56,6 +81,7 @@ export function maybeRecordUpstreamIncident(params: {
   status: number;
   statusSource: "upstream" | "gate" | null;
   clientAborted: boolean;
+  upstreamResponseBody?: string;
 }): void {
   if (params.statusSource !== "upstream" || params.status < 400) return;
   try {
@@ -64,13 +90,14 @@ export function maybeRecordUpstreamIncident(params: {
       statusSource: "upstream",
       clientAborted: params.clientAborted,
     });
+    const reason = extractUpstreamReason(params.upstreamResponseBody);
     params.db.recordIncident({
       captureId: params.captureId,
       responsibleParty,
       incidentType,
       upstreamStatus: params.status,
       servedStatus: params.status,
-      reason: null,
+      reason,
     });
   } catch {
     // Non-blocking: incident persistence failure must not break the response path.

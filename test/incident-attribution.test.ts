@@ -441,3 +441,83 @@ describe("Incident retention purge", () => {
     }
   });
 });
+
+function startStructuredErrorUpstream(): { port: number; close: () => Promise<void> } {
+  const server = Bun.serve({
+    port: 0,
+    async fetch(req) {
+      if (req.method !== "POST" || new URL(req.url).pathname !== "/v1/messages") {
+        return new Response("not found", { status: 404 });
+      }
+      return new Response(
+        JSON.stringify({
+          error: {
+            type: "api_error",
+            message: "The service is temporarily overloaded. Please retry.",
+          },
+        }),
+        { status: 500, headers: { "content-type": "application/json" } },
+      );
+    },
+  });
+  return {
+    port: server.port!,
+    close: () =>
+      new Promise<void>((res) => {
+        server.stop();
+        setTimeout(res, 50);
+      }),
+  };
+}
+
+describe("Incident reason — structured upstream error body", () => {
+  test("500 with {error:{type,message}} produces reason 'type: message'", async () => {
+    const upstream = startStructuredErrorUpstream();
+    const proxy = await startProxy({
+      TARGET: `http://127.0.0.1:${upstream.port}`,
+      WARMER_ENABLED: "false",
+      USAGE_REFRESH_MS: "999999",
+      CONCURRENCY_HARD_CAP: "2",
+      CONCURRENCY_SOFT_LIMIT: "2",
+      RELEASE_COOLDOWN_MS: "0",
+    });
+    try {
+      const res = await fetch(`${proxy.baseUrl}/v1/messages`, {
+        method: "POST",
+        headers: MSG_HEADERS,
+        body: MSG_BODY,
+      });
+      expect(res.status).toBe(500);
+      await res.text();
+
+      await sleep(300);
+
+      const db = new Database(proxy.dbPath, { readonly: true });
+      const incidents = db
+        .prepare(
+          "SELECT capture_id, responsible_party, incident_type, upstream_status, served_status, reason FROM incidents",
+        )
+        .all() as Array<{
+        capture_id: number;
+        responsible_party: string;
+        incident_type: string;
+        upstream_status: number | null;
+        served_status: number;
+        reason: string | null;
+      }>;
+      db.close();
+
+      expect(incidents.length).toBe(1);
+      expect(incidents[0].responsible_party).toBe("upstream");
+      expect(incidents[0].incident_type).toBe("upstream_error");
+      expect(incidents[0].upstream_status).toBe(500);
+      expect(incidents[0].served_status).toBe(500);
+      expect(incidents[0].reason).toBe(
+        "api_error: The service is temporarily overloaded. Please retry.",
+      );
+    } finally {
+      await proxy.kill();
+      await upstream.close();
+    }
+  });
+});
