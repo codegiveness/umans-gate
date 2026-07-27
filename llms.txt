@@ -1,0 +1,83 @@
+# umans-gate
+
+LLM capture proxy for Anthropic + OpenAI-compatible APIs. Stamps TTL onto
+cache_control ephemeral blocks, stores request/response pairs in SQLite,
+and serves a live React dashboard with WebSocket updates.
+
+## Install
+
+```bash
+npm install -g umans-gate
+# or: npx umans-gate (no install)
+```
+
+## Quick start
+
+```bash
+npx umans-gate
+# Proxy: http://localhost:1945
+# Dashboard: http://localhost:1945/dashboard/
+
+export ANTHROPIC_BASE_URL=http://localhost:1945
+export OPENAI_BASE_URL=http://localhost:1945
+```
+
+Set `UMANS_API_KEY` to unlock `/v1/usage` polling, concurrency gate sizing,
+rate-limit validation, and vision handoff.
+
+## Programmatic API
+
+```typescript
+import { createProxyServer } from "umans-gate";
+
+const server = createProxyServer({ config: { port: 8080 } });
+// server.db     — CaptureDB instance
+// server.ws     — WsBroadcaster instance
+// server.queue  — WriteQueue instance
+// server.shutdown() — graceful shutdown
+```
+
+## Key features
+
+- **Capture proxy**: Intercepts Anthropic + OpenAI-compatible traffic, SQLite ring buffer with optional zstd compression.
+- **Stamp pipeline**: TTL, `top_k`, `max_tokens`, `thinking`, `output_config`, `context_management`, `temperature` stamps (Anthropic); `reasoning_effort` stamping (OpenAI).
+- **Vision handoff**: Replaces image blocks with text descriptions from a vision model; cached 7 days with persistent SQLite storage.
+- **Concurrency gate**: Semaphore + circuit breaker with intention-based reservations, auto-sized from `/v1/usage`.
+- **Rate limiting**: Sliding-window weighted rate limiter, auto-derived from `/v1/usage` or explicit.
+- **Connection warmer**: Periodic `/v1/models` pings keep TLS warm.
+- **Live inspector**: React + shadcn/ui dashboard with WebSocket live updates and SSE rendering.
+
+## Configuration
+
+Config loads from a JSON file with env var overrides. On first run,
+defaults are written if the file doesn't exist. All env vars have
+`snake_case` JSON equivalents.
+
+Precedence: env vars > JSON config > built-in defaults.
+
+| OS | Path |
+|----|------|
+| Linux/macOS | `$XDG_CONFIG_HOME/umans-gate/config.json` or `~/.config/umans-gate/config.json` |
+| Windows | `%APPDATA%/umans-gate/config.json` |
+
+Key fields: `PORT` (1945), `MAX_CAPTURES` (200), `UPSTREAM_PROTOCOL`
+(http1.1), `STAMP_CLAUDE_CODE_ENABLED` (false), `STAMP_REASONING_EFFORT_ENABLED`
+(false), `UMANS_API_KEY` (""), `DASHBOARD_TOKEN` (""), `VISION_STRATEGY`
+(catalog), `CONCURRENCY_HARD_CAP` (16), `CONCURRENCY_SOFT_LIMIT` (8).
+
+## Runtime
+
+**Bun only.** Uses `bun:sqlite`, `Bun.serve`, and Bun's `fetch` with the
+`protocol` option. Node.js cannot run this.
+
+## Links
+
+- npm: https://www.npmjs.com/package/umans-gate
+- GitHub: https://github.com/codegiveness/umans-gate
+- Docs: https://github.com/codegiveness/umans-gate/tree/main/docs
+- Architecture: https://github.com/codegiveness/umans-gate/blob/main/docs/ARCHITECTURE.md
+- Issues: https://github.com/codegiveness/umans-gate/issues
+
+## License
+
+MIT

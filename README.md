@@ -1,4 +1,4 @@
-# umans-gate
+# umans-gate — Capture proxy for LLM APIs
 
 [![npm version](https://img.shields.io/npm/v/umans-gate.svg)](https://www.npmjs.com/package/umans-gate)
 [![npm downloads](https://img.shields.io/npm/dm/umans-gate.svg)](https://www.npmjs.com/package/umans-gate)
@@ -21,6 +21,15 @@ npx umans-gate
 The proxy starts on `http://localhost:1945`; the dashboard opens at
 `http://localhost:1945/dashboard/`. Point any Anthropic or OpenAI-compatible
 harness at the proxy URL — every request and response is captured.
+
+## Who This Is For
+
+- **Claude Code users** who want to see what's actually on the wire — TTL
+  stamping, cache hits, thinking blocks — in real time.
+- **Prompt engineers** debugging cache_control TTL, reasoning effort, and
+  vision handoff against Anthropic or OpenAI-compatible APIs.
+- **Developers** who need traffic inspection, concurrency gating, and
+  rate-limit validation without modifying their LLM harness.
 
 ## What It Does
 
