@@ -1,6 +1,6 @@
-# Proxy Modifications Inventory
+# Proxy modifications inventory
 
-> **Applies to:** umans-gate v0.4.6 · **Last updated:** 2026-07-27
+> **Applies to:** umans-gate v0.4.7 · **Last updated:** 2026-07-27
 
 This document lists every modification the proxy applies to
 request/response traffic, grouped by layer: HTTP headers, request body,
@@ -21,7 +21,7 @@ unconditional), and **config** that gates it.
   `content-length`, `host`.
 - **Where**: `src/proxy.ts` (forwarded header loop), HOP set in
   `src/shared/http-headers.ts`.
-- **When**: Unconditional — every proxied request, all routes.
+- **When**: Unconditional, every proxied request, all routes.
 - **Config**: None (always on).
 - **Rationale**: RFC 7230 §6.1. `content-length` is stripped because the body
   may be re-serialized after stamping. `host` is stripped because Bun's
@@ -31,7 +31,7 @@ unconditional), and **config** that gates it.
 
 - **What**: Forces `accept-encoding: identity` on every upstream request.
 - **Where**: `src/proxy.ts`.
-- **When**: Unconditional — overwrites any client-supplied value.
+- **When**: Unconditional, overwrites any client-supplied value.
 - **Config**: None (always on).
 - **Rationale**: The proxy decodes response bodies for capture and cannot
   assume gzip or brotli support. Identity keeps the contract simple.
@@ -43,7 +43,7 @@ unconditional), and **config** that gates it.
 - **Where**: `src/proxy.ts` (response header filter loop).
 - **When**: Unconditional.
 - **Config**: None.
-- **Rationale**: Safety net — if upstream ignores `identity` and compresses
+- **Rationale**: Safety net. If upstream ignores `identity` and compresses
   anyway, removing the header prevents the client from trying to
   decompress uncompressed bytes.
 
@@ -56,7 +56,7 @@ unconditional), and **config** that gates it.
 
 ---
 
-## What Does the Proxy Modify in the Request Body?
+## What does the proxy modify in the request body?
 
 ### 2.1 Stamp pipeline (Claude Code bundle)
 
@@ -146,7 +146,7 @@ unconditional), and **config** that gates it.
 
 ---
 
-## What Does the Proxy Modify in Connection / Transport?
+## What does the proxy modify in connection / transport?
 
 ### 3.1 Upstream HTTP protocol
 
@@ -163,7 +163,7 @@ unconditional), and **config** that gates it.
 
 - **What**: Disables the per-request idle timeout for proxy routes.
 - **Where**: `src/index.ts`.
-- **When**: Unconditional — every LLM route request.
+- **When**: Unconditional, every LLM route request.
 - **Config**: None.
 - **Rationale**: LLM streaming responses (SSE) are long-lived. Bun's
   default idle timeout would kill them mid-stream.
@@ -219,10 +219,10 @@ unconditional), and **config** that gates it.
 
 ---
 
-## What Does the Proxy Leave Unchanged?
+## What does the proxy leave unchanged?
 
 - **Authorization header**: Passed through unchanged.
-- **Content-Length recalculation**: Not set on forwarded request — stripped
+- **Content-Length recalculation**: Not set on forwarded request. Stripped
   via hop-by-hop (1.1); Bun's `fetch` sets it from the body.
 - **SSE response body**: Streamed through unchanged via `TransformStream`.
   No event rewriting, injection, or buffering beyond capture.
@@ -231,7 +231,7 @@ unconditional), and **config** that gates it.
 
 ---
 
-## What Is the TTFT-Watchdog Gated Retry (Experimental)?
+## What is the TTFT-watchdog gated retry (experimental)?
 
 - **What**: Each upstream fetch gets a first-byte watchdog. If no chunk
   arrives within `ttft_timeout_ms` (default 60s), the fetch is aborted and a
@@ -249,31 +249,31 @@ unconditional), and **config** that gates it.
   `ttft_retry_failure_window_ms`, `ttft_retry_failure_threshold`,
   `ttft_retry_cooldown_ms`. All hot-reloadable.
 - **Response headers** (when feature is on):
-  - `X-Proxy-Retry-Attempt: <n>` — 0 = no retry, 1 = same-key, 2 = rewrite
-  - `X-Proxy-TTFT-Exceeded: 1` — present when the watchdog fired
-  - `X-Proxy-Breaker-State: <closed|half_open|open>` — at response time
+  - `X-Proxy-Retry-Attempt: <n>`: 0 = no retry, 1 = same-key, 2 = rewrite
+  - `X-Proxy-TTFT-Exceeded: 1`: present when the watchdog fired
+  - `X-Proxy-Breaker-State: <closed|half_open|open>`: at response time
 - **Rationale**: Detects stuck fetches early (60s, not 5min) and retries
   without doubling load on a degraded upstream. Self-falsifying: auto
   -disables when retries consistently also fail. See ADR 0004.
 
 ---
 
-## What Optimization Decisions Were Made?
+## What optimization decisions were made?
 
 Benchmarked 2026-07-05 against `https://api.code.umans.ai/v1`, 5 runs per
 test. Full results in `benchmark/proxy-optimizations/results/`.
 
 | Optimization | Status | Evidence |
 |---|---|---|
-| HTTP/1.1 default upstream | Kept | 760.1ms vs HTTP/2 760.8ms — noise |
+| HTTP/1.1 default upstream | Kept | 760.1ms vs HTTP/2 760.8ms, noise |
 | HTTP/2 upstream option | Available (opt-in) | Configurable via `upstream_protocol: http2`; no win at current concurrency |
-| `accept-encoding: identity` | Kept | 852.3ms vs gzip 851.9ms — tied; identity is safer for capture |
+| `accept-encoding: identity` | Kept | 852.3ms vs gzip 851.9ms, tied; identity is safer for capture |
 | Hop-by-hop stripping | Kept | RFC 7230 compliance |
 | TTL stamping (1h) | Kept | Improves multi-turn KV cache hit rates |
 | `top_k` injection (20) | Kept | Required by glm-5.2 |
 | Vision handoff | Kept | Enables glm-5.2 vision; improves cacheability |
 | Vision concurrency gate (1) | Kept | Prevents racing for upstream vision slot |
-| Keep-alive reuse | Already works (Bun) | warm 713.4ms vs cold 1192.3ms — 40% saved |
+| Keep-alive reuse | Already works (Bun) | warm 713.4ms vs cold 1192.3ms, 40% saved |
 | SSE gzip disable | Already on (identity) | No measurable difference; safer for capture |
-| Streaming TTFB | Stream is faster | 663.5ms vs non-stream 763.2ms — 99.7ms faster |
-| API path | Anthropic faster | Anthropic 635.0ms vs OpenAI 714.0ms — 79ms diff |
+| Streaming TTFB | Stream is faster | 663.5ms vs non-stream 763.2ms, 99.7ms faster |
+| API path | Anthropic faster | Anthropic 635.0ms vs OpenAI 714.0ms, 79ms diff |

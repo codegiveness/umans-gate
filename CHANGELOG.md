@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   "cooldown" label when `cooldownEndsAt` is absent.
 
 - **Dashboard: cooldown badge lost after page refresh**: the
-  `cooling_down` state is transient WS-only — the DB `state` column
+  `cooling_down` state is transient WS-only; the DB `state` column
   stays `streaming` during cooldown, so `/captures` returned no cooldown
   signal after a refresh. Added `InFlightCooldowns`, an in-memory tracker
   that the `/captures` and `/captures/:id` REST endpoints use to enrich
@@ -134,7 +134,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Dashboard gates "unmeasured" thinking label to OpenAI route**:
   the "unmeasured" fallback in the Performance tab now renders only
   when `provider === "openai"`. Anthropic rows never show the
-  unmeasured branch — even stale captures with
+  unmeasured branch; even stale captures with
   `thinking_block_count > 0` from before this change.
 
 - **Sub-tabs centered in Incidents and Config tabs**: the sub-tab rows
@@ -172,7 +172,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   client-abort paths.
 
 - **`incident_retention_days` config field** (default `30`): controls how
-  long incident records persist before automatic sweep. Hot-reloadable —
+  long incident records persist before automatic sweep. Hot-reloadable ;
   no server restart needed. Exposed in the Config tab.
 
 - **Config sub-tabs**: the Config tab now organizes settings into
@@ -194,7 +194,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the request model name contains "5.2", the stamp pipeline overrides
   `thinkingShape` to `{ type: "enabled", clear_thinking: false,
   budget_tokens: 32000 }` (Z.ai Preserved Thinking). When OFF, falls back
-  to `{ type: "adaptive" }`. Default OFF — existing users must explicitly
+  to `{ type: "adaptive" }`. Default OFF; existing users must explicitly
   opt in. See ADR-0019.
 
 - **Version-gated Kimi K2.7-Code Preserved Thinking toggle**
@@ -204,7 +204,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   model name contains "k2.7-code", the stamp pipeline overrides
   `thinkingShape` to `{ type: "enabled", keep: "all", budget_tokens:
   32000 }` (Moonshot Preserved Thinking). When OFF, falls back to
-  `{ type: "adaptive" }`. Default OFF — existing users must explicitly
+  `{ type: "adaptive" }`. Default OFF; existing users must explicitly
   opt in. See ADR-0019.
 
 ### Changed
@@ -228,7 +228,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Thinking block count tracking** (`src/usage/extract.ts`, `src/usage/types.ts`,
   `src/usage/ddl.ts`, `src/db.ts`): counts thinking/reasoning content blocks
   observed in both Anthropic and OpenAI streams. Bridges the gap when upstream
-  omits `thinking_tokens` / `reasoning_tokens` but emits thinking content —
+  omits `thinking_tokens` / `reasoning_tokens` but emits thinking content ;
   the dashboard now shows "N req w/ think (unmeasured)" instead of hiding
   thinking activity entirely.
   - Anthropic: counts `content_block_start` events with `type: "thinking"`.
@@ -249,7 +249,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the default forked worker pool raced console.log RPC delivery against
   teardown, producing an `EnvironmentTeardownError` ("Closing rpc while
   'onUserConsoleLog' was pending") that exited non-zero despite all tests
-  passing — failing CI. Set `fileParallelism: false` + `maxWorkers: 1` to
+  passing; failing CI. Set `fileParallelism: false` + `maxWorkers: 1` to
   eliminate the race.
 
 ## [0.3.26] - 2026-07-26
@@ -261,7 +261,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `stopService() → performUpdate() → startService()` inline, inside the proxy
   process. Because the proxy lives in the service manager's cgroup (systemd
   `KillMode=control-group`, launchd process group, NSSM process tree),
-  `stopService()` SIGTERM'd the proxy before `performUpdate()` could run —
+  `stopService()` SIGTERM'd the proxy before `performUpdate()` could run ;
   leaving the system stopped and unupdated. The fix spawns the CLI `update`
   command as a **detached process that escapes the service cgroup**
   (`systemd-run --user --scope` on Linux, detached `spawn` + `unref()` on
@@ -290,14 +290,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Reference docs reorganized** — documentation files under `docs/` have been
+- **Reference docs reorganized**: documentation files under `docs/` have been
   reorganized for clearer navigation. `AGENTS.md` tightened with consolidated
   config field table. `.github/AGENT_RULES.md` added for AI agent behavioral
   rules (thinking stamping, reasoning_effort stamping rules).
 
 ### Added
 
-- **Sleep/wake gap test** — new integration test covering the usage tracking
+- **Sleep/wake gap test**: new integration test covering the usage tracking
   behavior across system sleep/wake gaps, ensuring that gaps in sampling data
   (e.g. laptop sleep) are handled correctly without spurious idle time.
 
@@ -305,7 +305,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Model-specific thinking block shapes (ADR-0017)** — `ThinkingConfig` widened
+- **Model-specific thinking block shapes (ADR-0017)**: `ThinkingConfig` widened
   from `{type:"adaptive"}` to a discriminated union supporting
   `{type:"enabled", keep:"all", budget_tokens}` (Kimi Preserved Thinking) and
   `{type:"enabled", clear_thinking:boolean, budget_tokens}` (Z.ai Preserved
@@ -321,7 +321,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Usage heatmap stale daily rows** — the Usage tab heatmap could show 0
+- **Usage heatmap stale daily rows**: the Usage tab heatmap could show 0
   work hours for days with 10+ hours of active coding. Two root causes fixed:
   1. **Stale today row** (`src/index.ts`): the daily downsample job computed
      today's row at startup or UTC midnight with whatever samples existed at
@@ -341,14 +341,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
      For bursty coding traffic, many 60-second windows had no new token
      movement, so session-open intervals (reading, thinking, waiting on a
      generation) were not counted. Fix: the skip is now gated on
-     `concurrent_sessions === 0` in both samples — if a session is open,
+     `concurrent_sessions === 0` in both samples; if a session is open,
      the interval counts as active even without token movement.
 
 ## [0.3.22] - 2026-07-25
 
 ### Changed
 
-- **Dashboard one-click update no longer requires `DASHBOARD_TOKEN`** —
+- **Dashboard one-click update no longer requires `DASHBOARD_TOKEN`** ;
   the `POST /dashboard/api/update` pre-flight guard that checked
   `ctx.config.dashboardToken` is removed. `isServiceInstalled()` alone
   now gates one-click binary update, matching the dashboard's own auth
@@ -356,7 +356,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The `token_not_set` error code and its `no_token` UI branch are
   dropped. See [ADR-0015](docs/adr/0015-token-guard-removed-ws-version-push.md).
 
-- **Version info pushed over WebSocket** — `VersionInfo` is broadcast on
+- **Version info pushed over WebSocket**: `VersionInfo` is broadcast on
   WebSocket startup and on every on-demand check. The `useVersion` hook
   subscribes to `VERSION_EVENT` instead of fetching, so the version card
   and update button update live without a page reload. Adds a new
@@ -367,7 +367,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`ttft_max` and `tps_min` performance stats** — the
+- **`ttft_max` and `tps_min` performance stats**: the
   `PERFORMANCE_STATS_SQL` view now computes `MAX(ttft_ms)` and
   `MIN(tps)`, surfaced alongside the existing mean and percentile
   columns. The dashboard's Performance tab shows the TTFT max (with
@@ -376,45 +376,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Total In label clarified** — the Anthropic "Total In" subtitle now
+- **Total In label clarified**: the Anthropic "Total In" subtitle now
   reads "incl. cache (total token uncached)" instead of the ambiguous
   "incl. cache".
-- **"thinking" → "think"** — the Total Out thinking-tokens subtitle is
+- **"thinking" → "think"**: the Total Out thinking-tokens subtitle is
   shortened to "think" to save horizontal space on the stat tile.
 
 ## [0.3.20] - 2026-07-25
 
 ### Fixed
 
-- **AGENTS.md private paths** — v0.3.19 published AGENTS.md with private
+- **AGENTS.md private paths**: v0.3.19 published AGENTS.md with private
   local paths (absolute home directory, VMware mount). Sanitized: removed
   all absolute home paths, mount references, and username. Database
   name corrected from stale `capture.db` to `umans-gate.db`.
-- **docs/ARCHITECTURE.md** — `context_management` injection condition
+- **docs/ARCHITECTURE.md**: `context_management` injection condition
   corrected from "anthropic-version is 2023-06-01" to actual gate:
   `stampClaudeCode && !isOpenAi && thinking enabled`. Worker pipeline
   description corrected from "offloads writes" to "exists but disabled".
-- **README.md** — `CONCURRENCY_HARD_CAP`/`SOFT_LIMIT` descriptions
+- **README.md**: `CONCURRENCY_HARD_CAP`/`SOFT_LIMIT` descriptions
   corrected from "non-configurable" to "auto-derived from `/v1/usage`".
-- **docs/proxy-modifications.md** — 4 nonexistent constants removed,
+- **docs/proxy-modifications.md**: 4 nonexistent constants removed,
   HOP set path fixed (`helpers.ts` → `shared/http-headers.ts`), 15+ stale
   line number references updated, `warmer_path` corrected to hardcoded.
-- **ROADMAP.md** — Current State version stamp fixed (v0.3.18 → v0.3.19).
+- **ROADMAP.md**: Current State version stamp fixed (v0.3.18 → v0.3.19).
 
 ### Changed
 
-- **ADR-0006** — `model-policy.ts` references corrected to `stamp-catalog.ts`.
-- **ADR-0008** — added superseded-by note pointing to ADR-0011.
-- **ADR-0002** — status updated from "Proposed" to "Accepted"; duplicated
+- **ADR-0006**: `model-policy.ts` references corrected to `stamp-catalog.ts`.
+- **ADR-0008**: added superseded-by note pointing to ADR-0011.
+- **ADR-0002**: status updated from "Proposed" to "Accepted"; duplicated
   paragraph removed.
-- **ADR-0004** — status updated from "Proposed" to "Accepted".
-- **ADR-0013** — status updated from "proposed" to "Accepted".
-- **ADR-0014** — "Applies to" stamp updated from v0.3.18+ to v0.3.19+.
-- **ADR-0005** — handoff.ts line count prediction corrected from ~500 to ~638.
+- **ADR-0004**: status updated from "Proposed" to "Accepted".
+- **ADR-0013**: status updated from "proposed" to "Accepted".
+- **ADR-0014**: "Applies to" stamp updated from v0.3.18+ to v0.3.19+.
+- **ADR-0005**: handoff.ts line count prediction corrected from ~500 to ~638.
 
 ### Added
 
-- **scripts/scan-private-info.sh** — CI gate that blocks absolute home
+- **scripts/scan-private-info.sh**: CI gate that blocks absolute home
   paths, VMware mount paths, and usernames from tracked files. Runs on
   every PR/push and pre-release.
 
@@ -422,21 +422,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **ROADMAP.md full rewrite** — body was structurally stale (header said
+- **ROADMAP.md full rewrite**: body was structurally stale (header said
   v0.3.18 but body said "Current State (v0.1.3)" and listed shipped features
   as future work under "Near-Term (v0.2.x)"). All shipped features (vision
   handoff, concurrency gate, rate limiter, service persistence, release
   automation, etc.) moved to Current State. Only genuinely future work
   remains in Near-Term / Mid-Term / Long-Term sections. (ADR-0014)
-- **AGENTS.md is now public** — was gitignored since project inception.
+- **AGENTS.md is now public**: was gitignored since project inception.
   Rewritten as a public contributor guide: project paths, architecture,
   config, dev workflow, code style, SOLID principles, testing, release
   process, and common mistakes. AI-agent behavioral rules stay in the
   private `CLAUDE.md` (gitignored). (ADR-0014)
-- **docs/adr/ is now public** — 15 existing ADRs (ADR-0001 through
+- **docs/adr/ is now public**: 15 existing ADRs (ADR-0001 through
   ADR-0014) were gitignored and invisible to public contributors. Now
-  tracked. Reviewed for private info — none found. (ADR-0014)
-- **All docs stamps updated** — `docs/ARCHITECTURE.md`,
+  tracked. Reviewed for private info; none found. (ADR-0014)
+- **All docs stamps updated**: `docs/ARCHITECTURE.md`,
   `docs/BENCHMARKS.md`, `docs/PRODUCT.md`, `docs/TROUBLESHOOTING.md`,
   `docs/proxy-modifications.md` were stamped v0.1.4 (14 versions stale).
   All now stamped v0.3.19. `update-docs.ts` extended to update all
@@ -444,7 +444,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **ADR-0014** — documents 5 release hygiene decisions: no history rewrite,
+- **ADR-0014**: documents 5 release hygiene decisions: no history rewrite,
   ROADMAP full rewrite, extend update-docs.ts for all docs stamps,
   AGENTS.md/CLAUDE.md two-file split, CHANGELOG append-only policy.
 
@@ -452,54 +452,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Release automation** — `scripts/release.sh` now syncs version across
+- **Release automation**: `scripts/release.sh` now syncs version across
   `dashboard/package.json`, updates `ROADMAP.md` stamps, and regenerates
   `docs/README.md` index automatically on every release. New
   `scripts/sync-version.ts` validates version consistency across all files;
   `scripts/update-docs.ts` validates doc links and updates stamps.
-- **CI version gate** — new `.github/workflows/version-check.yml` runs on
+- **CI version gate**: new `.github/workflows/version-check.yml` runs on
   every PR/push touching version-related files, blocking merges that break
   version consistency or contain broken doc links.
-- **Pre-release validation** — `release.yml` now runs a validation job
+- **Pre-release validation**: `release.yml` now runs a validation job
   before building/publishing, failing fast on version mismatch or empty
   CHANGELOG entries.
-- **CONTRIBUTING.md** — release section rewritten to document the
+- **CONTRIBUTING.md**: release section rewritten to document the
   automated flow and manual validation commands.
 
 ### Changed
 
-- **Dashboard: BodyRenderer state-aware rendering** — in-flight + null body
+- **Dashboard: BodyRenderer state-aware rendering**: in-flight + null body
   shows spinner + "Response still streaming…"; done + null body shows
   "Response body not captured" (muted, not destructive). Request body
   never receives state. (ADR-0013)
-- **Dashboard: UpdateButton always enabled** — `canUpdate=false` opens a
+- **Dashboard: UpdateButton always enabled**: `canUpdate=false` opens a
   blocker AlertDialog with reason-specific guidance (`no_token` →
   DASHBOARD_TOKEN, `no_service` → `umans-gate service install`, `other` →
   generic). `canUpdate=true` preserves existing confirm flow. (ADR-0013)
-- **Dashboard: What's New UX** — native `<button>` → shadcn Button
+- **Dashboard: What's New UX**: native `<button>` → shadcn Button
   (ghost/sm); release-notes scroll: `<pre overflow-y-auto>` → ScrollArea
   wrapping `<pre>`. (ADR-0013)
-- **Dashboard: ScrollArea fallbacks** — capture-detail error/empty states
+- **Dashboard: ScrollArea fallbacks**: capture-detail error/empty states
   use ScrollArea; usage-heatmap horizontal scroll uses ScrollArea with new
   `horizontal` prop (backward-compatible, default false). (ADR-0013)
-- **ROADMAP.md** — stamp updated from v0.1.4 to v0.3.17 (was stale by 14
+- **ROADMAP.md**: stamp updated from v0.1.4 to v0.3.17 (was stale by 14
   versions).
-- **dashboard/package.json** — version synced from 0.1.0 to 0.3.17 (was
+- **dashboard/package.json**: version synced from 0.1.0 to 0.3.17 (was
   never synced since initial release).
 
 ## [0.3.17] - 2026-07-24
 
 ### Added
 
-- **Dashboard: thinking token percentage on Total Out tile** — the
+- **Dashboard: thinking token percentage on Total Out tile**: the
   Performance tab's "Total Out" sub-line now shows the thinking-to-output
   ratio (e.g. `3.0K thinking (25.0%)`) when thinking tokens are present.
   Percentage omitted when output or thinking is zero. No backend or SQL
-  change — all data already aggregated in `PERFORMANCE_STATS_SQL`.
+  change; all data already aggregated in `PERFORMANCE_STATS_SQL`.
 
 ### Fixed
 
-- **CI: flaky EnvironmentTeardownError** — Recharts emits an async
+- **CI: flaky EnvironmentTeardownError**: Recharts emits an async
   `console.warn` for zero-dimension charts in jsdom, which raced with
   vitest worker teardown and failed CI despite all tests passing. The
   specific warning is now suppressed in the test setup; all other
@@ -509,7 +509,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Usage: active-minutes undercount** — the idle-skip in daily
+- **Usage: active-minutes undercount**: the idle-skip in daily
   downsampling compared all 28 ambient fields, but time-derived fields
   (`window_remaining_minutes`, `window_resets_at`) change every poll,
   preventing the skip from ever firing. Added `activityKey()` comparing
@@ -517,15 +517,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `tokens_in`, `tokens_out`, `tokens_cached`) so idle periods are
   correctly detected and excluded. Gap detection and degradation burden
   still use the full 28-field `ambientKey` (unchanged).
-- **Dashboard: heatmap brush reset on poll** — the Recharts `Brush`
+- **Dashboard: heatmap brush reset on poll**: the Recharts `Brush`
   `startIndex`/`endIndex` were plain constants recomputed every render.
   When `rows` changed on each 60s poll, `getDerivedStateFromProps`
   reset the brush to full range. Converted to `useState` with a
   `useEffect` that resets only when the date preset changes.
-- **Dashboard: tooltip lag** — `TooltipProvider delay={300}` caused a
+- **Dashboard: tooltip lag**: `TooltipProvider delay={300}` caused a
   300ms open delay on all 63 tooltips. Changed to `delay={0}` (instant
   open) with `closeDelay={150}` to prevent flicker on rapid crossings.
-- **Dashboard: degradation bands extend past resolution** —
+- **Dashboard: degradation bands extend past resolution** ;
   `buildDegradationBands` filtered out `resolved` events, causing bands
   to extend to `lastTs` instead of stopping at the resolution
   timestamp. Rewrote to walk all events (onset + morph + resolved):
@@ -536,25 +536,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **ConcurrencyGate: multiple `onStatsChange` callbacks** — the gate now
+- **ConcurrencyGate: multiple `onStatsChange` callbacks**: the gate now
   supports registering multiple stats-change listeners (was single-callback).
   This enables the usage peak tracker to observe gate stats independently.
-- **Usage: local weighted concurrent peak tracking** — between upstream
+- **Usage: local weighted concurrent peak tracking**: between upstream
   `/v1/usage` samples, the proxy now tracks the highest weighted concurrent
   load observed locally. Brief peaks shorter than the poll interval are no
   longer missed in the usage timeline.
-- **Dashboard: sub-1-second capture TPS display** — captures with
+- **Dashboard: sub-1-second capture TPS display**: captures with
   generation time under 1 second now show the raw output token count
   instead of a noisy, misleadingly high t/s value. The `tps` column
   remains NULL for these rows so aggregate TPS calculations only average
   true rates.
-- **DDL: `usage_missing=1` rows included in request_count** — the
+- **DDL: `usage_missing=1` rows included in request_count**: the
   `PERFORMANCE_STATS_SQL` view no longer filters out captures with
   `usage_missing = 1`, so all completed requests are counted.
 
 ### Fixed
 
-- **`embedded-assets.ts` regeneration** — fixed stale asset references
+- **`embedded-assets.ts` regeneration**: fixed stale asset references
   that caused integration tests to fail with "Cannot find module" errors
   when the dashboard build was refreshed.
 
@@ -565,38 +565,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **ADR-0011**: Adaptive thinking forcing, `can_disable` consumption, and
   OpenAI reasoning_effort forcing. Documents the full truth tables for both
   Anthropic and OpenAI routes.
-- `StampPolicy.canDisableThinking` field — populated from
+- `StampPolicy.canDisableThinking` field; populated from
   `/v1/models/info` `reasoning.can_disable` at parse time. Kimi K2.7
-  (`umans-kimi*`, `umans-coder`) report `can_disable: false` — their
+  (`umans-kimi*`, `umans-coder`) report `can_disable: false`; their
   thinking cannot be turned off, so the proxy forces it to adaptive.
 - `isThinkingDisabled()` and `isThinkingEnabled()` exported from
-  `stamp-thinking.ts` — recognize disabled forms (`type: "disabled"`,
+  `stamp-thinking.ts`; recognize disabled forms (`type: "disabled"`,
   `"off"`, `"none"`, `enabled: false`).
 
 ### Changed
 
-- **Anthropic route — thinking forcing**: when `stampClaudeCode` is enabled
+- **Anthropic route; thinking forcing**: when `stampClaudeCode` is enabled
   and the body has a non-disabled `thinking` block, it is forced to
   `{ type: "adaptive" }`. Disabled forms are respected when
   `canDisableThinking: true`, but forced to adaptive when `canDisableThinking:
   false` (Kimi, Coder).
-- **Anthropic route — all body stamps gated on thinking**: `max_tokens`,
+- **Anthropic route; all body stamps gated on thinking**: `max_tokens`,
   `top_k`, `context_management`, `output_config`, and `temperature` are
   only stamped when thinking is enabled (present and not disabled). When
   thinking is absent or disabled, only TTL/cache_control stamping runs.
   Supersedes ADR-0008's "max_tokens always stamps" rule.
-- **Anthropic route — `reasoning_effort` stripped**: the OpenAI-style
+- **Anthropic route; `reasoning_effort` stripped**: the OpenAI-style
   `reasoning_effort` field is always deleted from Anthropic request bodies.
-- **OpenAI route — reasoning_effort forcing**: `stampReasoning()` is no
+- **OpenAI route; reasoning_effort forcing**: `stampReasoning()` is no
   longer a no-op. It injects `reasoning_effort` from `policy.effort` when
   `thinking` is present, forces existing values to `policy.effort`, and
   respects disabled values (`off`/`none`/`null`) when `canDisableThinking:
   true`.
-- **OpenAI route — Anthropic fields stripped**: when `reasoning_effort` is
+- **OpenAI route; Anthropic fields stripped**: when `reasoning_effort` is
   active, `thinking`, `output_config`, and `context_management` are stripped
   from the body. `temperature` is forced to 1.0 (reasoning models reject
   `temperature != 1.0`).
-- **OpenAI route — target effort from policy**: the target effort is
+- **OpenAI route; target effort from policy**: the target effort is
   `policy.effort` (`"max"` for GLM, `"high"` for others), not the
   `STAMP_REASONING_EFFORT_VALUE` config constant.
 - `OpenAiBody.reasoning_effort` type widened from `"high" | "max"` to
@@ -614,34 +614,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Full dependency stack upgrade.** All root and dashboard dependencies
   updated to latest compatible versions:
-  - **Biome 1.9.4 → 2.5.5** — migrated config to v2 format (`includes`
+  - **Biome 1.9.4 → 2.5.5**: migrated config to v2 format (`includes`
     replaces `ignore`, `preset` replaces `recommended`, `assist` replaces
     `organizeImports`). CSS files excluded from linting (Tailwind v4
     directives not yet supported by Biome's CSS parser).
-  - **React 18.3.1 → 19.2.8** — global `JSX` namespace removed; all
+  - **React 18.3.1 → 19.2.8**: global `JSX` namespace removed; all
     `JSX.Element` references updated to `React.JSX.Element`.
   - **Vite 6.4.3 → 8.1.5** + `@vitejs/plugin-react` 4.7.0 → 6.0.4.
   - **lucide-react 0.577 → 1.26.0**, **tailwind-merge 2.6 → 3.6**,
   - **recharts 3.9 → 3.10**, **shadcn 4.13 → 4.14**,
   - **commander 12 → 15**, **@testing-library/jest-dom 6 → 7**.
-  - **TypeScript pinned to 5.9.3** (not 7.0.2) — `rollup-plugin-dts`
+  - **TypeScript pinned to 5.9.3** (not 7.0.2); `rollup-plugin-dts`
     (used by tsup for DTS generation) does not yet support TS 7.
   - Dashboard `tsconfig.json`: removed `baseUrl` (removed in TS 7),
     excluded `__tests__/` from production type-checking.
 
 ### Fixed
 
-- **Dashboard index.html** — converted `var` to `const` in inline theme
+- **Dashboard index.html**: converted `var` to `const` in inline theme
   script (Biome 2 `noInnerDeclarations` rule).
-- **master-detail-layout.tsx** — `<div role="region">` → `<section>`
+- **master-detail-layout.tsx**: `<div role="region">` → `<section>`
   (Biome 2 `useSemanticElements` rule).
-- **ws-status-badge.tsx** — added `role="img"` to span with `aria-label`
+- **ws-status-badge.tsx**: added `role="img"` to span with `aria-label`
   (Biome 2 `useAriaPropsSupportedByRole` rule).
 - **Stale Biome suppression comments** removed in `capture-list.tsx` and
   `capture-row-item.tsx` (Biome 2 `suppressions/unused` rule).
 - **Unsafe optional chaining** in `vision-handoff-integration.test.ts`
   fixed with `?? []` fallback.
-- **embed-assets.ts** — added `@ts-nocheck` to the auto-generated file
+- **embed-assets.ts**: added `@ts-nocheck` to the auto-generated file
   (side-effect imports with `with { type: "file" }` resolve at runtime
   via Bun, not at type-check time).
 
@@ -663,7 +663,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Configurable performance sample count.** A new
   `performance_sample_count` config field (default 200, hot-reloadable,
-  range 10–10000) controls how many recent requests per model are used
+  range 10-10000) controls how many recent requests per model are used
   for performance percentile computation in the dashboard. Previously
   hardcoded to 100. Accessible via the Config tab, env var
   `PERFORMANCE_SAMPLE_COUNT`, or JSON config `performance_sample_count`.
@@ -743,18 +743,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   retry activities (cooldown, same-key retry, rewrite escalation,
   auto-disable) are now visible live in the dashboard:
 
-  - **In-flight `cooldown <Ns>` badge** on the capture row — shows a
+  - **In-flight `cooldown <Ns>` badge** on the capture row; shows a
     live countdown when the TTFT watchdog has fired and the proxy is
     waiting out the retry cooldown. Amber, tabular-nums, updates every
     second.
-  - **In-flight `retry <N>` badge** — shows the retry ordinal
+  - **In-flight `retry <N>` badge**: shows the retry ordinal
     (`retry 1` = same-key retry, `retry 2` = rewrite escalation) while
     the retry fetch is in flight.
   - **Persistent `retried` badge** on completed captures that involved
     at least one retry. Survives page refresh (persisted in two new
     `captures` table columns: `retry_attempt INTEGER` and
     `ttft_exceeded INTEGER`).
-  - **Global auto-disable banner** — a dismissible amber warning banner
+  - **Global auto-disable banner**: a dismissible amber warning banner
     appears at the top of the dashboard when the TTFT watchdog
     auto-disables after N consecutive retry failures. Explains what
     happened, what it means, and how to re-enable. A persistent amber
@@ -762,7 +762,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     Auto-clears when the watchdog is re-enabled via config reload.
 
   WebSocket `state` messages gain `cooling_down` state with
-  `retryAttempt` and `cooldownEndsAt` fields (transient, WS-only — not
+  `retryAttempt` and `cooldownEndsAt` fields (transient, WS-only; not
   persisted to DB). The `gate` WS message and `GET /dashboard/api/gate`
   REST endpoint gain `watchdog_disabled`,
   `watchdog_consecutive_failures`, and
@@ -796,11 +796,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and the updater had no fallback. The version check now:
 
   - Queries the npm registry (`https://registry.npmjs.org/umans-gate/latest`)
-    first — not rate-limited, and authoritative for npm installs.
+    first; not rate-limited, and authoritative for npm installs.
   - Falls back to GitHub Releases (still needed for standalone-binary
     version checks).
   - Surfaces the actual error reason on failure instead of a generic
-    message — including the rate-limit reset time when GitHub returns
+    message; including the rate-limit reset time when GitHub returns
     403/429.
 
   The same rate-limit-aware error surfacing was applied to
@@ -829,21 +829,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Permit leak when upstream hangs after the first chunk.** When the
   upstream sent some data and then stalled while the client stayed
-  connected, the concurrency permit was never released — `active`
+  connected, the concurrency permit was never released; `active`
   climbed to the cap and stayed there until process restart, and
   captures remained stuck in `state="streaming"` with no terminal
   status. Root cause: `onAbort` listened only on `req.signal` (which
   does NOT abort in this scenario on Bun 1.3.14), and
   `TransformStream.flush()` did not fire on abnormal termination.
   Fixed by:
-  - **Part A** — also listening on the upstream signal
+  - **Part A**: also listening on the upstream signal
     (`AbortSignal.any([req.signal, ttftController?, timeout])`) so
     timeout/client-abort propagated to the fetch also triggers
     `flushCapture` + `releasePermit`.
-  - **Part B** — fixing the already-aborted `req.signal` branch to
+  - **Part B**: fixing the already-aborted `req.signal` branch to
     release the permit immediately (previously only flushed the
     capture).
-  - **Part C** — adding a per-request watchdog timer
+  - **Part C**: adding a per-request watchdog timer
     (`upstream_timeout_ms + 5s`) as a safety net that fires if none of
     the other release paths run. Catches pathological cases where the
     stream errors but no signal aborts.
@@ -865,7 +865,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     preserves the existing `TransformStream` capture path (no first chunk
     lost).
   - Retry decision gated by breaker state, gate saturation, auto-disable
-    state, and attempt cap — suppresses retry when upstream is degraded.
+    state, and attempt cap; suppresses retry when upstream is degraded.
   - Same-key retry (attempt 2) reuses the permit and is
     rate-limiter-exempt.
   - Rewrite-id escalation (attempt 3) extends `attemptRewriteRetry` with
@@ -890,9 +890,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   local timezone. `fmtDate` and `fmtDateTime` were replaced by
   `fmtUtcTime` (`HH:mm:ss`) and `fmtUtcDateTime` (`MMM d, yyyy, HH:mm:ss`)
   using `Intl.DateTimeFormat` pinned to `timeZone: "UTC"`. All
-  dashboard components that previously rendered local times — capture
+  dashboard components that previously rendered local times; capture
   detail, capture row, gate status, models tab, usage tab, usage
-  timeline (current + old), vision calls — now use the UTC variants.
+  timeline (current + old), vision calls; now use the UTC variants.
   This makes timestamps consistent across machines in different
   timezones and matches the UTC convention used in server-side logs.
   Added dashboard unit tests pinning the UTC formatting against a known
@@ -903,7 +903,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Usage History tab**. A new dashboard tab surfaces long-run usage trends
-  sampled from `/v1/usage`. Built across seven tickets (01–07):
+  sampled from `/v1/usage`. Built across seven tickets (01-07):
   - **Ticket 01**: coalesced `/v1/usage` history fetch with a ring-buffer
     sample store (`usage_samples`), gated by `usage_history_enabled`.
   - **Ticket 02**: `usage_events` table + priority/service-mode tuple
@@ -924,7 +924,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     config hot-reload for the three usage-history knobs, and a CONTEXT.md
     glossary.
 - **Config tab: Usage History section** exposing `usage_history_enabled`,
-  `usage_raw_retention_days`, and `usage_gap_threshold_minutes` — all
+  `usage_raw_retention_days`, and `usage_gap_threshold_minutes`; all
   hot-reloadable.
 
 ### Fixed
@@ -936,7 +936,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Usage history: self-healing data loss across retention boundaries**.
   `runDailyDownsample` previously downsampled from `today-retention` to
   `today`, which left days older than the retention cutoff without a
-  daily row before pruning their raw samples — silent data loss when the
+  daily row before pruning their raw samples; silent data loss when the
   proxy was down across a retention boundary. Fixed by using
   `getEarliestSampleDay()` as the `from` date so every day with samples
   gets its daily row written before pruning.
@@ -971,7 +971,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `vision_decomposition_timeout_ms`, `vision_crafting_timeout_ms`,
   `vision_adjacent_text_max_chars`, `vision_recent_messages_count`, and
   `vision_system_prompt_max_chars` to the backend (all hot-reloadable), but
-  the dashboard Config tab was not updated to expose them — contradicting the
+  the dashboard Config tab was not updated to expose them; contradicting the
   README's "Dashboard-first" configuration guidance. All 7 fields now appear in
   the Vision section with descriptions, validation, and hot-reload support.
   The `VisionRawConfig` type in `dashboard/src/hooks/use-config.ts` was
@@ -991,11 +991,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Intent-aware vision pipeline**: the vision handoff now triages each image
-  request into one of four strategies — `generic`, `slotted`, `crafted`, or
-  `decomposed` — based on the adjacent user text, image count, and whether the
+  request into one of four strategies; `generic`, `slotted`, `crafted`, or
+  `decomposed`; based on the adjacent user text, image count, and whether the
   image is a tool result. A new `VISION_INTENT_STRATEGY` config gates the
   behavior: `off` (generic only), `slotted` (force slot strategy), `crafted`
-  (force crafted questions for single-image), or `auto` (default — triage
+  (force crafted questions for single-image), or `auto` (default; triage
   decides per-request). The triage function is pure and deterministic so the
   chosen strategy seeds the cache key without fragmentation.
 - **Multi-image decomposition (DecoVQA+)**: when a multi-image request contains
@@ -1005,7 +1005,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `VISION_DECOMPOSITION_ENABLED` (default `true`) with a configurable
   `VISION_DECOMPOSITION_TIMEOUT_MS` (default 3000ms). Results are cached
   in-memory per batch key so the same batch never pays twice. Failure is
-  always safe — any error falls back to the slotted strategy.
+  always safe; any error falls back to the slotted strategy.
 - **Crafted question strategy (Strategy D)**: for single-image complex questions,
   an LLM call reformulates the user's question into a focused, neutrally-phrased
   image-description request. The vision model never sees raw user text, which
@@ -1052,7 +1052,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Dashboard Config tab: new experiment groups**: the Config tab now shows
-  two new groups under the Stamp section — "ID Rewrite" (surfaces the
+  two new groups under the Stamp section; "ID Rewrite" (surfaces the
   existing `experiment_rewrite_ids` and `experiment_rewrite_ttl_ms` fields
   with descriptions) and "oh-my-openagent" (surfaces the new
   `experiment_strip_omo_reminder` toggle). Both groups are marked
@@ -1108,7 +1108,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   selects which concurrency limit is the effective operating limit.
   When `false` (default), the effective limit is the soft limit (8);
   when `true`, the effective limit is the hard cap (16). Toggleable at
-  runtime via the dashboard Config tab — no restart needed. The gate
+  runtime via the dashboard Config tab; no restart needed. The gate
   never grants beyond the selected limit.
 - **`effectiveLimit` in `GateStats`**: the gate now reports the actual
   current operating limit (after priorityLow/boxing adjustments) in
@@ -1123,7 +1123,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to `8`. The effective limit defaults to the soft limit (8) unless
   `USE_HARD_CAP=true`. Both values remain auto-sized from `/v1/usage`
   when `UMANS_API_KEY` is set.
-- **Dashboard Config tab — Hard Cap / Soft Limit are now read-only**:
+- **Dashboard Config tab; Hard Cap / Soft Limit are now read-only**:
   both fields are derived from `/v1/usage` and are no longer directly
   editable. Field-level refresh buttons were removed from these fields.
   Use the new "Use Hard Cap" toggle to switch the effective limit.
@@ -1164,8 +1164,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   block only releases it if streaming never started. Prevents premature permit
   release that could over-subscribe the concurrency gate during long streams.
 - **Forwarded headers captured correctly**: the capture row now stores the
-  forwarded (post-stamp) request headers — including `accept-encoding: identity`
-  and `anthropic-beta`/`anthropic-version` when stamp beta is active — instead
+  forwarded (post-stamp) request headers; including `accept-encoding: identity`
+  and `anthropic-beta`/`anthropic-version` when stamp beta is active; instead
   of the raw inbound headers. The inspector now shows exactly what was sent
   upstream.
 
@@ -1188,7 +1188,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the viewer and usage reconciler.
 - **WriteQueue overflow `onDrop` callback**: when the queue overflows or
   is drained on shutdown, dropped captures are marked `failed` in the DB
-  and a `state` WS message is broadcast — the dashboard reflects the
+  and a `state` WS message is broadcast; the dashboard reflects the
   real state instead of leaving entries in limbo.
 - **WriteQueue exponential-backoff flush retry**: failed `batchUpdate`
   calls are retried with exponential backoff (1s → 30s, max 10 attempts)
@@ -1254,7 +1254,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the first `/v1/usage` fetch failed before any snapshot existed,
   `applyFailedSnapshot` fired `onChange` with the fail-safe snapshot
   (softLimit=1), permanently boxing the gate. Now the first-failure
-  path skips `onChange` — `getSnapshot()` still returns the fail-safe
+  path skips `onChange`; `getSnapshot()` still returns the fail-safe
   for direct reads.
 - **`boxedReason` rate-limit prefix matching**: the gate resize logic
   compared `boxedReason !== "rate_limited"` exactly, missing
@@ -1262,7 +1262,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   match so all rate-limit boxing variants bypass the `resize(1)` path.
 - **Vision parallel processing memory spike**: `Promise.allSettled` on
   all kept images spawned parallel `Bun.Image` decodes, causing peak
-  memory spikes. Switched to sequential processing — the concurrency
+  memory spikes. Switched to sequential processing; the concurrency
   gate serializes vision calls anyway.
 - **Vision `updateVisionCapture` unhandled rejection**: a DB write
   failure during vision capture update was uncaught, crashing the
@@ -1460,7 +1460,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (e.g. `@codegiveness/umans-gate-darwin-arm64`). This follows the
   industry convention used by `@esbuild/*`, `@rollup/rollup-*`, and
   `@swc/core-*` for platform-specific binary packages. The main package
-  `umans-gate` is unchanged — `optionalDependencies` now reference the
+  `umans-gate` is unchanged; `optionalDependencies` now reference the
   scoped packages.
 - **npm-shim.cjs**: updated binary resolution paths to find
   `@codegiveness/umans-gate-<target>` in `node_modules/@codegiveness/`.
@@ -1478,7 +1478,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   producing only `## [VERSION] - DATE` as release notes. Fixed with corrected
   awk logic that extracts the full version section body.
 - **CodeQL workflow efficiency**: added `paths-ignore` for markdown, docs, and
-  LICENSE files — CodeQL no longer runs on doc-only changes (matching CI
+  LICENSE files; CodeQL no longer runs on doc-only changes (matching CI
   workflow behavior).
 - **CI workflow professionalization**: split monolithic CI into `quality` job
   (typecheck + lint + build, 3-OS matrix: ubuntu/macos/windows) and `test` job
@@ -1489,7 +1489,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Added `--timeout 30000` to test command (bunfig.toml `timeout` key is not
   respected by Bun).
 - **Stuck master CI runs**: `cancel-in-progress` was only enabled for
-  `pull_request` events — a stuck `in_progress` run held the concurrency
+  `pull_request` events; a stuck `in_progress` run held the concurrency
   group lock indefinitely, blocking all master push runs (stayed `pending`
   with 0 jobs). Fixed: `cancel-in-progress: true` for all events.
 - **CI permissions hardening**: added `permissions: contents: read`
@@ -1500,7 +1500,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   typescript, @vitejs/plugin-react, @base-ui/react). Closed 13 dangerous
   major-bump PRs.
 - **Release workflow**: `--notes-file CHANGELOG.md` dumped the entire
-  changelog as release notes — now extracts only the matching version
+  changelog as release notes; now extracts only the matching version
   section. Added `--frozen-lockfile` to all `bun install` steps. Added
   `timeout-minutes: 20` to prevent hung release builds.
 - **Test helper singleton race condition**: `echo-upstream.ts` used a
@@ -1544,7 +1544,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
-- **SECURITY.md**: added account security section — 2FA requirement for npm
+- **SECURITY.md**: added account security section; 2FA requirement for npm
   publisher + GitHub org admins, token rotation policy, quarterly access review.
 
 ## [0.1.3] - 2026-07-14
@@ -1554,7 +1554,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **npm package republish**: v0.1.2 was published via the now-deleted
   `publish.yml` workflow (raw `npm publish` on repo `package.json`), which
   shipped `dist/cli.js` with a `#!/usr/bin/env bun` shebang and `engines: { bun:
-  ">=1.1.0" }` — **requiring Bun to run**. This contradicted the "no
+  ">=1.1.0" }`; **requiring Bun to run**. This contradicted the "no
   prerequisites" promise. v0.1.3 republishes via `release.yml` which runs
   `scripts/pack-npm.sh` to produce the correct shim-based package (`bin:
   npm-shim.cjs` + 6 platform `optionalDependencies` with pre-compiled
@@ -1563,7 +1563,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`src/gate.ts` → `src/limiter/gate.ts`, `src/vision.ts` → `src/vision/handoff.ts`).
 - **README.md**: removed misleading `.env.example` reference (file only has
   `UMANS_API_KEY=`; reworded to reference config variables generally).
-- **README.md**: fixed `vision_*` incorrectly listed as hot-reloadable — moved
+- **README.md**: fixed `vision_*` incorrectly listed as hot-reloadable; moved
   to `restartRequired` (matches `RESTART_REQUIRED_FIELDS` in `src/config.ts`).
 - **SECURITY.md**: softened "SLSA Level 3 provenance" to "npm provenance
   attestation" for accuracy and consistency with ROADMAP.md.
@@ -1584,7 +1584,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   aligned with proxy box `┬` above).
 - **Benchmark result files**: untracked 36 stale files across three benchmark
   directories (`benchmark/vision-handoff/results/`, `benchmark/proxy-optimizations/results/`,
-  and `benchmark/concurrency-gate/results.json`) — they contained old
+  and `benchmark/concurrency-gate/results.json`); they contained old
   `umans-ai/umans-gate` URLs in vision-test descriptions and a partially-redacted
   API key (`sk-f1qgI...tmJI`). Updated `.gitignore` to also match `results.json`
   files directly in benchmark directories (not just `results/` subdirectories).
@@ -1602,7 +1602,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **CodeQL code scanning** (`.github/workflows/codeql.yml`) — weekly automated
+- **CodeQL code scanning** (`.github/workflows/codeql.yml`); weekly automated
   security analysis for JavaScript/TypeScript.
 
 ## [0.1.2] - 2026-07-14
@@ -1617,7 +1617,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fix `repository.url` in `package.json` to point to `codegiveness/umans-gate`
-  (was `umans-ai/umans-gate` — npm page linked to wrong repo).
+  (was `umans-ai/umans-gate`; npm page linked to wrong repo).
 
 ## [0.1.0] - 2026-07-10
 
@@ -1629,12 +1629,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with persistent storage. Strategies: `always`, `catalog`, `never`.
   - Modules: `src/vision/` (`handoff.ts`, `detect.ts`, `cache.ts`,
     `persistent-cache.ts`, `transcode.ts`, `wrapper.ts`, `sink.ts`)
-  - `src/vision-description-store.ts` — persistent description storage in SQLite
+  - `src/vision-description-store.ts`; persistent description storage in SQLite
 - **Concurrency gate** (`src/limiter/`): semaphore + circuit breaker with
   intention-based reservations (main vs vision), hard cap, soft limit driven by
   `/v1/usage`, queue timeout, and over-subscription fallback.
-  - `src/limiter/gate.ts` — `ConcurrencyGate`, `Semaphore`, `CircuitBreaker`
-  - `src/limiter/types.ts` — gate option types
+  - `src/limiter/gate.ts`; `ConcurrencyGate`, `Semaphore`, `CircuitBreaker`
+  - `src/limiter/types.ts`; gate option types
 - **Rate limiting** (`src/rate.ts`): sliding-window weighted rate limiter for
   pro-tier request limits. Auto-derives from `/v1/usage` or explicit config.
 - **Connection warmer** (`src/warmer.ts`): periodic `/v1/models` pings to keep
@@ -1655,12 +1655,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that applies TTL, `top_k`, `max_tokens`, `thinking`, `output_config`,
   `context_management`, and `temperature` stamps in the correct order.
 - **Individual stamp modules**:
-  - `src/stamp-temperature.ts` — forces `temperature` value
-  - `src/stamp-thinking.ts` — injects `thinking`, `max_tokens`, `output_config`
-  - `src/stamp-topk.ts` — injects `top_k`
-  - `src/stamp-reasoning.ts` — OpenAI-compatible `reasoning_effort` stamping
+  - `src/stamp-temperature.ts`; forces `temperature` value
+  - `src/stamp-thinking.ts`; injects `thinking`, `max_tokens`, `output_config`
+  - `src/stamp-topk.ts`; injects `top_k`
+  - `src/stamp-reasoning.ts`; OpenAI-compatible `reasoning_effort` stamping
 - **Bundled stamp toggle**: `stamp_claude_code_enabled` replaces individual
-  stamp toggles — one switch applies the full Claude Code stamp bundle.
+  stamp toggles; one switch applies the full Claude Code stamp bundle.
 - **Dashboard config validation**: dispatch-table-based validation with
   hot-reload support and restart-required field detection.
 - **Dashboard polling consolidation**: `usePollingResource` hook unifies
@@ -1674,7 +1674,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **SOLID refactor (Waves 1–5)**: split monolithic modules into focused,
+- **SOLID refactor (Waves 1-5)**: split monolithic modules into focused,
   single-responsibility units. Helpers split into domain modules, `ConcurrencyGate`
   decomposed into `Semaphore` + `CircuitBreaker`, `useCaptures` split into
   `useCaptureList` + `useCaptureDetail` + `useGateStats`, config validation

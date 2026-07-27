@@ -17,7 +17,7 @@ replacement." That rationale contradicted the dashboard auth model:
 open by design. The default dashboard is unauthenticated, yet the update
 endpoint pretended auth was mandatory. A user with the default open
 dashboard could click Update and hit a "configure DASHBOARD_TOKEN"
-blocker — confusing, not secure.
+blocker, confusing rather than secure.
 
 `DASHBOARD_TOKEN` guards dashboard access, not update authorization.
 Only `isServiceInstalled()` determines whether the process restarts
@@ -39,8 +39,8 @@ explicitly chosen "no interval timer").
 `POST /dashboard/api/update` no longer checks `ctx.config.dashboardToken`.
 The only pre-flight gates are:
 
-1. `isServiceInstalled()` — process restart safety (unchanged).
-2. `info.updateAvailable && info.latest` — an update exists (unchanged).
+1. `isServiceInstalled()`: process restart safety (unchanged).
+2. `info.updateAvailable && info.latest`: an update exists (unchanged).
 
 The `token_not_set` error code and its dashboard UI branch are removed.
 
@@ -73,7 +73,7 @@ The server broadcasts this message:
   re-check propagates to all connected dashboard clients.
 
 The dashboard's `useVersion()` hook subscribes to the `version` WS
-message and updates state in place — no browser reload required to see
+message and updates state in place, no browser reload required to see
 a newly-available update. The existing HTTP fallback (`GET
 /dashboard/api/version` on mount, `POST /check` on click) remains for
 initial load and explicit re-check; the WS push is additive.
@@ -85,7 +85,7 @@ stance intact while removing the browser-reload friction.
 ## Considered options
 
 - **Keep token guard, document the contradiction (rejected):** the
-  contradiction is not a documentation problem — it is a design flaw.
+  contradiction is not a documentation problem, it is a design flaw.
   The default open dashboard makes the guard user-hostile, and the
   guard adds no real security beyond what the service-manager check
   already provides.
@@ -97,7 +97,7 @@ stance intact while removing the browser-reload friction.
   meaningful one on the user's behalf.
 - **Keep token guard only when token is set (rejected):** the user
   asked for this, but it still leaves the default-config user unable
-  to one-click update — the exact complaint that surfaced this issue.
+  to one-click update, the exact complaint that surfaced this issue.
   The service-manager guard is sufficient and consistent.
 - **Interval timer for version checks (rejected):** ADR-0018 already
   rejected this. The WS push on startup + on-demand covers the
@@ -118,14 +118,14 @@ stance intact while removing the browser-reload friction.
   `no_token` branch. The `no_service` branch is retained.
 - A new `WsMessage` variant `{ type: "version"; version: VersionInfo }`
   is added. `WsBroadcaster.broadcast()` already handles arbitrary
-  `WsMessage` shapes — no broadcaster change needed.
+  `WsMessage` shapes, no broadcaster change needed.
 - `useVersion()` hook adds a WebSocket subscription. The existing HTTP
   fetch on mount remains (covers cold-start before WS connects).
 - Tests:
-  - `test/sec-new-1-dashboard-token-auth.test.ts` — any assertion on
+  - `test/sec-new-1-dashboard-token-auth.test.ts`: any assertion on
     `token_not_set` from the update endpoint must be removed or
     rewritten to expect `not_service_managed` instead.
-  - `dashboard/src/__tests__/version-section.test.tsx` — any
+  - `dashboard/src/__tests__/version-section.test.tsx`: any
     `no_token` dialog assertion must be removed.
   - New test: WS `version` message updates `useVersion` state without
     an HTTP call.

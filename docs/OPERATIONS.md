@@ -1,6 +1,6 @@
 # Operations
 
-> **Applies to:** umans-gate v0.4.6 · **Last updated:** 2026-07-27
+> **Applies to:** umans-gate v0.4.7 · **Last updated:** 2026-07-27
 
 umans-gate operations: start/stop, upgrades, health checks, backup, and
 configuration management. For reactive problem-solving, see
@@ -54,7 +54,7 @@ PORT=9001 bun src/cli.ts      # dev
 
 | Endpoint | Auth | Purpose |
 |---|---|---|
-| `GET /health` | `DASHBOARD_TOKEN` if set | Liveness probe — returns `200 OK` |
+| `GET /health` | `DASHBOARD_TOKEN` if set | Liveness probe, returns `200 OK` |
 | `GET /metrics` | `DASHBOARD_TOKEN` if set | Basic metrics (capture count, uptime) |
 | `GET /dashboard/api/captures` | `DASHBOARD_TOKEN` if set | Recent captures (JSON) |
 | `GET /dashboard/api/gate` | `DASHBOARD_TOKEN` if set | Concurrency gate state |
@@ -69,13 +69,13 @@ When `DASHBOARD_TOKEN` is set, all `/dashboard/api/*` routes, `/health`, and
 Open `http://localhost:1945/dashboard/` for the live inspector. The dashboard
 has these tabs:
 
-- **Captures** — live request/response list with SSE rendering
-- **Vision** — vision call records and cache stats
-- **Performance** — per-model TTFT, TPS, token throughput
-- **Economics** — daily/monthly cost tracking
-- **Usage** — upstream `/v1/usage` heatmap and timeline
-- **Models** — upstream model catalog with pricing
-- **Config** — edit, validate, hot-reload, restart
+- **Captures**: live request/response list with SSE rendering
+- **Vision**: vision call records and cache stats
+- **Performance**: per-model TTFT, TPS, token throughput
+- **Economics**: daily/monthly cost tracking
+- **Usage**: upstream `/v1/usage` heatmap and timeline
+- **Models**: upstream model catalog with pricing
+- **Config**: edit, validate, hot-reload, restart
 
 ## Upgrades
 
@@ -166,7 +166,7 @@ but stopping first is safer for personal-use workflows.
 - zstd compression (`compression_enabled: true`) reduces body storage.
 - `capture_body_max_bytes` (default 10 MB) limits per-capture body size.
 - Run `bun run clean` to remove the database and start fresh (this deletes all
-captures).
+  captures).
 
 ### Locked database
 
@@ -194,7 +194,7 @@ never overwritten.
 The Config tab can save and hot-reload via `POST /dashboard/api/config/reload`.
 
 **Hot-reloadable:** all fields except those marked `restartRequired` (see
-`src/config/reload.ts` — `RELOAD_FIELDS` for the full hot-reloadable set,
+`src/config/reload.ts`, `RELOAD_FIELDS` for the full hot-reloadable set,
 `RESTART_REQUIRED_FIELDS` for the restart-required set).
 
 **Restart required:** fields marked `restartRequired` (e.g. `port`,
@@ -212,7 +212,7 @@ due to the TLS handshake.
 
 ## See also
 
-- [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — reactive problem-solving
-- [ARCHITECTURE.md](ARCHITECTURE.md) — system design and data flow
-- [AGENTS.md](../AGENTS.md) — complete config field table
-- [proxy-modifications.md](proxy-modifications.md) — every modification the proxy applies
+- [TROUBLESHOOTING.md](TROUBLESHOOTING.md): reactive problem-solving
+- [ARCHITECTURE.md](ARCHITECTURE.md): system design and data flow
+- [AGENTS.md](../AGENTS.md): complete config field table
+- [proxy-modifications.md](proxy-modifications.md): every modification the proxy applies

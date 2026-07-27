@@ -2,7 +2,7 @@
 
 > **Last updated:** 2026-07-27
 
-umans-gate is maintained by a single developer, [@codegiveness](https://github.com/codegiveness), who serves as the creator and sole maintainer.
+umans-gate is maintained by a single developer, [@codegiveness](https://github.com/codegiveness), who is the creator and sole maintainer.
 
 | Name | GitHub | Role |
 |------|--------|------|
@@ -16,7 +16,6 @@ umans-gate is maintained by a single developer, [@codegiveness](https://github.c
 - Maintain the CHANGELOG and release tags
 - Guide architectural decisions and roadmap direction
 
-## Becoming a Maintainer
+## Becoming a maintainer
 
-This is a personal project with no path to co-maintainership. If you want to
-extend umans-gate, fork it — that's what forks are for.
+This is a personal project with no path to co-maintainership. If you want to extend umans-gate, fork it; that's what forks are for.

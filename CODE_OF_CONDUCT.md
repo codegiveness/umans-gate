@@ -4,10 +4,7 @@
 
 ## Scope
 
-This code of conduct applies to all interaction with umans-gate through
-GitHub issues, pull requests, and discussions. umans-gate is a personal-use
-project with no formal community or organization, but basic standards of
-respectful interaction still apply.
+This code of conduct applies to all interaction with umans-gate through GitHub issues, pull requests, and discussions. umans-gate is a personal-use project with no formal community or organization, but basic standards of respectful interaction still apply.
 
 ## Standards
 

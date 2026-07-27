@@ -3,7 +3,7 @@
 > **Applies to:** umans-gate v0.4.7 · **Last updated:** 2026-07-27
 
 umans-gate roadmap: planned direction and likely priorities. Items are not
-committed or scheduled — they shift based on upstream API changes and personal
+committed or scheduled. They shift based on upstream API changes and personal
 development needs.
 
 ## What already exists in v0.4.5
@@ -97,7 +97,7 @@ development needs.
 ## Related: umans-open-stack
 
 umans-gate implements patterns documented in
-[umans-open-stack](https://github.com/umans-ai/umans-open-stack) — a curated set of
+[umans-open-stack](https://github.com/umans-ai/umans-open-stack), a curated set of
 open source tools and playbooks. Specifically:
 
 - **Concurrency playbook** → umans-gate's concurrency gate (semaphore + circuit breaker)
@@ -111,5 +111,5 @@ Future roadmap items may be informed by playbooks added to umans-open-stack.
 
 This is a personal-use project. The roadmap reflects the maintainer's own
 priorities. If you fork the project and want to share a fix or improvement, open
-a [GitHub issue](https://github.com/codegiveness/umans-gate/issues) or submit a PR
-— it may be reviewed on a best-effort basis.
+a [GitHub issue](https://github.com/codegiveness/umans-gate/issues) or submit a PR.
+It may be reviewed on a best-effort basis.

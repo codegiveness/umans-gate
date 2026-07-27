@@ -20,7 +20,7 @@ the other stamps.
 Second, Preserved Thinking is a GLM-5.2 feature. Z.ai documents
 `reasoning_effort` as GLM-5.2-exclusive and notes that GLM-5.2
 "auto-decides whether to think." Applying `clear_thinking: false` to
-older GLM variants (5.1, 4.x) is wrong-by-default — those models do not
+older GLM variants (5.1, 4.x) is wrong-by-default; those models do not
 support the field.
 
 ### Z.ai official references
@@ -38,7 +38,7 @@ support the field.
 
 **Core Parameters** (https://docs.z.ai/guides/overview/concept-param):
 
-> `reasoning_effort` — only supported by `GLM-5.2` and above.
+> `reasoning_effort`: only supported by `GLM-5.2` and above.
 
 **Migrate to GLM-5.2** (https://docs.z.ai/guides/overview/migrate-to-glm-new):
 
@@ -47,8 +47,8 @@ support the field.
 
 Preserved Thinking (`clear_thinking: false`) is an opt-in API feature
 targeted at coding/agent workloads, primarily relevant to GLM-5.2 and
-above. Stamping it unconditionally across all GLM variants — and across
-unrelated model families (Kimi, Coder) — is a behavior change with no
+above. Stamping it unconditionally across all GLM variants, and across
+unrelated model families (Kimi, Coder), is a behavior change with no
 user opt-out.
 
 ## Decision
@@ -59,7 +59,7 @@ of `stamp_claude_code_enabled`.
 
 ### 1. `stamp_glm_5_2_thinking_enabled`
 
-- Default: `false` (opt-in — existing users must explicitly enable).
+- Default: `false` (opt-in; existing users must explicitly enable).
 - Type: boolean. Hot-reloadable. Lives in `RawConfig`, `ProxyConfig`
   (`stampGlm52Thinking`), `StampConfig`.
 - Behavior matrix:
@@ -73,7 +73,7 @@ of `stamp_claude_code_enabled`.
 
 ### 1b. `stamp_kimi_k2_7_code_thinking_enabled`
 
-- Default: `false` (opt-in — existing users must explicitly enable).
+- Default: `false` (opt-in; existing users must explicitly enable).
 - Type: boolean. Hot-reloadable. Lives in `RawConfig`, `ProxyConfig`
   (`stampKimiK27CodeThinking`), `StampConfig`.
 - Behavior matrix:
@@ -85,7 +85,7 @@ of `stamp_claude_code_enabled`.
   | ON | ON | YES | `{ type: "enabled", keep: "all", budget_tokens: 32000 }` |
   | ON | ON | NO | `{ type: "adaptive" }` (silent fallback) |
 
-- `canDisableThinking` is NOT overridden — stays `false` from the Kimi
+- `canDisableThinking` is NOT overridden; it stays `false` from the Kimi
   overlay. A client-sent `{ type: "disabled" }` on a K2.7-Code request is
   forced to the overridden shape when the child is ON, or to adaptive
   when OFF.
@@ -114,14 +114,14 @@ modelName, config)` runs **after** `resolveStampPolicy` returns the
 overlay-derived policy. It checks both GLM 5.2 and Kimi K2.7-Code child
 toggles in order (first match wins) and:
 
-- Returns a new `StampPolicy` object (shallow spread) — the base
+- Returns a new `StampPolicy` object (shallow spread); the base
   `STAMP_OVERLAY` entries are never mutated.
 - Replaces only `thinkingShape`.
 - Does **NOT** override `canDisableThinking`, `max_tokens`, `effort`,
   `top_k`, `thinking`, or any other overlay field. Those stay from the
   resolved overlay policy.
 - Always returns `{ type: "adaptive" }` when the child is OFF or the
-  version doesn't match — even for non-GLM models. This is a deliberate
+  version doesn't match, even for non-GLM models. This is a deliberate
   behavior change documented in CHANGELOG: the previous unconditional
   family-specific shapes are now opt-in.
 
@@ -129,7 +129,7 @@ toggles in order (first match wins) and:
 
 `canDisableThinking` controls whether a client-sent
 `{ type: "disabled" }` thinking block is respected. The override leaves
-it untouched — GLM's `canDisableThinking: true` (from the overlay) stays
+it untouched; GLM's `canDisableThinking: true` (from the overlay) stays
 true; Kimi/Coder's `false` stays false.
 
 ### 5. Parent-child toggle relationship on the dashboard
@@ -143,24 +143,24 @@ true; Kimi/Coder's `false` stays false.
 
 ## Consequences
 
-- **Default-OFF migration.** Existing users with
+- Default-OFF migration. Existing users with
   `stamp_claude_code_enabled=true` now get `{ type: "adaptive" }` for
   GLM models instead of the unconditional `clear_thinking: false`
   shape. They must enable `stamp_glm_5_2_thinking_enabled` to restore
   the previous behavior for GLM 5.2 models.
 
-- **Kimi/Coder impact.** Because the override falls back to
+- Kimi/Coder impact. Because the override falls back to
   `{ type: "adaptive" }` for any model that doesn't match "5.2",
   `umans-coder` (Kimi family) also gets adaptive instead of the
-  previous Kimi Preserved Thinking shape. This is intentional — Ticket
+  previous Kimi Preserved Thinking shape. This is intentional; Ticket
   03 will add a dedicated `stamp_kimi_k2_7_code_thinking_enabled`
   toggle with the same pattern, restoring Kimi Preserved Thinking as
   an explicit opt-in for matching Kimi models.
 
-- **Single seam for future toggles.** The
+- Single seam for future toggles. The
   `applyModelSpecificThinkingOverride` pattern extends cleanly: each new
   family/version toggle becomes another branch in the override function,
-  with the same shape — version match → family shape; otherwise
+  with the same shape: version match → family shape; otherwise
   adaptive fallback.
 
 ## Moonshot official references (Kimi K2.7-Code)
@@ -191,5 +191,5 @@ true; Kimi/Coder's `false` stays false.
 | `kimi-k3` | Always reasons | N/A (uses `reasoning_effort`) | Supported |
 
 `reasoning_effort` is a K3-only feature. The proxy must never stamp it
-on K2.7-Code — the existing `reasoning_effort` stripping on Anthropic
+on K2.7-Code; the existing `reasoning_effort` stripping on Anthropic
 routes (rule 6) handles this regardless of child toggle state.

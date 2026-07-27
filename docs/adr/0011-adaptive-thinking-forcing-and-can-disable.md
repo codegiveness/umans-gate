@@ -39,8 +39,8 @@ proxy transforms it according to this table:
 | Any other shape (`{ type: "enabled", budget_tokens: ... }`, etc.) | **Forced to `{ type: "adaptive" }`** | **Forced to `{ type: "adaptive" }`** |
 
 Disabled forms are recognized case-insensitively by `type` value, or by an
-`enabled: false` flag. Any other shape — including `{ type: "enabled" }` with
-extra fields like `budget_tokens` — is forced to `{ type: "adaptive" }`.
+`enabled: false` flag. Any other shape, including `{ type: "enabled" }` with
+extra fields like `budget_tokens`, is forced to `{ type: "adaptive" }`.
 
 If the thinking block is already `{ type: "adaptive" }`, the proxy does not
 rewrite it. No write means no spurious `changed = true`.
@@ -63,7 +63,7 @@ When thinking is **absent or disabled** (and respected):
 | `context_management` | No |
 | TTL on `cache_control` ephemeral blocks | **Yes** (always) |
 
-This **supersedes** ADR-0008's rule that "max_tokens always stamps — it
+This **supersedes** ADR-0008's rule that "max_tokens always stamps; it
 controls output length, independent of thinking." The rationale: when a
 client sends no thinking (or disables it), they are opting out of the
 full Claude Code stamp bundle. Stamping `max_tokens`, `top_k`, and
@@ -90,7 +90,7 @@ unavailable:
 | `umans-qwen*` | `true` | `/v1/models/info` + overlay |
 | `*` (unknown) | `true` | overlay (safe default: respect client) |
 
-This **supersedes** ADR-0008's section "can_disable is informational" — the
+This **supersedes** ADR-0008's section "can_disable is informational"; the
 field now directly affects stamping.
 
 ### Rule: strip reasoning_effort on Anthropic routes
@@ -119,27 +119,27 @@ a no-op:
 
 | `reasoning_effort` | `thinking` | `canDisableThinking` | Action |
 |---|---|---|---|
-| Absent | Absent | — | Do nothing (respect absence) |
-| Absent | Enabled (non-disabled) | — | **Inject** `reasoning_effort` = `policy.effort`, **strip** `thinking` |
-| Absent | Disabled | — | Respect (leave alone) |
+| Absent | Absent | n/a | Do nothing (respect absence) |
+| Absent | Enabled (non-disabled) | n/a | **Inject** `reasoning_effort` = `policy.effort`, **strip** `thinking` |
+| Absent | Disabled | n/a | Respect (leave alone) |
 | Present, disabled value (`off`/`none`/`null`) | any | `true` | **Respect** (leave alone) |
 | Present, disabled value | any | `false` (Kimi, Coder) | **Force** to `policy.effort`, **strip** `thinking` |
-| Present, any other value | any | — | **Force** to `policy.effort`, **strip** `thinking` |
+| Present, any other value | any | n/a | **Force** to `policy.effort`, **strip** `thinking` |
 
 The target effort is `policy.effort` (`"max"` for `umans-glm*`, `"high"` for
 others), NOT the `STAMP_REASONING_EFFORT_VALUE` config constant (which is
 always `"high"`). This matches the Anthropic route's `output_config.effort`
-behavior — GLM models get `"max"`.
+behavior: GLM models get `"max"`.
 
 When `reasoning_effort` is present or injected, `thinking` is **stripped** from
 the body. This handles the case where a harness configured for Anthropic-style
-`thinking` sends to the OpenAI `/v1/chat/completions` endpoint — the
+`thinking` sends to the OpenAI `/v1/chat/completions` endpoint; the
 Anthropic-style `thinking` block has no meaning on an OpenAI route when
 `reasoning_effort` is the active reasoning control.
 
 Additionally, `output_config` and `context_management` are **stripped** when
-reasoning is active — these are Anthropic-specific fields that have no place on
-an OpenAI route. `temperature` is **forced to 1.0** — reasoning models reject
+reasoning is active. These are Anthropic-specific fields that have no place on
+an OpenAI route. `temperature` is **forced to 1.0**; reasoning models reject
 `temperature != 1.0`.
 
 Disabled `reasoning_effort` values are: `"off"`, `"none"`, `"null"` (case
@@ -153,12 +153,12 @@ policy and enforces the rules above.
 
 ## Alternatives considered
 
-- **Pure force-stamp (pre-ADR-0008)** — always overwrite to adaptive,
+- **Pure force-stamp (pre-ADR-0008)**: always overwrite to adaptive,
   including injecting when absent. Rejected (again) because injecting thinking
   when the client omitted it changes request semantics for clients that
   intentionally disable thinking for cost/latency.
 
-- **Respect all non-adaptive shapes (ADR-0008 as-is)** — leave
+- **Respect all non-adaptive shapes (ADR-0008 as-is)**: leave
   `{ type: "enabled", budget_tokens: 1024 }` untouched. Rejected because the
   proxy's stamp bundle is designed to produce a consistent Anthropic request
   shape, and `budget_tokens` with a fixed budget defeats the adaptive thinking
@@ -184,7 +184,7 @@ policy and enforces the rules above.
   `context_management`, and forces `temperature: 1.0` when reasoning is active.
 - `OpenAiBody` type gains `temperature`, `output_config`, and
   `context_management` fields to support the stripping logic.
-- `stampThinking()` `maxTokens` option is now gated on `isThinkingEnabled` —
+- `stampThinking()` `maxTokens` option is now gated on `isThinkingEnabled`;
   `max_tokens` is not stamped when thinking is absent or disabled.
 - `ContextManagementStep` skips when thinking is absent or disabled.
 - `TopKStep` skips when thinking is absent or disabled.
@@ -194,7 +194,7 @@ policy and enforces the rules above.
 - `OpenAiReasoningStep` calls `stampReasoning()` with the resolved policy
   instead of being a structural no-op.
 - ADR-0008's "can_disable is informational" section is superseded.
-- ADR-0008's OpenAI path truth table is superseded — `reasoning_effort` is
+- ADR-0008's OpenAI path truth table is superseded; `reasoning_effort` is
   now injected from `thinking`, forced to `policy.effort`, and `thinking` is
   stripped when `reasoning_effort` is active.
 - ADR-0008's truth table for `thinking` is updated: "Respect (no overwrite)"

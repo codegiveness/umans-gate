@@ -26,13 +26,13 @@ interface. A broader scan also found non-shadcn scroll containers in
 
 ## Decision
 
-### 1. BodyRenderer — distinguish in-flight from done
+### 1. BodyRenderer: distinguish in-flight from done
 
 `BodyRenderer` receives the capture `state` prop and renders three cases:
 
 - **In-flight** (`enqueued` | `streaming` | `cooling_down`): spinner +
-  "Response still streaming…" — neutral, informational.
-- **Done + null body**: "Response body not captured" — muted, not
+  "Response still streaming…", neutral and informational.
+- **Done + null body**: "Response body not captured", muted, not
   destructive red. Covers both "no body stored" and "decompression
   failed" without distinguishing them. The destructive red treatment is
   reserved for actual errors the user can act on; a missing body is a
@@ -43,11 +43,11 @@ We deliberately do **not** add a server-side signal to distinguish
 decompression failure from "no body stored". The db layer logs the
 decompression failure server-side (`CaptureDB.log.warn`); surfacing it
 in the dashboard would require a new field on `CaptureDetail`, and the
-user's action is the same in both cases (nothing — the body is gone).
+user's action is the same in both cases (nothing, the body is gone).
 The cost of a backend change outweighs the value of distinguishing two
 non-actionable null reasons.
 
-### 2. UpdateButton — always enabled, dialog explains blocker
+### 2. UpdateButton: always enabled, dialog explains blocker
 
 The Update button is always enabled. When `canUpdate=false`, clicking
 it opens an `AlertDialog` (not the update-confirm dialog) explaining
@@ -64,7 +64,7 @@ This replaces the disabled-button + tooltip pattern. A disabled button
 hides the reason behind a hover; an always-enabled button with a dialog
 makes the blocker immediately visible on click.
 
-### 3. What's New — shadcn components
+### 3. What's New: shadcn components
 
 - Native `<button>` → `Button variant="ghost" size="sm"`.
 - `<pre className="overflow-y-auto">` → `ScrollArea` wrapping a `<pre>`
@@ -73,38 +73,38 @@ makes the blocker immediately visible on click.
 
 ### 4. Other non-shadcn scroll containers
 
-- `capture-detail.tsx` lines 117, 136 — two `<main overflow-y-auto>`
+- `capture-detail.tsx` lines 117, 136: two `<main overflow-y-auto>`
   fallback states (error and empty-select) → `ScrollArea`. The main
   content area (line 277) already uses `ScrollArea`; these fallback
   states should match.
-- `usage-heatmap.tsx` line 197 — `<div overflow-x-auto>` → `ScrollArea`
+- `usage-heatmap.tsx` line 197: `<div overflow-x-auto>` → `ScrollArea`
   with `orientation="horizontal"` if supported, else vertical `ScrollArea`
   wrapping a horizontally-scrolling inner div.
-- `body-renderer.tsx` and `sse-viewer` `<pre>` tags **without** overflow
+- `body-renderer.tsx` and `sse-viewer` `<pre>` tags without overflow
   are left as-is. They are content display elements inside a parent
   `ScrollArea`, not scroll containers themselves.
 
-## Considered Options
+## Considered options
 
 ### BodyRenderer
 
-- **Server signal (rejected)** — add a `body_status` field to
+- **Server signal (rejected)**: add a `body_status` field to
   `CaptureDetail` distinguishing `in_flight` / `no_body` /
   `decompression_failed`. Most accurate, but requires a backend schema
   change, a new db query path, and the user cannot act on the
   distinction. Rejected as over-engineering for non-actionable states.
-- **Better messages only (rejected)** — change the text without passing
+- **Better messages only (rejected)**: change the text without passing
   `state`. Cannot distinguish in-flight from done, so the most common
   case (watching a live capture) still shows a confusing message.
 
 ### UpdateButton
 
-- **Disabled + visible badge (rejected)** — keep the button disabled but
+- **Disabled + visible badge (rejected)**: keep the button disabled but
   add an amber badge ("Token required" / "Service required"). Less
   disruptive than a dialog, but the badge adds visual noise to the
   already-busy version card and still requires the user to read small
   text to understand the fix.
-- **Actionable fix guidance (rejected)** — auto-scroll to
+- **Actionable fix guidance (rejected)**: auto-scroll to
   `DASHBOARD_TOKEN` field or show install command with copy button.
   Nice UX, but scope-creep: the token field is in the same Config tab,
   and the install command is a one-liner the user can type. A clear
@@ -115,7 +115,7 @@ makes the blocker immediately visible on click.
 - `BodyRenderer` gains a `state` prop. All call sites
   (`capture-detail.tsx` lines 280, 283) must pass it. The request body
   is always available immediately, so `state` only affects the response
-  body rendering — request body rendering keeps the existing null/empty
+  body rendering; request body rendering keeps the existing null/empty
   logic.
 - The UpdateButton dialog adds a new `AlertDialog` state to
   `VersionCard`. The existing update-confirm `AlertDialog` is reused

@@ -6,7 +6,7 @@ Accepted.
 
 ## Context
 
-Subagent cold starts and slash-command resets are outside the scope of the proxy's breakpoint fix in ADR 0002. Every subagent invocation (`task()`, `explore`, `librarian`, etc.) starts a fresh conversation whose first 1–2 requests report `cache_read_input_tokens = 0`.
+Subagent cold starts and slash-command resets are outside the scope of the proxy's breakpoint fix in ADR 0002. Every subagent invocation (`task()`, `explore`, `librarian`, etc.) starts a fresh conversation whose first 1 to 2 requests report `cache_read_input_tokens = 0`.
 
 Capture analysis (`~/umans-gate.db`, 199 captures) showed why these cold
 starts are structurally unavoidable given the current system prompt layout:
@@ -19,7 +19,7 @@ starts are structurally unavoidable given the current system prompt layout:
   - `You are a codebase search specialist...` (~52 KB)
 
 All five distinct system prompts in the captures share a **large common
-suffix** — the env block, `AGENTS.md`, `CLAUDE.md`, `codegraph.md`, MCP
+suffix**: the env block, `AGENTS.md`, `CLAUDE.md`, `codegraph.md`, MCP
 server instructions, the skills list, and the `customize-opencode`
 constraints block. This suffix is appended *after* the agent-specific
 persona prefix.
@@ -42,8 +42,8 @@ A third class of cold-start drops occurs at slash-command boundaries
 Capture analysis compared cache-hit and cache-miss requests at these
 boundaries:
 
-- id=2526 (cr=47616, hit) vs id=2528 (cr=0, miss) — `/grill-with-docs`
-- id=2573 (cr=140800, hit) vs id=2575 (cr=0, miss) — `/diagnosing-bugs`
+- id=2526 (cr=47616, hit) vs id=2528 (cr=0, miss), `/grill-with-docs`
+- id=2573 (cr=140800, hit) vs id=2575 (cr=0, miss), `/diagnosing-bugs`
 
 Within each pair: system prompts byte-for-byte identical, system
 breakpoint present on both, gaps of 3 and 5 minutes (well within the
@@ -52,13 +52,13 @@ breakpoint present on both, gaps of 3 and 5 minutes (well within the
 Exactly 2 request headers differ in both pairs: `x-session-id` and
 `x-session-affinity`. opencode assigns a new session ID per
 slash-command invocation. The upstream (umans-glm-5.2) appears to key
-cache lookup by session ID — when it changes, even identical system +
+cache lookup by session ID; when it changes, even identical system +
 breakpoint within TTL misses.
 
 The proxy already has `src/experiments/rewrite-ids.ts` (gated on
 `experimentRewriteIds`, default `false`) that detects and rewrites these
 headers. But it is designed for 502-avoidance via salted ID mapping, not
-cache normalization — it changes the ID to a *different* value, which
+cache normalization; it changes the ID to a *different* value, which
 would not help caching.
 
 ## Decision
@@ -66,7 +66,7 @@ would not help caching.
 The proxy accepts both subagent cold starts and slash-command resets as architecturally unavoidable.
 
 **Subagents**: the proxy cannot reliably split a system prompt into
-`[shared-context, persona]` — the boundary has no consistent marker and
+`[shared-context, persona]`; the boundary has no consistent marker and
 mis-detection would corrupt the prompt. The realistic fix lives in
 opencode/oh-my-openagent: restructure the system prompt template so the
 **shared context (AGENTS.md, CLAUDE.md, skills, env) comes first, persona
@@ -79,27 +79,27 @@ breaking upstream rate-limiting, abuse detection, or violating the
 provider's ToS. The realistic fix is opencode-side: stop assigning a new
 session ID on slash-command boundaries. Both fixes are outside this repo.
 
-## Considered Options
+## Considered options
 
-- **Proxy-side `experiment_reorder_system_prompt` step** — rejected. The
+- **Proxy-side `experiment_reorder_system_prompt` step**: rejected. The
   proxy has no reliable way to detect the persona/context boundary inside
   an opaque system string or array. Mis-detection corrupts the prompt,
   which is worse than the cold start. The proxy's contract is to manage
   `cache_control` placement and stamp fields, not to parse and restructure
   prompt semantics.
-- **Restructure opencode's system prompt template** — the correct fix for
+- **Restructure opencode's system prompt template**: the correct fix for
   subagent cold starts, but outside this repo. Recorded here so a future
   investigator of "why do subagents still cold-start after ADR 0002?"
   doesn't re-derive the cause. The shared suffix (~50 KB) is the cacheable
   asset; moving it to the front is the win.
-- **Proxy-side `experiment_normalize_session_id` step** — rejected. The
+- **Proxy-side `experiment_normalize_session_id` step**: rejected. The
   proxy could override `x-session-id`/`x-session-affinity` to a stable
   value across slash-command boundaries, forcing the upstream to treat all
   requests as one session for cache purposes. But this risks breaking
   upstream rate-limiting, abuse detection, or violating the provider's ToS.
   The existing `experimentRewriteIds` infrastructure rewrites IDs for
   502-avoidance, not cache normalization, and cannot be reused as-is.
-- **Accept as unavoidable (current)** — chosen. Subagent cold starts cost
+- **Accept as unavoidable (current)**: chosen. Subagent cold starts cost
   2 turns per invocation; slash-command resets cost 1 turn per command.
   Both are bounded and do not corrupt the main conversation's cache
   (subagents: 100% recovery observed; slash commands: fresh context is
@@ -108,13 +108,13 @@ session ID on slash-command boundaries. Both fixes are outside this repo.
 ## Consequences
 
 - Subagent invocations will continue to show `cache_read_input_tokens = 0`
-  on their first 1–2 requests. This is expected, not a regression, and
+  on their first 1 to 2 requests. This is expected, not a regression, and
   is not addressed by ADR 0002's restamp.
 - Slash-command boundaries will continue to show `cache_read_input_tokens
   = 0` on the command's first request. The prior conversation's cache
   cannot be reused because the upstream keys cache by `x-session-id` and
   opencode assigns a new one per command.
-- Main conversation cache is unaffected by subagent invocations — it
+- Main conversation cache is unaffected by subagent invocations; it
   recovers fully when the subagent returns.
 - If opencode/oh-my-openagent ever restructures its system prompt template
   to put shared context first, the subagent cold-start cost drops from

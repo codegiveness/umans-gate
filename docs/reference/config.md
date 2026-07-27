@@ -1,6 +1,6 @@
 # Config Tab Reference
 
-> **Applies to:** umans-gate v0.4.6 · **Last updated:** 2026-07-27
+> **Applies to:** umans-gate v0.4.7 · **Last updated:** 2026-07-27
 
 The Config tab edits proxy settings and triggers live reload or restart.
 
@@ -17,15 +17,15 @@ The Config tab edits proxy settings and triggers live reload or restart.
 | dashboard/src/components/config-tab.tsx | ConfigTab |
 | dashboard/src/components/config-fields.tsx | ConfigFields |
 
-## Data Source
+## Data source
 
 - src/config.ts (barrel) re-exports:
-  - `loadConfig` — src/config/loader.ts
-  - `DEFAULT_CONFIG` — src/config/defaults.ts
-  - `saveConfigLocked` — src/config/file.ts:90
-  - `resetConfig` — src/config/file.ts:115
-  - `validateConfig` — src/config/validation.ts:727
-  - `applyReloadToConfig` — src/config/reload.ts
+  - `loadConfig` at src/config/loader.ts
+  - `DEFAULT_CONFIG` at src/config/defaults.ts
+  - `saveConfigLocked` at src/config/file.ts:90
+  - `resetConfig` at src/config/file.ts:115
+  - `validateConfig` at src/config/validation.ts:727
+  - `applyReloadToConfig` at src/config/reload.ts
 
 ## REST Endpoints
 
@@ -44,14 +44,14 @@ All prefixed `/dashboard/api/`.
 ## WebSocket
 
 - Endpoint: `/dashboard/ws`
-- `version` message — version info + update check
+- `version` message: version info + update check
 - Config changes do not broadcast; client refetches after save
 
 ## What the Config Tab Does
 
-The Config tab edits proxy settings and applies hot-reloadable fields without a restart. **All config fields are hot-reloadable except those marked `restartRequired`** (e.g. `port`, `db_path`, `upstream_protocol`, `vision_strategy`, `vision_model`, `warmer_*`, `umans_api_key`, `dashboard_token`). The full hot-reloadable set is defined in `src/config/reload.ts` (`RELOAD_FIELDS`); restart-required fields are in `RESTART_REQUIRED_FIELDS` in the same file. Fields marked `restartRequired` require a server restart via `/restart` or a process manager.
+The Config tab edits proxy settings and applies hot-reloadable fields without a restart. All config fields are hot-reloadable except those marked `restartRequired` (e.g. `port`, `db_path`, `upstream_protocol`, `vision_strategy`, `vision_model`, `warmer_*`, `umans_api_key`, `dashboard_token`). The full hot-reloadable set is defined in `src/config/reload.ts` (`RELOAD_FIELDS`); restart-required fields are in `RESTART_REQUIRED_FIELDS` in the same file. Fields marked `restartRequired` require a server restart via `/restart` or a process manager.
 
-## Config File
+## Config file
 
 - Linux/macOS: `$XDG_CONFIG_HOME/umans-gate/config.json`
   or `~/.config/umans-gate/config.json`

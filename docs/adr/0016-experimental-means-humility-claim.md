@@ -20,19 +20,19 @@ stamping, ADR-0011 for adaptive thinking). The `ConcurrencyGate`
 (`src/limiter/gate.ts:392`) has 41 callers and full test coverage.
 
 By conventional software-engineering definitions, most of these features
-are not experimental — they are load-bearing and documented. A future
+are not experimental; they are load-bearing and documented. A future
 contributor could reasonably conclude the `experimental` flag is
 misapplied, remove it, or flip defaults to `true` to "promote" the
 features.
 
 ## Decision
 
-**The `experimental` label in umans-gate is a humility claim about
+The `experimental` label in umans-gate is a humility claim about
 unmeasured user-visible effects, not a statement about code quality or
-maturity.**
+maturity.
 
 The maintainer's observed benefits (higher cache hit rate, lower
-frustration during upstream degradation, faster TTFT) are anecdotal —
+frustration during upstream degradation, faster TTFT) are anecdotal,
 felt when comparing direct upstream API usage against proxied usage.
 They have not been benchmarked, A/B tested, or measured against a
 control. The label refuses to over-claim these effects to users who
@@ -40,25 +40,25 @@ might otherwise flip the defaults on expecting guaranteed improvements.
 
 Concretely:
 
-1. **All five flags stay labeled `experimental`.** The ADR backing or
-   caller count of a feature does not graduate it out of the label —
+1. All five flags stay labeled `experimental`. The ADR backing or
+   caller count of a feature does not graduate it out of the label;
    the label tracks the *evidence level for the user-visible benefit*,
    not the code's production-readiness.
 
-2. **All five stay `false` in `DEFAULT_CONFIG`.** A humility-labeled
+2. All five stay `false` in `DEFAULT_CONFIG`. A humility-labeled
    feature is opt-in by definition. Flipping a default to `true` would
    assert the benefit by default, contradicting the humility claim.
 
-3. **The label does not mean "may be removed."** ADR-backed experimental
+3. The label does not mean "may be removed." ADR-backed experimental
    features (TTFT watchdog, stamp pipeline) have stable contracts.
    The label means "the maintainer will not assert you will experience
    the intended benefit," not "this feature is provisional."
 
-4. **`experiment_strip_omo_reminder` is the narrowest case.** It is
+4. `experiment_strip_omo_reminder` is the narrowest case. It is
    both humility-labeled *and* opencode-specific (single-consumer
    workaround for oh-my-openagent's reminder injection). Its
    experimental status carries the additional meaning of "narrowly
-   scoped to one harness" — but it is not *more* experimental than the
+   scoped to one harness," but it is not *more* experimental than the
    others in the humility sense.
 
 ## Consequences
@@ -70,7 +70,7 @@ Concretely:
 - The `FieldDef.experimental` badge (`config-fields.tsx:281`) is the
   user-facing surface of this semantics. Its Beaker icon should be read
   as "felt, not measured," not "prototype."
-- This ADR does not block recommending the features to users — it
+- This ADR does not block recommending the features to users; it
   blocks asserting their benefits as fact. The README §1 already
   describes what stamping does; it does not promise cache-hit-rate
   improvements, and that restraint is correct.

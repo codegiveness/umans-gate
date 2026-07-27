@@ -52,7 +52,7 @@ its model family forces:
 
 `stampThinking()` in `stamp-thinking.ts` now forces `body.thinking` to
 `policy.thinkingShape` (instead of the hardcoded
-`STAMP_THINKING_VALUE` constant) when the forcing path fires — i.e.
+`STAMP_THINKING_VALUE` constant) when the forcing path fires, i.e.
 when `options.thinking` is true, `body.thinking` is present, and the
 block is either non-disabled or disabled-but-`canDisableThinking: false`.
 
@@ -69,7 +69,7 @@ gets `131071` for `max_tokens` (its overlay value), so
 `budget_tokens: 32000` is well within budget.
 
 Disabled thinking blocks remain respected per `policy.canDisableThinking`
-(ADR-0011). Only the forced *target* shape changes — the gating logic
+(ADR-0011). Only the forced *target* shape changes; the gating logic
 is untouched.
 
 ## Consequences
@@ -88,7 +88,7 @@ is untouched.
   `policy.thinkingShape` instead. The forcing path writes a shallow copy
   (`{ ...policy.thinkingShape }`) so the policy's shape object is not
   aliased into the request body.
-- The `thinkingEquals()` helper is private to `stamp-thinking.ts` — it
+- The `thinkingEquals()` helper is private to `stamp-thinking.ts`; it
   compares only the discriminant fields (`type` and its variant-specific
   companions). Extra client-sent fields on `body.thinking` do not count
   as equal, so the step always normalizes to the policy shape.

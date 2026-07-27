@@ -1,6 +1,6 @@
 # Troubleshooting
 
-> **Applies to:** umans-gate v0.4.6 · **Last updated:** 2026-07-27
+> **Applies to:** umans-gate v0.4.7 · **Last updated:** 2026-07-27
 
 Common issues and solutions for running umans-gate.
 
@@ -28,7 +28,7 @@ PORT=9001 bun src/cli.ts      # dev
 The `bun:sqlite` error means the runtime is Node.js, not Bun.
 
 If you installed via npm (`npm install -g umans-gate`), the bundled binary
-includes Bun internally — run `umans-gate`, not `node`.
+includes Bun internally. Run `umans-gate`, not `node`.
 
 If you run from source, Bun is required:
 
@@ -84,11 +84,11 @@ upstream rejects fields like `thinking`:
 
 ### Images not being described
 
-1. Check `vision_strategy` — `never` disables vision handoff entirely.
+1. Check `vision_strategy`. `never` disables vision handoff entirely.
 2. For `catalog` strategy: verify the model is in the "no vision" catalog,
    or use `always` to intercept all images regardless of model.
-3. Check `UMANS_API_KEY` is set — vision calls require it.
-4. Check `vision_concurrency` — at 1 (default), vision calls are serialized.
+3. Check `UMANS_API_KEY` is set. Vision calls require it.
+4. Check `vision_concurrency`. At 1 (default), vision calls are serialized.
 5. Check the dashboard for vision errors in the capture detail.
 
 ### Vision descriptions are slow
@@ -97,7 +97,7 @@ upstream rejects fields like `thinking`:
   `vision_concurrency` if the upstream supports more vision slots.
 - Descriptions are cached for 7 days. First requests are slow; subsequent
   requests with the same image are fast.
-- Check `vision_max_dimension` — large images are resized before sending.
+- Check `vision_max_dimension`. Large images are resized before sending.
 
 ### Persistent cache not working
 
@@ -130,7 +130,7 @@ The concurrency gate queue is full or the wait exceeded `queue_timeout_ms`
 The circuit breaker opens after 5 HTTP 429 responses within 5 minutes
 (`breaker_threshold` / `breaker_window_ms`). If it keeps opening:
 
-- Your upstream is rate-limiting you — reduce concurrency or request rate.
+- Your upstream is rate-limiting you. Reduce concurrency or request rate.
 - Check `/v1/usage` in the dashboard for rate-boxing status.
 - Increase `breaker_threshold` only if 429 responses are transient and expected.
 
@@ -160,7 +160,7 @@ To disable rate limiting entirely, set `rate_limit_requests` to `-1`:
 ### WebSocket not updating
 
 - Ensure you're connecting to `ws://localhost:1945/dashboard/ws`
-- Check `ws_backpressure_limit` — clients exceeding this are disconnected
+- Check `ws_backpressure_limit`. Clients exceeding this are disconnected.
 - Verify no proxy/firewall is blocking WebSocket upgrades
 
 ### Config changes not applying
@@ -268,18 +268,18 @@ due to the TLS handshake.
 
 ### Streaming responses are slow
 
-- Verify `upstream_protocol` is `http1.1` (default) — benchmarks show it is
+- Verify `upstream_protocol` is `http1.1` (default). Benchmarks show it is
   faster than HTTP/2 for typical LLM workloads.
-- Check concurrency settings — if the gate is queueing, requests wait.
+- Check concurrency settings. If the gate is queueing, requests wait.
 - Verify `accept-encoding: identity` is being sent (the proxy forces this).
 
 ## Where to get more help
 
-- [Operations](OPERATIONS.md) — start/stop, upgrades, health checks, backup.
-- [GitHub Issues](https://github.com/codegiveness/umans-gate/issues) — bug reports.
-- [GitHub Discussions](https://github.com/codegiveness/umans-gate/discussions) — questions.
-- [Proxy Modifications Inventory](proxy-modifications.md) — every modification the proxy applies.
-- [Architecture](ARCHITECTURE.md) — system design.
-- [Product](PRODUCT.md) — product positioning and users.
-- [Benchmarks](BENCHMARKS.md) — performance methodology and results.
-- [Security Policy](../SECURITY.md) — vulnerability reporting and security practices.
+- [Operations](OPERATIONS.md): start/stop, upgrades, health checks, backup.
+- [GitHub Issues](https://github.com/codegiveness/umans-gate/issues): bug reports.
+- [GitHub Discussions](https://github.com/codegiveness/umans-gate/discussions): questions.
+- [Proxy Modifications Inventory](proxy-modifications.md): every modification the proxy applies.
+- [Architecture](ARCHITECTURE.md): system design.
+- [Product](PRODUCT.md): product positioning and users.
+- [Benchmarks](BENCHMARKS.md): performance methodology and results.
+- [Security Policy](../SECURITY.md): vulnerability reporting and security practices.

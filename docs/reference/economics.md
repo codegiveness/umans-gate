@@ -1,6 +1,6 @@
 # Economics Tab Reference
 
-> **Applies to:** umans-gate v0.4.6 · **Last updated:** 2026-07-27
+> **Applies to:** umans-gate v0.4.7 · **Last updated:** 2026-07-27
 
 The Economics tab tracks daily usage accumulation and cost per model.
 
@@ -16,12 +16,12 @@ The Economics tab tracks daily usage accumulation and cost per model.
 |---|---|
 | dashboard/src/components/economics-tab.tsx | EconomicsTab |
 
-## Data Source
+## Data source
 
 - src/economics.ts
-  - `getMonthSummary(db, year, month)` — src/economics.ts:629
-  - `getDailyUsage(db, limit)` — src/economics.ts:613
-  - `getPricingTable(db)` — src/economics.ts:721
+  - `getMonthSummary(db, year, month)` at src/economics.ts:629
+  - `getDailyUsage(db, limit)` at src/economics.ts:613
+  - `getPricingTable(db)` at src/economics.ts:721
 - Reads from `CaptureDB` (src/db.ts) token accounting
 
 ## REST Endpoints
@@ -34,7 +34,7 @@ All prefixed `/dashboard/api/`.
 | GET | /economics/daily | Daily usage economics (default 90d, max 365) |
 | GET | /economics/pricing | Pricing table |
 
-No `/dashboard/api/economics` root route — only the three sub-routes above.
+No `/dashboard/api/economics` root route; only the three sub-routes above.
 
 ## WebSocket
 

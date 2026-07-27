@@ -19,8 +19,8 @@ returns. If `/health` does not respond within 120s, the client shows a
 
 Version availability is checked once on startup (npm-primary,
 GitHub-fallback, reusing `fetchLatestVersion()` from `updater.ts`) and
-on-demand via `POST /dashboard/api/version/check`. No interval timer —
-the proxy is a dev tool, not a 24/7 service that needs to know about
+on-demand via `POST /dashboard/api/version/check`. No interval timer.
+The proxy is a dev tool, not a 24/7 service that needs to know about
 updates within minutes.
 
 Release notes (GitHub Release body) are fetched only when an update is

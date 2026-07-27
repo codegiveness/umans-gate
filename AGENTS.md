@@ -5,7 +5,7 @@ This file is the contributor and agent guide for the umans-gate repository.
 ## Project paths
 
 - **This project** (`umans-gate`): a Bun-based LLM capture proxy. Pure
-  Bun/TypeScript — no Rust code.
+  Bun/TypeScript, no Rust code.
 - Database lives at `./umans-gate.db` (project root). Read from this file
   only when inspecting capture data.
 
@@ -39,7 +39,7 @@ test/         bun:test suite with TypeScript helpers
 ### Runtime
 
 **Bun only.** Uses `bun:sqlite`, `Bun.serve`, and Bun's `fetch` with the
-`protocol` option. Node.js cannot run this — `bun:sqlite` is a Bun built-in.
+`protocol` option. Node.js cannot run this because `bun:sqlite` is a Bun built-in.
 
 ## Configuration
 
@@ -91,7 +91,7 @@ are never overwritten. All env vars have `snake_case` JSON equivalents.
 | `breaker_cooldown_ms` | `60000` |
 | `vision_strategy` | `catalog` |
 | `vision_model` | `umans-flash` |
-| `vision_prompt` | _(long string — see `src/config/defaults.ts`)_ |
+| `vision_prompt` | _(long string, see `src/config/defaults.ts`)_ |
 | `vision_prompt_version` | `2` |
 | `vision_max_images` | `5` |
 | `vision_max_description_tokens` | `4096` |
@@ -165,7 +165,7 @@ bun run build                # Build server (tsup) + dashboard (vite)
 ## Code style
 
 - **Biome** for lint + format: 2-space indent, double quotes, semicolons.
-- **TypeScript strict mode** — no `as any`, no `@ts-ignore`, no
+- **TypeScript strict mode**, no `as any`, no `@ts-ignore`, no
   `@ts-expect-error`.
 - ESM-only (`"type": "module"`).
 - Imports use `.js` extensions in `src/` (Bun resolves `.ts` files).

@@ -1,4 +1,4 @@
-# umans-gate — LLM API capture proxy for Anthropic and OpenAI-compatible endpoints
+# umans-gate: LLM API capture proxy for Anthropic and OpenAI-compatible endpoints
 
 [![npm version](https://img.shields.io/npm/v/umans-gate.svg)](https://www.npmjs.com/package/umans-gate)
 [![npm downloads](https://img.shields.io/npm/dm/umans-gate.svg)](https://www.npmjs.com/package/umans-gate)
@@ -10,7 +10,7 @@
 
 *Personal-use project, MIT-licensed, maintained by [codegiveness](https://github.com/codegiveness). Not affiliated with, endorsed by, or an official product of Umans AI. Last updated: 2026-07-27 · Version 0.4.5.*
 
-**Author:** [codegiveness](https://github.com/codegiveness) — independent developer building LLM tooling and observability infrastructure. Source code published under MIT for transparency. No commercial support tier.
+**Author:** [codegiveness](https://github.com/codegiveness), independent developer building LLM tooling and observability infrastructure. Source code published under MIT for transparency. No commercial support tier.
 
 **Setup in 30 seconds.**
 
@@ -20,19 +20,19 @@ npx umans-gate
 
 The proxy listens on `http://localhost:1945`. The dashboard is served at
 `http://localhost:1945/dashboard/`. Point any Anthropic or
-OpenAI-compatible harness at the proxy URL — every request and response
+OpenAI-compatible harness at the proxy URL. Every request and response
 is captured to SQLite.
 
-## What Is umans-gate?
+## What is umans-gate?
 
 umans-gate is a **local LLM API capture proxy** that sits between an agent harness and the upstream LLM provider, stores every request and response in a SQLite ring buffer, and exposes a React dashboard with live WebSocket updates for inspecting traffic, cache behavior, and usage economics. It runs on Bun, requires no client-side code changes, and captures Anthropic and OpenAI-compatible endpoints in a single process.
 
-## Who Should Use umans-gate?
+## Who should use umans-gate?
 
 - **umans.ai users** who need visibility into API traffic, cache control
   TTL behavior, and per-request token economics.
 - **Agent harness users** who must inspect and debug what their harness
-  sends upstream — stamp pipeline output, thinking blocks, vision handoff.
+  sends upstream: stamp pipeline output, thinking blocks, vision handoff.
 - **Developers** integrating Anthropic or OpenAI-compatible APIs who need
   traffic capture, concurrency gating, and rate-limit validation in one
   local tool.
@@ -42,7 +42,7 @@ umans-gate is a **local LLM API capture proxy** that sits between an agent harne
 | Feature | Description |
 |---------|-------------|
 | **Capture proxy** | Intercepts LLM API traffic (Anthropic + OpenAI-compatible); stores in SQLite with optional zstd compression |
-| **Stamp pipeline** | Applies TTL, `top_k`, `max_tokens`, `thinking`, `output_config`, `context_management`, `temperature` stamps — two toggles (Anthropic / OpenAI) |
+| **Stamp pipeline** | Applies TTL, `top_k`, `max_tokens`, `thinking`, `output_config`, `context_management`, `temperature` stamps. Two toggles (Anthropic / OpenAI). |
 | **Vision handoff** | Replaces image blocks with text descriptions from a vision model; cached 7 days with persistent SQLite storage |
 | **Concurrency gate** | Semaphore + circuit breaker with intention-based reservations; hard cap and soft limit auto-sized from `/v1/usage`; queue timeout |
 | **Rate limiting** | Sliding-window weighted rate limiter; auto-derived from `/v1/usage` or explicit configuration |
@@ -55,7 +55,7 @@ umans-gate is a **local LLM API capture proxy** that sits between an agent harne
 | **Hop-by-hop header stripping** | Correct HTTP proxy behavior per RFC 7230 |
 | **Protocol flexibility** | Upstream HTTP/1.1 (default) or HTTP/2 |
 
-## Important Notes
+## Important notes
 
 1. **The proxy modifies your requests.** When stamping is enabled
    (`STAMP_CLAUDE_CODE_ENABLED` or `STAMP_REASONING_EFFORT_ENABLED`), the
@@ -63,15 +63,15 @@ umans-gate is a **local LLM API capture proxy** that sits between an agent harne
    body is what gets sent upstream AND captured. The proxy also forces
    `accept-encoding: identity` and strips `content-encoding` unconditionally.
 2. **Vision strategy and non-Claude Code harnesses.** When
-   `VISION_STRATEGY` is `never` — or a vision-capable model under `catalog`
-   — images pass through untouched. Do NOT configure the model as
+   `VISION_STRATEGY` is `never`, or a vision-capable model under `catalog`,
+   images pass through untouched. Do NOT configure the model as
    vision-capable on the harness side (except Claude Code). The default
    `catalog` strategy runs in **background mode**: on a cache miss, the
    original image-bearing body is forwarded immediately; vision processing
    populates the cache for the *next* request.
 3. **Upstream target is hardcoded.** Forwards to
    `https://api.code.umans.ai`. OpenAI chat path, warmer path, and vision
-   target are also hardcoded — not configurable. Listen address is hardcoded
+   target are also hardcoded, not configurable. Listen address is hardcoded
    to `127.0.0.1` (loopback only).
 4. **Ring buffer overwrites old captures.** Keeps only the last N (default
    `MAX_CAPTURES=200`). Increase in config for longer history.
@@ -84,14 +84,14 @@ umans-gate is a **local LLM API capture proxy** that sits between an agent harne
    defaults to `16`, `CONCURRENCY_SOFT_LIMIT` to `8`. By default
    (`USE_HARD_CAP=false`), the effective limit is the soft limit. Both are
    auto-sized from `/v1/usage` when `UMANS_API_KEY` is set. Toggle in the
-   dashboard Config tab — no restart needed.
+   dashboard Config tab. No restart needed.
 
-## Usage Rights
+## Usage rights
 
 **Personal-use project** with architecture modeled on production patterns
 but single-maintainer support. Source published under MIT for transparency
 and educational purposes. No guaranteed response time. No
-backward-compatibility commitment across versions — config shapes, flags,
+backward-compatibility commitment across versions; config shapes, flags,
 and APIs may change between releases without a deprecation cycle. No
 production support tier, no SLA. Security vulnerabilities are the one
 exception: see [SECURITY.md](SECURITY.md) for the 48-hour acknowledgment
@@ -101,7 +101,7 @@ SLA on confirmed reports.
 supported by Umans AI. All upstream service names, model names, and API
 endpoints belong to their respective owners.
 
-## How to Install umans-gate
+## How to install umans-gate
 
 umans-gate ships as a pre-compiled npm binary and a standalone Bun/TypeScript source. The npm path requires no prerequisites; the Bun path requires Bun ≥ 1.1.0.
 
@@ -124,10 +124,10 @@ git clone https://github.com/codegiveness/umans-gate.git
 cd umans-gate && bun install && bun src/cli.ts
 ```
 
-> No prerequisites for npm/npx — the package bundles a pre-compiled binary.
+> No prerequisites for npm/npx. The package bundles a pre-compiled binary.
 > For development, [Bun](https://bun.sh) ≥ 1.1.0 is required.
 
-### Platform Support
+### Platform support
 
 | OS | Arch | npm Package |
 |----|------|-------------|
@@ -135,7 +135,7 @@ cd umans-gate && bun install && bun src/cli.ts
 | Linux | x64/arm64 | `umans-gate-linux-{x64,arm64}` |
 | Windows | x64/arm64 | `umans-gate-win32-{x64,arm64}` |
 
-## How to Use umans-gate
+## How to use umans-gate
 
 Point any Anthropic or OpenAI-compatible agent harness at the proxy URL (`http://localhost:1945`). Every request and response is captured to SQLite and visible in the live dashboard at `/dashboard/`.
 
@@ -159,8 +159,8 @@ Point any Anthropic or OpenAI-compatible agent harness at the proxy URL (`http:/
    Enables `/v1/usage` polling, concurrency gate sizing, rate-limit
    validation, and vision handoff.
 
-5. **Secure the dashboard** (optional): `export DASHBOARD_TOKEN=your-secret-token`
-   — when set, all `/dashboard/api/*` routes, `/health`, and `/metrics`
+5. **Secure the dashboard** (optional): `export DASHBOARD_TOKEN=your-secret-token`.
+   When set, all `/dashboard/api/*` routes, `/health`, and `/metrics`
    require `Authorization: Bearer <token>`. WebSocket requires
    `?token=<token>`. Includes brute-force protection.
 
@@ -178,7 +178,7 @@ The updater detects install method and acts accordingly. If running as a
 managed service, stops before update and restarts after. Pass `--keep-config`
 to preserve `config.json` and the database.
 
-## Service Persistence
+## Service persistence
 
 ```bash
 umans-gate service install        # register as managed service
@@ -198,7 +198,7 @@ boot. API keys set via env var are stored securely (separate
 the service registry on Windows). When running as a managed service, the
 dashboard **Restart** button works automatically.
 
-## How Configuration Works
+## How configuration works
 
 umans-gate loads configuration from a JSON file with environment variable overrides. On first run, `loadConfig()` writes defaults if the file does not exist; existing configs are never overwritten. All env vars have `snake_case` JSON equivalents. Precedence, highest to lowest: env vars > JSON config > built-in defaults.
 
@@ -246,9 +246,9 @@ those marked `restartRequired` (e.g. `port`, `db_path`, `upstream_protocol`,
 `src/config/reload.ts` (`RELOAD_FIELDS`). Fields marked `restartRequired`
 require a server restart.
 
-### How the Stamp Pipeline Works
+### How the stamp pipeline works
 
-When `STAMP_CLAUDE_CODE_ENABLED` is `true`, the proxy applies the following stamps to Anthropic requests before forwarding upstream. The stamped body is what gets sent upstream AND what gets captured — the inspector shows exactly what went to the API.
+When `STAMP_CLAUDE_CODE_ENABLED` is `true`, the proxy applies the following stamps to Anthropic requests before forwarding upstream. The stamped body is what gets sent upstream AND what gets captured. The inspector shows exactly what went to the API.
 
 - **TTL**: `"1h"` on `cache_control` ephemeral blocks
 - **`top_k`**: `20`
@@ -261,7 +261,7 @@ When `STAMP_CLAUDE_CODE_ENABLED` is `true`, the proxy applies the following stam
 For OpenAI-compatible requests, `STAMP_REASONING_EFFORT_ENABLED` injects
 `reasoning_effort` and removes `max_tokens` and `thinking` fields.
 
-### How Vision Handoff Works
+### How vision handoff works
 
 The vision handoff replaces image blocks in requests with text descriptions generated by a vision model. This reduces token cost and enables text-only models to process image-bearing requests. Descriptions are cached for 7 days in persistent SQLite storage.
 
@@ -282,23 +282,23 @@ adjacent text, image count, and tool-result status. `off` forces
 (default concurrency = 1). Descriptions are cached for 7 days in
 persistent SQLite storage.
 
-### How the Concurrency Gate Works
+### How the concurrency gate works
 
 The concurrency gate regulates upstream parallelism using three mechanisms: a semaphore enforcing soft/hard limits, a circuit breaker for failure isolation, and intention-based reservations with a bounded queue.
 
-1. **Semaphore** — enforces a soft limit and a hard cap on concurrent
+1. **Semaphore**: enforces a soft limit and a hard cap on concurrent
    upstream requests. Both are auto-sized from `/v1/usage` when
    `UMANS_API_KEY` is set.
-2. **Circuit breaker** — opens after `BREAKER_THRESHOLD` (default `5`)
+2. **Circuit breaker**: opens after `BREAKER_THRESHOLD` (default `5`)
    HTTP 429 responses within `BREAKER_WINDOW_MS` (default 5 minutes),
    blocks traffic for `BREAKER_COOLDOWN_MS` (default 60 seconds), then
    half-opens to probe recovery.
-3. **Intention-based reservations + queue** — main and vision lanes hold
+3. **Intention-based reservations + queue**: main and vision lanes hold
    reserved slots; excess requests enter a bounded queue
    (`MAX_QUEUE_DEPTH`, default 100) with a timeout
    (`QUEUE_TIMEOUT_MS`, default 180 seconds).
 
-### How Rate Limiting Works
+### How rate limiting works
 
 The rate limiter is a sliding-window weighted counter with three modes:
 
@@ -319,10 +319,10 @@ const server = createProxyServer({
   config: { port: 8080 },
 });
 
-// server.db     — CaptureDB instance
-// server.ws     — WsBroadcaster instance
-// server.queue  — WriteQueue instance
-// server.shutdown() — graceful shutdown
+// server.db    : CaptureDB instance
+// server.ws    : WsBroadcaster instance
+// server.queue : WriteQueue instance
+// server.shutdown(): graceful shutdown
 ```
 
 ## Development
@@ -358,7 +358,7 @@ A regular HTTP proxy forwards traffic. umans-gate captures every request/respons
 
 ### Does umans-gate modify my requests?
 
-Only when stamping is enabled. By default, `STAMP_CLAUDE_CODE_ENABLED` and `STAMP_REASONING_EFFORT_ENABLED` are both `false` — the proxy captures traffic without modifying it. When stamping is on, the proxy rewrites request bodies before forwarding upstream, and the stamped body is what gets captured. The proxy always forces `accept-encoding: identity` and strips `content-encoding` for capture safety.
+Only when stamping is enabled. By default, `STAMP_CLAUDE_CODE_ENABLED` and `STAMP_REASONING_EFFORT_ENABLED` are both `false`; the proxy captures traffic without modifying it. When stamping is on, the proxy rewrites request bodies before forwarding upstream, and the stamped body is what gets captured. The proxy always forces `accept-encoding: identity` and strips `content-encoding` for capture safety.
 
 ### What is the ring buffer and how many captures does it store?
 
@@ -366,7 +366,7 @@ The ring buffer is a SQLite table capped at `MAX_CAPTURES` (default 200). When t
 
 ### Can I run umans-gate in production?
 
-umans-gate is a personal-use project with no production support tier, no SLA, and no backward-compatibility commitment. It is designed for local development and debugging. Security vulnerabilities are the exception — see [SECURITY.md](SECURITY.md) for the 48-hour acknowledgment SLA.
+umans-gate is a personal-use project with no production support tier, no SLA, and no backward-compatibility commitment. It is designed for local development and debugging. Security vulnerabilities are the exception. See [SECURITY.md](SECURITY.md) for the 48-hour acknowledgment SLA.
 
 ### How do I secure the dashboard?
 
@@ -382,25 +382,25 @@ Vision handoff replaces image blocks in requests with text descriptions generate
 
 ## Documentation
 
-**Start here:** [Documentation Index](docs/README.md) — curated reading guide
+**Start here:** [Documentation Index](docs/README.md): curated reading guide
 
 **Understand:**
-- [Architecture](docs/ARCHITECTURE.md) — system design and data flow
-- [Proxy Modifications](docs/proxy-modifications.md) — proxy modification inventory
+- [Architecture](docs/ARCHITECTURE.md): system design and data flow
+- [Proxy Modifications](docs/proxy-modifications.md): proxy modification inventory
 
 **Operate:**
-- [Operations](docs/OPERATIONS.md) — day-to-day ops: start/stop, upgrades, health, backup
-- [Troubleshooting](docs/TROUBLESHOOTING.md) — common issues
-- [Benchmarks](docs/BENCHMARKS.md) — benchmark results
+- [Operations](docs/OPERATIONS.md): day-to-day ops: start/stop, upgrades, health, backup
+- [Troubleshooting](docs/TROUBLESHOOTING.md): common issues
+- [Benchmarks](docs/BENCHMARKS.md): benchmark results
 
 **Develop:**
-- [Contributing](CONTRIBUTING.md) — how to contribute
-- [Security Policy](SECURITY.md) — vulnerability reporting
-- [Changelog](CHANGELOG.md) — version history
+- [Contributing](CONTRIBUTING.md): how to contribute
+- [Security Policy](SECURITY.md): vulnerability reporting
+- [Changelog](CHANGELOG.md): version history
 
 **Design:**
-- [Dashboard Design System](dashboard/DESIGN.md) — design tokens and components
+- [Dashboard Design System](dashboard/DESIGN.md): design tokens and components
 
 ## License
 
-MIT — see [LICENSE](LICENSE). This project provides [llms.txt](./llms.txt) for LLM discoverability.
+MIT. See [LICENSE](LICENSE). This project provides [llms.txt](./llms.txt) for LLM discoverability.

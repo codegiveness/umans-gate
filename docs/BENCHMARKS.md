@@ -1,6 +1,6 @@
 # Benchmarks
 
-> **Applies to:** umans-gate v0.4.6 · **Last updated:** 2026-07-27
+> **Applies to:** umans-gate v0.4.7 · **Last updated:** 2026-07-27
 
 Benchmark results for umans-gate proxy optimizations, measured against
 `https://api.code.umans.ai/v1`.
@@ -16,20 +16,20 @@ Benchmark results for umans-gate proxy optimizations, measured against
 
 | Optimization | Status | Evidence |
 |---|---|---|
-| HTTP/1.1 default upstream | ✅ Kept | HTTP/1.1 median 760.1ms vs HTTP/2 760.8ms — 0.7ms diff (noise) |
+| HTTP/1.1 default upstream | ✅ Kept | HTTP/1.1 median 760.1ms vs HTTP/2 760.8ms, 0.7ms diff (noise) |
 | HTTP/2 upstream option | ✅ Available (opt-in) | Configurable via `upstream_protocol: http2`; no measurable win at current concurrency |
-| `accept-encoding: identity` | ✅ Kept | identity 852.3ms vs gzip 851.9ms on SSE — statistically tied; identity is correct for capture safety |
+| `accept-encoding: identity` | ✅ Kept | identity 852.3ms vs gzip 851.9ms on SSE, statistically tied; identity is correct for capture safety |
 | Hop-by-hop stripping | ✅ Kept | RFC 7230 compliance |
 | TTL stamping (1h) | ✅ Kept | Improves multi-turn KV cache hit rates (part of stamp bundle) |
 | `top_k` injection (20) | ✅ Kept | Required by glm-5.2 (part of stamp bundle) |
 | Vision handoff | ✅ Kept | Enables text-only models to process images; improves cacheability |
 | Vision concurrency gate (concurrency=1) | ✅ Kept | Prevents racing for upstream vision slot |
-| Keep-alive connection reuse | ✅ Already works (Bun internal) | warm 713.4ms vs cold 1192.3ms — 478.9ms (40%) saved via connection reuse |
+| Keep-alive connection reuse | ✅ Already works (Bun internal) | warm 713.4ms vs cold 1192.3ms, 478.9ms (40%) saved via connection reuse |
 | SSE gzip disable | ✅ Already on (identity) | No measurable difference; identity is safer for capture |
-| Streaming TTFB | ✅ Stream is faster TTFB | stream 663.5ms vs non-stream 763.2ms — 99.7ms faster first byte |
-| API path | ℹ️ Anthropic faster | Anthropic 635.0ms vs OpenAI 714.0ms — 79ms diff (model routing overhead) |
+| Streaming TTFB | ✅ Stream is faster TTFB | stream 663.5ms vs non-stream 763.2ms, 99.7ms faster first byte |
+| API path | ℹ️ Anthropic faster | Anthropic 635.0ms vs OpenAI 714.0ms, 79ms diff (model routing overhead) |
 
-## Key Findings
+## Key findings
 
 ### Why HTTP/1.1 is the default upstream protocol
 
@@ -72,5 +72,5 @@ bun run <benchmark-script>.ts
 ## Historical results
 
 Benchmark results are summarized in the table above. Raw result files are in
-`benchmark/proxy-optimizations/results/` — run the benchmark scripts to regenerate
+`benchmark/proxy-optimizations/results/`. Run the benchmark scripts to regenerate
 for regression tracking.

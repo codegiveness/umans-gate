@@ -1,6 +1,6 @@
 # Usage Tab Reference
 
-> **Applies to:** umans-gate v0.4.6 · **Last updated:** 2026-07-27
+> **Applies to:** umans-gate v0.4.7 · **Last updated:** 2026-07-27
 
 The Usage tab visualizes raw `/v1/usage` samples polled from the upstream API.
 
@@ -19,11 +19,11 @@ The Usage tab visualizes raw `/v1/usage` samples polled from the upstream API.
 | dashboard/src/components/usage-timeline.tsx | UsageTimeline |
 | dashboard/src/components/usage-timeline-old.tsx | UsageTimelineOld |
 
-## Data Source
+## Data source
 
-- `UmansUsageClient` — src/usage.ts
+- `UmansUsageClient` (src/usage.ts)
   - Polls upstream `/v1/usage` on `usage_refresh_ms` (default 60000)
-- `UsageHistoryStore` — src/usage-history/
+- `UsageHistoryStore` (src/usage-history/)
   - Raw samples + daily aggregates
   - Downsamples raw → daily after `usage_raw_retention_days` (default 7)
 
@@ -44,8 +44,8 @@ All prefixed `/dashboard/api/`.
 
 - Endpoint: `/dashboard/ws`
 - Messages:
-  - `usage-sample` — new sample fetched (dayUtc, fetchedAt)
-  - `usage-event` — usage event (limit change, reset)
+  - `usage-sample`: new sample fetched (dayUtc, fetchedAt)
+  - `usage-event`: usage event (limit change, reset)
 
 ## What the Usage Tab Shows
 

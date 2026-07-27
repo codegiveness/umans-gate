@@ -1,8 +1,8 @@
-# Security Policy
+# Security policy
 
 > **Applies to:** umans-gate v0.4.7 · **Last updated:** 2026-07-27
 
-## What Is the Security Reporting Process?
+## What is the security reporting process?
 
 umans-gate uses GitHub's private security vulnerability reporting with a 48-hour acknowledgment SLA on confirmed reports. Do NOT open a public GitHub issue for security vulnerabilities. Instead, use GitHub's private advisory system, and you will receive a response within 48 hours.
 
@@ -50,7 +50,7 @@ umans-gate follows npm supply-chain best practices:
 ### Provenance
 
 All npm packages are published with **npm provenance attestation** via
-`npm publish --provenance`. This means every published artifact is
+`npm publish --provenance`. Every published artifact is
 cryptographically linked to the exact GitHub Actions workflow run and
 commit that built it.
 
@@ -76,7 +76,7 @@ GitHub Actions. The token is scoped to publish-only permissions for the
 > and tracked as a security improvement.
 
 Provenance attestation (`--provenance`) is separate from authentication
-and already uses **short-lived OIDC tokens** via `id-token: write` — no
+and already uses **short-lived OIDC tokens** via `id-token: write`; no
 secret is needed for provenance.
 
 ### Automated dependency updates
@@ -89,7 +89,7 @@ Security advisories trigger immediate PRs.
 
 - All GitHub Actions workflows run with `persist-credentials: false`
 - Publish workflows require `id-token: write` (for provenance) and
-  `contents: write` (for GitHub Releases) — no other elevated permissions
+  `contents: write` (for GitHub Releases); no other elevated permissions
 - No secrets are logged or passed to build scripts
 - Branch protection rules **should** require passing CI before merge (see [Branch protection](#branch-protection) checklist below)
 
@@ -105,7 +105,7 @@ Security advisories trigger immediate PRs.
   GitHub's "require 2FA for organization members" setting should be turned on.
 - **npm access tokens**: prefer granular access tokens scoped to specific
   packages with publish-only permissions. Rotate tokens quarterly. The current
-  `NPM_TOKEN` secret is scoped and used only in CI/CD — never in local dev.
+  `NPM_TOKEN` secret is scoped and used only in CI/CD, never in local dev.
 
 ### Rotation and revocation
 
@@ -143,7 +143,7 @@ gh api repos/codegiveness/umans-gate/rules/branches/main \
 
 ### Code review
 
-- All changes go through pull requests — no direct commits to `main`
+- All changes go through pull requests; no direct commits to `main`
 - [CODEOWNERS](.github/CODEOWNERS) rules automatically request review
   from `@codegiveness` for all paths
 

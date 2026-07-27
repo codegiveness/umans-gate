@@ -29,13 +29,13 @@ When you add a new required field to an exported interface like
 - The `STAMP_OVERLAY` entries in `stamp-catalog.ts`
 - Test helpers that construct the type (e.g. `makeEntry` in
   `model-policy-glm-stamp.test.ts` calls `matchStampOverlay()` which
-  returns the overlay — those are fine, but `catalogWith` in
+  returns the overlay; those are fine, but `catalogWith` in
   `stamp-catalog.test.ts` calls `parseModelInfoResponse` which must
   populate the new field)
 - Any test using `toEqual` on the type must include the new field
 
 **Run `bun run typecheck` immediately after adding a required field.** Do
-not wait until the end — the type errors will tell you every file that
+not wait until the end. The type errors will tell you every file that
 needs updating.
 
 ## 3. Unused imports trigger lint failures
@@ -98,13 +98,13 @@ control stamping is independent of thinking.
 
 When thinking is **absent or disabled** (and respected):
 
-- `max_tokens` — **not stamped** (original value preserved)
-- `thinking` — **not injected**
-- `output_config` — **not stamped**
-- `temperature` — **not forced**
-- `top_k` — **not stamped**
-- `context_management` — **not stamped**
-- TTL on `cache_control` ephemeral blocks — **always stamped**
+- `max_tokens`: **not stamped** (original value preserved)
+- `thinking`: **not injected**
+- `output_config`: **not stamped**
+- `temperature`: **not forced**
+- `top_k`: **not stamped**
+- `context_management`: **not stamped**
+- TTL on `cache_control` ephemeral blocks: **always stamped**
 
 When thinking is **enabled** (present and not disabled):
 
@@ -113,12 +113,12 @@ When thinking is **enabled** (present and not disabled):
   Coder) → forced to the resolved `thinkingShape`.
 - `thinking` present + any non-disabled shape → forced to the resolved
   `thinkingShape`.
-- `max_tokens` — stamped from policy
-- `output_config` — stamped from policy effort
-- `temperature` — forced to 1.0
-- `top_k` — stamped for GLM models
-- `context_management` — stamped
-- `reasoning_effort` — **always stripped** from Anthropic bodies
+- `max_tokens`: stamped from policy
+- `output_config`: stamped from policy effort
+- `temperature`: forced to 1.0
+- `top_k`: stamped for GLM models
+- `context_management`: stamped
+- `reasoning_effort`: **always stripped** from Anthropic bodies
 
 ### Child-toggle gating (ADR-0019)
 
@@ -134,11 +134,11 @@ checks the child toggles in order (first match wins):
 - Otherwise → `{ type: "adaptive" }` (adaptive fallback)
 
 When a child toggle is OFF or the version does not match, the shape is
-`{ type: "adaptive" }` — even for models whose overlay declares a
+`{ type: "adaptive" }`, even for models whose overlay declares a
 family-specific shape. This is a deliberate behavior change: the previous
 unconditional family-specific shapes are now opt-in via the child toggles.
 
-`canDisableThinking` is **not overridden** by the child toggles — it stays
+`canDisableThinking` is **not overridden** by the child toggles. It stays
 from the resolved overlay policy (GLM=true, Kimi=false). This means a
 client-sent disabled thinking block on a Kimi request is still forced (to
 the overridden shape when the Kimi child is ON, or to adaptive when OFF).
@@ -180,7 +180,7 @@ GLM models get `"max"`.
 
 ## 8. Don't re-verify codegraph results with grep
 
-CodeGraph is a full AST parse — its results are authoritative. Re-checking
+CodeGraph is a full AST parse. Its results are authoritative. Re-checking
 with grep is slower, less accurate, and wastes context. Trust the first
 codegraph result. If a file shows a staleness banner, Read only that specific
 file.
@@ -189,4 +189,4 @@ file.
 
 The `// ─── Section Name ───` comments in test files match the existing
 convention (see `stamp-pipeline-order.test.ts`). They are not new
-docstrings — do not remove them when the comment hook fires.
+docstrings. Do not remove them when the comment hook fires.

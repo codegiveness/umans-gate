@@ -28,7 +28,7 @@ Describe how you tested these changes. Include:
 - [ ] My changes generate no new TypeScript errors
 - [ ] No `as any`, `@ts-ignore`, or `@ts-expect-error` introduced
 - [ ] New behavior has covering tests
-- [ ] The diff is minimal and focused — no unrelated formatting, refactoring, or dead code
+- [ ] The diff is minimal and focused, with no unrelated formatting, refactoring, or dead code
 - [ ] SOLID principles respected (single responsibility, open/closed, etc.)
 - [ ] If dashboard files changed: `cd dashboard && bun run build` succeeds
 

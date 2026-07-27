@@ -5,7 +5,7 @@
 umans-gate computes performance percentiles from a fixed 100-row sample
 window in `PERFORMANCE_STATS_SQL` (`src/usage/ddl.ts`), which ignores half
 the default 200-capture ring buffer. The `v_latest_requests_per_model`
-view was also hardcoded to 100, but it was dead code in production — only
+view was also hardcoded to 100, but it was dead code in production: only
 `PERFORMANCE_STATS_SQL` feeds `getPerformanceStats()`, and only tests
 queried the view directly.
 
@@ -38,7 +38,7 @@ init; the `$limit` value is bound fresh on each `.all()` call from
 ### View removal
 
 `LATEST_N_PER_MODEL_VIEW` (the `v_latest_requests_per_model` view) is
-deleted entirely. It was dead code in production — `PERFORMANCE_STATS_SQL`
+deleted entirely. It was dead code in production: `PERFORMANCE_STATS_SQL`
 is a standalone query with its own `ROW_NUMBER()` window that does not
 reference the view. The stale comment on `db.ts` ("Uses the
 v_latest_requests_per_model view") is corrected. Tests that queried the
@@ -50,23 +50,23 @@ Same pattern as `compression_enabled`: `CaptureDB` gets a mutable
 `performanceSampleLimit` field, read at query time. On hot-reload,
 `reloadConfig()` sets `db.performanceSampleLimit =
 config.performanceSampleCount`. No prepared statement recompilation, no
-view recreation — the bound parameter changes per-call with zero
+view recreation; the bound parameter changes per-call with zero
 recompilation cost.
 
 ## Alternatives considered
 
-- **Hardcode 200** — matches the default `MAX_CAPTURES` but doesn't help
+- **Hardcode 200**: matches the default `MAX_CAPTURES` but doesn't help
   users who change either value. Rejected because the field is trivial to
   make configurable and the current hardcoding is the root cause of the
   wasted-data complaint.
 
-- **Always track `maxCaptures`** — no new config field; the performance
+- **Always track `maxCaptures`**: no new config field; the performance
   window always equals the ring buffer size. Rejected because the two
   serve different purposes: a user with `MAX_CAPTURES=50` would get
   unstable percentiles from only 50 samples, while a user with
   `MAX_CAPTURES=500` might want faster SQL with a 200-sample window.
 
-- **Recreate the view on config change** — DROP VIEW + CREATE VIEW with
+- **Recreate the view on config change**: DROP VIEW + CREATE VIEW with
   the new limit on hot-reload. Rejected because the view is dead code;
   removing it is simpler than keeping it alive.
 

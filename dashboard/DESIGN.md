@@ -1,15 +1,15 @@
-# Dashboard Design System
+# Dashboard design system
 
 Single source of truth for visual, motion, and accessibility decisions in
 the `dashboard/` React app. Every token is backed by `src/index.css`,
 `tailwind.config.ts`, or `components.json`; no component may introduce a
 color, spacing value, or font size not declared here.
 
-## Design Tokens Source
+## Design tokens source
 
-- **shadcn/ui style:** `base-nova` (Base UI preset, Nova theme — Lucide
+- **shadcn/ui style:** `base-nova` (Base UI preset, Nova theme. Lucide
   icons, Geist font)
-- **Primitive library:** `@base-ui/react@1.6.0` — Base UI only. No
+- **Primitive library:** `@base-ui/react@1.6.0`. Base UI only. No
   `@radix-ui/*` packages. Every component in `src/components/ui/` MUST be
   a stock shadcn Base UI wrapper; extend via `className` / `render` prop,
   never by forking the primitive.
@@ -21,7 +21,7 @@ color, spacing value, or font size not declared here.
   `@/lib`, `@/hooks`
 
 > **Why Base UI, not Radix.** Radix's `ScrollArea` defaulted to
-> `type="hover"`, which has no touch equivalent — the thumb never appeared
+> `type="hover"`, which has no touch equivalent, so the thumb never appeared
 > on mobile. Base UI drops that prop and drives thumb visibility through
 > `data-hovering` / `data-scrolling` attributes, which work across pointer
 > and touch. The mandate also removes `asChild` (replaced by `render`) and
@@ -31,13 +31,13 @@ color, spacing value, or font size not declared here.
 ## Palette
 
 All tokens are HSL, defined in `src/index.css`. The full token list lives
-there — copy tables here go stale.
+there. Copy tables here go stale.
 
 ### Color strategy
 
 **Restrained, near-neutral with a violet accent.** The Nova preset ships a
-grayscale identity so that the data the tool captures — HTTP methods, status
-codes, SSE streams — carries the only color on screen. Semantic accents
+grayscale identity so that the data the tool captures (HTTP methods, status
+codes, SSE streams) carries the only color on screen. Semantic accents
 (`destructive` red, `warning` amber, `success` green, `info` blue) remain
 the saturated status hues.
 
@@ -66,7 +66,7 @@ use the same aliases, not raw color values.
 
 ### Status → Badge variant mapping
 
-HTTP status classes use the shadcn Badge Custom Colors pattern — Tailwind
+HTTP status classes use the shadcn Badge Custom Colors pattern: Tailwind
 palette classes via `className` from `@/lib/badge-colors`, layered on the
 `secondary` stock variant:
 
@@ -75,8 +75,8 @@ palette classes via `className` from `@/lib/badge-colors`, layered on the
 | `ok` (2xx/3xx) | `secondary` | `badgeSuccess` (green) |
 | `info` | `secondary` | `badgeInfo` (blue) |
 | `warn` (4xx) | `secondary` | `badgeWarning` (amber) |
-| `err` (5xx) | `destructive` | — |
-| `""` (unknown) | `secondary` | — |
+| `err` (5xx) | `destructive` | N/A |
+| `""` (unknown) | `secondary` | N/A |
 
 The same constants (`badgeSuccess`, `badgeWarning`, `badgeInfo`) are reused
 for non-HTTP badges with matching semantics: WebSocket live/down, capture
@@ -89,14 +89,14 @@ config experimental/Umans API badges.
   Tailwind `font-sans` / default `font-family`. Nova preset default; no
   manual font stacks.
 - **Monospace (Tailwind):** `ui-monospace`, `"SF Mono"`, `Menlo`, `monospace`
-- **Method badge text:** `font-mono text-[11px] font-bold` — one-off pixel
+- **Method badge text:** `font-mono text-[11px] font-bold`. One-off pixel
   size for HTTP verbs only
 - **Row metadata:** `text-[11px] text-muted-foreground tabular-nums`
 
 No other custom font sizes or line heights; use Tailwind's default type
 scale (`text-xs`, `text-sm`, `text-base`, `text-lg`, etc.).
 
-## Radius & Spacing
+## Radius & spacing
 
 - **Base radius:** `--radius: 0.625rem` (Nova preset default)
 - **Derived radii:** Tailwind's `rounded-sm` / `rounded-md` / `rounded-lg`
@@ -109,9 +109,9 @@ scale (`text-xs`, `text-sm`, `text-base`, `text-lg`, etc.).
   - List row padding: `px-4 py-2`
 
 The `.scrollbar-none` utility in `src/index.css` is the only scrollbar
-override — hides the gutter on horizontally-scrolling tab strips on mobile.
+override. It hides the gutter on horizontally-scrolling tab strips on mobile.
 
-## Focus & Motion
+## Focus & motion
 
 - **Focus rings:**
   - `Button`: `focus-visible:border-ring focus-visible:ring-3
@@ -130,7 +130,7 @@ override — hides the gutter on horizontally-scrolling tab strips on mobile.
   `src/index.css` disables transitions and animations globally. Any new
   motion MUST be covered by this block.
 
-## Accessibility Contract
+## Accessibility contract
 
 1. **Single h1:** Exactly one top-level `<h1>` ("umans-gate"). Region
    headers use `<h2>` or are visually-hidden.
@@ -150,7 +150,7 @@ override — hides the gutter on horizontally-scrolling tab strips on mobile.
    keyboard; focus rings not removed without a replacement.
 6. **No emoji icons:** SVG icon sets only (`lucide-react`).
 
-## Primitives Inventory
+## Primitives inventory
 
 ### Base UI only
 
@@ -176,7 +176,7 @@ changes; re-apply from this table.
 `sonner.tsx`, `switch.tsx`, `table.tsx`, `tabs.tsx`, `textarea.tsx`,
 `tooltip.tsx`.
 
-Custom Badge variants (`sse`, `proto`, etc.) are **not** wired in — only
+Custom Badge variants (`sse`, `proto`, etc.) are **not** wired in. Only
 `default`, `secondary`, `destructive`, `outline`.
 
 ### Composition tree
@@ -208,7 +208,7 @@ usage, models, config. Vision/performance/economics/usage/models/config
 are lazy-loaded. Also lazy: `ModeToggle`, `UpdateIndicator`. Non-lazy:
 `CaptureList`, `CaptureDetailPanel` (always loaded for captures tab).
 
-## Accepted Debt
+## Accepted debt
 
 1. **Fixed-width capture list (desktop).** Sidebar locked to
    `w-[380px]`. On mobile, rendered inside a `Sheet` clamped to

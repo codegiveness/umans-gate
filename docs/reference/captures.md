@@ -1,6 +1,6 @@
 # Captures Tab Reference
 
-> **Applies to:** umans-gate v0.4.6 · **Last updated:** 2026-07-27
+> **Applies to:** umans-gate v0.4.7 · **Last updated:** 2026-07-27
 
 The Captures tab is a live, master-detail log of every intercepted LLM API call.
 
@@ -22,9 +22,9 @@ The Captures tab is a live, master-detail log of every intercepted LLM API call.
 | dashboard/src/components/headers-viewer.tsx | HeadersViewer |
 | dashboard/src/components/json-viewer.tsx | JsonViewer |
 
-## Data Source
+## Data source
 
-- `CaptureDB` — src/db.ts
+- `CaptureDB` (src/db.ts)
   - Ring-buffered SQLite capture store (WAL mode)
   - Stores request/response pairs, headers, streamed chunks
 
@@ -42,11 +42,11 @@ All prefixed `/dashboard/api/`.
 
 - Endpoint: `/dashboard/ws`
 - Messages:
-  - `new` — new capture started (CaptureSummary)
-  - `update` — capture updated (final body, status)
-  - `clear` — all captures cleared
-  - `state` — capture state change (`streaming`, `failed`)
-  - `prune` — captures pruned from ring buffer
+  - `new`: new capture started (CaptureSummary)
+  - `update`: capture updated (final body, status)
+  - `clear`: all captures cleared
+  - `state`: capture state change (`streaming`, `failed`)
+  - `prune`: captures pruned from ring buffer
 
 ## What the Captures Tab Shows
 

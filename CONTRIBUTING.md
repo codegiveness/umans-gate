@@ -4,7 +4,7 @@
 
 This is a personal-use project. Contributions are welcome but not expected: this is not an open-source product with a community roadmap. If you find a bug or want to add a feature for your own use, fork it. If you want to share a fix or improvement, pull requests are reviewed on a best-effort basis.
 
-## What Is the Contribution Model?
+## What is the contribution model?
 
 umans-gate accepts contributions via pull requests on a best-effort basis. There is no community roadmap, no regular review cadence, and no guarantee of merge. Fork the project for personal use; open a PR if you want to share a fix. The maintainer reviews PRs when time permits.
 
@@ -44,7 +44,7 @@ bun run build           # build server (tsup) + dashboard (vite)
 ## Making changes
 
 1. Create a branch from `main`
-2. Make your changes — keep the design intent intact
+2. Make your changes; keep the design intent intact
 3. Run `bun run typecheck && bun run lint && bun run test:all`
 4. If you changed the dashboard, verify it builds: `cd dashboard && bun run build`
 5. Open a pull request with a clear description
@@ -53,8 +53,8 @@ bun run build           # build server (tsup) + dashboard (vite)
 
 - TypeScript with strict mode
 - Biome for formatting and linting (2-space indent, double quotes, semicolons)
-- ESM-only — imports use `.js` extensions in `src/` (Bun resolves `.ts` files)
-- No `any` types — use proper types
+- ESM-only; imports use `.js` extensions in `src/` (Bun resolves `.ts` files)
+- No `any` types; use proper types
 - No `@ts-ignore` or `as any` suppression
 
 ## SOLID principles
@@ -133,12 +133,12 @@ standalone binaries (6 platforms), and publishes to npm with provenance.
 `package.json` is the single source of truth for the version. The
 release script and CI workflows keep these files in sync automatically:
 
-- `dashboard/package.json` — synced via `scripts/sync-version.ts --sync`
-- `CHANGELOG.md` — must have a `## [<version>]` section
-- `ROADMAP.md` — "Applies to" stamp updated via `scripts/update-docs.ts --update`
-- `docs/README.md` — version + date stamp regenerated on every release
+- `dashboard/package.json`: synced via `scripts/sync-version.ts --sync`
+- `CHANGELOG.md`: must have a `## [<version>]` section
+- `ROADMAP.md`: "Applies to" stamp updated via `scripts/update-docs.ts --update`
+- `docs/README.md`: version + date stamp regenerated on every release
 
-No manual version editing needed — just run the release script.
+No manual version editing needed. Run the release script.
 
 ### Release process
 
@@ -164,11 +164,11 @@ The script:
 
 Two workflows enforce integrity:
 
-- **`version-check.yml`** — runs on every PR/push touching version-related
+- **`version-check.yml`**: runs on every PR/push touching version-related
   files. Validates consistency (package.json ↔ dashboard/package.json ↔
   CHANGELOG ↔ ROADMAP) and checks all doc links resolve. Fails the PR if
   anything is off.
-- **`release.yml`** — on tag push, runs a pre-release validation job
+- **`release.yml`**: on tag push, runs a pre-release validation job
   *before* building/publishing. Fails fast if version is inconsistent or
   CHANGELOG is empty.
 

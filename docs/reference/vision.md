@@ -1,6 +1,6 @@
 # Vision Calls Tab Reference
 
-> **Applies to:** umans-gate v0.4.6 · **Last updated:** 2026-07-27
+> **Applies to:** umans-gate v0.4.7 · **Last updated:** 2026-07-27
 
 The Vision Calls tab inspects image-bearing requests and their model-generated text descriptions.
 
@@ -16,12 +16,12 @@ The Vision Calls tab inspects image-bearing requests and their model-generated t
 |---|---|
 | dashboard/src/components/vision-calls.tsx | VisionCalls |
 
-## Data Source
+## Data source
 
-- `VisionHandoff` — src/vision/handoff.ts:196
+- `VisionHandoff` (src/vision/handoff.ts:196)
   - Orchestrates async image description generation
   - Backed by `vision-description-store.ts` (persistent cache)
-- `VisionConfig` — src/vision/handoff.ts:72
+- `VisionConfig` (src/vision/handoff.ts:72)
 - Detection / triage: src/vision/detect.ts, src/vision/triage.ts
 
 ## REST Endpoints
@@ -38,9 +38,9 @@ All prefixed `/dashboard/api/`.
 
 - Endpoint: `/dashboard/ws`
 - Messages:
-  - `new` — new vision record (with description)
-  - `update` — vision record updated (description arrived)
-  - `vision-clear` — vision records cleared
+  - `new`: new vision record (with description)
+  - `update`: vision record updated (description arrived)
+  - `vision-clear`: vision records cleared
 
 ## What the Vision Calls Tab Shows
 

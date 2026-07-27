@@ -19,8 +19,8 @@ developer manually rebuilds the dashboard (Vite regenerates content hashes
 on every build). The previous script only checked file existence, which
 left stale imports that crashed at module load.
 
-The guard adds ~50ms overhead to warm starts. The alternative — an
-unconditional `predev: "bun run build:dashboard"` — would add ~7s to
+The guard adds ~50ms overhead to warm starts. The alternative, an
+unconditional `predev: "bun run build:dashboard"`, would add ~7s to
 every `bun run dev`.
 
 `src/embedded-assets.ts` is committed to git (not gitignored) because

@@ -1,14 +1,14 @@
-# What Works With umans-gate
+# What works with umans-gate
 
-> **Applies to:** umans-gate v0.4.6 · **Last updated:** 2026-07-27
+> **Applies to:** umans-gate v0.4.7 · **Last updated:** 2026-07-27
 
-This document maps umans-gate v0.4.5 — a Bun-based LLM capture proxy — to the
+This document maps umans-gate v0.4.5, a Bun-based LLM capture proxy, to the
 [umans-open-stack](https://github.com/umans-ai/umans-open-stack) playbook
 categories.
 
 > **When to read this:** read this if you follow the
 > [umans-open-stack](https://github.com/umans-ai/umans-open-stack) playbooks
-> and want to see how umans-gate's features map to them. Otherwise skip —
+> and want to see how umans-gate's features map to them. Otherwise skip:
 > the primary documentation in [README.md](../README.md) and
 > [ARCHITECTURE.md](ARCHITECTURE.md) covers standalone use.
 
@@ -26,15 +26,15 @@ aligns with the patterns the playbooks describe.
 | Images | https://github.com/umans-ai/umans-open-stack/blob/main/playbooks/images.md |
 | Workflows | https://github.com/umans-ai/umans-open-stack/blob/main/playbooks/workflows.md |
 
-## Feature Mappings
+## Feature mappings
 
-### 1. Concurrency Gate — aligns with the concurrency playbook
+### 1. Concurrency Gate: aligns with the concurrency playbook
 
 **Source files**
 
-- `src/limiter/gate.ts` — `ConcurrencyGate`
-- `src/limiter/circuit-breaker.ts` — `CircuitBreaker`
-- `src/rate.ts` — `RateLimiter`
+- `src/limiter/gate.ts`: `ConcurrencyGate`
+- `src/limiter/circuit-breaker.ts`: `CircuitBreaker`
+- `src/rate.ts`: `RateLimiter`
 
 **Alignment**
 
@@ -44,24 +44,24 @@ and failure isolation as live, hot-reloadable building blocks:
 - Hard cap (`concurrency_hard_cap`, default 16) and soft limit
   (`concurrency_soft_limit`, default 8) with `use_hard_cap` toggle
 - Main + vision reservations (`concurrency_main_reservation`,
-  `concurrency_vision_reservation`) — separate budgets per traffic class
+  `concurrency_vision_reservation`): separate budgets per traffic class
 - Circuit breaker (`breaker_threshold`, `breaker_window_ms`,
   `breaker_cooldown_ms`) for failure isolation
 - Rate limiter (`rate_limit_requests`) for request-per-window caps
 - Live gate stats broadcast over WebSocket (`type: "gate"`)
 
 The gate is observable in the dashboard at `GET /dashboard/api/gate` and
-hot-reloadable — operators can tune caps without restart.
+hot-reloadable. Operators can tune caps without restart.
 
-### 2. Vision Handoff — provides building blocks for the vision-handoff playbook
+### 2. Vision Handoff: provides building blocks for the vision-handoff playbook
 
 **Source files**
 
-- `src/vision/handoff.ts` — `VisionHandoff` (class), `VisionConfig` (interface)
-- `src/vision/detect.ts` — image detection
-- `src/vision/triage.ts` — request triage
-- `src/vision/sink.ts` — WS broadcast
-- `src/vision/image-processor.ts` — image preprocessing
+- `src/vision/handoff.ts`: `VisionHandoff` (class), `VisionConfig` (interface)
+- `src/vision/detect.ts`: image detection
+- `src/vision/triage.ts`: request triage
+- `src/vision/sink.ts`: WS broadcast
+- `src/vision/image-processor.ts`: image preprocessing
 
 **Alignment**
 
@@ -77,19 +77,19 @@ The 7 intent-aware vision fields (`vision_intent_strategy`,
 `vision_decomposition_*`, `vision_adjacent_text_max_chars`, etc.) let operators
 tune decomposition and crafting timeouts.
 
-### 3. cache_control TTL Stamping — aligns with the caching playbook
+### 3. cache_control TTL Stamping: aligns with the caching playbook
 
 **Source files**
 
-- `src/stamp.ts` — `stampTtl` and core stamping
-- `src/stamp-pipeline.ts` — stamp orchestration
-- `src/stamp-catalog.ts` — `matchStampOverlay`, `StampPolicy`
-- `src/model-info-parser.ts` — `parseModelInfoResponse`
+- `src/stamp.ts`: `stampTtl` and core stamping
+- `src/stamp-pipeline.ts`: stamp orchestration
+- `src/stamp-catalog.ts`: `matchStampOverlay`, `StampPolicy`
+- `src/model-info-parser.ts`: `parseModelInfoResponse`
 
 **Alignment**
 
 umans-gate stamps `ttl` onto every `cache_control` ephemeral block in
-intercepted Anthropic requests — the TTL is always set, independent of
+intercepted Anthropic requests. The TTL is always set, independent of
 thinking state (per ADR-0011).
 
 Stamping is per-model policy driven:
@@ -104,13 +104,13 @@ This is observable infrastructure: operators can see in the Captures tab
 exactly which blocks got TTL stamped and verify cache boundaries match
 their playbook.
 
-### 4. SSE Streaming + Rendering — provides building blocks for the workflows playbook
+### 4. SSE Streaming + Rendering: provides building blocks for the workflows playbook
 
 **Source files**
 
-- `src/proxy.ts` — streaming response handling (SSE passthrough + capture)
-- `dashboard/src/components/sse-viewer.tsx` — `SseViewer`
-- `dashboard/src/components/body-renderer.tsx` — `BodyRenderer`
+- `src/proxy.ts`: streaming response handling (SSE passthrough + capture)
+- `dashboard/src/components/sse-viewer.tsx`: `SseViewer`
+- `dashboard/src/components/body-renderer.tsx`: `BodyRenderer`
 
 **Alignment**
 
@@ -122,13 +122,13 @@ umans-gate provides transparent SSE passthrough with full chunk capture:
 - `state` WebSocket messages signal `streaming` / `failed` transitions
 
 Operators building workflows can inspect intermediate streams, verify token
-flow, and debug stuck workflows — without modifying the proxy.
+flow, and debug stuck workflows, without modifying the proxy.
 
-### 5. Write-Behind Queue — provides building blocks for the workflows playbook
+### 5. Write-Behind Queue: provides building blocks for the workflows playbook
 
 **Source files**
 
-- `src/queue.ts` — `WriteQueue`
+- `src/queue.ts`: `WriteQueue`
 
 **Alignment**
 
@@ -139,15 +139,15 @@ umans-gate's `WriteQueue` batches capture writes for non-blocking persistence:
 - `queue_timeout_ms` (default 180000) bounds flush latency
 - Broadcasts `update` WebSocket messages on flush (`src/queue.ts:208`)
 
-This decouples proxy latency from persistence — the workflows playbook's
+This decouples proxy latency from persistence, the workflows playbook's
 "don't block the hot path" pattern. Operators can tune depth/timeout live.
 
-### 6. Ring-Buffered Capture Store — aligns with the caching playbook
+### 6. Ring-Buffered Capture Store: aligns with the caching playbook
 
 **Source files**
 
-- `src/db.ts` — `CaptureDB` (WAL mode, ring buffer)
-- `src/index.ts:319` — prune broadcast (`type: "prune"`)
+- `src/db.ts`: `CaptureDB` (WAL mode, ring buffer)
+- `src/index.ts:319`: prune broadcast (`type: "prune"`)
 
 **Alignment**
 
@@ -163,11 +163,11 @@ This is the storage-side caching pattern: bounded working set, eviction
 observable by dashboard clients. It aligns with the caching playbook's
 retention patterns for inspection data.
 
-### 7. Connection Warmer — aligns with the concurrency playbook
+### 7. Connection Warmer: aligns with the concurrency playbook
 
 **Source files**
 
-- `src/warmer.ts` — `ConnectionWarmer`
+- `src/warmer.ts`: `ConnectionWarmer`
 
 **Alignment**
 
@@ -175,10 +175,10 @@ umans-gate's `ConnectionWarmer` pre-warms upstream connections to avoid
 cold-start latency under burst:
 
 - `warmer_enabled` (default true)
-- `warmer_interval_ms` (default 20000) — keep-alive cadence
+- `warmer_interval_ms` (default 20000): keep-alive cadence
 - Maintains upstream connection pool health
 
-This reduces TTFT variance under burst — directly relevant to the concurrency
+This reduces TTFT variance under burst, directly relevant to the concurrency
 playbook's pre-warming guidance.
 
 ## Summary
@@ -197,9 +197,9 @@ All 7 features are hot-reloadable or runtime-tunable via the Config tab.
 Operators can observe each one in the dashboard before committing to a
 playbook configuration in their own application.
 
-## See Also
+## See also
 
-- `docs/reference/` — per-tab reference (captures, vision, performance,
+- `docs/reference/`: per-tab reference (captures, vision, performance,
   economics, usage, models, config)
-- `docs/adr/` — 24 architecture decision records
-- `AGENTS.md` — contributor guide with stamping truth tables (ADR-0011)
+- `docs/adr/`: 24 architecture decision records
+- `AGENTS.md`: contributor guide with stamping truth tables (ADR-0011)

@@ -1,6 +1,6 @@
 # Performance Tab Reference
 
-> **Applies to:** umans-gate v0.4.6 · **Last updated:** 2026-07-27
+> **Applies to:** umans-gate v0.4.7 · **Last updated:** 2026-07-27
 
 The Performance tab shows per-model latency and throughput statistics from a recent sample window.
 
@@ -16,9 +16,9 @@ The Performance tab shows per-model latency and throughput statistics from a rec
 |---|---|
 | dashboard/src/components/performance-meter.tsx | PerformanceMeter |
 
-## Data Source
+## Data source
 
-- `CaptureDB.getPerformanceStats()` — src/db.ts:626
+- `CaptureDB.getPerformanceStats()` at src/db.ts:626
   - Aggregates per-model TTFT, TPS, token throughput
   - Sample window: `performance_sample_count` (default 200)
 
@@ -42,7 +42,7 @@ The Performance tab displays per-model latency and throughput statistics: TTFT (
 
 ## Config
 
-- `performance_sample_count` (default 200) — sample window size
+- `performance_sample_count` (default 200): sample window size
 
 ## Related
 

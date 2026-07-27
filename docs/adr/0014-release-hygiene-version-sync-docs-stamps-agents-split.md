@@ -1,4 +1,4 @@
-# ADR-0014: Release Hygiene — Version Sync, Docs Stamps, AGENTS.md Public Split
+# ADR-0014: Release hygiene, version sync, docs stamps, AGENTS.md public split
 
 **Date:** 2026-07-25
 **Status:** Accepted
@@ -11,7 +11,7 @@ claimed older versions. `ROADMAP.md` stamped v0.3.18 in its header but
 listed the current state as v0.1.3 and described already-shipped
 features as future work. Five other docs files
 (`ARCHITECTURE.md`, `BENCHMARKS.md`, `PRODUCT.md`, `TROUBLESHOOTING.md`,
-`proxy-modifications.md`) carried v0.1.4 stamps — 14 versions behind.
+`proxy-modifications.md`) carried v0.1.4 stamps, 14 versions behind.
 `AGENTS.md` and the `docs/adr/` directory were both gitignored, so
 contributor guidance and 14 ADRs were invisible to the public. Stale
 commit messages (e.g. `release: v0.1.8`) remained in git history.
@@ -20,10 +20,10 @@ commit messages (e.g. `release: v0.1.8`) remained in git history.
 
 ### 1. No git history rewrite
 
-Commit messages like `release: v0.1.8` and `release: v0.3.13 — full
+Commit messages like `release: v0.1.8` and `release: v0.3.13 ,  full
 dependency stack upgrade` remain in git history unmodified.
 
-**Rationale:** These messages are historically accurate — those releases
+**Rationale:** These messages are historically accurate. Those releases
 happened. Rewriting history with `filter-branch` would change every commit
 hash, break GitHub Release references, force all collaborators to re-clone,
 and destroy the audit trail. The CHANGELOG already documents release
@@ -63,10 +63,10 @@ guidelines: think-before-coding, simplicity-first, surgical-changes,
 goal-driven-execution, and agent skill configurations.
 
 **Rationale:** AGENTS.md had mixed content. The project facts (architecture,
-config, testing, common mistakes) are valuable to public contributors. The
+config, testing, common mistakes) are useful to public contributors. The
 AI behavioral rules (caveman mode, think-before-coding heuristics) are
 internal tooling config. Splitting them makes the public guide clean and
-keeps the private config private. No new file needed — CLAUDE.md already
+keeps the private config private. No new file needed; CLAUDE.md already
 exists and is already injected via `opencode.json`.
 
 ### 5. CHANGELOG is append-only audit log
@@ -81,15 +81,15 @@ makes the log untrustworthy. Only new entries are added going forward.
 
 ## Consequences
 
-- **Public-facing docs are now accurate:** ROADMAP, docs/*.md, AGENTS.md,
+- Public-facing docs are now accurate: ROADMAP, docs/*.md, AGENTS.md,
   and docs/adr/ all reflect v0.3.18 reality.
-- **No future version drift:** `update-docs.ts --update` runs on every
+- No future version drift: `update-docs.ts --update` runs on every
   release, stamping all docs automatically.
-- **ADRs are public:** 14 existing ADRs (ADR-0001 through ADR-0013) are
+- ADRs are public: 14 existing ADRs (ADR-0001 through ADR-0013) are
   now tracked in git, providing decision context to public contributors.
-- **AGENTS.md is a clean public guide:** contributors see project facts
+- AGENTS.md is a clean public guide: contributors see project facts
   without AI-tooling noise.
-- **Git history is intact:** commit messages remain as-is, preserving
+- Git history is intact: commit messages remain as-is, preserving
   the full audit trail.
 
 ## Implementation

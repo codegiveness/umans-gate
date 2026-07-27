@@ -1,12 +1,12 @@
 # Architecture
 
-> **Applies to:** umans-gate v0.4.6 · **Last updated:** 2026-07-27
+> **Applies to:** umans-gate v0.4.7 · **Last updated:** 2026-07-27
 
 umans-gate is a Bun-based capture proxy that sits between an LLM harness and
 the upstream API, intercepting traffic to capture, stamp, and optionally
 transform requests before forwarding.
 
-## What Is the System Layout?
+## What is the system layout?
 
 umans-gate has four layers: the Bun HTTP server, the stamp/vision pipeline,
 the SQLite capture store with a write-behind queue, and the React dashboard
@@ -34,7 +34,7 @@ updated over WebSocket.
                              └───────────┘
 ```
 
-## How Does a Request Flow?
+## How does a request flow?
 
 ### 1. Incoming Request
 
@@ -55,11 +55,11 @@ proxy.ts → parse body → stamp pipeline → vision handoff → forward upstre
 The stamp pipeline (`src/stamp-pipeline.ts`) applies modifications in this
 order when `stamp_claude_code_enabled` is on:
 
-1. **TTL stamping** (`stamp.ts`) — adds `ttl` to `cache_control` ephemeral blocks
-2. **`top_k` injection** (`stamp-topk.ts`) — injects `top_k: 20` after `model`
-3. **`temperature` stamping** (`stamp-temperature.ts`) — forces `temperature: 1.0`
-4. **`max_tokens` / `thinking` / `output_config`** (`stamp-thinking.ts`) — model-aware injection
-5. **`context_management`** — injected when `stamp_claude_code_enabled` is on, route is Anthropic, and thinking is enabled
+1. **TTL stamping** (`stamp.ts`): adds `ttl` to `cache_control` ephemeral blocks
+2. **`top_k` injection** (`stamp-topk.ts`): injects `top_k: 20` after `model`
+3. **`temperature` stamping** (`stamp-temperature.ts`): forces `temperature: 1.0`
+4. **`max_tokens` / `thinking` / `output_config`** (`stamp-thinking.ts`): model-aware injection
+5. **`context_management`**: injected when `stamp_claude_code_enabled` is on, route is Anthropic, and thinking is enabled
 
 For OpenAI-compatible requests, `stamp-reasoning.ts` handles
 `reasoning_effort` injection separately.
@@ -158,8 +158,8 @@ Upstream forwarding streams the response chunk-by-chunk through a
 
 - Upstream protocol: HTTP/1.1 (default) or HTTP/2 (configurable)
 - `AbortSignal` forwarded: client disconnect cancels upstream immediately
-- Response streamed via `TransformStream` — captured chunk-by-chunk
-- `accept-encoding: identity` forced (no gzip — capture safety)
+- Response streamed via `TransformStream`, captured chunk-by-chunk
+- `accept-encoding: identity` forced (no gzip, capture safety)
 
 ### 5. Capture & Storage
 
@@ -187,10 +187,10 @@ WebSocket broadcast sends live updates to the dashboard on every queue flush:
 - Backpressure limit protects against slow clients
 - Configurable auto-close on backpressure exceedance
 
-## How Does the Concurrency Gate Work?
+## How does the concurrency gate work?
 
 ```
-src/limiter/gate.ts — ConcurrencyGate
+src/limiter/gate.ts: ConcurrencyGate
 ├── Semaphore (src/limiter/gate.ts)
 │   ├── Soft limit (driven by /v1/usage)
 │   ├── Hard cap (configurable)
@@ -211,7 +211,7 @@ overwhelming the upstream by:
 - Circuit breaker to stop traffic when the upstream returns repeated 429s
 - Intention-based reservations ensure vision calls don't starve main requests
 
-## How Does Usage Tracking Work?
+## How does usage tracking work?
 
 ```
 src/usage.ts → /v1/usage fetch → reconcile → resize gate → rate limiter
@@ -225,26 +225,26 @@ Usage tracking polls the upstream account state and resizes local limits:
 - Detects rate-boxing (when the upstream indicates the account is boxed)
 - Manages priority demotion when the account is under pressure
 
-## How Does Rate Limiting Work?
+## How does rate limiting work?
 
 ```
-src/rate.ts — SlidingWindowRateLimiter
+src/rate.ts: SlidingWindowRateLimiter
 ├── Weighted entries (each request consumes `weight` units)
 ├── Binary-search pruning for expired entries
-├── check() — records and returns allow/deny
-└── peek() — checks without recording
+├── check(): records and returns allow/deny
+└── peek(): checks without recording
 ```
 
 The rate limiter is a sliding-window weighted counter with three modes:
 
-- `rate_limit_requests: 0` — auto-derive window and limit from `/v1/usage`
-- `-1` — disabled (no limiter)
-- `>0` — explicit limit with sliding window
+- `rate_limit_requests: 0`: auto-derive window and limit from `/v1/usage`
+- `-1`: disabled (no limiter)
+- `>0`: explicit limit with sliding window
 
-## How Does the Dashboard Work?
+## How does the dashboard work?
 
 ```
-dashboard/ — Vite + React + TypeScript + Tailwind + shadcn/ui
+dashboard/: Vite + React + TypeScript + Tailwind + shadcn/ui
 ├── Capture list (live WebSocket updates)
 ├── Capture detail (request/response body viewer, SSE event preview)
 ├── Config tab (validation, hot-reload, restart)
@@ -260,18 +260,18 @@ WebSocket:
   `POST /dashboard/api/config/reload`, `POST /dashboard/api/restart`
 - WebSocket: `WS /dashboard/ws` (`new`, `update`, `clear` messages)
 
-## What Are the Design Principles?
+## What are the design principles?
 
 - **SOLID**: modules have single responsibility, extensibility via new modules
   not edits to existing ones, narrow interfaces, dependency injection
 - **Bun-native**: uses `bun:sqlite`, `Bun.serve`, Bun's `fetch` with `protocol`
-  option — no Node.js compatibility layer
+  option, no Node.js compatibility layer
 - **Capture-first**: the proxy never modifies the response body (only captures
   it). Request body modifications are gated by config flags and default off
 - **Non-blocking streaming**: writes are batched and offloaded to workers;
   the TransformStream never blocks the response
 
-## How Does umans-gate Map to umans-open-stack?
+## How does umans-gate map to umans-open-stack?
 
 umans-gate implements patterns documented in
 [umans-open-stack](https://github.com/umans-ai/umans-open-stack):

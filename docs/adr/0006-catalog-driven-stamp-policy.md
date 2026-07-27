@@ -67,14 +67,14 @@ of truth: the catalog answers "what should we stamp this model with?"
 ## Alternatives considered
 
 - **Derive from existing catalog fields** (`max_completion_tokens`,
-  `reasoning.default_level`) — rejected because the stamp values are
+  `reasoning.default_level`): rejected because the stamp values are
   proxy-specific tuning that differs from upstream-reported limits.
   Deriving would change behavior.
-- **Local stamp catalog overlay (separate from `ParsedModelInfo`)** —
+- **Local stamp catalog overlay (separate from `ParsedModelInfo`)**:
   rejected because it creates two lookup points (catalog for
   capabilities, overlay for stamps), reintroducing the scattering the
   decision eliminates.
-- **Fetch stamp values from upstream** — requires upstream API changes
+- **Fetch stamp values from upstream**: requires upstream API changes
   not in our control.
 
 ## Consequences
@@ -86,7 +86,7 @@ of truth: the catalog answers "what should we stamp this model with?"
 - `ParsedModelInfo` gains a `stamps` field; all callers that
   destructure the struct must be updated (5 callers in `src/models.ts`,
   `src/models/fetch-info.ts`, `src/model-info-parser.ts`).
-- The overlay is data, not code — it can be extracted to config later
+- The overlay is data, not code; it can be extracted to config later
   without touching the lookup logic.
 - The existing `isGlmModel()` and `modelMatchesThinkingPattern()`
   functions are deleted; their callers are rewired to

@@ -8,13 +8,13 @@ models on the Anthropic-compatible route. The proxy derived
 `thinking_block_count` from `content_block_start` events of type
 `"thinking"`, producing a non-zero count with null `thinking_tokens`.
 This caused the dashboard to show "N req w/ think (unmeasured)" for
-every thinking-enabled request — structural but noisy, because the
+every thinking-enabled request: structural but noisy, because the
 token cost is unmeasurable on this route.
 
 The proxy sets `thinking_block_count = null` in both
 `extractAnthropicStreaming` and `extractAnthropicNonStreaming`. It keeps
-the `thinking_tokens` extraction pipeline alive — reading
-`output_tokens_details` when present — so the proxy is forward-compatible
+the `thinking_tokens` extraction pipeline alive, reading
+`output_tokens_details` when present, so the proxy is forward-compatible
 if the gateway ever starts reporting it. The OpenAI route is unaffected:
 it continues to count `reasoning_content` presence as before.
 
@@ -29,8 +29,8 @@ not produce noise while the ring buffer ages them out.
 - **A. Remove all thinking capture on the Anthropic route** (stop
   reading `output_tokens_details` too). Rejected: loses forward
   compatibility and a free signal if the gateway changes.
-- **B. Stop counting blocks, keep `thinking_tokens` extraction** —
-  chosen. New captures write `thinking_block_count = null`, so the SQL
+- **B. Stop counting blocks, keep `thinking_tokens` extraction**
+  (chosen). New captures write `thinking_block_count = null`, so the SQL
   `requests_with_thinking` sum stops accruing. Stale rows are handled
   by the dashboard gate (see below). The `thinking_tokens` extraction
   pipeline stays alive for forward compatibility.
@@ -44,9 +44,9 @@ not produce noise while the ring buffer ages them out.
 Two complementary mechanisms suppress "unmeasured" noise on the
 Anthropic route:
 
-1. **Extractor**: new captures write `thinking_block_count = null`,
+1. Extractor: new captures write `thinking_block_count = null`,
    so `requests_with_thinking` stops accruing.
-2. **Dashboard gate**: `thinkingSub` renders the "unmeasured" branch
+2. Dashboard gate: `thinkingSub` renders the "unmeasured" branch
    only when `provider === "openai"`. Existing Anthropic rows with
    stale `thinking_block_count > 0` are silently suppressed in the UI
    without a database migration.
@@ -65,7 +65,7 @@ buffer will naturally overwrite stale rows over time.
   rows show thinking cost only when `thinking_tokens > 0` (measured).
 - If the gateway ever starts reporting `output_tokens_details` on the
   Anthropic route, `thinking_tokens` will be captured and the dashboard
-  will show measured thinking cost — no code change needed.
+  will show measured thinking cost, with no code change needed.
 - A dashboard test asserts Anthropic rows with
   `requests_with_thinking > 0` but `total_thinking_tokens = 0` produce
   no `thinkingSub` (undefined).

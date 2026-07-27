@@ -1,4 +1,4 @@
-# Theme contrast revamp — darken neutrals + violet chromatic accent + dark-theme fixes
+# Theme contrast revamp: darken neutrals + violet chromatic accent + dark-theme fixes
 
 ## Status
 
@@ -35,21 +35,21 @@ The dashboard adopts a "darken + chromatic accent" strategy:
 
 ## Alternatives considered
 
-### Path A — Darken only the failing neutral tokens
+### Path A: darken only the failing neutral tokens
 
 Keep `baseColor: neutral` (pure grayscale). Just lower the lightness of the failing tokens.
 
 Rejected because:
 
 - A gray focus ring on a gray background can never be perceptually distinct enough regardless of lightness.
-- Five grayscale chart series are visually indistinguishable as data — contrast against the background is necessary but not sufficient; series must also be distinguishable from each other.
+- Five grayscale chart series are visually indistinguishable as data; contrast against the background is necessary but not sufficient, because series must also be distinguishable from each other.
 - The fix would address legibility but not the structural data-viz usability problem.
 
-### Path B — Switch baseColor from neutral to zinc or slate
+### Path B: switch baseColor from neutral to zinc or slate
 
-Rejected because: research via the shadcn/ui registry confirmed that `muted-foreground` stays at ~55% lightness and `ring` stays at ~70% lightness across all neutral-ish baseColors (neutral, zinc, stone, slate, gray). The hue changes; the lightness — and therefore the contrast ratio — does not. A baseColor swap is a perceptual trick, not a contrast fix.
+Rejected because: research via the shadcn/ui registry confirmed that `muted-foreground` stays at ~55% lightness and `ring` stays at ~70% lightness across all neutral-ish baseColors (neutral, zinc, stone, slate, gray). The hue changes; the lightness, and therefore the contrast ratio, does not. A baseColor swap is a perceptual trick, not a contrast fix.
 
-### Path C — Darken + chromatic accent (chosen)
+### Path C: darken + chromatic accent (chosen)
 
 Darken the failing neutrals *and* introduce a violet chromatic accent for functional color (focus rings, chart series, sidebar-primary). This path fixes both the contrast failures and the perceptual-distinguishability problem, while unifying brand identity across light and dark themes.
 
@@ -58,7 +58,7 @@ Darken the failing neutrals *and* introduce a violet chromatic accent for functi
 - All functional token pairs now meet WCAG 2.2 AA in both themes.
 - The accent hue (violet 263°) is now part of the design system vocabulary, documented in the glossary as "Accent Hue".
 - `dashboard/DESIGN.md` was corrected to accurately describe the color format (HSL) and compliance status.
-- Automated contrast tests in `app-a11y.test.tsx` prevent regressions — including button-foreground-on-fill pairs, tooltip secondary text, and dark-theme `--input`.
+- Automated contrast tests in `app-a11y.test.tsx` prevent regressions, including button-foreground-on-fill pairs, tooltip secondary text, and dark-theme `--input`.
 - The `--border` token at 85% lightness achieves only 1.41:1 but qualifies for the WCAG 1.4.11 decorative-border exemption.
-- Dark-theme `--sidebar-primary` at 60% lightness yields 2.56:1 as a UI fill against the sidebar background (below 3:1), but the button is identifiable via its visible white text (4.70:1) — WCAG 1.4.11 allows text to establish component identity.
+- Dark-theme `--sidebar-primary` at 60% lightness yields 2.56:1 as a UI fill against the sidebar background (below 3:1), but the button is identifiable via its visible white text (4.70:1); WCAG 1.4.11 allows text to establish component identity.
 - Future chart additions must use the established five-hue palette, not arbitrary colors.
