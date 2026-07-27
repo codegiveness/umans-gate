@@ -51,3 +51,19 @@ console.warn = (...args: unknown[]) => {
   if (rechartsDimWarn.test(String(args[0]))) return;
   originalWarn(...args);
 };
+
+// React's "not wrapped in act(...)" warning fires when <App /> mounts polling
+// or WS hooks whose async state updates escape the test's act() scope. The
+// updates are harmless (tests assert static DOM structure), but the warning
+// is emitted via console.error and queues on the vitest worker RPC channel.
+// On slow CI the queue outlives the worker → EnvironmentTeardownError →
+// exit 1 despite all tests passing. Same race as the Recharts warn above;
+// same suppression pattern. Narrow to the act warning only — real errors
+// still surface.
+const actWarn =
+  /An update to .* inside a test was not wrapped in act\(\.\.\.\)|When testing, code that causes React state updates should be wrapped into act\(\.\.\.\)|This ensures that you're testing the behavior the user would see in the browser/;
+const originalError = console.error;
+console.error = (...args: unknown[]) => {
+  if (actWarn.test(String(args[0]))) return;
+  originalError(...args);
+};

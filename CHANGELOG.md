@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-07-27
+
+### Fixed
+
+- **Usage timeline Y-axis formatting**: Requests lane Y-axis now uses
+  locale thousand separators (e.g. `1,234,567`); Token flow lane Y-axis
+  uses compact `14.2M` / `2.2B` / `154.4K` notation. `fmtTokensCompact`
+  M/B precision tightened from 2 to 1 decimal to match the compact axis
+  style. Applied to both the live samples timeline and the historical
+  daily+events timeline.
+
+- **CI: dashboard test teardown race**: `app-a11y.test.tsx` renders `<App />`
+  whose polling / WebSocket hooks emit async state updates outside the
+  test's `act()` scope, producing React "not wrapped in act(...)"
+  warnings via `console.error`. On slow CI these warnings queued on the
+  vitest worker RPC channel and outlived the worker, raising
+  `EnvironmentTeardownError: Closing rpc while "onUserConsoleLog" was
+  pending` → `bun run test:dashboard` exited 1 despite all 349 tests
+  passing. `dashboard/src/test/setup.ts` now suppresses the act warning
+  (narrow regex match, real errors still surface), mirroring the existing
+  Recharts zero-dimension warning suppression in the same file.
+
 ## [0.4.4] - 2026-07-27
 
 ### Fixed

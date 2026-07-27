@@ -11,8 +11,8 @@ export function fmtTokensCompact(n: number | null | undefined): string {
   if (value === 0) return "0";
   if (value < 1000) return String(value);
   if (value < 1_000_000) return `${(value / 1000).toFixed(1)}K`;
-  if (value < 1_000_000_000) return `${(value / 1_000_000).toFixed(2)}M`;
-  return `${(value / 1_000_000_000).toFixed(2)}B`;
+  if (value < 1_000_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  return `${(value / 1_000_000_000).toFixed(1)}B`;
 }
 
 /** Format an integer with locale thousand separators (e.g. 1_234_567 → "1,234,567").

@@ -16,7 +16,7 @@ import {
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
-import { fmtInt, fmtUtcTime } from "@/lib/format";
+import { fmtInt, fmtTokensCompact, fmtUtcTime } from "@/lib/format";
 import type { UsageDailyRow, UsageEventRow, UsageSampleRow } from "@/types";
 
 /** Compute cache hit rate from a sample row. Null when all three token
@@ -369,6 +369,7 @@ function RequestsLane({ samples, onsets }: LaneProps): React.JSX.Element {
             />
             <YAxis
               domain={[0, yMax]}
+              tickFormatter={(v) => fmtInt(v)}
               tick={{ fontSize: 10 }}
               stroke="hsl(var(--muted-foreground))"
               allowDecimals={false}
@@ -472,6 +473,7 @@ function TokenFlowLane({ samples, onsets }: LaneProps): React.JSX.Element {
             />
             <YAxis
               domain={[0, yMax]}
+              tickFormatter={(v) => fmtTokensCompact(v)}
               tick={{ fontSize: 10 }}
               stroke="hsl(var(--muted-foreground))"
               allowDecimals={false}
