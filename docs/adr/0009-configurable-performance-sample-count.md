@@ -2,19 +2,18 @@
 
 ## Context
 
-The performance stats SQL (`PERFORMANCE_STATS_SQL` in `src/usage/ddl.ts`)
-hardcoded `rn <= 100` — sampling only the latest 100 done captures per
-model for percentile computation. The ring buffer (`MAX_CAPTURES`)
-defaults to 200, so half the captured requests were invisible on the
-Performance tab. The `v_latest_requests_per_model` view (also hardcoded
-to 100) was dead code in production — only `PERFORMANCE_STATS_SQL`
-feeds `getPerformanceStats()`, and only tests queried the view directly.
+umans-gate computes performance percentiles from a fixed 100-row sample
+window in `PERFORMANCE_STATS_SQL` (`src/usage/ddl.ts`), which ignores half
+the default 200-capture ring buffer. The `v_latest_requests_per_model`
+view was also hardcoded to 100, but it was dead code in production — only
+`PERFORMANCE_STATS_SQL` feeds `getPerformanceStats()`, and only tests
+queried the view directly.
 
 ## Decision
 
-Make the performance sample count a **standalone, hot-reloadable config
-field** (`performance_sample_count`, default 200), and parameterize the
-SQL query with a bound `$limit` parameter.
+The proxy makes the performance sample count a **standalone,
+hot-reloadable config field** (`performance_sample_count`, default 200),
+and parameterizes the SQL query with a bound `$limit` parameter.
 
 ### Config field
 

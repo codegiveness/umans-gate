@@ -1,5 +1,7 @@
 # umans-gate — Domain Glossary
 
+> **Applies to:** umans-gate v0.4.5 · **Last updated:** 2026-07-27
+
 Pure glossary of domain terms. Definitions only — no implementation
 details, file paths, or code references.
 

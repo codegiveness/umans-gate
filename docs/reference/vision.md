@@ -1,6 +1,8 @@
 # Vision Calls Tab Reference
 
-> **Applies to:** umans-gate v0.4.4 · **Last updated:** 2026-07-27
+> **Applies to:** umans-gate v0.4.5 · **Last updated:** 2026-07-27
+
+The Vision Calls tab inspects image-bearing requests and their model-generated text descriptions.
 
 ## Tab
 
@@ -40,11 +42,9 @@ All prefixed `/dashboard/api/`.
   - `update` — vision record updated (description arrived)
   - `vision-clear` — vision records cleared
 
-## Purpose
+## What the Vision Calls Tab Shows
 
-Inspect image-bearing requests with model-generated descriptions. Each row
-links the original capture to its async vision description. Shows prompt
-strategy, model used, token cost, cache hit/miss, and the generated text.
+The Vision Calls tab shows image-bearing requests with their model-generated descriptions. Each row links the original capture to its async vision description and displays the prompt strategy, model used, token cost, cache hit/miss, and generated text.
 
 ## Config (hot-reloadable)
 

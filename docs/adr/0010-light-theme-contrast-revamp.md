@@ -10,13 +10,20 @@ Accepted
 
 ## Context
 
-The dashboard's light theme used pure neutral grayscale for all CSS custom properties (HSL hue 0, saturation 0). WCAG 2.2 AA contrast analysis revealed multiple failures: `--muted-foreground` at 3.0:1 (needs 4.5:1 for text), `--ring` at 2.1:1 (needs 3:1 for focus indicators), `--chart-1` at 1.3:1 (needs 3:1 for graphical objects), `--input` at 1.2:1 (needs 3:1 for functional UI). The dark theme was legible for text but all five chart colors were grayscale, making data series visually indistinguishable. The dark theme also carried a violet accent on `--sidebar-primary` that the light theme did not mirror, creating inconsistent brand identity.
-
-A follow-up audit of the dark theme found three additional failures: `--destructive-foreground` on `--destructive` at 4.13:1 (needs 4.5:1), `--sidebar-primary-foreground` on `--sidebar-primary` at 3.77:1 (needs 4.5:1), and `--input` at 1.62:1 (needs 3:1). Additionally, tooltip secondary text using `text-muted-foreground` inside `bg-foreground` TooltipContent produced only ~3.1:1 in both themes — the contrast test checked `--muted-foreground` against `--background`, not against the tooltip's actual `--foreground` background.
+umans-gate's dashboard light theme failed WCAG 2.2 AA contrast on
+multiple CSS custom properties because every color was pure neutral
+grayscale (HSL hue 0, saturation 0). Measured failures included
+`--muted-foreground` at 3.0:1 against `--background`, `--ring` at 2.1:1,
+`--chart-1` at 1.3:1, and `--input` at 1.2:1. The dark theme passed text
+contrast but used grayscale chart colors, so data series were visually
+indistinguishable. A follow-up audit found three additional dark-theme
+failures: `--destructive-foreground` on `--destructive` at 4.13:1,
+`--sidebar-primary-foreground` on `--sidebar-primary` at 3.77:1, and
+`--input` at 1.62:1.
 
 ## Decision
 
-Adopt a "darken + chromatic accent" strategy:
+The dashboard adopts a "darken + chromatic accent" strategy:
 
 1. Darken the failing neutral tokens (`--muted-foreground` to 44%, `--input` to 58%, `--border` to 85%) to meet WCAG AA thresholds.
 2. Introduce violet (HSL 263°) as the chromatic accent for `--ring`, `--sidebar-primary`, and `--sidebar-ring` in light theme, aligning with the dark theme's existing violet.

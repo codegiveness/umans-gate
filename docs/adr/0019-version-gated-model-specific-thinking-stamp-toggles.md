@@ -5,25 +5,23 @@ Date: 2026-07-26
 
 ## Context
 
-ADR-0017 introduced per-family `thinkingShape` entries in `STAMP_OVERLAY`,
-so `umans-glm*` requests got `{ type: "enabled", clear_thinking: false,
-budget_tokens: 32000 }` (GLM Preserved Thinking) and `umans-coder` got
-`{ type: "enabled", keep: "all", budget_tokens: 32000 }` (Kimi Preserved
-Thinking) — unconditionally, whenever `stamp_claude_code_enabled` was on.
+umans-gate's per-family `thinkingShape` entries from ADR-0017 applied
+Preserved Thinking unconditionally whenever `stamp_claude_code_enabled`
+was on: `umans-glm*` got `{ type: "enabled", clear_thinking: false,
+budget_tokens: 32000 }` and `umans-coder` got `{ type: "enabled",
+keep: "all", budget_tokens: 32000 }`. This created two problems.
 
-That creates two problems:
+First, the shape was hard-coded per family. Users who wanted Claude
+Code Style stamping (TTL, `max_tokens`, `output_config`,
+`context_management`) without Preserved Thinking had no way to disable
+just the thinking shape. They had to turn off the parent toggle and lose
+the other stamps.
 
-1. **Behavior lock-in.** The shape is hard-coded per family. Users who
-   want Claude Code Style stamping (TTL, max_tokens, output_config,
-   context_management) but *not* Preserved Thinking have no way to
-   disable just the thinking shape — they must disable the entire parent
-   toggle, losing the other stamps.
-
-2. **Version drift.** Preserved Thinking is a GLM-5.2 feature. Z.ai
-   documents `reasoning_effort` as GLM-5.2-exclusive and notes that
-   GLM-5.2 "auto-decides whether to think." Applying
-   `clear_thinking: false` to older GLM variants (5.1, 4.x) is
-   wrong-by-default — those models don't support the field.
+Second, Preserved Thinking is a GLM-5.2 feature. Z.ai documents
+`reasoning_effort` as GLM-5.2-exclusive and notes that GLM-5.2
+"auto-decides whether to think." Applying `clear_thinking: false` to
+older GLM variants (5.1, 4.x) is wrong-by-default — those models do not
+support the field.
 
 ### Z.ai official references
 
@@ -47,17 +45,17 @@ That creates two problems:
 > GLM-5.2 auto-decides whether to think (unlike GLM-4.7 which uses
 > forced thinking). `reasoning_effort` is new to GLM-5.2.
 
-The clear implication: Preserved Thinking (`clear_thinking: false`) is
-an opt-in API feature targeted at coding/agent workloads, primarily
-relevant to GLM-5.2 and above. Stamp it unconditionally across all GLM
-variants — and worse, across unrelated model families (Kimi, Coder) —
-is a behavior change with no user opt-out.
+Preserved Thinking (`clear_thinking: false`) is an opt-in API feature
+targeted at coding/agent workloads, primarily relevant to GLM-5.2 and
+above. Stamping it unconditionally across all GLM variants — and across
+unrelated model families (Kimi, Coder) — is a behavior change with no
+user opt-out.
 
 ## Decision
 
-Introduce a **child toggle** pattern: per-version Preserved Thinking
-shapes are gated behind dedicated config fields, each a child of
-`stamp_claude_code_enabled`.
+The proxy introduces a **child toggle** pattern: per-version Preserved
+Thinking shapes are gated behind dedicated config fields, each a child
+of `stamp_claude_code_enabled`.
 
 ### 1. `stamp_glm_5_2_thinking_enabled`
 

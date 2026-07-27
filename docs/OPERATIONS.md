@@ -1,10 +1,10 @@
 # Operations
 
-> **Applies to:** umans-gate v0.4.4 · **Last updated:** 2026-07-27
+> **Applies to:** umans-gate v0.4.5 · **Last updated:** 2026-07-27
 
-Day-to-day operations for running umans-gate. Covers start/stop, upgrades,
-health checks, backup, and config management. For reactive problem-solving,
-see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+umans-gate operations: start/stop, upgrades, health checks, backup, and
+configuration management. For reactive problem-solving, see
+[TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 
 ## Start and stop
 
@@ -14,8 +14,8 @@ see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 umans-gate          # starts on http://localhost:1945
 ```
 
-The proxy runs in the foreground. `Ctrl+C` stops it. It does not survive
-reboots unless installed as a managed service.
+`umans-gate` runs in the foreground and stops with `Ctrl+C`. It does not
+survive reboots unless installed as a managed service.
 
 ### Managed service
 
@@ -41,7 +41,7 @@ works automatically.
 
 ### Port conflicts
 
-Default port is `1945`. Change via env or config:
+Default listen port is `1945`. Change it via env or config:
 
 ```bash
 PORT=9001 umans-gate          # npm install
@@ -66,7 +66,8 @@ When `DASHBOARD_TOKEN` is set, all `/dashboard/api/*` routes, `/health`, and
 
 ### Dashboard
 
-Open `http://localhost:1945/dashboard/` for the live inspector. Tabs:
+Open `http://localhost:1945/dashboard/` for the live inspector. The dashboard
+has these tabs:
 
 - **Captures** — live request/response list with SSE rendering
 - **Vision** — vision call records and cache stats
@@ -119,9 +120,9 @@ export UMANS_API_KEY=your-key-here
 # Or use the dashboard Config tab
 ```
 
-Without `UMANS_API_KEY`, the proxy still captures traffic, but
+Without `UMANS_API_KEY`, the proxy still captures traffic, but disables
 `/v1/usage` polling, concurrency gate sizing, rate-limit validation, and
-vision handoff stay disabled.
+vision handoff.
 
 ### Rotate the API key
 
@@ -144,8 +145,8 @@ require the token. Includes brute-force protection.
 
 ### Location
 
-Default: `./umans-gate.db` (project root). Change via `DB_PATH` env or
-`db_path` config field (requires restart).
+Default path is `./umans-gate.db` (project root). Change via `DB_PATH` env or
+the `db_path` config field; this requires a server restart.
 
 ### Backup
 
@@ -161,19 +162,19 @@ but stopping first is safer for personal-use workflows.
 
 ### Size management
 
-- Ring buffer evicts old captures at `max_captures` (default 200)
-- zstd compression (`compression_enabled: true`) reduces body storage
-- `capture_body_max_bytes` (default 10 MB) limits per-capture body size
-- Run `bun run clean` to remove the database and start fresh (WARNING:
-  deletes all captures)
+- Ring buffer evicts old captures at `max_captures` (default 200).
+- zstd compression (`compression_enabled: true`) reduces body storage.
+- `capture_body_max_bytes` (default 10 MB) limits per-capture body size.
+- Run `bun run clean` to remove the database and start fresh (this deletes all
+captures).
 
 ### Locked database
 
-WAL mode should prevent this, but if it happens:
+If the database locks despite WAL mode:
 
-1. Ensure only one proxy instance is using the database file
-2. Check for zombie processes: `ps aux | grep cli.ts`
-3. Delete `-wal` and `-shm` files and restart
+1. Ensure only one proxy instance is using the database file.
+2. Check for zombie processes: `ps aux | grep cli.ts`.
+3. Delete `-wal` and `-shm` files and restart.
 
 ## Configuration
 
@@ -184,9 +185,9 @@ WAL mode should prevent this, but if it happens:
 | Linux/macOS | `$XDG_CONFIG_HOME/umans-gate/config.json` or `~/.config/umans-gate/config.json` |
 | Windows | `%APPDATA%/umans-gate/config.json` |
 
-**Precedence:** env vars > JSON config > built-in defaults. On first run,
-`loadConfig()` writes defaults if the file doesn't exist. Existing configs
-are never overwritten.
+Precedence is env vars > JSON config > built-in defaults. On first run,
+`loadConfig()` writes defaults if the file does not exist. Existing configs are
+never overwritten.
 
 ### Hot-reload vs restart
 
@@ -208,10 +209,10 @@ See [AGENTS.md](../AGENTS.md) for the complete config field table.
 
 ## Connection warmer
 
-The connection warmer (`warmer_enabled: true`, `warmer_interval_ms: 20000`)
-pings `/v1/models` upstream periodically to keep TLS warm. It skips pings
-when real traffic occurred recently. The first request after a cold start
-may take ~750ms longer due to TLS handshake.
+The connection warmer (`warmer_enabled: true`, interval 20000ms) pings
+`/v1/models` upstream to keep TLS warm. It skips pings when real traffic
+occurred recently. The first request after a cold start may take ~750ms longer
+due to the TLS handshake.
 
 ## See also
 

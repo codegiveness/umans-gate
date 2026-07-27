@@ -1,8 +1,8 @@
 # What Works With umans-gate
 
-> **Applies to:** umans-gate v0.4.4 · **Last updated:** 2026-07-27
+> **Applies to:** umans-gate v0.4.5 · **Last updated:** 2026-07-27
 
-Maps umans-gate v0.3.27 — a Bun-based LLM capture proxy — to the
+This document maps umans-gate v0.4.5 — a Bun-based LLM capture proxy — to the
 [umans-open-stack](https://github.com/umans-ai/umans-open-stack) playbook
 categories.
 
@@ -12,9 +12,9 @@ categories.
 > the primary documentation in [README.md](../README.md) and
 > [ARCHITECTURE.md](ARCHITECTURE.md) covers standalone use.
 
-umans-gate is a **proxy**, not a configuration. It does not "implement" the
-playbooks below. It **provides building blocks** — observable, stamping-aware
-infrastructure — that align with the patterns the playbooks describe.
+umans-gate is a **proxy**, not a configuration. It does not implement the
+playbooks below. It provides observable, stamping-aware infrastructure that
+aligns with the patterns the playbooks describe.
 
 ## umans-open-stack playbooks
 
@@ -38,9 +38,8 @@ infrastructure — that align with the patterns the playbooks describe.
 
 **Alignment**
 
-The concurrency playbook describes bounded in-flight request control with
-priority budgets and failure isolation. umans-gate provides these as live,
-hot-reloadable building blocks:
+umans-gate provides bounded in-flight request control, priority budgets,
+and failure isolation as live, hot-reloadable building blocks:
 
 - Hard cap (`concurrency_hard_cap`, default 16) and soft limit
   (`concurrency_soft_limit`, default 8) with `use_hard_cap` toggle
@@ -51,7 +50,7 @@ hot-reloadable building blocks:
 - Rate limiter (`rate_limit_requests`) for request-per-window caps
 - Live gate stats broadcast over WebSocket (`type: "gate"`)
 
-The gate is observable in the dashboard (GET /dashboard/api/gate) and
+The gate is observable in the dashboard at `GET /dashboard/api/gate` and
 hot-reloadable — operators can tune caps without restart.
 
 ### 2. Vision Handoff — provides building blocks for the vision-handoff playbook
@@ -66,19 +65,17 @@ hot-reloadable — operators can tune caps without restart.
 
 **Alignment**
 
-The vision-handoff playbook describes offloading image-bearing requests to a
-description-generation step. umans-gate provides the full handoff pipeline:
+umans-gate provides the full image-to-text handoff pipeline:
 
 - Detect image content in intercepted requests
-- Triage to decide which need description
+- Triage to decide which images need description
 - Generate descriptions async via `vision_model` (default `umans-flash`)
 - Cache descriptions persistently (`vision_cache_max_rows`, `vision_cache_ttl_ms`)
 - Stream results to dashboard via WebSocket (`new`, `update`, `vision-clear`)
 
 The 7 intent-aware vision fields (`vision_intent_strategy`,
 `vision_decomposition_*`, `vision_adjacent_text_max_chars`, etc.) let operators
-tune decomposition and crafting timeouts — directly relevant to the
-vision-handoff playbook's intent-aware patterns.
+tune decomposition and crafting timeouts.
 
 ### 3. cache_control TTL Stamping — aligns with the caching playbook
 
@@ -91,10 +88,9 @@ vision-handoff playbook's intent-aware patterns.
 
 **Alignment**
 
-The caching playbook describes explicit cache boundary management on
-Anthropic `cache_control` ephemeral blocks. umans-gate **stamps `ttl`** onto
-every `cache_control` ephemeral block in intercepted Anthropic requests —
-the TTL is always set, independent of thinking state (per ADR-0011).
+umans-gate stamps `ttl` onto every `cache_control` ephemeral block in
+intercepted Anthropic requests — the TTL is always set, independent of
+thinking state (per ADR-0011).
 
 Stamping is per-model policy driven:
 - `stamp_claude_code_enabled` toggles Claude Code stamping
@@ -104,9 +100,9 @@ Stamping is per-model policy driven:
 - Model info from `/v1/models/info` (parsed by `model-info-parser.ts`)
   overrides overlay at parse time
 
-This is observable infrastructure for the caching playbook's patterns:
-operators can see (Captures tab) exactly which blocks got TTL stamped and
-verify cache boundaries match their playbook.
+This is observable infrastructure: operators can see in the Captures tab
+exactly which blocks got TTL stamped and verify cache boundaries match
+their playbook.
 
 ### 4. SSE Streaming + Rendering — provides building blocks for the workflows playbook
 
@@ -118,9 +114,7 @@ verify cache boundaries match their playbook.
 
 **Alignment**
 
-The workflows playbook describes multi-step LLM workflows with streaming
-intermediates. umans-gate provides transparent SSE passthrough with full
-chunk capture:
+umans-gate provides transparent SSE passthrough with full chunk capture:
 
 - Streams SSE chunks to client without buffering whole response
 - Captures each chunk to `CaptureDB` via `WriteQueue` (non-blocking)
@@ -138,13 +132,12 @@ flow, and debug stuck workflows — without modifying the proxy.
 
 **Alignment**
 
-The workflows playbook describes non-blocking persistence for high-throughput
-streams. umans-gate's `WriteQueue` batches capture writes:
+umans-gate's `WriteQueue` batches capture writes for non-blocking persistence:
 
 - Buffer captures in memory, flush in batches to SQLite
 - `queue_max_depth` (default 100) caps buffer size
 - `queue_timeout_ms` (default 180000) bounds flush latency
-- Broadcasts `update` WebSocket messages on flush (src/queue.ts:208)
+- Broadcasts `update` WebSocket messages on flush (`src/queue.ts:208`)
 
 This decouples proxy latency from persistence — the workflows playbook's
 "don't block the hot path" pattern. Operators can tune depth/timeout live.
@@ -158,8 +151,8 @@ This decouples proxy latency from persistence — the workflows playbook's
 
 **Alignment**
 
-The caching playbook describes bounded retention with eviction. umans-gate's
-`CaptureDB` is a ring-buffered SQLite store:
+umans-gate's `CaptureDB` is a ring-buffered SQLite store with bounded
+retention:
 
 - `max_captures` (default 200) caps row count
 - WAL mode for concurrent read/write
@@ -167,8 +160,8 @@ The caching playbook describes bounded retention with eviction. umans-gate's
 - `capture_body_max_bytes` (default 10MB) bounds per-capture size
 
 This is the storage-side caching pattern: bounded working set, eviction
-observable by dashboard clients. Aligns with the caching playbook's retention
-patterns for inspection data.
+observable by dashboard clients. It aligns with the caching playbook's
+retention patterns for inspection data.
 
 ### 7. Connection Warmer — aligns with the concurrency playbook
 
@@ -178,14 +171,14 @@ patterns for inspection data.
 
 **Alignment**
 
-The concurrency playbook describes connection pre-warming to avoid cold-start
-latency under burst. umans-gate's `ConnectionWarmer`:
+umans-gate's `ConnectionWarmer` pre-warms upstream connections to avoid
+cold-start latency under burst:
 
 - `warmer_enabled` (default true)
 - `warmer_interval_ms` (default 20000) — keep-alive cadence
 - Maintains upstream connection pool health
 
-Reduces TTFT variance under burst — directly relevant to the concurrency
+This reduces TTFT variance under burst — directly relevant to the concurrency
 playbook's pre-warming guidance.
 
 ## Summary
@@ -201,8 +194,8 @@ playbook's pre-warming guidance.
 | 7 | Connection warmer | src/warmer.ts | concurrency |
 
 All 7 features are hot-reloadable or runtime-tunable via the Config tab.
-Operators can observe each in the dashboard before committing to a playbook
-configuration in their own application.
+Operators can observe each one in the dashboard before committing to a
+playbook configuration in their own application.
 
 ## See Also
 

@@ -2,11 +2,11 @@
 
 > **Applies to:** umans-gate v0.4.5 · **Last updated:** 2026-07-27
 
-This document outlines the planned direction for umans-gate. It is a living
-document — priorities may shift based on upstream API changes and personal
+umans-gate roadmap: planned direction and likely priorities. Items are not
+committed or scheduled — they shift based on upstream API changes and personal
 development needs.
 
-## Current State (v0.3.27)
+## What already exists in v0.3.27
 
 - ✅ Capture proxy with SQLite storage, WAL mode, and zstd body compression
 - ✅ Anthropic `cache_control` TTL stamping via unified stamp pipeline
@@ -42,7 +42,7 @@ development needs.
 - ✅ Reference docs reorganized; `.github/AGENT_RULES.md` for AI agent
   behavioral rules
 
-## Near-Term
+## Near-term priorities
 
 ### Dashboard enhancements
 - Capture search and filtering by model, route, status code, and time range
@@ -60,7 +60,7 @@ development needs.
 - Integration tests for concurrency gate under load
 - Dashboard component tests for config validation UI
 
-## Mid-Term
+## Mid-term possibilities
 
 ### Multi-upstream support
 - Route requests to different upstream targets based on model or header
@@ -77,7 +77,7 @@ development needs.
 - Streaming response caching for identical requests
 - Configurable capture sampling (capture every Nth request)
 
-## Long-Term
+## Long-term possibilities
 
 ### Plugin system
 - Pluggable stamp strategies via a strategy registry
@@ -107,9 +107,9 @@ open source tools and playbooks. Specifically:
 
 Future roadmap items may be informed by playbooks added to umans-open-stack.
 
-## How to Influence This Roadmap
+## How to influence this roadmap
 
-This is a personal project. The roadmap reflects the maintainer's own
-priorities. If you've forked the project and want to share a fix or
-improvement, open a [GitHub issue](https://github.com/codegiveness/umans-gate/issues)
-or submit a PR — it may be reviewed on a best-effort basis.
+This is a personal-use project. The roadmap reflects the maintainer's own
+priorities. If you fork the project and want to share a fix or improvement, open
+a [GitHub issue](https://github.com/codegiveness/umans-gate/issues) or submit a PR
+— it may be reviewed on a best-effort basis.

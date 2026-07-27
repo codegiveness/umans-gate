@@ -1,22 +1,22 @@
 # Anthropic route stops counting thinking blocks
 
-The upstream gateway (`api.code.umans.ai`) does not populate
-`usage.output_tokens_details.thinking_tokens` for non-Claude models
-(GLM, Kimi, Qwen) on the Anthropic-compatible route. The proxy's
-`thinking_block_count` — derived from counting `content_block_start`
-events of type `"thinking"` — therefore produces a non-zero count with
-a null `thinking_tokens`, causing the dashboard to show "N req w/ think
-(unmeasured)" for every thinking-enabled request. This is noise: the
-block count is structurally correct but carries no actionable signal
-since the token cost is unmeasurable on this route.
+umans-gate stops counting `thinking_block_count` on the Anthropic
+route for non-Claude models. The upstream gateway
+(`api.code.umans.ai`) does not populate
+`usage.output_tokens_details.thinking_tokens` for GLM, Kimi, and Qwen
+models on the Anthropic-compatible route. The proxy derived
+`thinking_block_count` from `content_block_start` events of type
+`"thinking"`, producing a non-zero count with null `thinking_tokens`.
+This caused the dashboard to show "N req w/ think (unmeasured)" for
+every thinking-enabled request — structural but noisy, because the
+token cost is unmeasurable on this route.
 
-We stop counting thinking blocks on the Anthropic route (set
-`thinking_block_count = null` in both `extractAnthropicStreaming` and
-`extractAnthropicNonStreaming`). We keep the `thinking_tokens`
-extraction pipeline alive — it still reads `output_tokens_details` if
-present — so the proxy is forward-compatible if the gateway ever starts
-reporting it. The OpenAI route is unaffected: it continues to count
-`reasoning_content` presence as before.
+The proxy sets `thinking_block_count = null` in both
+`extractAnthropicStreaming` and `extractAnthropicNonStreaming`. It keeps
+the `thinking_tokens` extraction pipeline alive — reading
+`output_tokens_details` when present — so the proxy is forward-compatible
+if the gateway ever starts reporting it. The OpenAI route is unaffected:
+it continues to count `reasoning_content` presence as before.
 
 The dashboard gates the "unmeasured" fallback label on
 `provider === "openai"`: Anthropic rows never render the unmeasured

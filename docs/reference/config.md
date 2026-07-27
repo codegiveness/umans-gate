@@ -1,6 +1,8 @@
 # Config Tab Reference
 
-> **Applies to:** umans-gate v0.4.4 · **Last updated:** 2026-07-27
+> **Applies to:** umans-gate v0.4.5 · **Last updated:** 2026-07-27
+
+The Config tab edits proxy settings and triggers live reload or restart.
 
 ## Tab
 
@@ -45,13 +47,9 @@ All prefixed `/dashboard/api/`.
 - `version` message — version info + update check
 - Config changes do not broadcast; client refetches after save
 
-## Purpose
+## What the Config Tab Does
 
-Edit proxy settings and reload live or restart. Hot-reloadable fields
-(e.g. `stamp_claude_code_enabled`, `breaker_*`, `rate_limit_*`,
-7 `vision_*` intent fields) apply without restart. Fields marked
-`restartRequired` (e.g. `port`, `db_path`, `upstream_protocol`) require
-server restart via `/restart` or process manager.
+The Config tab edits proxy settings and applies hot-reloadable fields without a restart. Fields such as `stamp_claude_code_enabled`, `breaker_*`, `rate_limit_*`, and the 7 `vision_*` intent fields apply immediately. Fields marked `restartRequired` (e.g. `port`, `db_path`, `upstream_protocol`) require a server restart via `/restart` or a process manager.
 
 ## Config File
 

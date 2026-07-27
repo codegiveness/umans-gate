@@ -6,10 +6,7 @@ Accepted.
 
 ## Context
 
-ADR 0002 addresses breakpoint repositioning — the dominant mid-session cache
-drop. A second class of cold-start drops remains: every subagent invocation
-(`task()`, `explore`, `librarian`, etc.) starts a fresh conversation whose
-first 1–2 requests report `cache_read_input_tokens = 0`.
+Subagent cold starts and slash-command resets are outside the scope of the proxy's breakpoint fix in ADR 0002. Every subagent invocation (`task()`, `explore`, `librarian`, etc.) starts a fresh conversation whose first 1–2 requests report `cache_read_input_tokens = 0`.
 
 Capture analysis (`~/umans-gate.db`, 199 captures) showed why these cold
 starts are structurally unavoidable given the current system prompt layout:
@@ -66,8 +63,7 @@ would not help caching.
 
 ## Decision
 
-Accept both subagent cold starts and slash-command resets as
-architecturally unavoidable at the proxy layer.
+The proxy accepts both subagent cold starts and slash-command resets as architecturally unavoidable.
 
 **Subagents**: the proxy cannot reliably split a system prompt into
 `[shared-context, persona]` — the boundary has no consistent marker and

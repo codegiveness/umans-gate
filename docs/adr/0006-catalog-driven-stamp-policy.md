@@ -1,26 +1,17 @@
 # Catalog-driven stamp policy via local overlay
 
-The stamp pipeline made model-aware decisions via hardcoded prefix
-matching scattered across `stamp-catalog.ts`, `stamp-thinking.ts`, and
-`stamp-topk.ts`:
+The stamp pipeline made model-aware decisions with hardcoded prefix matching scattered across `stamp-catalog.ts`, `stamp-thinking.ts`, and `stamp-topk.ts`:
 
 ```typescript
 isGlmModel(modelName)          // startsWith("umans-glm")
 modelMatchesThinkingPattern()  // === "umans-coder" | startsWith("umans-kimi" | ...)
 ```
 
-Meanwhile `/v1/models/info` was already parsed into a
-`Map<string, ParsedModelInfo>` by `model-info-parser.ts` and consumed
-by `ModelsClient` (concurrency weighting) and `vision/catalog.ts`
-(vision interception) — but the stamp pipeline ignored it. Adding a
-new model family required editing multiple files to add `startsWith`
-branches, violating OCP.
+Meanwhile `/v1/models/info` was already parsed into a `Map<string, ParsedModelInfo>` by `model-info-parser.ts` and consumed by `ModelsClient` (concurrency weighting) and `vision/catalog.ts` (vision interception), but the stamp pipeline ignored it. Adding a new model family required editing several files to add `startsWith` branches, which violated the Open/Closed Principle.
 
 ## Decision
 
-Make the stamp pipeline **catalog-driven** by extending
-`ParsedModelInfo` with a `stamps` field, populated from a **local
-overlay** merged into the parsed `/v1/models/info` response.
+The stamp pipeline will become **catalog-driven** by extending `ParsedModelInfo` with a `stamps` field, populated from a **local overlay** merged into the parsed `/v1/models/info` response.
 
 ### Shape
 

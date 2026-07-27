@@ -8,34 +8,29 @@ Supersedes the `DASHBOARD_TOKEN` update-guard portions of
 
 ## Context
 
-ADR-0018 gated one-click update on **both** `DASHBOARD_TOKEN` being set
-**and** the proxy running as a managed service. The token guard's
-stated rationale: "without the token, anyone on localhost could trigger
-a binary replacement."
+umans-gate's one-click update gate required both `DASHBOARD_TOKEN` and a
+managed service (ADR-0018). The token guard's stated rationale was that
+"without the token, anyone on localhost could trigger a binary
+replacement." That rationale contradicted the dashboard auth model:
+`DASHBOARD_TOKEN` defaults to an empty string in
+`src/config/defaults.ts`, and when empty every `/dashboard/api/*` route is
+open by design. The default dashboard is unauthenticated, yet the update
+endpoint pretended auth was mandatory. A user with the default open
+dashboard could click Update and hit a "configure DASHBOARD_TOKEN"
+blocker — confusing, not secure.
 
-That rationale contradicts the dashboard's own auth model:
+`DASHBOARD_TOKEN` guards dashboard access, not update authorization.
+Only `isServiceInstalled()` determines whether the process restarts
+after `performUpdate()` replaces the binary. The token check was
+redundant defense-in-depth that became user-hostile in the default
+configuration.
 
-- `DASHBOARD_TOKEN` defaults to empty string (`src/config/defaults.ts`).
-- When empty, **all** `/dashboard/api/*` routes are open — by design,
-  backward compatible, documented as such in the README.
-- So by default the dashboard is unauthenticated, yet the update
-  endpoint pretended auth was mandatory. A user with an open dashboard
-  (the default) could see the version card, click Update, and hit a
-  "configure DASHBOARD_TOKEN" blocker — confusing, not secure.
-
-The token guards *dashboard access*. It does not guard *update
-authorization*. Authorization is already handled by the service-manager
-guard: only `isServiceInstalled()` determines whether the process will
-come back after `performUpdate()` replaces the binary. The token check
-was redundant defense-in-depth that became user-hostile in the default
-(open dashboard) configuration.
-
-A second issue surfaced in the same discussion: the dashboard only
-learns about version availability via `GET /dashboard/api/version` on
+A second issue surfaced in the same discussion: the dashboard learned
+about version availability only from `GET /dashboard/api/version` on
 mount and `POST /dashboard/api/version/check` on manual click. If an
-update becomes available while the dashboard is open, the user must
-reload the browser. The WebSocket layer (ADR-0018 explicitly chose
-"no interval timer") was underused.
+update became available while the dashboard was open, the user had to
+reload the browser. The WebSocket layer was underused (ADR-0018 had
+explicitly chosen "no interval timer").
 
 ## Decision
 

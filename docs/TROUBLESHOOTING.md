@@ -1,10 +1,10 @@
 # Troubleshooting
 
-> **Applies to:** umans-gate v0.4.4 · **Last updated:** 2026-07-27
+> **Applies to:** umans-gate v0.4.5 · **Last updated:** 2026-07-27
 
-Common issues and solutions for umans-gate.
+Common issues and solutions for running umans-gate.
 
-## Server won't start
+## What to do if the server won't start
 
 ### Port already in use
 
@@ -12,7 +12,7 @@ Common issues and solutions for umans-gate.
 Error: Failed to listen on 127.0.0.1:1945
 ```
 
-Another process is using port 1945. Either stop it or change the port:
+Port `1945` is already in use. Stop the other process or change the port:
 
 ```bash
 # Find what's using the port
@@ -25,11 +25,12 @@ PORT=9001 bun src/cli.ts      # dev
 
 ### `bun:sqlite` not found
 
-This means you're running with Node.js instead of Bun. If you installed via
-npm (`npm install -g umans-gate`), the bundled binary already includes Bun
-internally — make sure you're running `umans-gate`, not `node`.
+The `bun:sqlite` error means the runtime is Node.js, not Bun.
 
-If you're running from source, Bun is required:
+If you installed via npm (`npm install -g umans-gate`), the bundled binary
+includes Bun internally — run `umans-gate`, not `node`.
+
+If you run from source, Bun is required:
 
 ```bash
 bun --version    # verify Bun is installed
@@ -38,23 +39,23 @@ bun src/cli.ts   # start with Bun, not Node
 
 ### Config file not created
 
-The config file is auto-created on first run at:
+The config file auto-creates on first run at:
 
 - **Linux/macOS**: `~/.config/umans-gate/config.json`
 - **Windows**: `%APPDATA%/umans-gate/config.json`
 
-If it's not being created, check that the directory is writable:
+If it is not created, check that the directory is writable:
 
 ```bash
 mkdir -p ~/.config/umans-gate
 touch ~/.config/umans-gate/config.json
 ```
 
-## Stamping not working
+## What to do if stamping is not working
 
 ### Stamps not applied to requests
 
-Check that `stamp_claude_code_enabled` is `true` in your config:
+Stamps only apply when `stamp_claude_code_enabled` is `true`:
 
 ```bash
 # Via dashboard: Config tab → toggle stamp_claude_code_enabled
@@ -64,14 +65,14 @@ Check that `stamp_claude_code_enabled` is `true` in your config:
 }
 ```
 
-Stamps only apply to Anthropic routes (`/v1/messages`). OpenAI-compatible
-routes use `stamp_reasoning_effort_enabled` instead.
+Claude Code stamps apply to Anthropic routes (`/v1/messages`).
+OpenAI-compatible routes use `stamp_reasoning_effort_enabled` instead.
 
 ### `max_tokens` / `thinking` not being removed on OpenAI route
 
 The `stamp_reasoning_effort_enabled` flag removes `max_tokens` and `thinking`
-from OpenAI-compatible requests and injects `reasoning_effort`. If you see
-errors from the upstream about unrecognized fields, ensure this is enabled:
+from OpenAI-compatible requests and injects `reasoning_effort`. Enable it if
+upstream rejects fields like `thinking`:
 
 ```json
 {
@@ -79,23 +80,23 @@ errors from the upstream about unrecognized fields, ensure this is enabled:
 }
 ```
 
-## Vision handoff issues
+## What to do if the vision handoff is not working
 
 ### Images not being described
 
-1. Check `vision_strategy` — `never` disables vision handoff entirely
-2. For `catalog` strategy: verify the model is in the "no vision" catalog.
-   Use `always` to intercept all images regardless of model.
-3. Check `UMANS_API_KEY` is set — vision calls require it
-4. Check `vision_concurrency` — at 1 (default), vision calls are serialized
-5. Check the dashboard for vision errors in the capture detail
+1. Check `vision_strategy` — `never` disables vision handoff entirely.
+2. For `catalog` strategy: verify the model is in the "no vision" catalog,
+   or use `always` to intercept all images regardless of model.
+3. Check `UMANS_API_KEY` is set — vision calls require it.
+4. Check `vision_concurrency` — at 1 (default), vision calls are serialized.
+5. Check the dashboard for vision errors in the capture detail.
 
 ### Vision descriptions are slow
 
-- Vision calls are serialized (concurrency=1 by default). Increase
+- Vision calls are serialized (concurrency = 1 by default). Increase
   `vision_concurrency` if the upstream supports more vision slots.
-- Descriptions are cached for 7 days. First requests will be slow; subsequent
-  requests with the same image will be fast.
+- Descriptions are cached for 7 days. First requests are slow; subsequent
+  requests with the same image are fast.
 - Check `vision_max_dimension` — large images are resized before sending.
 
 ### Persistent cache not working
@@ -107,9 +108,9 @@ errors from the upstream about unrecognized fields, ensure this is enabled:
 ```
 
 Descriptions are stored in the same SQLite database as captures. Check that
-`db_path` is writable and the database isn't full.
+`db_path` is writable and the database is not full.
 
-## Concurrency / rate limiting
+## What to do if concurrency or rate limiting is blocking requests
 
 ### Requests timing out in queue
 
@@ -117,29 +118,29 @@ Descriptions are stored in the same SQLite database as captures. Check that
 GateError: Queue timeout exceeded
 ```
 
-The concurrency gate's queue is full or the wait exceeded `queue_timeout_ms`
-(180s default). Options:
+The concurrency gate queue is full or the wait exceeded `queue_timeout_ms`
+(default 180 seconds). Options:
 
-- Increase `concurrency_hard_cap` if your plan allows more concurrent requests
-- Increase `queue_timeout_ms` if you can wait longer
-- Increase `max_queue_depth` to allow more queued requests
+- Increase `concurrency_hard_cap` if your plan allows more concurrent requests.
+- Increase `queue_timeout_ms` if you can wait longer.
+- Increase `max_queue_depth` to allow more queued requests.
 
 ### Circuit breaker keeps opening
 
-The circuit breaker opens after `breaker_threshold` (5) 429 responses in
-`breaker_window_ms` (5 min). If it keeps opening:
+The circuit breaker opens after 5 HTTP 429 responses within 5 minutes
+(`breaker_threshold` / `breaker_window_ms`). If it keeps opening:
 
-- Your upstream is rate-limiting you — reduce concurrency or request rate
-- Check `/v1/usage` in the dashboard for rate-boxing status
-- Increase `breaker_threshold` only if 429s are transient and expected
+- Your upstream is rate-limiting you — reduce concurrency or request rate.
+- Check `/v1/usage` in the dashboard for rate-boxing status.
+- Increase `breaker_threshold` only if 429 responses are transient and expected.
 
 ### Rate limiter blocking requests
 
-If `rate_limit_requests` is set to `0` (auto), the limiter derives limits from
-`/v1/usage`. If `UMANS_API_KEY` is not set, the limiter can't fetch usage and
+If `rate_limit_requests` is `0` (auto), the limiter derives the limit from
+`/v1/usage`. If `UMANS_API_KEY` is not set, the limiter cannot fetch usage and
 may not function correctly.
 
-To disable rate limiting entirely:
+To disable rate limiting entirely, set `rate_limit_requests` to `-1`:
 
 ```json
 {
@@ -147,7 +148,7 @@ To disable rate limiting entirely:
 }
 ```
 
-## Dashboard issues
+## What to do if the dashboard is not working
 
 ### Dashboard not loading
 
@@ -165,29 +166,28 @@ To disable rate limiting entirely:
 ### Config changes not applying
 
 Hot-reloadable fields apply immediately via the Config tab. Fields marked
-`restartRequired` need a server restart. Use the **Restart** button in the
-dashboard, or restart manually.
+`restartRequired` need a server restart. Click the dashboard **Restart** button
+or restart manually.
 
-## Service / persistence
+## What to do if the service or persistence is not working
 
 ### Proxy doesn't start after reboot
 
-The `umans-gate` command runs in the foreground — it does **not**
-auto-start on boot by itself. You need to install it as a managed
-service first:
+The `umans-gate` command runs in the foreground; it does **not**
+auto-start on boot by itself. Install it as a managed service first:
 
 ```bash
 umans-gate service install
 ```
 
-This registers it with systemd (Linux), launchd (macOS), or as a
-Windows Service. Check that the service is installed and running:
+This registers the proxy with systemd (Linux), launchd (macOS), or Windows
+Service. Check that the service is installed and running:
 
 ```bash
 umans-gate service status
 ```
 
-If it was installed but not running, start it:
+If it is installed but not running, start it:
 
 ```bash
 umans-gate service start
@@ -195,9 +195,8 @@ umans-gate service start
 
 ### `service install` from `npx` fails
 
-`npx umans-gate service install` will fail with a clear error — `npx`
-installs a temporary binary that won't persist across reboots. Install
-the package globally first:
+`npx umans-gate service install` fails because `npx` installs a temporary
+binary that does not persist across reboots. Install the package globally first:
 
 ```bash
 npm install -g umans-gate
@@ -208,8 +207,8 @@ umans-gate service install
 
 On Linux, `service install` uses a systemd user unit with
 `loginctl enable-linger` so the service starts at boot without login.
-If `enable-linger` fails (it may need root on some distros), the
-service will start when you log in instead. Enable linger manually:
+If `enable-linger` fails (it may need root on some distros), the service starts
+when you log in instead. Enable linger manually:
 
 ```bash
 loginctl enable-linger "$USER"
@@ -225,12 +224,11 @@ sudo loginctl enable-linger "$USER"
 
 The service is configured with automatic restart:
 
-- **Linux**: `Restart=always` in the systemd unit
-- **macOS**: `KeepAlive=true` in the launchd plist
-- **Windows**: NSSM restarts the process on exit
+- **Linux**: `Restart=always` in the systemd unit.
+- **macOS**: `KeepAlive=true` in the launchd plist.
+- **Windows**: NSSM restarts the process on exit.
 
-If it's not restarting, verify the service definition wasn't
-corrupted:
+If it is not restarting, verify the service definition is not corrupted:
 
 ```bash
 umans-gate service status
@@ -243,45 +241,45 @@ Check the logs for crash reasons:
 umans-gate service logs -f
 ```
 
-## Database issues
+## What to do if the database has problems
 
 ### Database file growing too large
 
-- The ring buffer evicts old captures at `max_captures` (default 200)
-- zstd compression (`compression_enabled: true`) reduces body storage
-- `capture_body_max_bytes` (default 10 MB) limits per-capture body size
-- Run `bun run clean` to remove the database and start fresh (WARNING: deletes all captures)
+- The ring buffer evicts old captures at `max_captures` (default 200).
+- zstd compression (`compression_enabled: true`) reduces body storage.
+- `capture_body_max_bytes` (default 10 MB) limits per-capture body size.
+- Run `bun run clean` to remove the database and start fresh (this deletes all captures).
 
 ### Database locked
 
-WAL mode should prevent this, but if it happens:
+If the database locks despite WAL mode:
 
-1. Ensure only one proxy instance is using the database file
-2. Check for zombie processes: `ps aux | grep cli.ts`
-3. Delete `-wal` and `-shm` files and restart
+1. Ensure only one proxy instance is using the database file.
+2. Check for zombie processes: `ps aux | grep cli.ts`.
+3. Delete `-wal` and `-shm` files and restart.
 
-## Performance
+## What to do if performance is slower than expected
 
 ### High latency on first request
 
-The connection warmer (`warmer_enabled: true`) pings the upstream every 20s
+The connection warmer (`warmer_enabled: true`) pings upstream every 20 seconds
 to keep TLS warm. The first request after a cold start may take ~750ms longer
-due to TLS handshake.
+due to the TLS handshake.
 
 ### Streaming responses are slow
 
-- Verify `upstream_protocol` is `http1.1` (default) — benchmarks show it's
-  faster than HTTP/2 for typical LLM workloads
-- Check concurrency settings — if the gate is queueing, requests wait
-- Verify `accept-encoding: identity` is being sent (the proxy forces this)
+- Verify `upstream_protocol` is `http1.1` (default) — benchmarks show it is
+  faster than HTTP/2 for typical LLM workloads.
+- Check concurrency settings — if the gate is queueing, requests wait.
+- Verify `accept-encoding: identity` is being sent (the proxy forces this).
 
-## Getting help
+## Where to get more help
 
-- [Operations](OPERATIONS.md) — day-to-day operations: start/stop, upgrades, health checks, backup
-- [GitHub Issues](https://github.com/codegiveness/umans-gate/issues) — bug reports
-- [GitHub Discussions](https://github.com/codegiveness/umans-gate/discussions) — questions
-- [Proxy Modifications Inventory](proxy-modifications.md) — what the proxy changes
-- [Architecture](ARCHITECTURE.md) — system design
-- [Product](PRODUCT.md) — product positioning and users
-- [Benchmarks](BENCHMARKS.md) — performance methodology and results
-- [Security Policy](../SECURITY.md) — vulnerability reporting and security practices
+- [Operations](OPERATIONS.md) — start/stop, upgrades, health checks, backup.
+- [GitHub Issues](https://github.com/codegiveness/umans-gate/issues) — bug reports.
+- [GitHub Discussions](https://github.com/codegiveness/umans-gate/discussions) — questions.
+- [Proxy Modifications Inventory](proxy-modifications.md) — every modification the proxy applies.
+- [Architecture](ARCHITECTURE.md) — system design.
+- [Product](PRODUCT.md) — product positioning and users.
+- [Benchmarks](BENCHMARKS.md) — performance methodology and results.
+- [Security Policy](../SECURITY.md) — vulnerability reporting and security practices.

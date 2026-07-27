@@ -5,42 +5,32 @@ Date: 2026-07-24
 
 ## Context
 
-ADR-0008 established "respect-if-present" semantics: never inject `thinking`,
-never overwrite it, and treat `/v1/models/info` `reasoning.can_disable` as
-informational only.
+umans-gate's "respect-if-present" stamping policy from ADR-0008 produced
+three request-shape inconsistencies in practice.
 
-Two problems emerged in practice:
-
-### Problem 1: Non-adaptive thinking shapes pass through
-
-A client (e.g. Claude Code) sends `thinking: { type: "enabled", budget_tokens:
-1024 }`. Under ADR-0008 the proxy respected this verbatim — the upstream
-received `budget_tokens: 1024` instead of the proxy's intended
+First, non-adaptive `thinking` blocks passed through unchanged: a client
+sending `thinking: { type: "enabled", budget_tokens: 1024 }` reached the
+upstream with that fixed budget instead of the proxy's intended
 `{ type: "adaptive" }`. The `STAMP_THINKING_VALUE` constant existed in
-`config/constants.ts` but was never referenced by any code path.
+`config/constants.ts` but was not consumed by any code path.
 
-### Problem 2: Kimi K2.7 cannot disable reasoning
+Second, Kimi K2.7 models report `reasoning.can_disable: false` in
+`/v1/models/info` for `umans-kimi*` and `umans-coder`. A client sending
+`thinking: { type: "disabled" }` was respected, but the model ignored the flag
+and reasoned anyway. The proxy forwarded a disabled thinking block that had
+no effect, while skipping `output_config` and `temperature` stamping because
+those steps were gated on thinking being enabled.
 
-`/v1/models/info` reports `reasoning.can_disable: false` for `umans-kimi*`
-and `umans-coder` (both Kimi K2.7-Code base). Under ADR-0008, a client sending
-`thinking: { type: "disabled" }` on these models was respected — but the model
-ignores the disabled flag and reasons anyway. The proxy was forwarding a
-disabled thinking block that had no effect, while also skipping
-`output_config` and `temperature` stamping (which are gated on thinking being
-enabled), producing inconsistent request shapes.
-
-### Problem 3: reasoning_effort leaks into Anthropic routes
-
-When a harness configured for OpenAI-style `reasoning_effort` sends to the
-Anthropic `/v1/messages` endpoint, the `reasoning_effort` field is not a valid
-Anthropic body parameter. Under ADR-0008 it was left untouched on Anthropic
-routes.
+Third, OpenAI-style `reasoning_effort` leaked into Anthropic
+`/v1/messages` requests. That field is not a valid Anthropic body
+parameter and was left untouched under ADR-0008.
 
 ## Decision
 
 ### Rule: force-to-adaptive when present and non-disabled
 
-When `stampClaudeCode` is enabled and the body has a `thinking` field:
+When `stampClaudeCode` is enabled and the body has a `thinking` field, the
+proxy transforms it according to this table:
 
 | `thinking` shape | `canDisableThinking: true` | `canDisableThinking: false` |
 |---|---|---|
@@ -52,8 +42,8 @@ Disabled forms are recognized case-insensitively by `type` value, or by an
 `enabled: false` flag. Any other shape — including `{ type: "enabled" }` with
 extra fields like `budget_tokens` — is forced to `{ type: "adaptive" }`.
 
-If the thinking block is already `{ type: "adaptive" }`, no write occurs (no
-spurious `changed = true`).
+If the thinking block is already `{ type: "adaptive" }`, the proxy does not
+rewrite it. No write means no spurious `changed = true`.
 
 ### Rule: all body stamps gated on thinking enabled
 

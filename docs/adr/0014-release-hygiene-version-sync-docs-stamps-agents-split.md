@@ -6,21 +6,15 @@
 
 ## Context
 
-After shipping v0.3.18 with release automation, several stale version
-references were discovered across public-facing files:
-
-- `ROADMAP.md` header stamped v0.3.18, but body said "Current State (v0.1.3)"
-  and listed shipped features as future work under "Near-Term (v0.2.x)"
-- 5 docs files (`ARCHITECTURE.md`, `BENCHMARKS.md`, `PRODUCT.md`,
-  `TROUBLESHOOTING.md`, `proxy-modifications.md`) stamped v0.1.4 — 14
-  versions stale
-- `AGENTS.md` was gitignored (never public) but contained useful contributor
-  guidance mixed with AI-agent-specific behavioral rules
-- `docs/adr/` directory was gitignored — 14 ADRs invisible to public
-- Commit messages referenced old versions (`release: v0.1.8`, etc.)
-
-The maintainer's credibility was at stake: public docs claimed the project
-was at v0.1.x when it was actually at v0.3.18.
+umans-gate shipped v0.3.18 while several public-facing files still
+claimed older versions. `ROADMAP.md` stamped v0.3.18 in its header but
+listed the current state as v0.1.3 and described already-shipped
+features as future work. Five other docs files
+(`ARCHITECTURE.md`, `BENCHMARKS.md`, `PRODUCT.md`, `TROUBLESHOOTING.md`,
+`proxy-modifications.md`) carried v0.1.4 stamps — 14 versions behind.
+`AGENTS.md` and the `docs/adr/` directory were both gitignored, so
+contributor guidance and 14 ADRs were invisible to the public. Stale
+commit messages (e.g. `release: v0.1.8`) remained in git history.
 
 ## Decisions
 

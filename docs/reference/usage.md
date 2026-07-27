@@ -1,6 +1,8 @@
 # Usage Tab Reference
 
-> **Applies to:** umans-gate v0.4.4 · **Last updated:** 2026-07-27
+> **Applies to:** umans-gate v0.4.5 · **Last updated:** 2026-07-27
+
+The Usage tab visualizes raw `/v1/usage` samples polled from the upstream API.
 
 ## Tab
 
@@ -45,13 +47,9 @@ All prefixed `/dashboard/api/`.
   - `usage-sample` — new sample fetched (dayUtc, fetchedAt)
   - `usage-event` — usage event (limit change, reset)
 
-## Purpose
+## What the Usage Tab Shows
 
-Raw `/v1/usage` samples polled from upstream with:
-- Heatmap of daily activity
-- Timeline of samples and events
-- Daily aggregation with gap detection
-  (`usage_gap_threshold_minutes` default 60)
+The Usage tab visualizes raw `/v1/usage` samples from upstream. It shows a heatmap of daily activity, a timeline of samples and events, and daily aggregation with gap detection (`usage_gap_threshold_minutes` default 60).
 
 ## Config
 

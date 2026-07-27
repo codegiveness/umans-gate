@@ -8,9 +8,7 @@
 
 ## Context
 
-The stamp pipeline's `AnthropicBodyStep` and `OpenAiReasoningStep`
-unconditionally overwrote request fields when their respective toggles
-were enabled:
+The stamp pipeline's `AnthropicBodyStep` and `OpenAiReasoningStep` unconditionally overwrote request fields when their respective toggles were enabled:
 
 - `stampClaudeCode` → forced `thinking`, `max_tokens`, `output_config`,
   `temperature` on every Anthropic request, regardless of what the
@@ -19,12 +17,7 @@ were enabled:
   `max_tokens`/`thinking` on every OpenAI request, regardless of what
   the client sent.
 
-This violated the principle that the proxy should be transparent when
-the client has already made a decision. A client sending
-`thinking: { type: "disabled" }` explicitly requested thinking off, but
-the proxy overwrote it with `{ type: "adaptive" }`. A client sending no
-`reasoning_effort` field intended no reasoning effort, but the proxy
-injected `"high"`.
+That behavior violated the principle that the proxy should be transparent when the client has already made a decision. A client sending `thinking: { type: "disabled" }` explicitly requested thinking off, but the proxy overwrote it with `{ type: "adaptive" }`. A client sending no `reasoning_effort` field intended no reasoning effort, but the proxy injected `"high"`.
 
 Research into API constraints confirmed that forcing `temperature: 1.0`
 when thinking is OFF is unnecessary and potentially harmful:
@@ -40,9 +33,7 @@ the client's chosen sampling temperature for no API reason.
 
 ## Decision
 
-Change the stamp semantics from **force-stamp** (overwrite always) to
-**respect-if-present** (inject only when the client hasn't already made
-the decision).
+The stamp semantics will change from **force-stamp** (overwrite always) to **respect-if-present** (inject only when the client has not already made the decision).
 
 ### Rule: never inject, never overwrite
 

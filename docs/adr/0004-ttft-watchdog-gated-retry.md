@@ -6,14 +6,7 @@ Accepted. Implemented in `src/experiments/ttft-watchdog-state.ts` with config fi
 
 ## Context
 
-The user observes TTFT > 60s with no first byte and no error against
-`https://api.code.umans.ai` — consistent with upstream deprioritization or a
-stuck connection on a saturated node, not a hard 429. The existing
-`upstream_timeout_ms` (5-min absolute wall-clock) is too long for the
-first-byte phase: a stuck connection holds a concurrency permit for 5 minutes
-before failing. The existing `ttft_ms` metric is measured and broadcast on
-first chunk but is not a watchdog trigger. There is no mechanism to abort a
-stuck-on-first-byte fetch early and retry.
+umans-gate adds a gated retry for requests whose time-to-first-token (TTFT) exceeds a threshold. The user observed TTFT > 60s with no first byte and no error against `https://api.code.umans.ai`, consistent with upstream deprioritization or a stuck connection on a saturated node. The existing `upstream_timeout_ms` (5-minute absolute wall-clock) is too long for the first-byte phase: a stuck connection can hold a concurrency permit for 5 minutes before failing. The existing `ttft_ms` metric is measured and broadcast on the first chunk but does not trigger any action. No mechanism existed to abort a stuck-on-first-byte fetch early and retry.
 
 External references: kiro-gateway's `stream_with_first_token_retry` and
 LiteLLM's `stream_timeout` implement the canonical pattern — race the first
@@ -25,7 +18,7 @@ ToS flagging).
 
 ## Decision
 
-Add an experimental TTFT-watchdog gated-retry feature, off by default, that:
+The proxy will add an experimental TTFT-watchdog gated-retry feature, off by default.
 
 1. **Races the first chunk against `ttft_timeout_ms`.** A dedicated
    `AbortController` (separate from `req.signal` and the absolute

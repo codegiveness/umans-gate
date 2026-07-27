@@ -1,6 +1,8 @@
 # Economics Tab Reference
 
-> **Applies to:** umans-gate v0.4.4 · **Last updated:** 2026-07-27
+> **Applies to:** umans-gate v0.4.5 · **Last updated:** 2026-07-27
+
+The Economics tab tracks daily usage accumulation and cost per model.
 
 ## Tab
 
@@ -39,12 +41,6 @@ No `/dashboard/api/economics` root route — only the three sub-routes above.
 - None specific
 - Refresh by re-fetching REST endpoints
 
-## Purpose
+## What the Economics Tab Shows
 
-Daily usage accumulation and cost tracking. Shows:
-- Monthly cost summary per model
-- Daily usage trend (90-day default, up to 365)
-- Pricing table used for cost computation
-
-Pricing table sourced from upstream model catalog; daily/monthly aggregates
-derived from capture token counts.
+The Economics tab tracks daily usage accumulation and cost per model. It shows a monthly cost summary per model, a daily usage trend (90-day default, up to 365 days), and the pricing table used for cost computation. The pricing table is sourced from the upstream model catalog; daily and monthly aggregates are derived from capture token counts.

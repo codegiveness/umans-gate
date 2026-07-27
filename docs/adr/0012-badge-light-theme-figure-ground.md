@@ -10,28 +10,20 @@ Accepted
 
 ## Context
 
-The dashboard's light-theme semantic badges (`badgeSuccess`, `badgeWarning`,
-`badgeInfo`, `badgeGold` in `dashboard/src/lib/badge-colors.ts`) used Tailwind
-`*-50` shade backgrounds (~96–98% lightness) on a pure-white surface
-(`--background: 0 0% 100%`). The 2–4% lightness delta between badge fill and
-page background produced insufficient figure-ground separation — badges
-failed to register as distinct visual objects and degenerated into "colored
-text with a faint tint." The badges' function as instant-scan status
-indicators was compromised.
-
-The text contrast inside the badges (`*-900` text on `*-50` fill) was never
-the problem — those pairs clear WCAG AA 7:1. The problem was purely the
-badge-to-background distinction: the badge's job as a visual signal.
-
-ADR 0010 addressed core CSS custom properties (`--muted-foreground`,
-`--ring`, `--chart-*`, `--input`, `--border`) but did not cover the
-badge-colors semantic constants, which live outside the token system as
-direct Tailwind palette classes per the shadcn Badge Custom Colors pattern.
+umans-gate's dashboard light-theme semantic badges used `*-50`
+backgrounds (~96–98% lightness) on a pure-white surface
+(`--background: 0 0% 100%`). The 2–4% lightness delta between badge fill
+and page background produced insufficient figure-ground separation. Badges
+degenerated into "colored text with a faint tint" and lost their function as
+instant-scan status indicators. Text contrast inside badges (`*-900` on
+`*-50`) was never the problem — those pairs cleared WCAG AA 7:1. The issue
+was the badge-to-background distinction, not within-badge contrast.
 
 ## Decision
 
-Bump light-theme badge backgrounds from `*-50` to `*-100` (gold to
-`*-200`), keeping text at `*-900` and dark-theme classes untouched:
+The dashboard bumps light-theme badge backgrounds from `*-50` to
+`*-100` (gold to `*-200`), keeps text at `*-900`, and leaves dark-theme
+classes untouched:
 
 | Constant | Before (light) | After (light) |
 |---|---|---|

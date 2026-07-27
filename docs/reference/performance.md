@@ -1,6 +1,8 @@
 # Performance Tab Reference
 
-> **Applies to:** umans-gate v0.4.4 · **Last updated:** 2026-07-27
+> **Applies to:** umans-gate v0.4.5 · **Last updated:** 2026-07-27
+
+The Performance tab shows per-model latency and throughput statistics from a recent sample window.
 
 ## Tab
 
@@ -34,13 +36,9 @@ All prefixed `/dashboard/api/`.
 - Updates piggyback on capture events (`new`, `update`)
 - No dedicated performance message type
 
-## Purpose
+## What the Performance Tab Shows
 
-Per-model latency and throughput statistics:
-- TTFT (time to first token)
-- TPS (tokens per second)
-- Token throughput (input/output)
-- Recent sample window, not lifetime totals
+The Performance tab displays per-model latency and throughput statistics: TTFT (time to first token), TPS (tokens per second), and token throughput (input/output). Stats are computed from a recent sample window, not lifetime totals.
 
 ## Config
 

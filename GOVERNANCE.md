@@ -1,9 +1,11 @@
 # Governance
 
+> **Last updated:** 2026-07-27
+
 ## Overview
 
-umans-gate is a personal-use project maintained by a single developer
-([@codegiveness](https://github.com/codegiveness)). There is no formal
+umans-gate is a personal-use project governed by its sole maintainer,
+[@codegiveness](https://github.com/codegiveness). There is no formal
 governance model, steering committee, or community decision-making process.
 
 ## Decision-Making

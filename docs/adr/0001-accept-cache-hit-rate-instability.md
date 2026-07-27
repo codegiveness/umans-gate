@@ -6,12 +6,7 @@ Accepted
 
 ## Context
 
-The dashboard's per-row cache badge (`fmtCachePct(cache_read_tokens,
-total_input_tokens)` in `dashboard/src/components/capture-row-item.tsx`) and
-the aggregate `cached_pct` on the Performance tab both fail to stabilize at
-100% in practice. Investigation against `~/umans-gate.db` (197 done
-captures, all `umans-glm-5.2`) identified three causes, all outside the
-proxy:
+umans-gate does not attempt to force the dashboard cache hit rate to 100%. The per-row badge (`fmtCachePct(cache_read_tokens, total_input_tokens)` in `dashboard/src/components/capture-row-item.tsx`) and the aggregate `cached_pct` on the Performance tab stay below 100% in real traffic for three harness-side causes, all confirmed outside the proxy from a 197-capture sample of `umans-glm-5.2` requests:
 
 1. **Cold starts** — the first request of any new conversation or subagent
    invocation has `cache_read_input_tokens = 0` because no cache entry
@@ -37,11 +32,7 @@ proxy:
 
 ## Decision
 
-We will not modify the proxy to counteract these effects. The proxy's
-caching pipeline is correct: TTL stamping works (`ttl:"1h"` on every
-`cache_control: {type:"ephemeral"}` block), usage extraction faithfully
-returns what the upstream API reports, and the stop gate is isolated from
-cache computation by the `usage_missing = 0` filter.
+The proxy will not counteract these effects. The caching pipeline is correct: TTL stamping applies `ttl:"1h"` to every `cache_control: {type:"ephemeral"}` block, usage extraction returns exactly what the upstream API reports, and the stop gate is excluded from cache computation by the `usage_missing = 0` filter.
 
 ## Considered Options
 

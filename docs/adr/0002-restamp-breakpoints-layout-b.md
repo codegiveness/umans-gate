@@ -6,29 +6,13 @@ Accepted — supersedes the rejection in ADR 0001 §"Stabilize historical messag
 
 ## Context
 
-ADR 0001 attributed mid-session cache drops to "harness context compaction
-that mutates historical assistant messages in-flight." Capture diffing
-against `~/umans-gate.db` (199 captures) showed the premise was wrong: the
-content of historical blocks is byte-identical between consecutive
-requests. What actually changes is the `cache_control` field itself —
-opencode places breakpoints on the rolling message tip (last assistant
-`tool_use` + last user `tool_result`) and *strips* the breakpoint from the
-previously-tip blocks each turn, re-adding it to the new tip.
+The dominant mid-session cache drop is caused by breakpoint repositioning, not by historical message mutation. Capture diffing of 199 consecutive rows in `~/umans-gate.db` showed historical blocks are byte-identical between requests. The harness moves the `cache_control` breakpoint to the rolling message tip each turn (last assistant `tool_use` + last user `tool_result`) and strips it from the previously tipped blocks. Because Anthropic hashes the cumulative prefix through each breakpoint, removing a breakpoint from a mid-prefix block invalidates the hash from that point forward, forcing a partial cache re-read every turn the tip rolls forward.
 
-Because Anthropic hashes the cumulative prefix through each breakpoint,
-removing a breakpoint from a mid-prefix block invalidates the hash from
-that point forward. The result is a partial cache re-read every turn the
-tip rolls forward — the dominant observed loss.
-
-This is documented as **Breakpoint repositioning** in `CONTEXT.md`. ADR
-0001's term "Context compaction" is retired; the separate behavior of
-historical messages being dropped (e.g. msgs 7→3) is now **Message
-truncation**.
+This behavior is documented as **Breakpoint repositioning** in `CONTEXT.md`. ADR 0001's term "Context compaction" is retired; the separate behavior of historical messages being dropped (e.g. msgs 7→3) is now **Message truncation**.
 
 ## Decision
 
-The proxy will restamp `cache_control` breakpoints into **Layout B**
-before forwarding upstream:
+The proxy will restamp `cache_control` breakpoints into **Layout B** before forwarding upstream.
 
 - Strip `cache_control` from every message block (all `messages[i].content[*]`).
 - Strip `cache_control` from every system block except `system[0]` (when

@@ -8,42 +8,35 @@ Accepted. Governs all `FieldDef.experimental: true` flags in
 
 ## Context
 
-Five config fields carry the `experimental` badge
+umans-gate labels five config fields as `experimental`
 (`config-sections.ts:45`, rendered as a Beaker icon at
-`config-fields.tsx:281`):
+`config-fields.tsx:281`): `stamp_claude_code_enabled`,
+`stamp_reasoning_effort_enabled`, `experiment_rewrite_ids`,
+`experiment_ttft_watchdog`, and `experiment_strip_omo_reminder`. All
+five default to `false` in `DEFAULT_CONFIG` (`defaults.ts:6`). Four are
+backed by production-grade code and dedicated ADRs (ADR-0004 for TTFT,
+ADR-0006 for the stamp catalog, ADR-0008 for respect-if-present
+stamping, ADR-0011 for adaptive thinking). The `ConcurrencyGate`
+(`src/limiter/gate.ts:392`) has 41 callers and full test coverage.
 
-- `stamp_claude_code_enabled`
-- `stamp_reasoning_effort_enabled`
-- `experiment_rewrite_ids`
-- `experiment_ttft_watchdog`
-- `experiment_strip_omo_reminder`
-
-All five default to `false` in `DEFAULT_CONFIG` (`defaults.ts:6`). Four
-of the five are backed by production-grade code and dedicated ADRs
-(ADR-0004 for TTFT, ADR-0006 for the stamp catalog, ADR-0008 for
-respect-if-present stamping, ADR-0011 for adaptive thinking). The
-`ConcurrencyGate` (`src/limiter/gate.ts:392`) has 41 callers and full
-test coverage. By conventional software-engineering definitions, most
-of these features are not "experimental" at all — they are load-bearing
-and documented.
-
-A future contributor reading the code will reasonably conclude the
-`experimental` flag is misapplied — that it signals low quality,
-prototype status, or imminent removal — and may "fix" the label by
-removing it or flipping the defaults to `true` to promote the features.
+By conventional software-engineering definitions, most of these features
+are not experimental — they are load-bearing and documented. A future
+contributor could reasonably conclude the `experimental` flag is
+misapplied, remove it, or flip defaults to `true` to "promote" the
+features.
 
 ## Decision
 
-**The `experimental` label is a humility claim about unmeasured
-user-visible effects, not a statement about code quality or maturity.**
+**The `experimental` label in umans-gate is a humility claim about
+unmeasured user-visible effects, not a statement about code quality or
+maturity.**
 
-The maintainer's observed benefits of these features (higher cache hit
-rate, lower frustration during upstream degradation, faster TTFT)
-are anecdotal — felt when comparing direct upstream API usage against
-proxied usage. They have not been benchmarked, A/B tested, or measured
-against a control. The `experimental` label refuses to over-claim
-these effects to users who might otherwise flip the defaults on
-expecting guaranteed improvements.
+The maintainer's observed benefits (higher cache hit rate, lower
+frustration during upstream degradation, faster TTFT) are anecdotal —
+felt when comparing direct upstream API usage against proxied usage.
+They have not been benchmarked, A/B tested, or measured against a
+control. The label refuses to over-claim these effects to users who
+might otherwise flip the defaults on expecting guaranteed improvements.
 
 Concretely:
 

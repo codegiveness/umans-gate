@@ -2,21 +2,20 @@
 
 **Status**: accepted
 
-The dashboard can trigger a self-update to the latest published version
-via `POST /dashboard/api/update`. This is gated on two conditions: the
-proxy must be running as a managed service (`isServiceInstalled()`), and
-`DASHBOARD_TOKEN` must be set. Without a service manager, the update
-would kill the process with nothing to restart it; without the token,
-anyone on localhost could trigger a binary replacement.
+umans-gate's dashboard can trigger a self-update to the latest published
+version via `POST /dashboard/api/update`. The proxy gates this on two
+conditions: it must run as a managed service (`isServiceInstalled()`),
+and `DASHBOARD_TOKEN` must be set. Without a service manager, the
+update would kill the process with nothing to restart it; without the
+token, anyone on localhost could trigger a binary replacement.
 
-The update flow: the endpoint does a pre-flight (re-confirms an update
-exists, returns `targetVersion` to the client immediately), then
-asynchronously stops the service, runs `performUpdate()` (npm global
-install or binary replacement, depending on install method), and starts
-the service. The client enters a dedicated "updating" state with
-`/health` polling and auto-reconnects when the server returns. If
-`/health` does not respond within 120s, the client shows a "check
-`umans-gate service logs`" message.
+The update flow does a pre-flight (re-confirms an update exists and
+returns `targetVersion` immediately), then asynchronously stops the
+service, runs `performUpdate()` (npm global install or binary
+replacement), and restarts the service. The client enters an "updating"
+state with `/health` polling and auto-reconnects when the server
+returns. If `/health` does not respond within 120s, the client shows a
+"check `umans-gate service logs`" message.
 
 Version availability is checked once on startup (npm-primary,
 GitHub-fallback, reusing `fetchLatestVersion()` from `updater.ts`) and

@@ -1,16 +1,16 @@
 # Benchmarks
 
-> **Applies to:** umans-gate v0.4.4 · **Last updated:** 2026-07-27
+> **Applies to:** umans-gate v0.4.5 · **Last updated:** 2026-07-27
 
-This document describes the benchmark methodology and summarizes results for
-umans-gate proxy optimizations.
+Benchmark results for umans-gate proxy optimizations, measured against
+`https://api.code.umans.ai/v1`.
 
 ## Methodology
 
-- Benchmarked against `https://api.code.umans.ai/v1`
-- 5 runs per test configuration
-- Median values reported (to filter outliers)
-- Tests run on 2026-07-05
+- Benchmarked against `https://api.code.umans.ai/v1`.
+- 5 runs per test configuration.
+- Median values reported to filter outliers.
+- Tests run on 2026-07-05.
 
 ## Results
 
@@ -31,46 +31,46 @@ umans-gate proxy optimizations.
 
 ## Key Findings
 
-### HTTP/1.1 vs HTTP/2
+### Why HTTP/1.1 is the default upstream protocol
 
 HTTP/1.1 is the default upstream protocol. Benchmarks show no measurable
 difference between HTTP/1.1 and HTTP/2 for the typical 4-concurrent-SSE
 workload against `api.code.umans.ai` (uvicorn upstream). HTTP/2 multiplexing
 overhead exceeds its benefit at this concurrency level.
 
-### Connection Reuse
+### How connection reuse affects latency
 
 Keep-alive connection reuse saves ~479ms (40%) per request. The connection
-warmer (`warmer_enabled: true`, `warmer_interval_ms: 20000`) pings
-`/v1/models` periodically to keep the TLS connection warm. The warmer skips
-pings when real traffic occurred in the last interval.
+warmer (`warmer_enabled: true`, interval 20000ms) pings `/v1/models`
+periodically to keep TLS warm. The warmer skips pings when real traffic
+occurred in the last interval.
 
-### Streaming vs Non-Streaming
+### Streaming vs non-streaming first-byte latency
 
-Streaming responses (SSE) deliver first byte 99.7ms faster than non-streaming
-responses. This is expected — SSE sends the first token as soon as it's
-generated, while non-streaming waits for the full response.
+Streaming responses (SSE) deliver the first byte 99.7ms faster than
+non-streaming responses. SSE sends the first token as soon as it is generated;
+non-streaming waits for the full response.
 
-### Compression
+### Compression impact on SSE responses
 
 Forcing `accept-encoding: identity` (no compression) has no measurable
-performance impact on SSE responses. Identity is kept for capture safety —
-the proxy needs to read response bodies for capture, and decompression would
-add complexity and risk corrupting streams.
+performance impact on SSE responses. Identity is kept for capture safety: the
+proxy reads response bodies for capture, and decompression would add complexity
+and risk corrupting streams.
 
-## Running Benchmarks
+## How to run the benchmarks
 
-Benchmark scripts are in `benchmark/`. Run them to generate fresh
-results for regression tracking.
+Benchmark scripts live in `benchmark/`. Run them to generate fresh results for
+regression tracking.
 
 ```bash
-# Run benchmarks (requires a running proxy and UMANS_API_KEY)
+# Requires a running proxy and UMANS_API_KEY
 cd benchmark
 bun run <benchmark-script>.ts
 ```
 
-## Historical Results
+## Historical results
 
-Benchmark results are summarized in the table above. Raw result files are
-in `benchmark/proxy-optimizations/results/` — run the benchmark scripts to
-regenerate for regression tracking.
+Benchmark results are summarized in the table above. Raw result files are in
+`benchmark/proxy-optimizations/results/` — run the benchmark scripts to regenerate
+for regression tracking.

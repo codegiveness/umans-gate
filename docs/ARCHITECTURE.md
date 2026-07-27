@@ -1,15 +1,16 @@
 # Architecture
 
-> **Applies to:** umans-gate v0.4.4 · **Last updated:** 2026-07-27
+> **Applies to:** umans-gate v0.4.5 · **Last updated:** 2026-07-27
 
-This document describes the system architecture, data flow, and key design
-decisions of umans-gate.
+umans-gate is a Bun-based capture proxy that sits between an LLM harness and
+the upstream API, intercepting traffic to capture, stamp, and optionally
+transform requests before forwarding.
 
-## Overview
+## What Is the System Layout?
 
-umans-gate is a Bun-based LLM capture proxy. It sits between your LLM harness
-and the upstream API (Anthropic + OpenAI-compatible), intercepting traffic to
-capture, stamp, and optionally transform requests before forwarding.
+umans-gate has four layers: the Bun HTTP server, the stamp/vision pipeline,
+the SQLite capture store with a write-behind queue, and the React dashboard
+updated over WebSocket.
 
 ```
 ┌──────────┐     HTTP      ┌─────────────┐     HTTP/1.1 or HTTP/2     ┌──────────────┐
@@ -33,7 +34,7 @@ capture, stamp, and optionally transform requests before forwarding.
                              └───────────┘
 ```
 
-## Request Flow
+## How Does a Request Flow?
 
 ### 1. Incoming Request
 
@@ -41,9 +42,9 @@ capture, stamp, and optionally transform requests before forwarding.
 Client → Bun.serve (port 1945) → proxy handler (src/proxy.ts)
 ```
 
-- `Bun.serve` listens on the configured port with `reusePort: true`
-- Per-request `timeout(0)` disables idle timeout for proxy routes (SSE-safe)
-- Dashboard routes (`/dashboard/*`) are handled by `viewer.ts` instead
+`Bun.serve` listens on the configured port with `reusePort: true`, and per-request
+`timeout(0)` disables idle timeout for proxy routes so SSE streams are not killed.
+Dashboard routes (`/dashboard/*`) are handled by `viewer.ts` instead.
 
 ### 2. Body Parsing & Stamping
 
@@ -51,8 +52,8 @@ Client → Bun.serve (port 1945) → proxy handler (src/proxy.ts)
 proxy.ts → parse body → stamp pipeline → vision handoff → forward upstream
 ```
 
-The stamp pipeline (`src/stamp-pipeline.ts`) applies modifications in a
-defined order when `stamp_claude_code_enabled` is on:
+The stamp pipeline (`src/stamp-pipeline.ts`) applies modifications in this
+order when `stamp_claude_code_enabled` is on:
 
 1. **TTL stamping** (`stamp.ts`) — adds `ttl` to `cache_control` ephemeral blocks
 2. **`top_k` injection** (`stamp-topk.ts`) — injects `top_k: 20` after `model`
@@ -128,7 +129,8 @@ proxy.ts → vision/handoff.ts → detect images → extract context → triage 
   → [transcode → vision model] → cache → replace blocks
 ```
 
-When `vision_strategy` is `catalog` or `always`:
+When `vision_strategy` is `catalog` or `always`, vision handoff runs in six
+steps:
 
 1. `detect.ts` finds image blocks in Anthropic or OpenAI request bodies and
    extracts context (`adjacentText`, `isToolResult`, `positionInBatch`,
@@ -151,6 +153,9 @@ concurrency (default: 1) because the upstream has limited vision slots.
 proxy.ts → fetch(upstream, { protocol, signal }) → SSE stream → TransformStream → client
 ```
 
+Upstream forwarding streams the response chunk-by-chunk through a
+`TransformStream`:
+
 - Upstream protocol: HTTP/1.1 (default) or HTTP/2 (configurable)
 - `AbortSignal` forwarded: client disconnect cancels upstream immediately
 - Response streamed via `TransformStream` — captured chunk-by-chunk
@@ -161,6 +166,8 @@ proxy.ts → fetch(upstream, { protocol, signal }) → SSE stream → TransformS
 ```
 TransformStream → write-behind queue → worker → SQLite (WAL)
 ```
+
+Capture and storage happens at the `TransformStream` layer:
 
 - Request/response bodies captured at the TransformStream layer
 - WriteQueue (`src/queue.ts`) batches writes to minimize I/O blocking
@@ -174,11 +181,13 @@ TransformStream → write-behind queue → worker → SQLite (WAL)
 WriteQueue flush → ws.ts broadcast → dashboard clients
 ```
 
+WebSocket broadcast sends live updates to the dashboard on every queue flush:
+
 - On each queue flush, WebSocket messages (`new`, `update`, `clear`) are sent
 - Backpressure limit protects against slow clients
 - Configurable auto-close on backpressure exceedance
 
-## Concurrency Gate
+## How Does the Concurrency Gate Work?
 
 ```
 src/limiter/gate.ts — ConcurrencyGate
@@ -194,27 +203,29 @@ src/limiter/gate.ts — ConcurrencyGate
 └── Stats emission
 ```
 
-The gate is the central concurrency controller. It prevents overwhelming the
-upstream by:
+The concurrency gate is the central upstream traffic controller. It prevents
+overwhelming the upstream by:
 
 - Enforcing a soft limit (adjusted by `/v1/usage` reconciliation)
 - Hard cap as an absolute ceiling (transient over-cap allowed during drain)
 - Circuit breaker to stop traffic when the upstream returns repeated 429s
 - Intention-based reservations ensure vision calls don't starve main requests
 
-## Usage Tracking
+## How Does Usage Tracking Work?
 
 ```
 src/usage.ts → /v1/usage fetch → reconcile → resize gate → rate limiter
 src/usage-extract.ts → extract from capture bodies (provider×streaming)
 ```
 
+Usage tracking polls the upstream account state and resizes local limits:
+
 - Polls `/v1/usage` at `usage_refresh_ms` intervals
 - Reconciles concurrency limits based on remaining quota
 - Detects rate-boxing (when the upstream indicates the account is boxed)
 - Manages priority demotion when the account is under pressure
 
-## Rate Limiting
+## How Does Rate Limiting Work?
 
 ```
 src/rate.ts — SlidingWindowRateLimiter
@@ -224,11 +235,13 @@ src/rate.ts — SlidingWindowRateLimiter
 └── peek() — checks without recording
 ```
 
+The rate limiter is a sliding-window weighted counter with three modes:
+
 - `rate_limit_requests: 0` — auto-derive window and limit from `/v1/usage`
 - `-1` — disabled (no limiter)
 - `>0` — explicit limit with sliding window
 
-## Dashboard
+## How Does the Dashboard Work?
 
 ```
 dashboard/ — Vite + React + TypeScript + Tailwind + shadcn/ui
@@ -239,13 +252,15 @@ dashboard/ — Vite + React + TypeScript + Tailwind + shadcn/ui
 └── Polling hooks (usePollingResource, useCaptureList, useCaptureDetail, useGateStats)
 ```
 
-The dashboard communicates with the backend via:
+The dashboard is a React SPA that communicates with the backend via REST and
+WebSocket:
+
 - REST: `GET /dashboard/api/captures`, `GET /dashboard/api/captures/:id`,
   `POST /dashboard/api/clear`, `POST /dashboard/api/config`,
   `POST /dashboard/api/config/reload`, `POST /dashboard/api/restart`
 - WebSocket: `WS /dashboard/ws` (`new`, `update`, `clear` messages)
 
-## Design Principles
+## What Are the Design Principles?
 
 - **SOLID**: modules have single responsibility, extensibility via new modules
   not edits to existing ones, narrow interfaces, dependency injection
@@ -256,12 +271,10 @@ The dashboard communicates with the backend via:
 - **Non-blocking streaming**: writes are batched and offloaded to workers;
   the TransformStream never blocks the response
 
-## Related: umans-open-stack
+## How Does umans-gate Map to umans-open-stack?
 
 umans-gate implements patterns documented in
-[umans-open-stack](https://github.com/umans-ai/umans-open-stack) — a curated set of
-open source tools and playbooks. The architecture maps to open-stack
-playbooks:
+[umans-open-stack](https://github.com/umans-ai/umans-open-stack):
 
 | umans-open-stack playbook | umans-gate implementation |
 |---|---|

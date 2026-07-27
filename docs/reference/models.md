@@ -1,6 +1,8 @@
 # Models Tab Reference
 
-> **Applies to:** umans-gate v0.4.4 · **Last updated:** 2026-07-27
+> **Applies to:** umans-gate v0.4.5 · **Last updated:** 2026-07-27
+
+The Models tab displays the upstream model catalog with pricing and capability metadata.
 
 ## Tab
 
@@ -36,16 +38,9 @@ All prefixed `/dashboard/api/`.
 - None specific
 - Refreshed on `models_refresh_ms` interval or manual refetch
 
-## Purpose
+## What the Models Tab Shows
 
-Upstream model catalog with pricing and capability info:
-- Model name, context window, pricing
-- Reasoning capability (`can_disable`, effort levels)
-- Stamp policy overlay matched per model
-- Cache TTL and max output tokens
-
-The parsed model info feeds the stamping pipeline (src/stamp-pipeline.ts)
-so the proxy knows per-model thinking/effort behavior.
+The Models tab displays the upstream model catalog with pricing and capability info. It shows model name, context window, pricing, reasoning capability (`can_disable`, effort levels), stamp policy overlay, cache TTL, and max output tokens. The parsed model info feeds the stamping pipeline (src/stamp-pipeline.ts) so the proxy knows per-model thinking and effort behavior.
 
 ## Config
 

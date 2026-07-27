@@ -1,9 +1,9 @@
 # Proxy Modifications Inventory
 
-> **Applies to:** umans-gate v0.4.4 · **Last updated:** 2026-07-27
+> **Applies to:** umans-gate v0.4.5 · **Last updated:** 2026-07-27
 
-Complete inventory of every modification the proxy applies to
-request/response traffic. Grouped by layer: HTTP headers, request body,
+This document lists every modification the proxy applies to
+request/response traffic, grouped by layer: HTTP headers, request body,
 and connection/transport.
 
 Each entry lists: **what**, **where** (code), **when** (conditional vs
@@ -23,8 +23,8 @@ unconditional), and **config** that gates it.
   `src/shared/http-headers.ts`.
 - **When**: Unconditional — every proxied request, all routes.
 - **Config**: None (always on).
-- **Rationale**: RFC 7230 §6.1. `content-length` stripped because the body
-  may be re-serialized after stamping. `host` stripped because Bun's
+- **Rationale**: RFC 7230 §6.1. `content-length` is stripped because the body
+  may be re-serialized after stamping. `host` is stripped because Bun's
   `fetch` sets it from the target URL.
 
 ### 1.2 `accept-encoding: identity` (request)
@@ -34,7 +34,7 @@ unconditional), and **config** that gates it.
 - **When**: Unconditional — overwrites any client-supplied value.
 - **Config**: None (always on).
 - **Rationale**: The proxy decodes response bodies for capture and cannot
-  assume gzip/br support. Identity keeps the contract simple.
+  assume gzip or brotli support. Identity keeps the contract simple.
 
 ### 1.3 `content-encoding` strip (response)
 
@@ -49,14 +49,14 @@ unconditional), and **config** that gates it.
 
 ### 1.4 Hop-by-hop header stripping (response)
 
-- **What**: Same HOP set as 1.1, applied to response headers.
+- **What**: Removes the same HOP set as 1.1 from response headers.
 - **Where**: `src/proxy.ts`.
 - **When**: Unconditional.
 - **Config**: None.
 
 ---
 
-## Layer 2: Request Body
+## What Does the Proxy Modify in the Request Body?
 
 ### 2.1 Stamp pipeline (Claude Code bundle)
 
@@ -102,8 +102,8 @@ unconditional), and **config** that gates it.
 
 ### 2.3 Body re-serialization
 
-- **What**: When any body modification changes the body, `reqBuf` is
-  re-encoded via `JSON.stringify`.
+- **What**: Re-encodes the modified body via `JSON.stringify` when any
+  body modifier changes it.
 - **Where**: `src/proxy.ts` after each modifier.
 - **When**: Only when a modification actually changed the body.
 - **Rationale**: The original `content-length` is stripped (1.1); the
@@ -113,8 +113,8 @@ unconditional), and **config** that gates it.
 
 - **What**: Replaces image blocks with text descriptions from a vision model
   (default: `umans-flash`). Images are transcoded, sent to the vision model,
-  and the description replaces the image block. Descriptions cached (7-day
-  TTL) with persistent SQLite storage.
+  and the description replaces the image block. Descriptions are cached for
+  7 days in persistent SQLite storage.
 - **Where**: `processBody` / `processBodyCacheOnly` in
   `src/vision/handoff.ts`, called from `src/proxy.ts`.
 - **When**: Both routes, gated by `config.visionStrategy !== "never"`.
@@ -139,14 +139,14 @@ unconditional), and **config** that gates it.
   `vision_decomposition_timeout_ms`, `vision_crafting_timeout_ms` (default:
   `3000`), `vision_adjacent_text_max_chars`, `vision_recent_messages_count`,
   `vision_system_prompt_max_chars`.
-- **Rationale**: Enables text-only models to "see" images. Text is
-  KV-cacheable (image bytes are not), improving cache hit rates.
-- **Serialization**: Vision calls serialized by a `ConcurrencyGate` (default
-  concurrency=1) because the upstream has limited vision slots.
+- **Rationale**: Enables text-only models to process image-bearing requests.
+  Text is KV-cacheable; image bytes are not.
+- **Serialization**: Vision calls are serialized by a `ConcurrencyGate`
+  (default concurrency = 1) because the upstream has limited vision slots.
 
 ---
 
-## Layer 3: Connection / Transport
+## What Does the Proxy Modify in Connection / Transport?
 
 ### 3.1 Upstream HTTP protocol
 
@@ -157,7 +157,7 @@ unconditional), and **config** that gates it.
 - **Config**: `upstream_protocol` JSON (default: `http1.1`) /
   `UPSTREAM_PROTOCOL` env. Values: `http1.1`, `http2`, `h2` (alias).
 - **Rationale**: HTTP/1.1 is faster for the typical 4-concurrent-SSE
-  workload. HTTP/2 available as opt-in.
+  workload. HTTP/2 is available as opt-in.
 
 ### 3.2 `server.timeout(req, 0)` (incoming)
 
@@ -219,7 +219,7 @@ unconditional), and **config** that gates it.
 
 ---
 
-## What the proxy does NOT modify
+## What Does the Proxy Leave Unchanged?
 
 - **Authorization header**: Passed through unchanged.
 - **Content-Length recalculation**: Not set on forwarded request — stripped
@@ -231,7 +231,7 @@ unconditional), and **config** that gates it.
 
 ---
 
-## TTFT-watchdog gated retry (experimental)
+## What Is the TTFT-Watchdog Gated Retry (Experimental)?
 
 - **What**: Each upstream fetch gets a first-byte watchdog. If no chunk
   arrives within `ttft_timeout_ms` (default 60s), the fetch is aborted and a
@@ -258,7 +258,7 @@ unconditional), and **config** that gates it.
 
 ---
 
-## Optimization decisions
+## What Optimization Decisions Were Made?
 
 Benchmarked 2026-07-05 against `https://api.code.umans.ai/v1`, 5 runs per
 test. Full results in `benchmark/proxy-optimizations/results/`.

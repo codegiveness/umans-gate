@@ -4,36 +4,31 @@
 
 ## Context
 
-Three independent dashboard UX problems surfaced together:
+umans-gate's dashboard had three independent UX problems in the capture
+inspector, version card, and release notes.
 
-1. **BodyRenderer ambiguity** — `BodyRenderer` renders "body corrupted or
-   unavailable" for every `response_body === null` case. But null means
-   different things: an in-flight capture (state `enqueued`/`streaming`/
-   `cooling_down`) legitimately has no body yet, while a `done` capture
-   with null body indicates either no body was stored or decompression
-   failed on a stored body. The conflation makes the inspector misleading
-   for the most common case (watching a live capture).
+`BodyRenderer` rendered "body corrupted or unavailable" for every
+`response_body === null` case. But `null` means different things: an
+in-flight capture (`enqueued`/`streaming`/`cooling_down`) legitimately has
+no body yet, while a `done` capture with null body indicates either no body
+was stored or decompression failed. The conflation made the inspector
+misleading for the common case of watching a live capture.
 
-2. **UpdateButton greyed out** — the one-click update button is disabled
-   when `canUpdate=false` (`no_token` or `no_service`). The tooltip
-   explains the reason, but a disabled button is easy to click past
-   without reading the tooltip, leaving the user confused about why
-   "Update" doesn't work.
+The one-click update button was disabled when `canUpdate=false`
+(`no_token` or `no_service`). A tooltip explained the reason, but users
+often clicked past a disabled button without reading hover text.
 
-3. **What's New not using shadcn** — the collapsible release-notes section
-   in `version-section.tsx` uses a native `<button>` and a
-   `<pre className="overflow-y-auto">` instead of shadcn `Button` and
-   `ScrollArea`, inconsistent with the rest of the dashboard.
-
-A broader scan also found non-shadcn scroll containers in
-`capture-detail.tsx` (two `<main overflow-y-auto>` fallback states) and
-`usage-heatmap.tsx` (`<div overflow-x-auto>`).
+The collapsible release-notes section in `version-section.tsx` used a
+native `<button>` and a `<pre className="overflow-y-auto">` instead of
+shadcn `Button` and `ScrollArea`, inconsistent with the rest of the
+interface. A broader scan also found non-shadcn scroll containers in
+`capture-detail.tsx` fallback states and `usage-heatmap.tsx`.
 
 ## Decision
 
 ### 1. BodyRenderer — distinguish in-flight from done
 
-Pass the capture `state` into `BodyRenderer`. Render three cases:
+`BodyRenderer` receives the capture `state` prop and renders three cases:
 
 - **In-flight** (`enqueued` | `streaming` | `cooling_down`): spinner +
   "Response still streaming…" — neutral, informational.

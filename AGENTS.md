@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Guidance for human contributors and AI agents working on this repository.
+This file is the contributor and agent guide for the umans-gate repository.
 
 ## Project paths
 
@@ -11,10 +11,7 @@ Guidance for human contributors and AI agents working on this repository.
 
 ## Project overview
 
-`umans-gate` intercepts LLM API traffic (Anthropic + OpenAI-compatible),
-stamps `ttl` onto Anthropic `cache_control` ephemeral blocks, stores
-requests/responses in SQLite, and serves a live inspection dashboard with
-WebSocket updates.
+`umans-gate` is a Bun-based LLM API capture proxy. It intercepts Anthropic and OpenAI-compatible traffic, stamps `ttl` onto Anthropic `cache_control` ephemeral blocks, stores requests and responses in SQLite, and serves a live inspection dashboard over WebSocket.
 
 ## Architecture
 
@@ -46,7 +43,7 @@ test/         bun:test suite with TypeScript helpers
 
 ## Configuration
 
-Loaded from a JSON file with env var overrides.
+Configuration is loaded from a JSON file with environment variable overrides.
 
 **Config file path** (auto-created on first run):
 
@@ -154,6 +151,8 @@ Fields marked `restartRequired` (e.g. `port`, `db_path`,
 `upstream_protocol`) require a server restart.
 
 ## Development workflow
+
+Run these commands for local development:
 
 ```bash
 bun install                  # Install deps

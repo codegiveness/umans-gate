@@ -5,60 +5,30 @@ Date: 2026-07-25
 
 ## Context
 
-ADR-0011 forced every non-disabled `thinking` block to `{ type: "adaptive" }`
-on the Anthropic/Claude-Code stamp path, regardless of model family. That
-shape works for the proxy's adaptive-thinking models (`umans-flash`,
-`umans-qwen*`, and the fallback `*` policy), but it leaves two model
-families on the table:
+umans-gate's Anthropic/Claude-Code stamp path forces every non-disabled
+`thinking` block to `{ type: "adaptive" }` (ADR-0011), regardless of
+model family. That shape works for adaptive-thinking models
+(`umans-flash`, `umans-qwen*`, and the fallback `*` policy), but it drops
+two model-specific signals.
 
-### GLM Preserved Thinking (Z.ai)
+GLM Preserved Thinking requires `thinking: { type: "enabled",
+clear_thinking: false }` on the standard API endpoint (Z.ai docs:
+https://docs.z.ai/guides/capabilities/thinking-mode). The default
+endpoint clears `reasoning_content` across turns (`clear_thinking: true`);
+forcing `{ type: "adaptive" }` on `umans-glm*` silently disabled
+Preserved Thinking.
 
-The Z.ai thinking-mode documentation
-(https://docs.z.ai/guides/capabilities/thinking-mode) documents a
-`clear_thinking` field on the `thinking` block:
-
-> This capability [Preserved Thinking] is enabled by default on the
-> Coding Plan endpoint and disabled by default on the standard API
-> endpoint. If you want to enable Preserved Thinking in your product
-> (primarily recommended for coding/agent scenarios), you can turn it
-> on for the API endpoint by setting `"clear_thinking": false`, and you
-> must return the complete, unmodified `reasoning_content` back to the
-> API.
-
-The standard API endpoint (which `umans-gate` forwards to) defaults to
-`clear_thinking: true`, clearing prior `reasoning_content` across turns.
-For coding/agent scenarios — exactly the workload this proxy serves —
-Preserved Thinking must be explicitly enabled with
-`thinking: { type: "enabled", clear_thinking: false }`.
-
-Forcing `{ type: "adaptive" }` on `umans-glm*` requests drops the
-`clear_thinking: false` signal entirely, so the proxy was silently
-running GLM models without Preserved Thinking even though the
-upstream supports it and the workload benefits from it.
-
-### Kimi Preserved Thinking (Moonshot)
-
-The Kimi thinking-models documentation
-(https://platform.kimi.ai/docs/guide/use-thinking-models) documents a
-`keep` field on the `thinking` block:
-
-> `kimi-k2.6`: `thinking.keep` — `null` (default, not kept) / `"all"`
-> (enables Preserved Thinking).
->
-> `kimi-k2.7-code`: Preserved Thinking is always on and cannot be turned
-> off — `thinking.keep` is treated as `"all"` whether omitted or set to
-> `"all"`.
-
-`umans-kimi*` and `umans-coder` (both Kimi K2.7-Code base) benefit from
-Preserved Thinking. Forcing `{ type: "adaptive" }` on these models drops
-the `keep: "all"` signal, so the proxy was running them without
-Preserved Thinking on the standard endpoint even though the upstream
-expects it for coding scenarios.
+Kimi Preserved Thinking requires `thinking: { type: "enabled", keep: "all" }`
+(Moonshot docs: https://platform.kimi.ai/docs/guide/use-thinking-models).
+`umans-kimi*` and `umans-coder` both derive from Kimi K2.7-Code. Forcing
+`{ type: "adaptive" }` on these models dropped the `keep: "all"` signal,
+so the proxy ran them without Preserved Thinking on the standard
+endpoint.
 
 ## Decision
 
-Widen `ThinkingConfig` from a single `{ type: "adaptive" }` interface to
-a discriminated union supporting three shapes:
+The proxy widens `ThinkingConfig` from a single `{ type: "adaptive" }`
+interface to a discriminated union supporting three shapes:
 
 ```typescript
 type ThinkingConfig =

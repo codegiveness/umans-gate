@@ -1,6 +1,8 @@
 # Maintainer
 
-umans-gate is maintained by a single developer.
+> **Last updated:** 2026-07-27
+
+umans-gate is maintained by a single developer, [@codegiveness](https://github.com/codegiveness), who serves as the creator and sole maintainer.
 
 | Name | GitHub | Role |
 |------|--------|------|

@@ -6,11 +6,11 @@ Accepted. Governs the rendering of `GROUPS` in `dashboard/src/components/config-
 
 ## Context
 
-The Config tab previously rendered all three `GroupDef` entries (General,
-Experimental, Advanced) as a single flat scroll inside one `ScrollArea`
-(`config-tab.tsx:288`). With 60+ fields across 14 sections, the flat
-scroll made category detection difficult — users had to scroll past
-General to reach Experimental, and Advanced (queue/vision-tuning/storage)
+umans-gate's Config tab previously rendered all three `GroupDef` entries
+(General, Experimental, Advanced) as a single flat scroll inside one
+`ScrollArea` (`config-tab.tsx:288`). With 60+ fields across 14 sections,
+the flat scroll made category detection difficult. Users had to scroll
+past General to reach Experimental; Advanced (queue/vision-tuning/storage)
 was buried at the bottom.
 
 The top-level tab strip (`App.tsx:143`) already holds 7 tabs (Captures,
@@ -19,8 +19,8 @@ mobile. Adding an 8th top-level "Experimental" tab would worsen mobile
 overflow and fragment the single source of config truth.
 
 The three `GroupDef` entries already exist in `config-sections.ts:549`
-as a structured array — the data model was ready for navigation, only the
-rendering was flat.
+as a structured array — the data model was ready for navigation; only
+the rendering was flat.
 
 ## Decision
 

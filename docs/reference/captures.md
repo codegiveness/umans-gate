@@ -1,6 +1,8 @@
 # Captures Tab Reference
 
-> **Applies to:** umans-gate v0.4.4 · **Last updated:** 2026-07-27
+> **Applies to:** umans-gate v0.4.5 · **Last updated:** 2026-07-27
+
+The Captures tab is a live, master-detail log of every intercepted LLM API call.
 
 ## Tab
 
@@ -46,12 +48,9 @@ All prefixed `/dashboard/api/`.
   - `state` — capture state change (`streaming`, `failed`)
   - `prune` — captures pruned from ring buffer
 
-## Purpose
+## What the Captures Tab Shows
 
-Live log of every intercepted LLM API call. Master-detail layout: row list on
-left, full inspection on right. Shows request headers/body, response headers,
-streamed SSE chunks, timing, tokens, and model. Backed by `WriteQueue`
-(src/queue.ts) for batched non-blocking persistence.
+The Captures tab is a live, master-detail log of every intercepted LLM API call. It shows request headers and body, response headers, streamed SSE chunks, timing, tokens, and model. Captures are persisted by `WriteQueue` (src/queue.ts) for batched, non-blocking persistence.
 
 ## Related
 

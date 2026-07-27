@@ -2,8 +2,7 @@
 
 ## Reporting a vulnerability
 
-If you discover a security vulnerability in umans-gate, please report it
-responsibly.
+This document describes how to report security vulnerabilities in umans-gate and the 48-hour acknowledgment SLA on confirmed reports.
 
 **Do NOT open a public GitHub issue.**
 

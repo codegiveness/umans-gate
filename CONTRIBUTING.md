@@ -1,9 +1,6 @@
 # Contributing to umans-gate
 
-This is a personal-use project. Contributions are welcome but not expected —
-this is not an open-source product with a community roadmap. If you find a bug
-or want to add a feature for your own use, fork it. If you want to share a
-fix or improvement, pull requests are reviewed on a best-effort basis.
+This is a personal-use project. Contributions are welcome but not expected: this is not an open-source product with a community roadmap. If you find a bug or want to add a feature for your own use, fork it. If you want to share a fix or improvement, pull requests are reviewed on a best-effort basis.
 
 ## Development setup
 

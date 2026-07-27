@@ -1,21 +1,10 @@
 # Decompose VisionHandoff into focused collaborators
 
-`VisionHandoff` (`src/vision/handoff.ts`) had grown to 1605 lines and ~6
-responsibilities: catalog gating, image detection, batch triage,
-per-image lifecycle (transcode + cache + vision call + inflight dedup +
-DB write + sink), body rewriting, and background-mode fire-and-forget.
-Pure helpers (`detect.ts`, `wrapper.ts`, `triage.ts`, `craft.ts`,
-`decompose.ts`, `cache.ts`, `transcode.ts`, `sink.ts`,
-`persistent-cache.ts`) were already extracted as modules, but the
-*orchestration* of those helpers was inlined as three ~200-line methods
-inside `VisionHandoff`.
+`VisionHandoff` (`src/vision/handoff.ts`) had grown to 1605 lines and mixed about 6 responsibilities: catalog gating, image detection, batch triage, per-image lifecycle (transcode + cache + vision call + inflight dedup + DB write + sink), body rewriting, and background-mode fire-and-forget. Pure helpers (`detect.ts`, `wrapper.ts`, `triage.ts`, `craft.ts`, `decompose.ts`, `cache.ts`, `transcode.ts`, `sink.ts`, `persistent-cache.ts`) were already extracted as modules, but the orchestration of those helpers was inlined as three ~200-line methods inside `VisionHandoff`.
 
 ## Decision
 
-Decompose `VisionHandoff` incrementally into focused collaborators,
-keeping the public API (`processBody` / `processBodyCacheOnly`)
-unchanged so the 5 source-file callers and 15 test files need no
-changes during migration.
+The proxy will decompose `VisionHandoff` incrementally into focused collaborators, keeping the public API (`processBody` / `processBodyCacheOnly`) unchanged so the 5 source-file callers and 15 test files need no changes during migration.
 
 **Extraction steps (in order, each independently shippable):**
 

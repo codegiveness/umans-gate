@@ -2,6 +2,8 @@
 
 > **Current version:** v0.4.5 · **Index updated:** 2026-07-27
 
+This index lists the documentation files for umans-gate v0.4.5 and what each one covers.
+
 ## Start here
 
 - [README.md](../README.md) — install, quick start, full config reference, usage rights
@@ -14,7 +16,7 @@
 
 ## Operate it
 
-- [OPERATIONS.md](OPERATIONS.md) — day-to-day operations: start/stop, upgrades, health checks, backup
+- [OPERATIONS.md](OPERATIONS.md) — start/stop, upgrades, health checks, backup
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) — common issues and solutions
 - [BENCHMARKS.md](BENCHMARKS.md) — performance characteristics and benchmark results
 

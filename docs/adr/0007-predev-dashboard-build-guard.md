@@ -1,13 +1,8 @@
 # predev guard for dashboard build
 
-When running `bun run dev` from a clean checkout or after `bun run clean`,
-the dashboard (`dashboard/dist/`) and its embedded-asset manifest
-(`src/embedded-assets.ts`) are absent. The server either serves a
-"dashboard not built" 404 or crashes on module load because
-`embedded-assets.ts` imports stale hashed filenames that no longer exist.
+A clean checkout or a `bun run clean` run leaves the dashboard (`dashboard/dist/`) and its embedded-asset manifest (`src/embedded-assets.ts`) absent. The server then serves a "dashboard not built" 404 or crashes on module load because `embedded-assets.ts` imports stale hashed filenames that no longer exist.
 
-We added a `predev` npm script that rebuilds the dashboard when missing
-and always regenerates the embedded-asset manifest:
+The proxy added a `predev` npm script that rebuilds the dashboard when missing and always regenerates the embedded-asset manifest:
 
 ```json
 "predev": "[ -f dashboard/dist/index.html ] || bun run build:dashboard && bun run build:embed-assets"
