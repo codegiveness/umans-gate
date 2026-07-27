@@ -590,3 +590,115 @@ test("stale captures are not swept on subsequent opens (only first open sweeps)"
   expect(row?.state).toBe("done");
   db2.close();
 });
+
+test("clear() preserves incidents — they expire only via sweepIncidents by age", () => {
+  const db = new CaptureDB({ dbPath, maxCaptures: 100 } as {
+    dbPath: string;
+    maxCaptures: number;
+  });
+  const capId = db.startCapture({
+    $method: "POST",
+    $path: "/v1/messages",
+    $url: "http://up",
+    $rh: "{}",
+    $rb: "",
+    $rs: 0,
+    $st: Date.now(),
+    $state: "enqueued",
+    $inp: "http1.1",
+    $outp: "http1.1",
+  });
+  db.recordIncident({
+    captureId: capId,
+    responsibleParty: "proxy",
+    incidentType: "ttft_timeout",
+    upstreamStatus: null,
+    servedStatus: 504,
+    reason: "TTFT watchdog exceeded",
+  });
+
+  const beforeClear = db.rawDb.prepare("SELECT COUNT(*) AS c FROM incidents").get() as {
+    c: number;
+  };
+  expect(beforeClear.c).toBe(1);
+
+  db.clear();
+
+  const afterClear = db.rawDb.prepare("SELECT COUNT(*) AS c FROM incidents").get() as { c: number };
+  expect(afterClear.c).toBe(1);
+
+  const capturesAfter = db.rawDb.prepare("SELECT COUNT(*) AS c FROM captures").get() as {
+    c: number;
+  };
+  expect(capturesAfter.c).toBe(0);
+
+  db.close();
+});
+
+test("sweepIncidents deletes out-of-window incidents and keeps in-window ones", () => {
+  const db = new CaptureDB({ dbPath, maxCaptures: 100, incidentRetentionDays: 30 } as {
+    dbPath: string;
+    maxCaptures: number;
+    incidentRetentionDays: number;
+  });
+  const now = Date.now();
+
+  const capIdRecent = db.startCapture({
+    $method: "POST",
+    $path: "/v1/messages",
+    $url: "http://up",
+    $rh: "{}",
+    $rb: "",
+    $rs: 0,
+    $st: Date.now(),
+    $state: "enqueued",
+    $inp: "http1.1",
+    $outp: "http1.1",
+  });
+  db.recordIncident({
+    captureId: capIdRecent,
+    responsibleParty: "proxy",
+    incidentType: "ttft_timeout",
+    upstreamStatus: null,
+    servedStatus: 504,
+    reason: "recent",
+  });
+  db.rawDb
+    .prepare("UPDATE incidents SET created_at = ? WHERE reason = 'recent'")
+    .run(now - 10 * 86_400_000);
+
+  const capIdOld = db.startCapture({
+    $method: "POST",
+    $path: "/v1/messages",
+    $url: "http://up",
+    $rh: "{}",
+    $rb: "",
+    $rs: 0,
+    $st: Date.now(),
+    $state: "enqueued",
+    $inp: "http1.1",
+    $outp: "http1.1",
+  });
+  db.recordIncident({
+    captureId: capIdOld,
+    responsibleParty: "proxy",
+    incidentType: "upstream_error",
+    upstreamStatus: 500,
+    servedStatus: 500,
+    reason: "old",
+  });
+  db.rawDb
+    .prepare("UPDATE incidents SET created_at = ? WHERE reason = 'old'")
+    .run(now - 45 * 86_400_000);
+
+  const deleted = db.sweepIncidents();
+  expect(deleted).toBe(1);
+
+  const remaining = db.rawDb
+    .prepare("SELECT reason FROM incidents ORDER BY reason")
+    .all() as Array<{ reason: string }>;
+  expect(remaining.length).toBe(1);
+  expect(remaining[0].reason).toBe("recent");
+
+  db.close();
+});

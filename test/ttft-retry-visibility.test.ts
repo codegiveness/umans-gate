@@ -419,3 +419,96 @@ describe("TTFT retry visibility — auto-disable broadcasts watchdog_disabled vi
     }
   });
 });
+
+describe("TTFT retry — ttft_ms excludes cooldown", () => {
+  test("ttft_ms on a retried capture does not include the cooldown sleep", async () => {
+    // Upstream stalls on call 1, emits an Anthropic-shaped SSE stream on
+    // call 2 so extractUsage can compute ttft_ms from content_block_delta.
+    let callCount = 0;
+    const server = Bun.serve({
+      port: 0,
+      async fetch(req) {
+        if (req.method !== "POST" || new URL(req.url).pathname !== "/v1/messages") {
+          return new Response("not found", { status: 404 });
+        }
+        callCount++;
+        if (callCount === 1) {
+          return new Response(new ReadableStream({ start() {} }), {
+            status: 200,
+            headers: { "content-type": "text/event-stream" },
+          });
+        }
+        const stream = new ReadableStream<Uint8Array>({
+          start(c) {
+            c.enqueue(
+              new TextEncoder().encode(
+                'event: content_block_delta\ndata: {"type":"content_block_delta","delta":{"type":"text_delta","text":"hi"}}\n\n',
+              ),
+            );
+            c.close();
+          },
+        });
+        return new Response(stream, {
+          status: 200,
+          headers: { "content-type": "text/event-stream" },
+        });
+      },
+    });
+    const upstream = {
+      port: server.port!,
+      getCallCount: () => callCount,
+      close: () =>
+        new Promise<void>((res) => {
+          server.stop();
+          setTimeout(res, 50);
+        }),
+    };
+
+    const proxy = await startProxy({
+      TARGET: `http://127.0.0.1:${upstream.port}`,
+      WARMER_ENABLED: "false",
+      USAGE_REFRESH_MS: "999999",
+      CONCURRENCY_HARD_CAP: "2",
+      CONCURRENCY_SOFT_LIMIT: "2",
+      RELEASE_COOLDOWN_MS: "0",
+      UPSTREAM_TIMEOUT_MS: "5000",
+      EXPERIMENT_TTFT_WATCHDOG: "true",
+      TTFT_TIMEOUT_MS: "200",
+      TTFT_RETRY_COOLDOWN_MS: "300",
+    });
+    try {
+      const res = await fetch(`${proxy.baseUrl}/v1/messages`, {
+        method: "POST",
+        headers: MSG_HEADERS,
+        body: MSG_BODY,
+      });
+      expect(res.status).toBe(200);
+      expect(res.headers.get("x-proxy-retry-attempt")).toBe("1");
+      await res.text();
+      expect(upstream.getCallCount()).toBe(2);
+
+      // Wait for write-behind queue to flush (cooldown + retry + flush).
+      await sleep(600);
+
+      const listRes = await fetch(`${proxy.baseUrl}/dashboard/api/captures`);
+      const captures = (await listRes.json()) as Array<{
+        id: number;
+        ttft_ms: number | null;
+        retry_attempt: number | null;
+        ttft_exceeded: number | null;
+      }>;
+      const cap = captures.find((c) => c.retry_attempt === 1);
+      expect(cap).toBeDefined();
+      // TTFT timeout is 200ms; cooldown is 300ms. If the bug were present,
+      // startedAt would be reset before cooldown, so ttft_ms would include
+      // the 300ms cooldown sleep. With the fix, startedAt is reset after
+      // cooldown, so ttft_ms reflects only the retry attempt's first-byte
+      // latency — well under 300ms for this streaming upstream.
+      expect(cap!.ttft_ms).not.toBeNull();
+      expect(cap!.ttft_ms!).toBeLessThan(300);
+    } finally {
+      await proxy.kill();
+      await upstream.close();
+    }
+  });
+});

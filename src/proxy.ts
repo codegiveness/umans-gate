@@ -758,12 +758,9 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
           retryAttempt,
           cooldownEndsAt: Date.now() + config.ttftRetryCooldownMs,
         });
-        // Reset the attempt clock so the successful retry's TTFT and duration
-        // reflect the retry attempt, not the original (timed-out) entry.
-        // Both ctx.startedAt (read by downstream phases) and the local
-        // startedAt (read by doneRes()/extractUsage) must be reset together.
-        ctx.startedAt = Date.now();
-        startedAt = ctx.startedAt;
+        // Reset of startedAt is deferred to the caller, AFTER `await
+        // ttftCooldown()`, so the cooldown sleep is not counted in the
+        // retry attempt's ttft_ms / duration_ms / extractUsage metrics.
         return { continue: true };
       }
       attempt++;
@@ -780,8 +777,9 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
         retryAttempt,
         cooldownEndsAt: Date.now() + config.ttftRetryCooldownMs,
       });
-      ctx.startedAt = Date.now();
-      startedAt = ctx.startedAt;
+      // Reset of startedAt is deferred to the caller, AFTER `await
+      // ttftCooldown()`, so the cooldown sleep is not counted in the
+      // retry attempt's ttft_ms / duration_ms / extractUsage metrics.
       return { continue: true };
     }
     const suppressReason =
@@ -994,6 +992,10 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
           const result = handleTtftTimeout();
           if ("continue" in result) {
             await ttftCooldown();
+            // Reset the attempt clock AFTER cooldown so ttft_ms / duration_ms
+            // reflect only the retry attempt, not the cooldown sleep.
+            ctx.startedAt = Date.now();
+            startedAt = ctx.startedAt;
             ws.broadcast({
               type: "state",
               captureId: capId,
@@ -1162,6 +1164,10 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
           const result = handleTtftTimeout();
           if ("continue" in result) {
             await ttftCooldown();
+            // Reset the attempt clock AFTER cooldown so ttft_ms / duration_ms
+            // reflect only the retry attempt, not the cooldown sleep.
+            ctx.startedAt = Date.now();
+            startedAt = ctx.startedAt;
             ws.broadcast({
               type: "state",
               captureId: capId,

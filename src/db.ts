@@ -709,10 +709,9 @@ export class CaptureDB {
     }));
   }
 
-  /** Delete all captures. */
+  /** Delete all captures. Incidents are preserved (expire via sweepIncidents). */
   clear(): void {
     this.db.prepare("DELETE FROM captures").run();
-    this.db.prepare("DELETE FROM incidents").run();
     this.rowCount = 0;
   }
 
