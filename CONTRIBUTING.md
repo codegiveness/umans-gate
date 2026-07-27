@@ -1,6 +1,12 @@
 # Contributing to umans-gate
 
+> **Applies to:** umans-gate v0.4.7 · **Last updated:** 2026-07-27
+
 This is a personal-use project. Contributions are welcome but not expected: this is not an open-source product with a community roadmap. If you find a bug or want to add a feature for your own use, fork it. If you want to share a fix or improvement, pull requests are reviewed on a best-effort basis.
+
+## What Is the Contribution Model?
+
+umans-gate accepts contributions via pull requests on a best-effort basis. There is no community roadmap, no regular review cadence, and no guarantee of merge. Fork the project for personal use; open a PR if you want to share a fix. The maintainer reviews PRs when time permits.
 
 ## Development setup
 

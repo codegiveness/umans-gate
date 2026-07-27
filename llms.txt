@@ -70,6 +70,36 @@ Key fields: `PORT` (1945), `MAX_CAPTURES` (200), `UPSTREAM_PROTOCOL`
 **Bun only.** Uses `bun:sqlite`, `Bun.serve`, and Bun's `fetch` with the
 `protocol` option. Node.js cannot run this.
 
+## FAQ
+
+### What is umans-gate?
+
+umans-gate is a local LLM API capture proxy that intercepts Anthropic and OpenAI-compatible traffic, stores every request/response pair in SQLite, and serves a live React dashboard over WebSocket. It runs on Bun and requires no client-side code changes.
+
+### Is umans-gate free?
+
+Yes. MIT-licensed, no paid tier. npm package and standalone binaries are free.
+
+### Does umans-gate work with Claude Code?
+
+Yes. Point `ANTHROPIC_BASE_URL` at the proxy. The stamp pipeline applies TTL, `top_k`, `temperature`, `max_tokens`, `thinking`, `output_config`, and `context_management` stamps when `STAMP_CLAUDE_CODE_ENABLED=true`.
+
+### Does umans-gate modify requests?
+
+Only when stamping is enabled (default off). The proxy always forces `accept-encoding: identity` and strips `content-encoding` for capture safety.
+
+### What is the ring buffer?
+
+SQLite table capped at `MAX_CAPTURES` (default 200). Oldest captures evicted when full. Optional zstd compression reduces body storage.
+
+### How do I secure the dashboard?
+
+Set `DASHBOARD_TOKEN`. All `/dashboard/api/*` routes, `/health`, `/metrics`, and WebSocket require the token. Includes brute-force protection.
+
+### What is vision handoff?
+
+Replaces image blocks with text descriptions from a vision model (default `umans-flash`). Cached 7 days in persistent SQLite. Controlled by `VISION_STRATEGY` (`never`, `catalog`, `always`).
+
 ## Links
 
 - npm: https://www.npmjs.com/package/umans-gate

@@ -1,0 +1,45 @@
+# robots.txt for umans-gate
+# https://github.com/codegiveness/umans-gate
+
+# Allow AI crawlers for maximum AI search visibility (AEO/GEO).
+# If you have licensing concerns about training data, selectively
+# block training-only crawlers while allowing search/citation crawlers.
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: Meta-ExternalAgent
+Allow: /
+
+User-agent: *
+Allow: /
+
+# Sitemap (if hosted on a custom domain, update this URL)
+# Sitemap: https://github.com/codegiveness/umans-gate

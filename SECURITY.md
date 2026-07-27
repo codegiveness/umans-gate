@@ -1,5 +1,11 @@
 # Security Policy
 
+> **Applies to:** umans-gate v0.4.7 · **Last updated:** 2026-07-27
+
+## What Is the Security Reporting Process?
+
+umans-gate uses GitHub's private security vulnerability reporting with a 48-hour acknowledgment SLA on confirmed reports. Do NOT open a public GitHub issue for security vulnerabilities. Instead, use GitHub's private advisory system, and you will receive a response within 48 hours.
+
 ## Reporting a vulnerability
 
 This document describes how to report security vulnerabilities in umans-gate and the 48-hour acknowledgment SLA on confirmed reports.
