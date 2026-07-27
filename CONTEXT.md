@@ -56,9 +56,25 @@ Anthropic, `completion_tokens` for OpenAI). Includes thinking tokens.
 _Avoid_: completion tokens, response tokens.
 
 **thinking_tokens** — the subset of output spent on internal reasoning.
-Extracted from `output_tokens_details.thinking_tokens` (Anthropic) or
-`completion_tokens_details.reasoning_tokens` (OpenAI); null when not
-reported. _Avoid_: reasoning tokens.
+Extract from `output_tokens_details.thinking_tokens` (Anthropic route) or
+`completion_tokens_details.reasoning_tokens` (OpenAI route); null when the
+upstream gateway does not report it. On the Anthropic route via
+`api.code.umans.ai`, this field is null for non-Claude models (GLM, Kimi,
+Qwen) because the gateway does not populate `output_tokens_details`. The
+OpenAI route may populate `reasoning_tokens` depending on the model.
+_Avoid_: reasoning tokens.
+
+**thinking_block_count** — structural count of thinking/reasoning content
+blocks observed in the response. On the OpenAI route, set to 1 when
+`reasoning_content` is present, else 0. On the Anthropic route, always null
+(ADR-0024): the upstream gateway does not report `thinking_tokens` for
+non-Claude models, so counting blocks produces dashboard noise ("N req w/
+think (unmeasured)") without actionable signal. The dashboard gates the
+"unmeasured" fallback on `provider === "openai"`, so Anthropic rows never
+render it — even stale rows from before the change. The `thinking_tokens`
+extraction pipeline is preserved on the Anthropic route for forward
+compatibility if the gateway ever starts reporting it. _Avoid_: thinking
+block tally, reasoning block count.
 
 ## Stamping
 

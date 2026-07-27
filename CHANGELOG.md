@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-07-27
+
+### Changed
+
+- **Anthropic route stops counting thinking blocks**: the proxy no longer
+  counts `thinking` content blocks on the Anthropic route
+  (`thinking_block_count` set to `null` in both streaming and
+  non-streaming extractors). The upstream gateway
+  (`api.code.umans.ai`) does not populate
+  `usage.output_tokens_details.thinking_tokens` for non-Claude models
+  (GLM, Kimi, Qwen), so the block count produced dashboard noise
+  ("N req w/ think (unmeasured)") without actionable signal. The
+  `thinking_tokens` extraction pipeline is preserved for forward
+  compatibility. See [ADR-0024](docs/adr/0024-anthropic-route-stops-counting-thinking-blocks.md).
+
+- **Dashboard gates "unmeasured" thinking label to OpenAI route**:
+  the "unmeasured" fallback in the Performance tab now renders only
+  when `provider === "openai"`. Anthropic rows never show the
+  unmeasured branch — even stale captures with
+  `thinking_block_count > 0` from before this change.
+
+- **Sub-tabs centered in Incidents and Config tabs**: the sub-tab rows
+  on the Incidents and Config dashboard tabs are now horizontally
+  centered for better visual balance.
+
 ## [0.4.2] - 2026-07-27
 
 ### Changed
