@@ -4,6 +4,8 @@
 
 ## What umans-gate Does
 
+> ⚠️ Experimental: enabled by `stamp_claude_code_enabled` (default: off)
+
 umans-gate is a personal-use LLM capture proxy that intercepts Anthropic and OpenAI-compatible traffic, stamps `ttl` onto `cache_control` ephemeral blocks, and inspects every request/response in a live React dashboard without client code changes.
 
 The project has three core responsibilities:

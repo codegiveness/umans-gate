@@ -88,6 +88,8 @@ tune decomposition and crafting timeouts.
 
 **Alignment**
 
+> ⚠️ Experimental: enabled by `stamp_claude_code_enabled` (default: off)
+
 umans-gate stamps `ttl` onto every `cache_control` ephemeral block in
 intercepted Anthropic requests. The TTL is always set, independent of
 thinking state (per ADR-0011).

@@ -6,6 +6,8 @@ umans-gate is a Bun-based capture proxy that sits between an LLM harness and
 the upstream API, intercepting traffic to capture, stamp, and optionally
 transform requests before forwarding.
 
+> ⚠️ Experimental: enabled by `stamp_claude_code_enabled` (default: off)
+
 ## What is the system layout?
 
 umans-gate has four layers: the Bun HTTP server, the stamp/vision pipeline,

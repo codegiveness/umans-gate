@@ -107,6 +107,8 @@ _Avoid_: code model, coder thinking.
 
 ## Architecture
 
+> ⚠️ Experimental: enabled by `experiment_ttft_watchdog` (default: off)
+
 **TTFT watchdog**: a wall-clock timer started at fetch initiation; fires
 if no first chunk arrives within `ttft_timeout_ms`. Distinct from the
 absolute `upstream_timeout_ms` (whole-fetch ceiling) and from the semantic

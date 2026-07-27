@@ -354,6 +354,8 @@ Yes. The proxy intercepts OpenAI-compatible traffic on `/v1/chat/completions`. W
 
 ### What is the difference between umans-gate and a regular HTTP proxy?
 
+> ⚠️ Experimental: enabled by `stamp_claude_code_enabled` (default: off)
+
 A regular HTTP proxy forwards traffic. umans-gate captures every request/response pair to SQLite, stamps `ttl` onto `cache_control` ephemeral blocks, runs a vision handoff pipeline (image → text description), enforces concurrency limits with a circuit breaker, and serves a live React dashboard over WebSocket. It is purpose-built for LLM API traffic observation and optimization.
 
 ### Does umans-gate modify my requests?
