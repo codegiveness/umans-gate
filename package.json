@@ -1,6 +1,6 @@
 {
   "name": "umans-gate",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "LLM capture proxy with Anthropic cache_control TTL stamping and live inspection dashboard",
   "type": "module",
   "license": "MIT",
