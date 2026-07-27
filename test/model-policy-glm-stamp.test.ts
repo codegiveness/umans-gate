@@ -37,9 +37,7 @@ describe("resolveStampPolicy", () => {
   });
 
   it("resolves non-GLM models to high-effort policy from catalog", () => {
-    const catalog = new Map<string, ParsedModelInfo>([
-      ["umans-legacy", makeEntry("umans-legacy")],
-    ]);
+    const catalog = new Map<string, ParsedModelInfo>([["umans-legacy", makeEntry("umans-legacy")]]);
     const p = resolveStampPolicy("umans-legacy", catalog);
     expect(p.max_tokens).toBe(32767);
     expect(p.effort).toBe("high");

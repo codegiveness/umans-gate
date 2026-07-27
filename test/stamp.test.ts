@@ -73,7 +73,10 @@ test("existing ttl is preserved (not overwritten)", async () => {
 });
 
 test("no cache_control → forwarded byte-identical (ttl only, top_k not added for non-glm)", async () => {
-  const body = JSON.stringify({ model: "umans-legacy", messages: [{ role: "user", content: "hi" }] });
+  const body = JSON.stringify({
+    model: "umans-legacy",
+    messages: [{ role: "user", content: "hi" }],
+  });
   const r = await send(body);
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
