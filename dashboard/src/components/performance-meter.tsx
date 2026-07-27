@@ -108,7 +108,8 @@ function ModelPerfCard({ row }: { row: PerformanceStatsRow }) {
   const thinkingSub =
     row.total_thinking_tokens > 0
       ? `${fmtTokensCompact(row.total_thinking_tokens)} ${thinkingLabel}${thinkingPct ? ` (${thinkingPct})` : ""}`
-      : row.requests_with_thinking > 0
+      : // ADR-0024: Anthropic route never shows "unmeasured" — gateway doesn't report thinking_tokens
+        row.provider === "openai" && row.requests_with_thinking > 0
         ? `${row.requests_with_thinking} req w/ ${thinkingLabel} (unmeasured)`
         : undefined;
   return (

@@ -293,13 +293,15 @@ export function ConfigTab() {
         className="flex min-h-0 flex-1 flex-col"
       >
         <div className="sticky top-0 z-10 border-b border-border bg-card px-4 py-2">
-          <TabsList>
-            {GROUPS.map((g) => (
-              <TabsTrigger key={g.title} value={g.title}>
-                {g.title}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+          <div className="flex justify-center">
+            <TabsList>
+              {GROUPS.map((g) => (
+                <TabsTrigger key={g.title} value={g.title}>
+                  {g.title}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
         </div>
         <ScrollArea className="min-h-0 flex-1">
           <div className="mx-auto w-full max-w-3xl px-6 py-6">

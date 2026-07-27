@@ -111,7 +111,7 @@ describe("Anthropic non-streaming usage extraction", () => {
       ],
     };
     const m = extractAnthropicNonStreaming(body, 3000);
-    expect(m.thinking_block_count).toBe(2);
+    expect(m.thinking_block_count).toBeNull();
     expect(m.thinking_tokens).toBeNull();
   });
 
@@ -121,7 +121,7 @@ describe("Anthropic non-streaming usage extraction", () => {
       content: [{ type: "text", text: "answer" }],
     };
     const m = extractAnthropicNonStreaming(body, 3000);
-    expect(m.thinking_block_count).toBe(0);
+    expect(m.thinking_block_count).toBeNull();
   });
 
   test("thinking_block_count is null when non-streaming content array absent", () => {
@@ -380,7 +380,7 @@ describe("Anthropic streaming usage extraction", () => {
     ];
     const m = extractAnthropicStreaming(events, startedAt);
     expect(m.thinking_tokens).toBeNull();
-    expect(m.thinking_block_count).toBe(1);
+    expect(m.thinking_block_count).toBeNull();
     expect(m.output_tokens).toBe(50);
   });
 
@@ -407,7 +407,7 @@ describe("Anthropic streaming usage extraction", () => {
       { type: "message_stop", received_at: 1700 },
     ];
     const m = extractAnthropicStreaming(events, startedAt);
-    expect(m.thinking_block_count).toBe(2);
+    expect(m.thinking_block_count).toBeNull();
   });
 
   test("thinking_block_count is 0 when no thinking content blocks", () => {
@@ -430,7 +430,7 @@ describe("Anthropic streaming usage extraction", () => {
       { type: "message_stop", received_at: 1400 },
     ];
     const m = extractAnthropicStreaming(events, startedAt);
-    expect(m.thinking_block_count).toBe(0);
+    expect(m.thinking_block_count).toBeNull();
   });
 
   test("ping events ignored (no usage data)", () => {

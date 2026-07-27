@@ -69,9 +69,6 @@ export function extractAnthropicNonStreaming(
   const cacheRead = numOr(u.cache_read_input_tokens, 0);
   const totalInput = input + cacheCreate + cacheRead;
   const thinking = u.output_tokens_details?.thinking_tokens ?? null;
-  const thinkingBlockCount = Array.isArray(b?.content)
-    ? b.content.filter((c) => c?.type === "thinking").length
-    : null;
   return {
     provider: "anthropic",
     streaming: false,
@@ -82,7 +79,7 @@ export function extractAnthropicNonStreaming(
     total_input_tokens: totalInput,
     total_output_tokens: output,
     thinking_tokens: thinking,
-    thinking_block_count: thinkingBlockCount,
+    thinking_block_count: null,
     ttft_ms: null, // TTFT not derivable from non-streaming response
     duration_ms: durationMs,
     tps: computeTps(output, durationMs, null),
@@ -110,7 +107,6 @@ export function extractAnthropicStreaming(
   let cacheCreate = 0;
   let cacheRead = 0;
   let thinking: number | null = null;
-  let thinkingBlockCount = 0;
   let ttftMs: number | null = null;
   let lastEventAt: number | null = null;
   let sawUsage = false;
@@ -143,11 +139,6 @@ export function extractAnthropicStreaming(
           thinking = u.output_tokens_details.thinking_tokens;
         }
       }
-    } else if (ev.type === "content_block_start") {
-      const blockType = (ev as { content_block?: { type?: string } }).content_block?.type;
-      if (blockType === "thinking") {
-        thinkingBlockCount++;
-      }
     } else if (ev.type === "content_block_delta" && ttftMs === null && ev.received_at) {
       ttftMs = ev.received_at - requestStartedAt;
     }
@@ -173,7 +164,7 @@ export function extractAnthropicStreaming(
     total_input_tokens: totalInput,
     total_output_tokens: output,
     thinking_tokens: thinking,
-    thinking_block_count: thinkingBlockCount,
+    thinking_block_count: null,
     ttft_ms: ttftMs,
     duration_ms: durationMs,
     tps: computeTps(output, durationMs, ttftMs),

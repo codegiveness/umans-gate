@@ -160,7 +160,15 @@ describe("PerformanceMeter", () => {
 
   it("Total Out tile shows unmeasured thinking when tokens absent but requests had thinking", async () => {
     mockUsePerformanceStats.mockReturnValueOnce({
-      stats: [{ ...mockRow.row, total_thinking_tokens: 0, requests_with_thinking: 7 }],
+      stats: [
+        {
+          ...mockRow.row,
+          provider: "openai",
+          model: "o3",
+          total_thinking_tokens: 0,
+          requests_with_thinking: 7,
+        },
+      ],
       loading: false,
       error: null,
       refresh: () => {},
@@ -169,7 +177,66 @@ describe("PerformanceMeter", () => {
     const { container } = render(<PerformanceMeter />);
     await flushEffects();
 
-    expect(container).toHaveTextContent("7 req w/ think (unmeasured)");
+    expect(container).toHaveTextContent("7 req w/ reason (unmeasured)");
+  });
+
+  it("Anthropic row with requests_with_thinking > 0 and total_thinking_tokens = 0 does not render unmeasured label", async () => {
+    mockUsePerformanceStats.mockReturnValueOnce({
+      stats: [{ ...mockRow.row, total_thinking_tokens: 0, requests_with_thinking: 5 }],
+      loading: false,
+      error: null,
+      refresh: () => {},
+    });
+
+    const { container } = render(<PerformanceMeter />);
+    await flushEffects();
+
+    expect(container).not.toHaveTextContent("unmeasured");
+  });
+
+  it("OpenAI row with requests_with_thinking > 0 and total_thinking_tokens = 0 renders unmeasured label", async () => {
+    mockUsePerformanceStats.mockReturnValueOnce({
+      stats: [
+        {
+          ...mockRow.row,
+          provider: "openai",
+          model: "o3",
+          total_thinking_tokens: 0,
+          requests_with_thinking: 5,
+        },
+      ],
+      loading: false,
+      error: null,
+      refresh: () => {},
+    });
+
+    const { container } = render(<PerformanceMeter />);
+    await flushEffects();
+
+    expect(container).toHaveTextContent("unmeasured");
+  });
+
+  it("Anthropic row with total_thinking_tokens > 0 renders measured thinking label", async () => {
+    mockUsePerformanceStats.mockReturnValueOnce({
+      stats: [
+        {
+          ...mockRow.row,
+          provider: "anthropic",
+          model: "umans-glm-5.2",
+          total_thinking_tokens: 3000,
+          total_output_tokens: 12000,
+        },
+      ],
+      loading: false,
+      error: null,
+      refresh: () => {},
+    });
+
+    const { container } = render(<PerformanceMeter />);
+    await flushEffects();
+
+    expect(container).toHaveTextContent("3.0K think");
+    expect(container).not.toHaveTextContent("unmeasured");
   });
 
   it("keeps model cards visible when error and stats coexist", async () => {
