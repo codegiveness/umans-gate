@@ -1,11 +1,11 @@
 import { AlertTriangle, ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
+import { PenaltyBadge } from "@/components/penalty-badge";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { badgeGold, badgeInfo, badgeSuccess, badgeWarning } from "@/lib/badge-colors";
-import { fmtDurationUntil, fmtUtcDateTime } from "@/lib/format";
-import { computeGateHealth } from "@/lib/gate-health";
+import { badgeGold, badgeInfo, badgeWarning } from "@/lib/badge-colors";
+import { mergePenaltyInput } from "@/lib/gate-health";
 import { cn } from "@/lib/utils";
-import type { GateStats } from "@/types";
+import type { GateStats, UsageSnapshot } from "@/types";
 
 const tierBadgeClass: Record<GateStats["tier"], string | undefined> = {
   "Code Max": badgeGold,
@@ -31,73 +31,17 @@ const BreakerIcon: Record<string, typeof ShieldCheck> = {
   closed: ShieldCheck,
 };
 
-const LOW_SERVICE_MODES = ["low_interactivity", "low", "degraded", "boxed", "demoted"];
-
-function shortenServiceMode(mode: string): string {
-  return mode.startsWith("low_") ? "low" : mode;
-}
-
-function computeStatus(stats: GateStats): {
-  label: string;
-  variant: "default" | "secondary" | "outline" | "destructive";
-  className: string | undefined;
-  detail: string;
-} {
-  if (stats.boxed) {
-    return {
-      label: "boxed",
-      variant: "destructive",
-      className: undefined,
-      detail: stats.boxedReason ? `boxed: ${stats.boxedReason}` : "boxed by upstream",
-    };
-  }
-  if (stats.unitsDemoted) {
-    return {
-      label: "demoted",
-      variant: "destructive",
-      className: undefined,
-      detail: "units demoted by upstream",
-    };
-  }
-  const mode = stats.serviceMode.current;
-  if (mode !== "normal" && LOW_SERVICE_MODES.includes(mode)) {
-    return {
-      label: "low",
-      variant: "secondary",
-      className: badgeWarning,
-      detail: `service mode: ${mode}`,
-    };
-  }
-  if (mode !== "normal") {
-    return {
-      label: shortenServiceMode(mode),
-      variant: "secondary",
-      className: badgeInfo,
-      detail: `service mode: ${mode}`,
-    };
-  }
-  if (stats.priorityLow) {
-    return {
-      label: "low",
-      variant: "secondary",
-      className: badgeWarning,
-      detail: "priority low",
-    };
-  }
-  return {
-    label: "high",
-    variant: "secondary",
-    className: badgeSuccess,
-    detail: "priority high",
-  };
-}
-
-export function GateStatus({ stats }: { stats: GateStats | null }) {
+export function GateStatus({
+  stats,
+  usageSnapshot = null,
+}: {
+  stats: GateStats | null;
+  usageSnapshot?: UsageSnapshot | null;
+}) {
   if (!stats) return null;
 
   const pct = stats.effectiveLimit > 0 ? (stats.active / stats.effectiveLimit) * 100 : 0;
   const tierLabel = stats.tier === "unknown" ? "no key" : stats.tier;
-  const status = computeStatus(stats);
 
   return (
     <div className="border-b border-border px-4 py-2 text-xs">
@@ -183,80 +127,7 @@ export function GateStatus({ stats }: { stats: GateStats | null }) {
               </TooltipContent>
             </Tooltip>
           )}
-          {(() => {
-            const budget =
-              stats.usageOk && stats.priorityBudgetSummary
-                ? {
-                    category: stats.priorityBudgetSummary.category,
-                    usedPct: stats.priorityBudgetSummary.usedPct,
-                    overBudgetToday: stats.priorityBudgetSummary.overBudgetToday,
-                  }
-                : null;
-            const health = computeGateHealth({ admissionLabel: status.label, budget });
-            return (
-              <Tooltip>
-                <TooltipTrigger render={<span className="inline-flex" />}>
-                  <Badge variant={health.variant} className={health.className}>
-                    {health.label}
-                  </Badge>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-[280px]">
-                  <div className="space-y-1">
-                    {status.label !== "high" && (
-                      <>
-                        <p>{status.detail}</p>
-                        {stats.boxed && stats.boxedReason && (
-                          <p className="text-background/70">reason: {stats.boxedReason}</p>
-                        )}
-                        {stats.boxed && stats.boxedUntil !== null && (
-                          <p className="text-background/70">
-                            boxed until {fmtUtcDateTime(stats.boxedUntil)}
-                          </p>
-                        )}
-                        {stats.unitsDemoted && stats.demotedUntil !== null && (
-                          <p className="text-background/70">
-                            demoted until {fmtUtcDateTime(stats.demotedUntil)}
-                          </p>
-                        )}
-                        {stats.serviceMode.resetsAt !== null && (
-                          <p className="text-background/70">
-                            resets at {fmtUtcDateTime(stats.serviceMode.resetsAt)}
-                          </p>
-                        )}
-                      </>
-                    )}
-                    {stats.usageOk && stats.priorityBudgetSummary && (
-                      <>
-                        {status.label !== "high" && <hr className="border-border" />}
-                        <p>{stats.priorityBudgetSummary.label}</p>
-                        <p className="text-background/70">
-                          {stats.priorityBudgetSummary.models.join(", ")}
-                        </p>
-                        <p className="text-background/70">
-                          {stats.priorityBudgetSummary.usedPct}% used
-                        </p>
-                        <p className="text-background/70">
-                          mode: {stats.priorityBudgetSummary.mode}
-                        </p>
-                        {stats.priorityBudgetSummary.overBudgetToday && (
-                          <p className="text-background/70">over budget today</p>
-                        )}
-                        {(() => {
-                          const resetText = fmtDurationUntil(stats.priorityBudgetSummary.resetsAt);
-                          return resetText ? (
-                            <p className="text-background/70">resets in {resetText}</p>
-                          ) : null;
-                        })()}
-                      </>
-                    )}
-                    {status.label === "high" && !(stats.usageOk && stats.priorityBudgetSummary) && (
-                      <p className="text-background/70">All systems nominal</p>
-                    )}
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            );
-          })()}
+          <PenaltyBadge input={mergePenaltyInput(stats, usageSnapshot)} />
         </div>
       </div>
 

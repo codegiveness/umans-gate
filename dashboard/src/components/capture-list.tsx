@@ -11,7 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCaptureListbox } from "@/hooks/use-capture-listbox";
 import { cn } from "@/lib/utils";
-import type { CaptureSummary, GateStats } from "@/types";
+import type { CaptureSummary, GateStats, UsageSnapshot } from "@/types";
 
 const ClearConfirmDialog = lazy(() =>
   import("@/components/clear-confirm-dialog").then((m) => ({
@@ -24,6 +24,7 @@ interface CaptureListProps {
   selectedId: number | null;
   wsState: "live" | "down" | "unavailable";
   gateStats: GateStats | null;
+  usageSnapshot: UsageSnapshot | null;
   listError: string | null;
   isLoading: boolean;
   onSelect: (id: number) => void;
@@ -43,6 +44,7 @@ export function CaptureList({
   selectedId,
   wsState,
   gateStats,
+  usageSnapshot,
   listError,
   isLoading,
   onSelect,
@@ -109,7 +111,7 @@ export function CaptureList({
         </div>
       </header>
 
-      <GateStatus stats={gateStats} />
+      <GateStatus stats={gateStats} usageSnapshot={usageSnapshot} />
 
       {wsState !== "live" && captures.length > 0 && (
         <output

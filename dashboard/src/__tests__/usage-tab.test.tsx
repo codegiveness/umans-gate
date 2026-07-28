@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { UsageTab } from "@/components/usage-tab";
 import { flushEffects } from "@/test/utils";
-import type { PriorityBudgetEntry, UsageSampleRow } from "@/types";
+import type { PriorityBudgetEntry, UsageSampleRow, UsageSnapshot } from "@/types";
 
 const mockRow = vi.hoisted(() => {
   const row: UsageSampleRow = {
@@ -57,26 +57,6 @@ const mockUseUsageHistory = vi.hoisted(() =>
   })),
 );
 
-type UseUsageResult = {
-  data: import("@/types").UsageSnapshot | null;
-  loading: boolean;
-  error: string | null;
-  refresh: () => void;
-};
-
-const mockUseUsage = vi.hoisted(() =>
-  vi.fn<() => UseUsageResult>(() => ({
-    data: null,
-    loading: false,
-    error: null,
-    refresh: () => {},
-  })),
-);
-
-vi.mock("@/hooks/use-usage", () => ({
-  useUsage: mockUseUsage,
-}));
-
 vi.mock("@/hooks/use-usage-history", () => ({
   useUsageHistory: mockUseUsageHistory,
 }));
@@ -123,13 +103,13 @@ function makeBudgetEntry(overrides: Partial<PriorityBudgetEntry> = {}): Priority
     models: ["umans-glm-5", "umans-glm-coder"],
     usedPct: 50,
     overBudgetToday: false,
-    mode: "priority",
+    mode: "interactive",
     resetsAt: null,
     ...overrides,
   };
 }
 
-function snapshotWith(entries: PriorityBudgetEntry[]): import("@/types").UsageSnapshot {
+function snapshotWith(entries: PriorityBudgetEntry[]): UsageSnapshot {
   return {
     ok: true,
     fetchedAt: Date.now(),
@@ -203,16 +183,14 @@ describe("UsageTab", () => {
 
   describe("priority budget cards", () => {
     it("renders one card per priorityBudget entry, including 0%", async () => {
-      mockUseUsage.mockReturnValueOnce({
-        data: snapshotWith([
-          makeBudgetEntry({ label: "Frontier models", usedPct: 0, models: ["umans-glm-5"] }),
-          makeBudgetEntry({ label: "Standard models", usedPct: 42, models: ["umans-flash"] }),
-        ]),
-        loading: false,
-        error: null,
-        refresh: () => {},
-      });
-      render(<UsageTab />);
+      render(
+        <UsageTab
+          usageSnapshot={snapshotWith([
+            makeBudgetEntry({ label: "Frontier models", usedPct: 0, models: ["umans-glm-5"] }),
+            makeBudgetEntry({ label: "Standard models", usedPct: 42, models: ["umans-flash"] }),
+          ])}
+        />,
+      );
       await flushEffects();
       expect(screen.getByText("Frontier models")).toBeInTheDocument();
       expect(screen.getByText("Standard models")).toBeInTheDocument();
@@ -223,13 +201,9 @@ describe("UsageTab", () => {
     });
 
     it("renders mode badge as lowercase gold badge", async () => {
-      mockUseUsage.mockReturnValueOnce({
-        data: snapshotWith([makeBudgetEntry({ mode: "Priority" })]),
-        loading: false,
-        error: null,
-        refresh: () => {},
-      });
-      const { container } = render(<UsageTab />);
+      const { container } = render(
+        <UsageTab usageSnapshot={snapshotWith([makeBudgetEntry({ mode: "Priority" })])} />,
+      );
       await flushEffects();
       const goldBadge = container.querySelector('[data-variant="secondary"].bg-yellow-200');
       expect(goldBadge).not.toBeNull();
@@ -238,64 +212,124 @@ describe("UsageTab", () => {
 
     it("renders reset line when overBudgetToday and resetsAt non-null", async () => {
       const resetsAt = Date.now() + 90 * 60 * 1000;
-      mockUseUsage.mockReturnValueOnce({
-        data: snapshotWith([makeBudgetEntry({ overBudgetToday: true, usedPct: 100, resetsAt })]),
-        loading: false,
-        error: null,
-        refresh: () => {},
-      });
-      render(<UsageTab />);
+      render(
+        <UsageTab
+          usageSnapshot={snapshotWith([
+            makeBudgetEntry({ overBudgetToday: true, usedPct: 100, resetsAt }),
+          ])}
+        />,
+      );
       await flushEffects();
       expect(screen.getByText(/resets in/i)).toBeInTheDocument();
     });
 
     it("renders muted reset line when not over budget and resetsAt non-null", async () => {
       const resetsAt = Date.now() + 90 * 60 * 1000;
-      mockUseUsage.mockReturnValueOnce({
-        data: snapshotWith([makeBudgetEntry({ overBudgetToday: false, usedPct: 50, resetsAt })]),
-        loading: false,
-        error: null,
-        refresh: () => {},
-      });
-      render(<UsageTab />);
+      render(
+        <UsageTab
+          usageSnapshot={snapshotWith([
+            makeBudgetEntry({ overBudgetToday: false, usedPct: 50, resetsAt }),
+          ])}
+        />,
+      );
       await flushEffects();
       expect(screen.getByText(/resets in/i)).toBeInTheDocument();
     });
 
     it("omits reset line when resetsAt is null", async () => {
-      mockUseUsage.mockReturnValueOnce({
-        data: snapshotWith([makeBudgetEntry({ resetsAt: null, overBudgetToday: false })]),
-        loading: false,
-        error: null,
-        refresh: () => {},
-      });
-      render(<UsageTab />);
+      render(
+        <UsageTab
+          usageSnapshot={snapshotWith([
+            makeBudgetEntry({ resetsAt: null, overBudgetToday: false }),
+          ])}
+        />,
+      );
       await flushEffects();
       expect(screen.queryByText(/resets in/i)).not.toBeInTheDocument();
     });
 
     it("renders no cards when priorityBudget is empty", async () => {
-      mockUseUsage.mockReturnValueOnce({
-        data: snapshotWith([]),
-        loading: false,
-        error: null,
-        refresh: () => {},
-      });
-      render(<UsageTab />);
+      render(<UsageTab usageSnapshot={snapshotWith([])} />);
       await flushEffects();
       expect(screen.queryByText("Frontier models")).not.toBeInTheDocument();
     });
 
-    it("renders no cards when useUsage data is null", async () => {
-      mockUseUsage.mockReturnValueOnce({
-        data: null,
-        loading: false,
-        error: null,
-        refresh: () => {},
-      });
-      render(<UsageTab />);
+    it("renders no cards when usageSnapshot is null", async () => {
+      render(<UsageTab usageSnapshot={null} />);
       await flushEffects();
       expect(screen.queryByText("Frontier models")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("PenaltyBadge mount", () => {
+    it("renders PenaltyBadge above PriorityBudgetCards in DOM order", async () => {
+      const { container } = render(
+        <UsageTab
+          usageSnapshot={snapshotWith([makeBudgetEntry({ label: "Frontier models", usedPct: 95 })])}
+        />,
+      );
+      await flushEffects();
+      const badges = container.querySelectorAll("[data-slot='badge']");
+      const badgeTexts = Array.from(badges).map((b) => b.textContent?.trim() ?? "");
+      // PenaltyBadge pill text "Frontier models 95%" appears.
+      expect(badgeTexts).toContain("Frontier models 95%");
+      // PriorityBudgetCards also renders a card with the same heading, but
+      // the PenaltyBadge badge slot is the first `[data-slot='badge']`
+      // matching "Frontier models 95%".
+      const firstMatchingIdx = badgeTexts.indexOf("Frontier models 95%");
+      expect(firstMatchingIdx).toBeGreaterThanOrEqual(0);
+      // A card heading "Frontier models" must appear after the badge.
+      const allNodes = Array.from(container.querySelectorAll("*"));
+      const badgeNode = allNodes.find((n) => n.textContent?.trim() === "Frontier models 95%");
+      const cardHeadingNode = screen
+        .getAllByText("Frontier models")
+        .find((el) => el.tagName === "H3");
+      expect(badgeNode).toBeDefined();
+      expect(cardHeadingNode).toBeDefined();
+      // Compare document order: badge before card heading.
+      if (badgeNode && cardHeadingNode) {
+        const rel = badgeNode.compareDocumentPosition(cardHeadingNode);
+        // Node.DOCUMENT_POSITION_FOLLOWING = 4
+        expect(rel & 4).toBe(4);
+      }
+    });
+
+    it("shows correct label for penalties (frontier 85% when over 80%)", async () => {
+      const { container } = render(
+        <UsageTab
+          usageSnapshot={snapshotWith([
+            makeBudgetEntry({ label: "frontier", usedPct: 85, mode: "interactive" }),
+          ])}
+        />,
+      );
+      await flushEffects();
+      expect(container).toHaveTextContent("frontier 85%");
+    });
+
+    it("shows healthy when no penalties (all budgets interactive, under 80%, not over budget)", async () => {
+      const { container } = render(
+        <UsageTab
+          usageSnapshot={snapshotWith([
+            makeBudgetEntry({ usedPct: 30, mode: "interactive", overBudgetToday: false }),
+          ])}
+        />,
+      );
+      await flushEffects();
+      const badges = container.querySelectorAll("[data-slot='badge']");
+      const badgeTexts = Array.from(badges).map((b) => b.textContent?.trim() ?? "");
+      expect(badgeTexts).toContain("healthy");
+    });
+
+    it("renders null PenaltyBadge when usageSnapshot is null (no badge pill)", async () => {
+      const { container } = render(<UsageTab usageSnapshot={null} />);
+      await flushEffects();
+      // With null usageSnapshot, mergePenaltyInput returns null and
+      // PenaltyBadge renders nothing. No badge slot should be present
+      // that has a health-related label ("healthy"/"boxed"/etc.).
+      const badges = container.querySelectorAll("[data-slot='badge']");
+      const badgeTexts = Array.from(badges).map((b) => b.textContent?.trim() ?? "");
+      expect(badgeTexts).not.toContain("healthy");
+      expect(badgeTexts).not.toContain("boxed");
     });
   });
 });

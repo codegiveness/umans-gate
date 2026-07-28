@@ -1,6 +1,7 @@
 import { AlertCircle, ArrowLeft, ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { PenaltyBadge } from "@/components/penalty-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,22 +21,22 @@ import { UsageHeatmap } from "@/components/usage-heatmap";
 import { UsageTimeline } from "@/components/usage-timeline";
 import { UsageTimelineOld } from "@/components/usage-timeline-old";
 import { useConfig } from "@/hooks/use-config";
-import { useUsage } from "@/hooks/use-usage";
 import { useUsageDaily } from "@/hooks/use-usage-daily";
 import { useUsageDay } from "@/hooks/use-usage-day";
 import { useUsageHistory } from "@/hooks/use-usage-history";
 import { useUsageWs } from "@/hooks/use-usage-ws";
 import { badgeGold, budgetTier } from "@/lib/badge-colors";
 import { fmtDurationUntil, fmtUtcTime } from "@/lib/format";
+import { mergePenaltyInput } from "@/lib/gate-health";
 import { addDays, dayAgeDays, presetRange, type RangePreset, todayUtc } from "@/lib/usage-heatmap";
 import { findDailyRow } from "@/lib/usage-timeline-old";
-import type { PriorityBudgetEntry, UsageSampleRow } from "@/types";
+import type { PriorityBudgetEntry, UsageSampleRow, UsageSnapshot } from "@/types";
 
 /** Default raw-sample retention (days) when the config endpoint hasn't
  *  loaded or doesn't surface the field. Matches the backend default. */
 const DEFAULT_RAW_RETENTION_DAYS = 7;
 
-export function UsageTab() {
+export function UsageTab({ usageSnapshot = null }: { usageSnapshot?: UsageSnapshot | null }) {
   const [preset, setPreset] = useState<RangePreset>("30d");
   // `zoomRange` is set by the brush; null = use the preset window.
   const [zoomRange, setZoomRange] = useState<{ from: string; to: string } | null>(null);
@@ -67,8 +68,6 @@ export function UsageTab() {
 
   const { config } = useConfig();
   const rawRetentionDays = config?.usage_raw_retention_days ?? DEFAULT_RAW_RETENTION_DAYS;
-
-  const { data: usageSnap } = useUsage();
 
   const { samples, loading, error, refresh } = useUsageHistory("today");
 
@@ -181,8 +180,9 @@ export function UsageTab() {
 
       <ScrollArea className="min-h-0 flex-1">
         <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col gap-4 p-4">
-          {usageSnap?.priorityBudget?.length ? (
-            <PriorityBudgetCards entries={usageSnap.priorityBudget} />
+          <PenaltyBadge input={mergePenaltyInput(null, usageSnapshot)} />
+          {usageSnapshot?.priorityBudget?.length ? (
+            <PriorityBudgetCards entries={usageSnapshot.priorityBudget} />
           ) : null}
 
           {dailyError ? (

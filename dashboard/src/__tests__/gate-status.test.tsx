@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { GateStatus } from "@/components/gate-status";
 import { flushEffects } from "@/test/utils";
-import type { GateStats } from "@/types";
+import type { GateStats, PriorityBudgetEntry, UsageSnapshot } from "@/types";
 
 vi.mock("@/components/ui/tooltip", () => ({
   Tooltip: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -48,10 +48,10 @@ const baseStats: GateStats = {
 };
 
 describe("GateStatus service mode", () => {
-  it("renders high priority badge when normal", async () => {
+  it("renders healthy badge when normal", async () => {
     const { container } = render(<GateStatus stats={baseStats} />);
     await flushEffects();
-    expect(container).toHaveTextContent("high");
+    expect(container).toHaveTextContent("healthy");
   });
 
   it("renders low badge when service mode is low_interactivity", async () => {
@@ -64,7 +64,7 @@ describe("GateStatus service mode", () => {
       />,
     );
     await flushEffects();
-    const badges = container.querySelectorAll("[class*='badge'], [data-slot='badge']");
+    const badges = container.querySelectorAll("[data-slot='badge']");
     const badgeTexts = Array.from(badges).map((b) => b.textContent?.trim() ?? "");
     expect(badgeTexts).toContain("low");
     expect(badgeTexts).not.toContain("low_interactivity");
@@ -109,8 +109,10 @@ describe("GateStatus service mode", () => {
       />,
     );
     await flushEffects();
-    expect(container).toHaveTextContent("low");
-    expect(container).not.toHaveTextContent("high");
+    const badges = container.querySelectorAll("[data-slot='badge']");
+    const badgeTexts = Array.from(badges).map((b) => b.textContent?.trim() ?? "");
+    expect(badgeTexts).toContain("low");
+    expect(badgeTexts).not.toContain("healthy");
   });
 
   it("renders watchdog off badge when watchdog_disabled", async () => {
@@ -146,26 +148,17 @@ function budget(
   };
 }
 
-describe("GateStatus merged gate health badge", () => {
-  it("renders blue badge when usedPct below 80 and not over budget", async () => {
-    const { container } = render(
-      <GateStatus
-        stats={{
-          ...baseStats,
-          priorityBudgetSummary: budget({ usedPct: 11, overBudgetToday: false }),
-        }}
-      />,
-    );
+describe("GateStatus penalty badge", () => {
+  it("renders healthy badge when priorityBudgetSummary is null", async () => {
+    const { container } = render(<GateStatus stats={baseStats} />);
     await flushEffects();
-    expect(container).toHaveTextContent("frontier 11%");
     const badges = container.querySelectorAll("[data-slot='badge']");
     const badgeTexts = Array.from(badges).map((b) => b.textContent?.trim() ?? "");
-    expect(badgeTexts).toContain("frontier 11%");
-    const budgetBadge = Array.from(badges).find((b) => b.textContent?.trim() === "frontier 11%");
-    expect(budgetBadge?.className).toContain("bg-blue");
+    expect(badgeTexts).toContain("healthy");
+    expect(badgeTexts.some((t) => t.includes("frontier"))).toBe(false);
   });
 
-  it("renders amber badge when usedPct at 85 and not over budget", async () => {
+  it("falls back to priorityBudgetSummary when usageSnapshot is null", async () => {
     const { container } = render(
       <GateStatus
         stats={{
@@ -175,35 +168,7 @@ describe("GateStatus merged gate health badge", () => {
       />,
     );
     await flushEffects();
-    expect(container).toHaveTextContent("frontier 85%");
-    const badges = container.querySelectorAll("[data-slot='badge']");
-    const budgetBadge = Array.from(badges).find((b) => b.textContent?.trim() === "frontier 85%");
-    expect(budgetBadge?.className).toContain("bg-amber");
-  });
-
-  it("renders red badge when overBudgetToday is true", async () => {
-    const { container } = render(
-      <GateStatus
-        stats={{
-          ...baseStats,
-          priorityBudgetSummary: budget({ usedPct: 50, overBudgetToday: true }),
-        }}
-      />,
-    );
-    await flushEffects();
-    expect(container).toHaveTextContent("frontier 50%");
-    const badges = container.querySelectorAll("[data-slot='badge']");
-    const budgetBadge = Array.from(badges).find((b) => b.textContent?.trim() === "frontier 50%");
-    expect(budgetBadge?.className).toContain("text-destructive");
-  });
-
-  it("shows high badge when priorityBudgetSummary is null", async () => {
-    const { container } = render(<GateStatus stats={baseStats} />);
-    await flushEffects();
-    const badges = container.querySelectorAll("[data-slot='badge']");
-    const badgeTexts = Array.from(badges).map((b) => b.textContent?.trim() ?? "");
-    expect(badgeTexts).toContain("high");
-    expect(badgeTexts.some((t) => t.includes("frontier"))).toBe(false);
+    expect(container).toHaveTextContent("Frontier models 85%");
   });
 
   it("hides budget segment when usage is stale", async () => {
@@ -221,6 +186,43 @@ describe("GateStatus merged gate health badge", () => {
     const badges = container.querySelectorAll("[data-slot='badge']");
     const badgeTexts = Array.from(badges).map((b) => b.textContent?.trim() ?? "");
     expect(badgeTexts.some((t) => t.includes("frontier"))).toBe(false);
+    expect(badgeTexts).toContain("healthy");
+  });
+
+  it("renders amber badge when usedPct at 85 and not over budget", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          priorityBudgetSummary: budget({ usedPct: 85, overBudgetToday: false }),
+        }}
+      />,
+    );
+    await flushEffects();
+    expect(container).toHaveTextContent("Frontier models 85%");
+    const badges = container.querySelectorAll("[data-slot='badge']");
+    const budgetBadge = Array.from(badges).find((b) =>
+      b.textContent?.trim().includes("Frontier models 85%"),
+    );
+    expect(budgetBadge?.className).toContain("bg-amber-500");
+  });
+
+  it("renders red badge when overBudgetToday is true", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          priorityBudgetSummary: budget({ usedPct: 50, overBudgetToday: true }),
+        }}
+      />,
+    );
+    await flushEffects();
+    expect(container).toHaveTextContent("Frontier models 50%");
+    const badges = container.querySelectorAll("[data-slot='badge']");
+    const budgetBadge = Array.from(badges).find((b) =>
+      b.textContent?.trim().includes("Frontier models 50%"),
+    );
+    expect(budgetBadge?.className).toContain("text-destructive");
   });
 
   it("tooltip includes models, mode, and reset time when budget is present", async () => {
@@ -232,6 +234,7 @@ describe("GateStatus merged gate health badge", () => {
             models: ["umans-glm-5.2", "umans-o3"],
             mode: "standard",
             resetsAt: 1893456000000,
+            usedPct: 85,
           }),
         }}
       />,
@@ -249,7 +252,7 @@ describe("GateStatus merged gate health badge", () => {
       <GateStatus
         stats={{
           ...baseStats,
-          priorityBudgetSummary: budget({ resetsAt: null }),
+          priorityBudgetSummary: budget({ resetsAt: null, usedPct: 85 }),
         }}
       />,
     );
@@ -259,24 +262,28 @@ describe("GateStatus merged gate health badge", () => {
   });
 });
 
-describe("GateStatus merged badge label composition", () => {
-  it("shows 'interactive · frontier 49%' when service mode interactive + budget 49%", async () => {
+describe("GateStatus penalty badge label composition", () => {
+  it("shows admission label only when service mode interactive + budget below 80%", async () => {
     const { container } = render(
       <GateStatus
         stats={{
           ...baseStats,
           serviceMode: { current: "interactive", resetsAt: null },
-          priorityBudgetSummary: budget({ usedPct: 49, overBudgetToday: false }),
+          priorityBudgetSummary: budget({
+            usedPct: 49,
+            overBudgetToday: false,
+            mode: "interactive",
+          }),
         }}
       />,
     );
     await flushEffects();
     const badges = container.querySelectorAll("[data-slot='badge']");
     const badgeTexts = Array.from(badges).map((b) => b.textContent?.trim() ?? "");
-    expect(badgeTexts).toContain("interactive · frontier 49%");
+    expect(badgeTexts).toContain("interactive");
   });
 
-  it("shows 'frontier 87% · interactive' when service mode interactive + budget 87%", async () => {
+  it("shows offending budget only when budget >= 80%", async () => {
     const { container } = render(
       <GateStatus
         stats={{
@@ -289,10 +296,10 @@ describe("GateStatus merged badge label composition", () => {
     await flushEffects();
     const badges = container.querySelectorAll("[data-slot='badge']");
     const badgeTexts = Array.from(badges).map((b) => b.textContent?.trim() ?? "");
-    expect(badgeTexts).toContain("frontier 87% · interactive");
+    expect(badgeTexts).toContain("Frontier models 87%");
   });
 
-  it("shows 'boxed · frontier 49%' when boxed + budget", async () => {
+  it("shows boxed label when boxed", async () => {
     const { container } = render(
       <GateStatus
         stats={{
@@ -307,10 +314,10 @@ describe("GateStatus merged badge label composition", () => {
     await flushEffects();
     const badges = container.querySelectorAll("[data-slot='badge']");
     const badgeTexts = Array.from(badges).map((b) => b.textContent?.trim() ?? "");
-    expect(badgeTexts).toContain("boxed · frontier 49%");
+    expect(badgeTexts.some((t) => t.startsWith("boxed"))).toBe(true);
   });
 
-  it("shows worst-tier amber when interactive + budget >= 80%", async () => {
+  it("shows amber tier when interactive + budget >= 80%", async () => {
     const { container } = render(
       <GateStatus
         stats={{
@@ -322,16 +329,13 @@ describe("GateStatus merged badge label composition", () => {
     );
     await flushEffects();
     const badges = container.querySelectorAll("[data-slot='badge']");
-    const badgeTexts = Array.from(badges).map((b) => b.textContent?.trim() ?? "");
-    expect(badgeTexts).toContain("frontier 85% · interactive");
-    const mergedBadge = Array.from(badges).find(
-      (b) => b.textContent?.trim() === "frontier 85% · interactive",
+    const mergedBadge = Array.from(badges).find((b) =>
+      b.textContent?.trim().includes("Frontier models 85%"),
     );
-    expect(mergedBadge?.className).toContain("bg-amber");
-    expect(mergedBadge?.className).not.toContain("bg-blue");
+    expect(mergedBadge?.className).toContain("bg-amber-500");
   });
 
-  it("shows worst-tier red (destructive) when boxed + budget", async () => {
+  it("shows red tier (destructive) when boxed + budget", async () => {
     const { container } = render(
       <GateStatus
         stats={{
@@ -345,15 +349,13 @@ describe("GateStatus merged badge label composition", () => {
     );
     await flushEffects();
     const badges = container.querySelectorAll("[data-slot='badge']");
-    const mergedBadge = Array.from(badges).find(
-      (b) => b.textContent?.trim() === "boxed · frontier 49%",
-    );
+    const mergedBadge = Array.from(badges).find((b) => b.textContent?.trim().startsWith("boxed"));
     expect(mergedBadge?.className).toContain("text-destructive");
   });
 });
 
-describe("GateStatus merged badge tooltip sections", () => {
-  it("shows 'All systems nominal' when high and no budget", async () => {
+describe("GateStatus penalty badge tooltip sections", () => {
+  it("shows 'All systems nominal' when healthy and no budget", async () => {
     const { container } = render(<GateStatus stats={baseStats} />);
     await flushEffects();
     expect(container).toHaveTextContent("All systems nominal");
@@ -369,8 +371,7 @@ describe("GateStatus merged badge tooltip sections", () => {
       />,
     );
     await flushEffects();
-    expect(container).not.toHaveTextContent("priority high");
-    expect(container).not.toHaveTextContent("All systems nominal");
+    expect(container).not.toHaveTextContent("service mode:");
   });
 
   it("omits budget section when no budget data", async () => {
@@ -384,8 +385,6 @@ describe("GateStatus merged badge tooltip sections", () => {
     );
     await flushEffects();
     expect(container).not.toHaveTextContent("Frontier models");
-    expect(container).not.toHaveTextContent("used");
-    expect(container).not.toHaveTextContent("% used");
   });
 
   it("badge is always present when stats is non-null", async () => {
@@ -393,7 +392,7 @@ describe("GateStatus merged badge tooltip sections", () => {
     await flushEffects();
     const badges = container.querySelectorAll("[data-slot='badge']");
     const badgeTexts = Array.from(badges).map((b) => b.textContent?.trim() ?? "");
-    expect(badgeTexts).toContain("high");
+    expect(badgeTexts).toContain("healthy");
   });
 
   it("shows both admission detail and budget detail in tooltip when both present", async () => {
@@ -402,15 +401,13 @@ describe("GateStatus merged badge tooltip sections", () => {
         stats={{
           ...baseStats,
           serviceMode: { current: "interactive", resetsAt: null },
-          priorityBudgetSummary: budget({ usedPct: 49, overBudgetToday: false }),
+          priorityBudgetSummary: budget({ usedPct: 85, overBudgetToday: false }),
         }}
       />,
     );
     await flushEffects();
     expect(container).toHaveTextContent("service mode: interactive");
     expect(container).toHaveTextContent("Frontier models");
-    const hr = container.querySelector("hr");
-    expect(hr).not.toBeNull();
   });
 
   it("shows boxedReason and boxedUntil in tooltip when boxed", async () => {
@@ -425,7 +422,7 @@ describe("GateStatus merged badge tooltip sections", () => {
       />,
     );
     await flushEffects();
-    expect(container).toHaveTextContent("reason: rate_limit_exceeded");
+    expect(container).toHaveTextContent("boxed: rate_limit_exceeded");
     expect(container).toHaveTextContent("boxed until");
   });
 
@@ -441,5 +438,134 @@ describe("GateStatus merged badge tooltip sections", () => {
     );
     await flushEffects();
     expect(container).toHaveTextContent("demoted until");
+  });
+
+  it("shows Account-wide tooltip when boxed with no offending budgets", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          boxed: true,
+          boxedReason: "rate_limit_exceeded",
+          boxedUntil: 1893456000000,
+        }}
+      />,
+    );
+    await flushEffects();
+    expect(container).toHaveTextContent("Account-wide — all models");
+  });
+});
+
+function makeBudgetEntry(overrides: Partial<PriorityBudgetEntry> = {}): PriorityBudgetEntry {
+  return {
+    category: "frontier",
+    label: "Frontier models",
+    models: ["umans-glm-5.2", "umans-o3"],
+    usedPct: 50,
+    overBudgetToday: false,
+    mode: "interactive",
+    resetsAt: null,
+    ...overrides,
+  };
+}
+
+function snapshotWith(entries: PriorityBudgetEntry[]): UsageSnapshot {
+  return {
+    ok: true,
+    fetchedAt: Date.now(),
+    userId: null,
+    plan: "Code Pro",
+    planSlug: "code-pro",
+    requestsLimit: null,
+    requestsHardCap: null,
+    requestsWindowSeconds: null,
+    concurrencySoftLimit: 8,
+    concurrencyHardCap: 16,
+    requestsInWindow: 0,
+    weightedRequestsInWindow: 0,
+    requestsRemaining: null,
+    weightedRemainingRequests: null,
+    concurrentSessions: 0,
+    weightedConcurrentSessions: 0,
+    tokensIn: 0,
+    tokensOut: 0,
+    tokensCached: 0,
+    windowStartedAt: null,
+    windowResetsAt: null,
+    windowRemainingMinutes: null,
+    priorityLow: false,
+    boxedUntil: null,
+    boxedReason: null,
+    unitsDemoted: false,
+    demotedUntil: null,
+    serviceMode: { current: "normal", resetsAt: null },
+    priorityBudget: entries,
+  };
+}
+
+describe("GateStatus multi-budget usageSnapshot prop", () => {
+  it("renders both offending categories from usageSnapshot, not just priorityBudgetSummary", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          priorityBudgetSummary: budget({ usedPct: 11 }),
+        }}
+        usageSnapshot={snapshotWith([
+          makeBudgetEntry({ label: "Frontier models", usedPct: 95 }),
+          makeBudgetEntry({
+            category: "kimi",
+            label: "Kimi models",
+            usedPct: 88,
+            models: ["umans-kimi-k3"],
+          }),
+        ])}
+      />,
+    );
+    await flushEffects();
+    expect(container).toHaveTextContent("Frontier models 95%");
+    expect(container).toHaveTextContent("Kimi models 88%");
+  });
+
+  it("uses usageSnapshot priorityBudget over priorityBudgetSummary when both present", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          priorityBudgetSummary: budget({ usedPct: 11, label: "WS summary label" }),
+        }}
+        usageSnapshot={snapshotWith([makeBudgetEntry({ label: "Poll Frontier", usedPct: 85 })])}
+      />,
+    );
+    await flushEffects();
+    expect(container).toHaveTextContent("Poll Frontier 85%");
+    expect(container).not.toHaveTextContent("WS summary label");
+  });
+
+  it("falls back to priorityBudgetSummary when usageSnapshot is null", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          priorityBudgetSummary: budget({ usedPct: 85 }),
+        }}
+        usageSnapshot={null}
+      />,
+    );
+    await flushEffects();
+    expect(container).toHaveTextContent("Frontier models 85%");
+  });
+
+  it("renders healthy when usageSnapshot has only healthy budgets", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={baseStats}
+        usageSnapshot={snapshotWith([makeBudgetEntry({ usedPct: 30, mode: "interactive" })])}
+      />,
+    );
+    await flushEffects();
+    const badges = container.querySelectorAll("[data-slot='badge']");
+    const badgeTexts = Array.from(badges).map((b) => b.textContent?.trim() ?? "");
+    expect(badgeTexts).toContain("healthy");
   });
 });

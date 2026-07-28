@@ -20,6 +20,7 @@ import { WsStatusBadge } from "@/components/ws-status-badge";
 import { useCaptures } from "@/hooks/use-captures";
 import { useClipboard } from "@/hooks/use-clipboard";
 import { ConfigProvider } from "@/hooks/use-config-context";
+import { useUsage } from "@/hooks/use-usage";
 
 const ConfigTab = lazy(() =>
   import("@/components/config-tab").then((m) => ({ default: m.ConfigTab })),
@@ -88,6 +89,8 @@ export function App() {
     retryList,
     retryDetail,
   } = useCaptures();
+
+  const { data: usageSnapshot } = useUsage();
 
   const { copyText } = useClipboard();
   const [copyStatus, setCopyStatus] = useState("Copy");
@@ -206,6 +209,7 @@ export function App() {
                         selectedId={selectedId}
                         wsState={wsState}
                         gateStats={gateStats}
+                        usageSnapshot={usageSnapshot}
                         listError={listError}
                         isLoading={isLoadingList}
                         onSelect={selectCapture}
@@ -257,7 +261,7 @@ export function App() {
                 </TabsContent>
                 <TabsContent value="usage" className="min-h-0 flex-1 overflow-hidden" keepMounted>
                   <Suspense fallback={<TabPanelFallback />}>
-                    <UsageTab />
+                    <UsageTab usageSnapshot={usageSnapshot} />
                   </Suspense>
                 </TabsContent>
                 <TabsContent
