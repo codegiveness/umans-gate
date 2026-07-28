@@ -231,7 +231,10 @@ function VisionCallCard({ record }: { record: VisionCallRecord }) {
         )}
 
         {record.description && (
-          <ScrollArea className={cn("max-h-40 rounded", isOk ? "bg-muted" : "bg-muted/50")}>
+          <ScrollArea
+            className={cn("rounded", isOk ? "bg-muted" : "bg-muted/50")}
+            viewportClassName="max-h-40"
+          >
             <div className="text-sm px-2 py-1 break-words whitespace-pre-wrap">
               {record.description}
             </div>
