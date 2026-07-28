@@ -13,8 +13,6 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
     globals: true,
-    testTimeout: 20_000,
-    fileParallelism: false,
-    maxWorkers: 1,
+    testTimeout: 10_000,
   },
 });

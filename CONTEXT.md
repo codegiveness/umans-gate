@@ -369,6 +369,32 @@ client-side re-poll (GET). Distinct from model polling (the periodic
 background fetch on `models_refresh_ms` interval). _Avoid_: model
 reload, model update.
 
+## Testing
+
+**Unit test**: a test of a pure function with no I/O — no network, no
+filesystem, no timers. Calls the function directly, asserts on the return
+value or mutated argument. Runs in <1ms. Lives in `test/unit/`. _Avoid_:
+pure test, logic test.
+
+**Integration test**: a test that exercises real HTTP through an in-process
+proxy server (`createProxyServer()` on port 0) against a mock upstream. No
+OS subprocess. The proxy and upstream share the test process; `fetch()`
+travels over real TCP to `127.0.0.1`. Lives in `test/integration/`.
+_Avoid_: in-process test, HTTP test.
+
+**E2E test**: a test that spawns the real CLI as an OS subprocess
+(`spawn(["bun", "src/cli.ts"])`) and exercises it end-to-end. Reserved for
+security boundaries (real Origin header across TCP), service lifecycle
+(install/start/stop), and the dashboard-build guard. Lives in `test/e2e/.
+_Avoid_: subprocess test, CLI test.
+
+**In-process proxy**: a test harness (`startInProcessProxy()`) that wraps
+`createProxyServer()` on port 0 with a mock upstream, returning a shape
+drop-in compatible with the legacy `startProxy()` handle (`{ port,
+baseUrl, kill() }`). Also exposes `db`, `ws`, `gate` for state assertions.
+Distinct from `startProxy()` (which spawns a real OS subprocess).
+_Avoid_: test server, mock proxy.
+
 ## Dashboard navigation
 
 **Config sub-tab**: a secondary tab strip rendered inside the Config

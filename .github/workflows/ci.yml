@@ -59,10 +59,29 @@ jobs:
   # Tests run on Ubuntu only — they spawn local servers and use
   # timing-dependent integration patterns that are unreliable on
   # macOS/Windows CI runners.
-  test:
-    name: Tests
+  # Split into 4 parallel jobs per ADR-0028 (three-layer test pyramid).
+  test-unit:
+    name: Tests — Unit
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Test
+        run: bun test test/unit --timeout 30000
+
+  test-integration:
+    name: Tests — Integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
         with:
@@ -81,7 +100,49 @@ jobs:
         run: bun run build:dashboard && bun run build:embed-assets
 
       - name: Test
-        run: bun test --timeout 30000
+        run: bun test test/integration --timeout 30000
 
-      - name: Test dashboard
+  test-e2e:
+    name: Tests — E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install dashboard dependencies
+        run: cd dashboard && bun install --frozen-lockfile
+
+      - name: Build dashboard assets
+        run: bun run build:dashboard && bun run build:embed-assets
+
+      - name: Test
+        run: bun test test/e2e --timeout 30000
+
+  test-dashboard:
+    name: Tests — Dashboard
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install dashboard dependencies
+        run: cd dashboard && bun install --frozen-lockfile
+
+      - name: Test
         run: bun run test:dashboard
