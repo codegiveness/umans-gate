@@ -107,16 +107,16 @@ export interface RawConfig {
   experiment_ttft_watchdog?: boolean;
   /** Watchdog threshold in ms. If no first byte arrives within this window, the fetch is aborted. Default 60000 (60s). */
   ttft_timeout_ms?: number;
-  /** Cap on total upstream attempts. 2 = original + 1 same-key retry. 3 = original + 1 same-key retry + 1 rewrite-id escalation (when eligible). Default 2. */
+  /** Cap on total upstream attempts. 2 = original + 1 same-key retry. 3 = original + 1 same-key retry + 1 rewrite-id escalation (when eligible). Default 3. */
   ttft_retry_max_attempts?: number;
   /** Suppress retry when gate active count >= this percentage of the soft limit. Default 80. */
   ttft_retry_gate_saturation_pct?: number;
-  /** Window in ms for counting consecutive retry-also-failed events before auto-disable. Default 300000 (5 min). */
-  ttft_retry_failure_window_ms?: number;
-  /** Consecutive retry-also-failed events within the window that trigger auto-disable. Default 3. */
-  ttft_retry_failure_threshold?: number;
-  /** Cooldown between retries in ms. Default 30000 (30s). */
+  /** Cooldown between retries in ms. Default 5000 (5s). */
   ttft_retry_cooldown_ms?: number;
+  /** Multiplier applied to p50 TTFT to compute the dynamic watchdog threshold. Default 5. Hot-reloadable. */
+  ttft_watchdog_multiplier?: number;
+  /** Hard cap in ms for the dynamic watchdog threshold. Default 300000 (5 min). Hot-reloadable. */
+  ttft_watchdog_hard_cap_ms?: number;
   /** Number of latest captures per model used for performance percentile computation. Decoupled from max_captures. Hot-reloadable. Default 200. */
   performance_sample_count?: number;
   /** Days to retain incident rows. Default 30. Minimum 1. Hot-reloadable. */

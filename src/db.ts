@@ -54,6 +54,8 @@ export interface UpdateParams {
   $model?: string | null;
   $retry_attempt?: number | null;
   $ttft_exceeded?: number | null;
+  $upstream_ttft_p50_ms?: number | null;
+  $upstream_tps_p50?: number | null;
 }
 
 interface VisionInsertParams {
@@ -229,6 +231,10 @@ export function migrateCaptureSchema(db: Database): void {
   // and whether the watchdog fired on any attempt.
   addColumnIfMissing(db, "retry_attempt", "INTEGER");
   addColumnIfMissing(db, "ttft_exceeded", "INTEGER");
+  // Upstream p50 TTFT and TPS for the dynamic-threshold watchdog (ticket 02).
+  // Nullable: populated by ticket 03; null until status data is fetched.
+  addColumnIfMissing(db, "upstream_ttft_p50_ms", "INTEGER");
+  addColumnIfMissing(db, "upstream_tps_p50", "REAL");
 
   // Token-usage columns: split DDL on ';', strip SQL comments, exec each individually so
   // SQLite doesn't halt on the first "duplicate column" error when an existing DB is reopened.
@@ -394,6 +400,7 @@ export class CaptureDB {
   private stmtCount: ReturnType<Database["prepare"]>;
   private stmtSetState: ReturnType<Database["prepare"]>;
   private stmtUpdateRequestBody: ReturnType<Database["prepare"]>;
+  private stmtUpdateP50: ReturnType<Database["prepare"]>;
   private stmtPerformanceStats: ReturnType<Database["prepare"]>;
   private stmtInsertVision: ReturnType<Database["prepare"]>;
   private stmtUpdateVision: ReturnType<Database["prepare"]>;
@@ -458,7 +465,9 @@ export class CaptureDB {
         usage_missing          = $usage_missing,
         metrics_extracted_at   = $metrics_extracted_at,
         retry_attempt          = $retry_attempt,
-        ttft_exceeded          = $ttft_exceeded
+        ttft_exceeded          = $ttft_exceeded,
+        upstream_ttft_p50_ms   = COALESCE($upstream_ttft_p50_ms, upstream_ttft_p50_ms),
+        upstream_tps_p50       = COALESCE($upstream_tps_p50, upstream_tps_p50)
       WHERE id = $id
     `);
     this.stmtDeleteOld = this.db.prepare(
@@ -474,13 +483,17 @@ export class CaptureDB {
               ttft_ms, tps, input_tokens, output_tokens,
               cache_creation_tokens, cache_read_tokens,
               total_input_tokens, total_output_tokens, is_vision,
-              status_source, gate_reason, retry_attempt, ttft_exceeded
+              status_source, gate_reason, retry_attempt, ttft_exceeded,
+              upstream_ttft_p50_ms, upstream_tps_p50
        FROM captures ORDER BY id DESC LIMIT ?`,
     );
     this.stmtCount = this.db.prepare("SELECT COUNT(*) AS c FROM captures");
     this.stmtSetState = this.db.prepare("UPDATE captures SET state = $state WHERE id = $id");
     this.stmtUpdateRequestBody = this.db.prepare(
       "UPDATE captures SET request_body = $rb, request_size = $rs WHERE id = $id",
+    );
+    this.stmtUpdateP50 = this.db.prepare(
+      "UPDATE captures SET upstream_ttft_p50_ms = $ttft, upstream_tps_p50 = $tps WHERE id = $id",
     );
     this.stmtPerformanceStats = this.db.prepare(PERFORMANCE_STATS_SQL);
     this.stmtInsertVision = this.db.prepare(
@@ -622,6 +635,11 @@ export class CaptureDB {
     this.stmtUpdateRequestBody.run({ $rb: compressedBody, $rs: size, $id: id });
   }
 
+  /** Update only the upstream p50 TTFT/TPS columns for a capture row. */
+  updateUpstreamP50(id: number, ttftP50: number | null, tpsP50: number | null): void {
+    this.stmtUpdateP50.run({ $ttft: ttftP50, $tps: tpsP50, $id: id });
+  }
+
   /** Batch-update multiple captures in a single transaction. */
   async batchUpdate(items: Array<{ id: number; res: Omit<UpdateParams, "$id"> }>): Promise<void> {
     this.db.transaction(() => {
@@ -632,6 +650,8 @@ export class CaptureDB {
           $rb: compressText(it.res.$rb, this.compressionEnabled),
           ...flattenUsage(it.res.$usage),
           $model: it.res.$model ?? null,
+          $upstream_ttft_p50_ms: it.res.$upstream_ttft_p50_ms ?? null,
+          $upstream_tps_p50: it.res.$upstream_tps_p50 ?? null,
           $id: it.id,
         } as unknown as never);
       }

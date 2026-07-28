@@ -102,12 +102,12 @@ export interface ExperimentRawConfig {
   ttft_retry_max_attempts?: number;
   /** Suppress retry when gate active >= this percentage of soft limit. Hot-reloadable. */
   ttft_retry_gate_saturation_pct?: number;
-  /** Window in ms for counting consecutive retry failures before auto-disable. Hot-reloadable. */
-  ttft_retry_failure_window_ms?: number;
-  /** Consecutive retry failures within window that trigger auto-disable. Hot-reloadable. */
-  ttft_retry_failure_threshold?: number;
   /** Cooldown between retries in ms. Hot-reloadable. */
   ttft_retry_cooldown_ms?: number;
+  /** Multiplier applied to p50 TTFT to compute the dynamic watchdog threshold. Default 5. Hot-reloadable. */
+  ttft_watchdog_multiplier?: number;
+  /** Hard cap in ms for the dynamic watchdog threshold. Default 300000 (5 min). Hot-reloadable. */
+  ttft_watchdog_hard_cap_ms?: number;
 }
 
 export interface IncidentRawConfig {

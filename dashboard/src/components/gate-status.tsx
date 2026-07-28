@@ -1,4 +1,4 @@
-import { AlertTriangle, ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
+import { ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
 import { PenaltyBadge } from "@/components/penalty-badge";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -101,20 +101,6 @@ export function GateStatus({
               {BREAKER_DESC[stats.breaker] ?? stats.breaker}
             </TooltipContent>
           </Tooltip>
-          {stats.watchdog_disabled && (
-            <Tooltip>
-              <TooltipTrigger render={<span className="inline-flex" />}>
-                <Badge variant="secondary" className={badgeWarning}>
-                  <AlertTriangle aria-hidden className="h-3 w-3" />
-                  watchdog off
-                </Badge>
-              </TooltipTrigger>
-              <TooltipContent side="bottom" className="max-w-[280px]">
-                TTFT watchdog auto-disabled after {stats.watchdog_consecutive_failures} consecutive
-                retry failures. Upstream stalls will no longer be retried.
-              </TooltipContent>
-            </Tooltip>
-          )}
           {!stats.usageOk && (
             <Tooltip>
               <TooltipTrigger render={<span className="inline-flex" />}>

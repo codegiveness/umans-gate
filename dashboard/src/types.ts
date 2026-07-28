@@ -56,10 +56,14 @@ export interface CaptureSummary {
   gate_reason: string | null;
   retry_attempt: number | null;
   ttft_exceeded: number | null;
+  upstream_ttft_p50_ms: number | null;
+  upstream_tps_p50: number | null;
   /** Transient (WS-only) — retry attempt ordinal during in-flight retry. Cleared on refresh. */
   retryAttempt?: number;
   /** Transient (WS-only) — epoch ms when cooldown ends. Cleared on refresh. */
   cooldownEndsAt?: number;
+  /** Transient (WS-only) — current retry threshold in ms (from cooling_down WS message). */
+  threshold?: number | null;
 }
 
 export interface PerformanceStatsRow {
@@ -197,6 +201,7 @@ export type WsMessage =
       state: CaptureState;
       retryAttempt?: number;
       cooldownEndsAt?: number;
+      threshold?: number | null;
     }
   | { type: "gate"; stats: GateStats }
   | { type: "clear" }

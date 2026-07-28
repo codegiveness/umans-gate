@@ -16,13 +16,19 @@ type Enrichable = { id: number; state: CaptureState };
 export interface InFlightCooldown {
   retryAttempt: number;
   cooldownEndsAt: number;
+  threshold: number | null;
 }
 
 export class InFlightCooldowns {
   private readonly map = new Map<number, InFlightCooldown>();
 
-  start(id: number, retryAttempt: number, cooldownEndsAt: number): void {
-    this.map.set(id, { retryAttempt, cooldownEndsAt });
+  start(
+    id: number,
+    retryAttempt: number,
+    cooldownEndsAt: number,
+    threshold: number | null = null,
+  ): void {
+    this.map.set(id, { retryAttempt, cooldownEndsAt, threshold });
   }
 
   clear(id: number): void {
@@ -32,8 +38,9 @@ export class InFlightCooldowns {
   /**
    * Enrich capture summaries with live cooldown state. A summary whose DB
    * `state` is `streaming` but has an active cooldown entry is rewritten to
-   * `cooling_down` with the transient `cooldownEndsAt` and `retryAttempt`
-   * fields populated. Entries whose cooldown has expired are pruned.
+   * `cooling_down` with the transient `cooldownEndsAt`, `retryAttempt`, and
+   * `threshold` fields populated. Entries whose cooldown has expired are
+   * pruned.
    */
   enrich<T extends Enrichable>(summaries: T[]): T[] {
     if (this.map.size === 0) return summaries;
@@ -53,6 +60,7 @@ export class InFlightCooldowns {
         state: "cooling_down" as const,
         cooldownEndsAt: cd.cooldownEndsAt,
         retryAttempt: cd.retryAttempt,
+        threshold: cd.threshold,
       };
     });
     return mutated ? result : summaries;

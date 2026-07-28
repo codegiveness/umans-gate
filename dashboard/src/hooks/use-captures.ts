@@ -66,7 +66,7 @@ export function useCaptures(): UseCapturesResult {
     onVisionClear: () => {
       setCaptures((prev) => prev.filter((c) => !c.is_vision));
     },
-    onCaptureState: (captureId, state, retryAttempt, cooldownEndsAt) => {
+    onCaptureState: (captureId, state, retryAttempt, cooldownEndsAt, threshold) => {
       setCaptures((prev) => {
         const i = prev.findIndex((c) => c.id === captureId);
         if (i < 0) return prev;
@@ -79,6 +79,10 @@ export function useCaptures(): UseCapturesResult {
           // omits cooldownEndsAt, so the old value would otherwise persist).
           retryAttempt,
           cooldownEndsAt: state === "cooling_down" ? cooldownEndsAt : undefined,
+          // Persist threshold through cooldown→streaming-retry. The streaming
+          // retry WS message omits threshold; clearing it here would lose the
+          // value the badge needs during the watching phase.
+          threshold: state === "cooling_down" ? threshold : next[i].threshold,
         };
         return next;
       });

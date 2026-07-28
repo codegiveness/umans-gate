@@ -29,7 +29,6 @@ import {
   getPricingTable,
 } from "./economics.js";
 import { EMBEDDED_ASSET_PATHS } from "./embedded-assets.js";
-import type { TtftWatchdogState } from "./experiments/ttft-watchdog-state.js";
 import { summary } from "./helpers.js";
 import type { InFlightCooldowns } from "./in-flight-cooldowns.js";
 import type { ConcurrencyGate } from "./limiter/index.js";
@@ -105,7 +104,6 @@ export interface CreateViewerRouterOptions {
   vision: VisionHandoff | null;
   models: ModelsClient | null;
   authFailureLimiter?: AuthFailureLimiter;
-  ttftState: TtftWatchdogState;
   inFlightCooldowns: InFlightCooldowns;
   reloadConfig?: () => ReloadResult;
   refreshLimits?: () => Promise<
@@ -220,7 +218,6 @@ interface ViewerRouteContext {
   usageHistory: UsageHistoryStore | null;
   vision: VisionHandoff | null;
   models: ModelsClient | null;
-  ttftState: TtftWatchdogState;
   inFlightCooldowns: InFlightCooldowns;
   reloadConfig: (() => ReloadResult) | null;
   refreshLimits:
@@ -261,7 +258,6 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
     vision,
     models,
     authFailureLimiter,
-    ttftState,
     inFlightCooldowns,
     reloadConfig,
     refreshLimits,
@@ -309,12 +305,8 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
       handler: (ctx) => {
         const snap = ctx.usage.getSnapshot();
         const stats = ctx.gate.getStats(snap);
-        const wd = ctx.ttftState.getStats();
         return Response.json({
           ...stats,
-          watchdog_disabled: wd.disabled,
-          watchdog_consecutive_failures: wd.consecutiveFailures,
-          watchdog_failure_window_started_at: wd.windowStartedAt,
           priorityBudgetSummary: selectMostUrgentBudget(snap.priorityBudget),
         });
       },
@@ -750,7 +742,6 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
       usageHistory,
       vision,
       models,
-      ttftState,
       inFlightCooldowns,
       reloadConfig: reloadConfig ?? null,
       refreshLimits: refreshLimits ?? null,

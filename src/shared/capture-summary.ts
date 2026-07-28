@@ -40,6 +40,8 @@ export function summary(row: CaptureRow): CaptureSummary {
     gate_reason: row.gate_reason ?? null,
     retry_attempt: row.retry_attempt ?? null,
     ttft_exceeded: row.ttft_exceeded ?? null,
+    upstream_ttft_p50_ms: row.upstream_ttft_p50_ms ?? null,
+    upstream_tps_p50: row.upstream_tps_p50 ?? null,
   };
 }
 
@@ -80,6 +82,8 @@ export function newSummary(
     gate_reason: null,
     retry_attempt: null,
     ttft_exceeded: null,
+    upstream_ttft_p50_ms: null,
+    upstream_tps_p50: null,
   };
 }
 
@@ -120,5 +124,7 @@ export function buildSummary(
     gate_reason: res.$gate_reason,
     retry_attempt: res.$retry_attempt ?? null,
     ttft_exceeded: res.$ttft_exceeded ?? null,
+    upstream_ttft_p50_ms: res.$upstream_ttft_p50_ms ?? null,
+    upstream_tps_p50: res.$upstream_tps_p50 ?? null,
   };
 }

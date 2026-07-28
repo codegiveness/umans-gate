@@ -231,21 +231,21 @@ const RELOAD_FIELDS: Array<{
     },
   },
   {
-    rawKey: "ttft_retry_failure_window_ms",
-    apply: (live, fresh) => {
-      live.ttftRetryFailureWindowMs = fresh.ttftRetryFailureWindowMs;
-    },
-  },
-  {
-    rawKey: "ttft_retry_failure_threshold",
-    apply: (live, fresh) => {
-      live.ttftRetryFailureThreshold = fresh.ttftRetryFailureThreshold;
-    },
-  },
-  {
     rawKey: "ttft_retry_cooldown_ms",
     apply: (live, fresh) => {
       live.ttftRetryCooldownMs = fresh.ttftRetryCooldownMs;
+    },
+  },
+  {
+    rawKey: "ttft_watchdog_multiplier",
+    apply: (live, fresh) => {
+      live.ttftWatchdogMultiplier = fresh.ttftWatchdogMultiplier;
+    },
+  },
+  {
+    rawKey: "ttft_watchdog_hard_cap_ms",
+    apply: (live, fresh) => {
+      live.ttftWatchdogHardCapMs = fresh.ttftWatchdogHardCapMs;
     },
   },
   {

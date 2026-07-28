@@ -705,3 +705,47 @@ test("sweepIncidents deletes out-of-window incidents and keeps in-window ones", 
 
   db.close();
 });
+
+test("updateUpstreamP50 survives subsequent updateCapture (COALESCE guard)", () => {
+  const db = new CaptureDB({
+    dbPath,
+    maxCaptures: 100,
+    compressionEnabled: false,
+  } as { dbPath: string; maxCaptures: number; compressionEnabled: boolean });
+  const id = db.startCapture({
+    $method: "POST",
+    $path: "/v1/messages",
+    $url: "http://up",
+    $rh: "[]",
+    $rb: "{}",
+    $rs: 2,
+    $st: Date.now(),
+    $state: "enqueued",
+    $inp: "http1.1",
+    $outp: "http1.1",
+  });
+
+  db.updateUpstreamP50(id, 2500, 42.5);
+
+  db.updateCapture({
+    $id: id,
+    $status: 200,
+    $rh: "[]",
+    $rb: "hello",
+    $rs: 5,
+    $ct: "text/event-stream",
+    $sse: 1,
+    $dur: 1000,
+    $fin: Date.now(),
+    $status_source: "upstream",
+    $gate_reason: null,
+    $retry_attempt: 0,
+    $ttft_exceeded: 0,
+  });
+
+  const row = db.get(id);
+  expect(row?.upstream_ttft_p50_ms).toBe(2500);
+  expect(row?.upstream_tps_p50).toBe(42.5);
+
+  db.close();
+});

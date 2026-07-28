@@ -17,7 +17,6 @@ import {
 import { CaptureDB } from "./db.js";
 import { syncPricing } from "./economics.js";
 import { RewriteIdExperiment } from "./experiments/rewrite-ids.js";
-import { TtftWatchdogState } from "./experiments/ttft-watchdog-state.js";
 import { computeRequestWeight } from "./helpers.js";
 import { InFlightCooldowns } from "./in-flight-cooldowns.js";
 import { ConcurrencyGate, GATE_RECONFIG_FIELDS, gateOptionsFromConfig } from "./limiter/index.js";
@@ -28,6 +27,7 @@ import { createProxyHandler, type RateLimiterRef } from "./proxy.js";
 import type { CaptureStore } from "./queue.js";
 import { WriteQueue } from "./queue.js";
 import { SlidingWindowRateLimiter } from "./rate.js";
+import { StatusClient } from "./status-client.js";
 import type { GateStats, ProxyConfig, UsageSnapshot } from "./types.js";
 import { getCachedVersionInfo, refreshVersionCheck } from "./updater.js";
 import { selectMostUrgentBudget } from "./usage/budget.js";
@@ -651,23 +651,18 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     }
   }
 
-  const rewriteExperiment = config.experimentRewriteIds
-    ? new RewriteIdExperiment(db, { ttlMs: config.experimentRewriteTtlMs })
-    : null;
-  const ttftState = new TtftWatchdogState(() => ({
-    failureThreshold: config.ttftRetryFailureThreshold,
-    failureWindowMs: config.ttftRetryFailureWindowMs,
-  }));
+  const rewriteExperiment = new RewriteIdExperiment(db, { ttlMs: config.experimentRewriteTtlMs });
+  const statusClient = new StatusClient({
+    target: config.target,
+    apiKey: config.umansApiKey,
+    models,
+  });
   const inFlightCooldowns = new InFlightCooldowns();
   function buildGateStats(snap?: UsageSnapshot): GateStats {
     const effective = snap ?? usage.getSnapshot();
     const base = gate.getStats(effective);
-    const wd = ttftState.getStats();
     return {
       ...base,
-      watchdog_disabled: wd.disabled,
-      watchdog_consecutive_failures: wd.consecutiveFailures,
-      watchdog_failure_window_started_at: wd.windowStartedAt,
       priorityBudgetSummary: selectMostUrgentBudget(effective.priorityBudget),
     };
   }
@@ -682,7 +677,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     models,
     () => warmer?.notifyTraffic(),
     rewriteExperiment,
-    ttftState,
+    statusClient,
     () => buildGateStats(),
     inFlightCooldowns,
   );
@@ -738,12 +733,6 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
 
     if (applied.includes("rate_limit_requests")) {
       rateRef.current = createRateLimiter(config.rateLimitRequests, usage.getSnapshot());
-    }
-
-    // Reset auto-disable state when the TTFT watchdog master toggle is reloaded,
-    // so re-enabling the feature gives it a fresh chance (full logic in ticket 04).
-    if (applied.includes("experiment_ttft_watchdog")) {
-      ttftState.reset();
     }
 
     ws.broadcast({ type: "gate", stats: buildGateStats() });
@@ -835,7 +824,6 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     vision,
     models,
     authFailureLimiter,
-    ttftState,
     inFlightCooldowns,
     reloadConfig,
     refreshLimits,

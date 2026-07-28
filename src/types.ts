@@ -55,6 +55,8 @@ export interface CaptureRow {
   gate_reason: string | null;
   retry_attempt: number | null;
   ttft_exceeded: number | null;
+  upstream_ttft_p50_ms: number | null;
+  upstream_tps_p50: number | null;
 }
 
 /** Summary of a capture (no body data) — used in list view and WS broadcasts. */
@@ -103,6 +105,10 @@ export interface CaptureSummary {
   retryAttempt?: number;
   /** Transient (in-memory only, not persisted) — epoch ms when cooldown ends. */
   cooldownEndsAt?: number;
+  /** Upstream p50 TTFT in ms (dynamic-threshold watchdog; null until populated). */
+  upstream_ttft_p50_ms?: number | null;
+  /** Upstream p50 TPS (dynamic-threshold watchdog; null until populated). */
+  upstream_tps_p50?: number | null;
 }
 
 /** Request metadata captured at proxy time. */
@@ -129,6 +135,8 @@ export interface ResponseMeta {
   $model?: string | null;
   $retry_attempt?: number | null;
   $ttft_exceeded?: number | null;
+  $upstream_ttft_p50_ms?: number | null;
+  $upstream_tps_p50?: number | null;
 }
 
 /** WebSocket message types broadcast to connected inspector clients. */
@@ -141,6 +149,7 @@ export type WsMessage =
       state: CaptureState;
       retryAttempt?: number;
       cooldownEndsAt?: number;
+      threshold?: number | null;
     }
   | { type: "gate"; stats: GateStats }
   | { type: "clear" }
@@ -311,12 +320,12 @@ export interface ProxyConfig {
   ttftRetryMaxAttempts: number;
   /** Suppress retry when gate active >= this percentage of soft limit. */
   ttftRetryGateSaturationPct: number;
-  /** Window in ms for counting consecutive retry failures before auto-disable. */
-  ttftRetryFailureWindowMs: number;
-  /** Consecutive retry failures within window that trigger auto-disable. */
-  ttftRetryFailureThreshold: number;
   /** Cooldown between retries in ms. */
   ttftRetryCooldownMs: number;
+  /** Multiplier applied to p50 TTFT to compute the dynamic watchdog threshold. Default 5. */
+  ttftWatchdogMultiplier: number;
+  /** Hard cap in ms for the dynamic watchdog threshold. Default 300000 (5 min). */
+  ttftWatchdogHardCapMs: number;
   /** Number of latest captures per model used for performance percentile computation. */
   performanceSampleCount: number;
   /** Days to retain incident rows. Hot-reloadable. Default 30. */
@@ -376,9 +385,9 @@ export interface ExperimentConfig {
   ttftTimeoutMs: ProxyConfig["ttftTimeoutMs"];
   ttftRetryMaxAttempts: ProxyConfig["ttftRetryMaxAttempts"];
   ttftRetryGateSaturationPct: ProxyConfig["ttftRetryGateSaturationPct"];
-  ttftRetryFailureWindowMs: ProxyConfig["ttftRetryFailureWindowMs"];
-  ttftRetryFailureThreshold: ProxyConfig["ttftRetryFailureThreshold"];
   ttftRetryCooldownMs: ProxyConfig["ttftRetryCooldownMs"];
+  ttftWatchdogMultiplier: ProxyConfig["ttftWatchdogMultiplier"];
+  ttftWatchdogHardCapMs: ProxyConfig["ttftWatchdogHardCapMs"];
 }
 
 /** Write-behind queue flush fields used by WriteQueue. */

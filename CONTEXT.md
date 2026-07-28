@@ -110,10 +110,30 @@ _Avoid_: code model, coder thinking.
 > ⚠️ Experimental: enabled by `experiment_ttft_watchdog` (default: off)
 
 **TTFT watchdog**: a wall-clock timer started at fetch initiation; fires
-if no first chunk arrives within `ttft_timeout_ms`. Distinct from the
-absolute `upstream_timeout_ms` (whole-fetch ceiling) and from the semantic
-`ttft_ms` metric (first delta, computed post-hoc). When it fires, the fetch
-is aborted and a gated retry may follow. _Avoid_: first-byte timeout.
+if no first chunk arrives within the threshold. The threshold is dynamic,
+derived from the upstream's real-time p50 TTFT latency (see "Dynamic
+threshold"). Uses a two-tier policy (see "Two-tier threshold"). Distinct
+from the absolute `upstream_timeout_ms` (whole-fetch ceiling) and from the
+semantic `ttft_ms` metric (first delta, computed post-hoc). When it fires,
+the fetch is aborted and a gated retry may follow. _Avoid_: first-byte
+timeout.
+
+**Dynamic threshold**: the TTFT-watchdog timeout for attempt 1 (the
+original fetch), computed as `p50 × multiplier` where p50 is the model's
+real-time median TTFT fetched in parallel from `/v1/status`. The proxy
+fires the status fetch alongside the upstream request; if the status
+response arrives before the watchdog fires, the threshold is tightened
+mid-flight. If the watchdog fires first, a conservative fallback
+(`ttft_timeout_ms`) applies. No per-model persistence — each request
+derives fresh. _Avoid_: adaptive threshold, ratcheting threshold.
+
+**Two-tier threshold**: the watchdog's per-attempt threshold policy.
+Attempt 1 uses the dynamic threshold (`p50 × multiplier`, default 5x).
+Attempt 2+ (retries) use a flat hard cap (`ttft_watchdog_hard_cap_ms`,
+default 300000ms = 5 min). Rationale: attempt 1 detects stalled
+connections fast; retries give legitimate prefill room to complete.
+Cooldown (`ttft_retry_cooldown_ms`, default 5s) separates attempts.
+_Avoid_: escalating threshold, incremental threshold.
 
 **TTFT retry**: a retry triggered by TTFT-watchdog timeout, distinct from
 a 502/529 rewrite-id retry. Reuses the original permit and is exempt from
@@ -121,10 +141,11 @@ the rate limiter. Gated by upstream-load signals. When suppressed, the
 client gets a 504. _Avoid_: stream retry, first-byte retry.
 
 **Attempt**: a single upstream fetch within a TTFT-retry lifecycle.
-Attempt 1 is the original; attempt 2 is the same-key retry; attempt 3 is
-the rewrite-id escalation. Distinct from "request" (the client-initiated
-operation, which may span multiple attempts under one capture row).
-_Avoid_: try, fetch number.
+Attempt 1 is the original (dynamic threshold); attempt 2+ are retries
+(hard-cap threshold) triggered by watchdog timeouts. Same-key retries and
+rewrite-id escalations are all attempts within one capture row. Distinct
+from "request" (the client-initiated operation, which may span multiple
+attempts under one capture row). _Avoid_: try, fetch number.
 
 **Retry state**: the live phase of a TTFT-retry lifecycle as seen by the
 dashboard: `cooldown`, `retry N`, `retried`. Distinct from the final
@@ -323,15 +344,13 @@ carries the human-readable detail (e.g. suppression cause for
 `ttft_timeout`). _Avoid_: error type, failure class.
 
 **TTFT suppression reason**: the sub-cause appended to a `ttft_timeout`
-incident's `reason` when retry was suppressed. Four values:
+incident's `reason` when retry was suppressed. Three values:
 `breaker_open` (upstream failing; breaker tripped on 429s),
 `gate_saturated` (proxy overloaded; active permits at saturation
-threshold), `auto_disabled` (TTFT watchdog disabled itself after
-repeated retry failures), `cap_reached` (per-request retry budget
-exhausted, or rewrite escalation not eligible). Distinct from
-`incident_type` (which is always `ttft_timeout`); this is the
-audit-level detail of why the proxy declined to retry.
-_Avoid_: retry reason, suppress cause.
+threshold), `cap_reached` (per-request retry budget exhausted, or
+rewrite escalation not eligible). Distinct from `incident_type` (which
+is always `ttft_timeout`); this is the audit-level detail of why the
+proxy declined to retry. _Avoid_: retry reason, suppress cause.
 
 ## Model catalog
 

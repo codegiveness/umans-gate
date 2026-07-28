@@ -2,7 +2,10 @@
 
 ## Status
 
-Accepted. Implemented in `src/experiments/ttft-watchdog-state.ts` with config fields (`ttft_watchdog_*`) and tests.
+Superseded by [ADR-0026](0026-smart-ttft-watchdog-dynamic-threshold.md). The
+static threshold, 3-attempt ladder, auto-disable, and
+`ttft_retry_failure_*` config fields are replaced by a dynamic two-tier
+threshold derived from real-time p50 latency.
 
 ## Context
 

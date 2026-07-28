@@ -281,6 +281,7 @@ describe("TTFT watchdog — client abort during cooldown between retries", () =>
       UPSTREAM_TIMEOUT_MS: "10000",
       EXPERIMENT_TTFT_WATCHDOG: "true",
       TTFT_TIMEOUT_MS: "200",
+      TTFT_WATCHDOG_HARD_CAP_MS: "200",
       TTFT_RETRY_COOLDOWN_MS: "500",
       TTFT_RETRY_MAX_ATTEMPTS: "2",
     });
@@ -848,14 +849,14 @@ describe("TTFT watchdog — ticket 03 same-key retry", () => {
   });
 });
 
-// ─── Ticket 04: auto-disable after threshold consecutive retry failures ────
+// ─── Ticket 01: watchdog never auto-disables (compat shell) ──────────────
 
-describe("TTFT watchdog — ticket 04 auto-disable", () => {
-  test("auto-disable after threshold consecutive retry failures — 3rd request skips retry", async () => {
+describe("TTFT watchdog — ticket 01 no auto-disable", () => {
+  test("watchdog stays armed after consecutive retry failures — 3rd request still retries", async () => {
     // Upstream ALWAYS stalls (never enqueues) — both fetch 1 and fetch 2 of
-    // each request fail. With threshold=2, two such requests trigger
-    // auto-disable. The 3rd request must NOT retry: fetch count is 1 (only
-    // the original), and x-proxy-retry-attempt is absent (feature disarmed).
+    // each request fail. Previously threshold=2 would auto-disable on the 2nd
+    // request. After ticket 01 the watchdog is a neutered compat shell: it
+    // never auto-disables, so the 3rd request retries exactly like the first two.
     let callCount = 0;
     const upstream = Bun.serve({
       port: 0,
@@ -880,10 +881,9 @@ describe("TTFT watchdog — ticket 04 auto-disable", () => {
       UPSTREAM_TIMEOUT_MS: "1000",
       EXPERIMENT_TTFT_WATCHDOG: "true",
       TTFT_TIMEOUT_MS: "200",
+      TTFT_WATCHDOG_HARD_CAP_MS: "200",
       TTFT_RETRY_COOLDOWN_MS: "0",
       TTFT_RETRY_MAX_ATTEMPTS: "2",
-      TTFT_RETRY_FAILURE_THRESHOLD: "2",
-      TTFT_RETRY_FAILURE_WINDOW_MS: "60000",
     });
     try {
       const body = JSON.stringify({
@@ -895,7 +895,6 @@ describe("TTFT watchdog — ticket 04 auto-disable", () => {
       const headers = { "content-type": "application/json" };
 
       // Request 1: original stalls → retry → retry stalls → 504.
-      // recordRetryOutcome(false) called once.
       const r1 = await fetch(`${proxy.baseUrl}/v1/messages`, {
         method: "POST",
         headers,
@@ -905,11 +904,9 @@ describe("TTFT watchdog — ticket 04 auto-disable", () => {
       expect(r1.headers.get("x-proxy-retry-attempt")).toBe("1");
       expect(r1.headers.get("x-proxy-ttft-exceeded")).toBe("1");
       await r1.text();
-      // Permit must release between requests.
       await sleep(150);
 
-      // Request 2: same pattern. recordRetryOutcome(false) called twice →
-      // counter=2 >= threshold=2 → auto-disable.
+      // Request 2: same pattern. Watchdog still armed (no auto-disable).
       const r2 = await fetch(`${proxy.baseUrl}/v1/messages`, {
         method: "POST",
         headers,
@@ -920,26 +917,19 @@ describe("TTFT watchdog — ticket 04 auto-disable", () => {
       await r2.text();
       await sleep(150);
 
-      // After 2 retry-failures within the window, the feature auto-disables.
-      // Request 3: shouldArmWatchdog() returns false → no TTFT arming, no
-      // retry, no x-proxy-* headers. Only the original fetch happens.
+      // Request 3: watchdog still armed → retry happens → 2 upstream fetches.
       const callsBeforeR3 = callCount;
       const r3 = await fetch(`${proxy.baseUrl}/v1/messages`, {
         method: "POST",
         headers,
         body,
       });
-      // When the watchdog is disarmed, the proxy falls back to the absolute
-      // timeout path → 504 via UPSTREAM_TIMEOUT_MS (1000ms).
       expect(r3.status).toBe(504);
-      // The master toggle is still on, so x-proxy-retry-attempt is emitted
-      // with value "0" (no retry happened). The TTFT-exceeded header is
-      // absent because the watchdog never fired on this request.
-      expect(r3.headers.get("x-proxy-retry-attempt")).toBe("0");
-      expect(r3.headers.get("x-proxy-ttft-exceeded")).toBeNull();
+      expect(r3.headers.get("x-proxy-retry-attempt")).toBe("1");
+      expect(r3.headers.get("x-proxy-ttft-exceeded")).toBe("1");
       await r3.text();
-      // Exactly ONE upstream fetch for request 3 (no retry).
-      expect(callCount - callsBeforeR3).toBe(1);
+      // Exactly TWO upstream fetches for request 3 (original + retry).
+      expect(callCount - callsBeforeR3).toBe(2);
     } finally {
       await proxy.kill();
       upstream.stop();
@@ -1011,6 +1001,7 @@ describe("TTFT watchdog — ticket 05 rewrite-id escalation", () => {
       EXPERIMENT_TTFT_WATCHDOG: "true",
       EXPERIMENT_REWRITE_IDS: "true",
       TTFT_TIMEOUT_MS: "200",
+      TTFT_WATCHDOG_HARD_CAP_MS: "200",
       TTFT_RETRY_COOLDOWN_MS: "0",
       TTFT_RETRY_MAX_ATTEMPTS: "3",
     });
@@ -1055,6 +1046,7 @@ describe("TTFT watchdog — ticket 05 rewrite-id escalation", () => {
       EXPERIMENT_TTFT_WATCHDOG: "true",
       EXPERIMENT_REWRITE_IDS: "true",
       TTFT_TIMEOUT_MS: "200",
+      TTFT_WATCHDOG_HARD_CAP_MS: "200",
       TTFT_RETRY_COOLDOWN_MS: "0",
       TTFT_RETRY_MAX_ATTEMPTS: "3",
     });
@@ -1099,6 +1091,7 @@ describe("TTFT watchdog — ticket 05 rewrite-id escalation", () => {
       EXPERIMENT_TTFT_WATCHDOG: "true",
       EXPERIMENT_REWRITE_IDS: "true",
       TTFT_TIMEOUT_MS: "200",
+      TTFT_WATCHDOG_HARD_CAP_MS: "200",
       TTFT_RETRY_COOLDOWN_MS: "0",
       TTFT_RETRY_MAX_ATTEMPTS: "3",
     });
@@ -1144,6 +1137,7 @@ describe("TTFT watchdog — ticket 05 rewrite-id escalation", () => {
       EXPERIMENT_TTFT_WATCHDOG: "true",
       EXPERIMENT_REWRITE_IDS: "true",
       TTFT_TIMEOUT_MS: "200",
+      TTFT_WATCHDOG_HARD_CAP_MS: "200",
       TTFT_RETRY_COOLDOWN_MS: "0",
       TTFT_RETRY_MAX_ATTEMPTS: "2",
     });
@@ -1242,9 +1236,8 @@ describe("TTFT watchdog — client abort during rewrite-escalation fetch", () =>
     // Stalls on fetches 1-5; streams on fetch 6+.
     // Request 1: fetches 1-3 (attempts 1-3 stall, client aborts on attempt 3).
     // Request 2: fetches 4-5 stall (attempts 1-2 TTFT-timeout), fetch 6 streams (attempt 3 rewrite succeeds).
-    // TTFT_RETRY_FAILURE_THRESHOLD=1: a single recordRetryOutcome(false) would auto-disable.
-    // If the client abort on attempt 3 incorrectly called recordRetryOutcome(false),
-    // request 2 would be auto-disabled (watchdog disarmed, no retry, 504 via absolute timeout).
+    // After ticket 01 the watchdog never auto-disables (neutered compat shell),
+    // so request 2 retries regardless of prior outcomes.
     const upstream = startCountedStallUpstream(5);
     const proxy = await startProxy({
       TARGET: `http://127.0.0.1:${upstream.port}`,
@@ -1253,14 +1246,13 @@ describe("TTFT watchdog — client abort during rewrite-escalation fetch", () =>
       CONCURRENCY_HARD_CAP: "2",
       CONCURRENCY_SOFT_LIMIT: "2",
       RELEASE_COOLDOWN_MS: "0",
-      UPSTREAM_TIMEOUT_MS: "1000",
+      UPSTREAM_TIMEOUT_MS: "5000",
       EXPERIMENT_TTFT_WATCHDOG: "true",
       EXPERIMENT_REWRITE_IDS: "true",
       TTFT_TIMEOUT_MS: "200",
+      TTFT_WATCHDOG_HARD_CAP_MS: "200",
       TTFT_RETRY_COOLDOWN_MS: "0",
       TTFT_RETRY_MAX_ATTEMPTS: "3",
-      TTFT_RETRY_FAILURE_THRESHOLD: "1",
-      TTFT_RETRY_FAILURE_WINDOW_MS: "60000",
     });
     try {
       // --- Request 1: abort during attempt 3 ---
@@ -1294,7 +1286,7 @@ describe("TTFT watchdog — client abort during rewrite-escalation fetch", () =>
       expect(upstream.getCallCount()).toBe(3);
 
       // --- Request 2: verify feature NOT auto-disabled ---
-      // If auto-disabled (bug): watchdog disarmed → fetch 4 stalls → absolute timeout (1000ms) → 504.
+      // If auto-disabled (bug): watchdog disarmed → fetch 4 stalls → absolute timeout (5000ms) → 504.
       // If correct: watchdog armed → fetches 4-5 TTFT-timeout → fetch 6 streams → 200.
       const res = await fetch(`${proxy.baseUrl}/v1/messages`, {
         method: "POST",
@@ -1316,6 +1308,273 @@ describe("TTFT watchdog — client abort during rewrite-escalation fetch", () =>
       await res.text();
       // 6 total fetches: 3 from request 1 + 3 from request 2 (attempts 1-3).
       expect(upstream.getCallCount()).toBe(6);
+    } finally {
+      await proxy.kill();
+      await upstream.close();
+    }
+  });
+});
+
+// ─── Ticket 04: two-tier threshold + rewrite decoupling + incident consolidation ─
+
+describe("TTFT watchdog — ticket 04 two-tier threshold", () => {
+  test("attempts 2+ use effective_hard_cap, not ttft_timeout_ms", async () => {
+    let callCount = 0;
+    const upstream = Bun.serve({
+      port: 0,
+      async fetch(req) {
+        if (req.method !== "POST" || new URL(req.url).pathname !== "/v1/messages") {
+          return new Response("not found", { status: 404 });
+        }
+        callCount++;
+        return new Response(new ReadableStream({ start() {} }), {
+          status: 200,
+          headers: { "content-type": "text/event-stream" },
+        });
+      },
+    });
+    const proxy = await startProxy({
+      TARGET: `http://127.0.0.1:${upstream.port}`,
+      WARMER_ENABLED: "false",
+      USAGE_REFRESH_MS: "999999",
+      CONCURRENCY_HARD_CAP: "2",
+      CONCURRENCY_SOFT_LIMIT: "2",
+      RELEASE_COOLDOWN_MS: "0",
+      UPSTREAM_TIMEOUT_MS: "5000",
+      EXPERIMENT_TTFT_WATCHDOG: "true",
+      TTFT_TIMEOUT_MS: "200",
+      TTFT_WATCHDOG_HARD_CAP_MS: "400",
+      TTFT_RETRY_COOLDOWN_MS: "0",
+      TTFT_RETRY_MAX_ATTEMPTS: "2",
+    });
+    try {
+      const start = Date.now();
+      const res = await fetch(`${proxy.baseUrl}/v1/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          model: "umans-glm-5.2",
+          max_tokens: 10,
+          stream: true,
+          messages: [{ role: "user", content: "two-tier" }],
+        }),
+      });
+      const elapsed = Date.now() - start;
+      expect(res.status).toBe(504);
+      expect(res.headers.get("x-proxy-retry-attempt")).toBe("1");
+      expect(res.headers.get("x-proxy-ttft-exceeded")).toBe("1");
+      await res.text();
+      expect(elapsed).toBeGreaterThanOrEqual(550);
+      expect(callCount).toBe(2);
+    } finally {
+      await proxy.kill();
+      upstream.stop();
+      await sleep(50);
+    }
+  });
+});
+
+describe("TTFT watchdog — ticket 04 rewrite decoupling", () => {
+  test("attempt 3 rewrite fires with experiment_rewrite_ids OFF", async () => {
+    const upstream = startCountedStallUpstream(3);
+    const proxy = await startProxy({
+      TARGET: `http://127.0.0.1:${upstream.port}`,
+      WARMER_ENABLED: "false",
+      USAGE_REFRESH_MS: "999999",
+      CONCURRENCY_HARD_CAP: "2",
+      CONCURRENCY_SOFT_LIMIT: "2",
+      RELEASE_COOLDOWN_MS: "0",
+      UPSTREAM_TIMEOUT_MS: "5000",
+      EXPERIMENT_TTFT_WATCHDOG: "true",
+      TTFT_TIMEOUT_MS: "200",
+      TTFT_WATCHDOG_HARD_CAP_MS: "200",
+      TTFT_RETRY_COOLDOWN_MS: "0",
+      TTFT_RETRY_MAX_ATTEMPTS: "3",
+    });
+    try {
+      const res = await fetch(`${proxy.baseUrl}/v1/messages`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "user-agent": OPENCODE_UA,
+          "x-session-id": SESSION_ID,
+        },
+        body: JSON.stringify({
+          model: "umans-glm-5.2",
+          max_tokens: 10,
+          stream: true,
+          messages: [{ role: "user", content: "decoupled" }],
+        }),
+      });
+      expect(res.status).toBe(504);
+      expect(res.headers.get("x-proxy-retry-attempt")).toBe("2");
+      expect(res.headers.get("x-proxy-ttft-exceeded")).toBe("1");
+      await res.text();
+      expect(upstream.getCallCount()).toBe(3);
+    } finally {
+      await proxy.kill();
+      await upstream.close();
+    }
+  });
+});
+
+describe("TTFT watchdog — ticket 04 single incident per capture", () => {
+  test("3 attempts exhausted → single ttft_timeout incident with exhausted reason", async () => {
+    const upstream = startCountedStallUpstream(3);
+    const proxy = await startProxy({
+      TARGET: `http://127.0.0.1:${upstream.port}`,
+      WARMER_ENABLED: "false",
+      USAGE_REFRESH_MS: "999999",
+      CONCURRENCY_HARD_CAP: "2",
+      CONCURRENCY_SOFT_LIMIT: "2",
+      RELEASE_COOLDOWN_MS: "0",
+      UPSTREAM_TIMEOUT_MS: "5000",
+      EXPERIMENT_TTFT_WATCHDOG: "true",
+      EXPERIMENT_REWRITE_IDS: "true",
+      TTFT_TIMEOUT_MS: "200",
+      TTFT_WATCHDOG_HARD_CAP_MS: "200",
+      TTFT_RETRY_COOLDOWN_MS: "0",
+      TTFT_RETRY_MAX_ATTEMPTS: "3",
+    });
+    try {
+      const res = await fetch(`${proxy.baseUrl}/v1/messages`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "user-agent": OPENCODE_UA,
+          "x-session-id": SESSION_ID,
+        },
+        body: JSON.stringify({
+          model: "umans-glm-5.2",
+          max_tokens: 10,
+          stream: true,
+          messages: [{ role: "user", content: "single-incident" }],
+        }),
+      });
+      expect(res.status).toBe(504);
+      await res.text();
+      await sleep(200);
+
+      const incidentsRes = await fetch(`${proxy.baseUrl}/dashboard/api/incidents`);
+      const incidents = (await incidentsRes.json()) as Array<{
+        capture_id: number;
+        incident_type: string;
+        reason: string | null;
+      }>;
+      const ttftIncidents = incidents.filter((i) => i.incident_type === "ttft_timeout");
+      expect(ttftIncidents.length).toBe(1);
+      expect(ttftIncidents[0].reason).toContain("all retries exhausted");
+    } finally {
+      await proxy.kill();
+      await upstream.close();
+    }
+  });
+
+  test("retry succeeds → single ttft_timeout incident with success reason", async () => {
+    const upstream = startCountedStallUpstream(1);
+    const proxy = await startProxy({
+      TARGET: `http://127.0.0.1:${upstream.port}`,
+      WARMER_ENABLED: "false",
+      USAGE_REFRESH_MS: "999999",
+      CONCURRENCY_HARD_CAP: "2",
+      CONCURRENCY_SOFT_LIMIT: "2",
+      RELEASE_COOLDOWN_MS: "0",
+      UPSTREAM_TIMEOUT_MS: "5000",
+      EXPERIMENT_TTFT_WATCHDOG: "true",
+      TTFT_TIMEOUT_MS: "200",
+      TTFT_WATCHDOG_HARD_CAP_MS: "200",
+      TTFT_RETRY_COOLDOWN_MS: "0",
+    });
+    try {
+      const res = await fetch(`${proxy.baseUrl}/v1/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          model: "umans-glm-5.2",
+          max_tokens: 10,
+          stream: true,
+          messages: [{ role: "user", content: "success-incident" }],
+        }),
+      });
+      expect(res.status).toBe(200);
+      await res.text();
+      await sleep(200);
+
+      const incidentsRes = await fetch(`${proxy.baseUrl}/dashboard/api/incidents`);
+      const incidents = (await incidentsRes.json()) as Array<{
+        capture_id: number;
+        incident_type: string;
+        reason: string | null;
+      }>;
+      const ttftIncidents = incidents.filter((i) => i.incident_type === "ttft_timeout");
+      expect(ttftIncidents.length).toBe(1);
+      expect(ttftIncidents[0].reason).toContain("succeeded on attempt");
+    } finally {
+      await proxy.kill();
+      await upstream.close();
+    }
+  });
+});
+
+describe("TTFT watchdog — ticket 04 WS threshold broadcast", () => {
+  test("cooling_down WS state includes threshold value", async () => {
+    const upstream = startCountedStallUpstream(1);
+    const proxy = await startProxy({
+      TARGET: `http://127.0.0.1:${upstream.port}`,
+      WARMER_ENABLED: "false",
+      USAGE_REFRESH_MS: "999999",
+      CONCURRENCY_HARD_CAP: "2",
+      CONCURRENCY_SOFT_LIMIT: "2",
+      RELEASE_COOLDOWN_MS: "0",
+      UPSTREAM_TIMEOUT_MS: "5000",
+      EXPERIMENT_TTFT_WATCHDOG: "true",
+      TTFT_TIMEOUT_MS: "200",
+      TTFT_WATCHDOG_HARD_CAP_MS: "200",
+      TTFT_RETRY_COOLDOWN_MS: "2000",
+    });
+    try {
+      const ws = new WebSocket(`ws://127.0.0.1:${proxy.port}/dashboard/ws`);
+      const stateMsgs: Array<{ threshold?: number | null }> = [];
+
+      const done = new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error("WS threshold test timeout")), 10000);
+        ws.addEventListener("open", async () => {
+          try {
+            await fetch(`${proxy.baseUrl}/v1/messages`, {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
+                model: "umans-glm-5.2",
+                max_tokens: 10,
+                stream: true,
+                messages: [{ role: "user", content: "threshold-ws" }],
+              }),
+            });
+          } catch {
+            // expected
+          }
+          setTimeout(() => {
+            clearTimeout(timeout);
+            resolve();
+          }, 500);
+        });
+        ws.addEventListener("message", (e) => {
+          const msg = JSON.parse(e.data);
+          if (msg.type === "state" && msg.state === "cooling_down") {
+            stateMsgs.push({ threshold: msg.threshold });
+          }
+        });
+        ws.addEventListener("error", (e) => {
+          clearTimeout(timeout);
+          reject(new Error(`WebSocket error: ${e}`));
+        });
+      });
+
+      await done;
+      ws.close();
+      expect(stateMsgs.length).toBeGreaterThanOrEqual(1);
+      expect(stateMsgs[0].threshold).not.toBeNull();
+      expect(stateMsgs[0].threshold).toBeGreaterThan(0);
     } finally {
       await proxy.kill();
       await upstream.close();

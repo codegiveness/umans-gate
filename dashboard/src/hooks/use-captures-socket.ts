@@ -33,6 +33,7 @@ interface UseCapturesSocketParams {
     state: CaptureState,
     retryAttempt?: number,
     cooldownEndsAt?: number,
+    threshold?: number | null,
   ) => void;
   /** WS `gate` — replace gate stats. */
   onGateStats: (stats: GateStats) => void;
@@ -96,7 +97,13 @@ export function useCapturesSocket({
       clear: () => onCaptureClearRef.current(),
       "vision-clear": () => onVisionClearRef.current(),
       state: (msg) =>
-        onCaptureStateRef.current(msg.captureId, msg.state, msg.retryAttempt, msg.cooldownEndsAt),
+        onCaptureStateRef.current(
+          msg.captureId,
+          msg.state,
+          msg.retryAttempt,
+          msg.cooldownEndsAt,
+          msg.threshold,
+        ),
       gate: (msg) => onGateStatsRef.current(msg.stats),
       new: (msg) => onCaptureUpsertRef.current(msg.capture, true),
       update: (msg) => onCaptureUpsertRef.current(msg.capture, false),

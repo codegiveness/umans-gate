@@ -115,16 +115,6 @@ describe("GateStatus service mode", () => {
     expect(badgeTexts).not.toContain("healthy");
   });
 
-  it("renders watchdog off badge when watchdog_disabled", async () => {
-    const { container } = render(
-      <GateStatus
-        stats={{ ...baseStats, watchdog_disabled: true, watchdog_consecutive_failures: 3 }}
-      />,
-    );
-    await flushEffects();
-    expect(container).toHaveTextContent("watchdog off");
-  });
-
   it("does not render watchdog off badge when watchdog not disabled", async () => {
     const { container } = render(<GateStatus stats={baseStats} />);
     await flushEffects();

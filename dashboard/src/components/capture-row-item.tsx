@@ -148,11 +148,15 @@ export function CaptureRowItem({
         {c.state === "cooling_down" && (
           <RowTip tip="Cooldown — waiting before retrying the upstream fetch">
             <Badge variant="secondary" size="sm" className={cn(badgeWarning, "tabular-nums")}>
-              {cooldownSeconds != null ? `cooldown ${cooldownSeconds}s` : "cooldown"}
+              {c.retryAttempt != null && c.retryAttempt > 0
+                ? `retry ${c.retryAttempt} · cd ${cooldownSeconds ?? 0}s`
+                : cooldownSeconds != null
+                  ? `cooldown ${cooldownSeconds}s`
+                  : "cooldown"}
             </Badge>
           </RowTip>
         )}
-        {c.state === "streaming" && (
+        {c.state === "streaming" && (c.retryAttempt == null || c.retryAttempt === 0) && (
           <RowTip tip="Running — upstream is streaming the response">
             <Badge variant="secondary" size="sm" className={badgeSuccess}>
               running
@@ -164,7 +168,9 @@ export function CaptureRowItem({
             tip={`Retry attempt ${c.retryAttempt} in flight — TTFT watchdog fired and the request is being retried`}
           >
             <Badge variant="secondary" size="sm" className="tabular-nums">
-              retry {c.retryAttempt}
+              {c.threshold != null
+                ? `retry ${c.retryAttempt} · ${Math.round(c.threshold / 1000)}s`
+                : `retry ${c.retryAttempt}`}
             </Badge>
           </RowTip>
         )}
@@ -293,6 +299,51 @@ export function CaptureRowItem({
           <span>cache {fmtCachePct(c.cache_read_tokens, c.total_input_tokens)}</span>
         </RowTip>
       </div>
+
+      {c.upstream_ttft_p50_ms != null && c.upstream_ttft_p50_ms > 0 && (
+        <div className="mt-1.5 flex items-center gap-3 text-[11px] tabular-nums text-muted-foreground">
+          <RowTip
+            tip={
+              c.upstream_tps_p50 == null
+                ? "Upstream p50 TTFT (overall, no model-specific data) — median time to first token across all captures"
+                : "Upstream p50 TTFT (model-specific) — median time to first token for this model"
+            }
+          >
+            <span>
+              p50 {c.upstream_tps_p50 == null ? "~" : ""}
+              {(c.upstream_ttft_p50_ms / 1000).toFixed(1)}s
+            </span>
+          </RowTip>
+          <RowTip tip="Upstream p50 tokens per second — median generation rate for this model">
+            <span>{c.upstream_tps_p50 != null ? `${c.upstream_tps_p50.toFixed(1)} t/s` : "—"}</span>
+          </RowTip>
+          {c.ttft_ms != null && c.ttft_ms > 0 && (
+            <RowTip
+              tip={
+                <>
+                  Ratio — this capture&apos;s TTFT vs the upstream p50
+                  <br />
+                  <span className="font-mono">
+                    {fmtTtft(c.ttft_ms)} / {(c.upstream_ttft_p50_ms / 1000).toFixed(1)}s
+                  </span>
+                </>
+              }
+            >
+              <span
+                className={cn(
+                  c.ttft_ms / c.upstream_ttft_p50_ms > 2
+                    ? "text-destructive"
+                    : c.ttft_ms / c.upstream_ttft_p50_ms > 1.5
+                      ? "text-amber-600"
+                      : "text-muted-foreground",
+                )}
+              >
+                {(c.ttft_ms / c.upstream_ttft_p50_ms).toFixed(1)}x
+              </span>
+            </RowTip>
+          )}
+        </div>
+      )}
     </div>
   );
 }

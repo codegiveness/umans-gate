@@ -278,23 +278,23 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     "ttft_retry_gate_saturation_pct",
     DEFAULT_CONFIG.ttft_retry_gate_saturation_pct ?? 80,
   );
-  const ttftRetryFailureWindowMs = envOrRawNum(
-    env.TTFT_RETRY_FAILURE_WINDOW_MS,
-    raw,
-    "ttft_retry_failure_window_ms",
-    DEFAULT_CONFIG.ttft_retry_failure_window_ms ?? 300000,
-  );
-  const ttftRetryFailureThreshold = envOrRawNum(
-    env.TTFT_RETRY_FAILURE_THRESHOLD,
-    raw,
-    "ttft_retry_failure_threshold",
-    DEFAULT_CONFIG.ttft_retry_failure_threshold ?? 3,
-  );
   const ttftRetryCooldownMs = envOrRawNum(
     env.TTFT_RETRY_COOLDOWN_MS,
     raw,
     "ttft_retry_cooldown_ms",
-    DEFAULT_CONFIG.ttft_retry_cooldown_ms ?? 30000,
+    DEFAULT_CONFIG.ttft_retry_cooldown_ms ?? 5000,
+  );
+  const ttftWatchdogMultiplier = envOrRawNum(
+    env.TTFT_WATCHDOG_MULTIPLIER,
+    raw,
+    "ttft_watchdog_multiplier",
+    DEFAULT_CONFIG.ttft_watchdog_multiplier ?? 5,
+  );
+  const ttftWatchdogHardCapMs = envOrRawNum(
+    env.TTFT_WATCHDOG_HARD_CAP_MS,
+    raw,
+    "ttft_watchdog_hard_cap_ms",
+    DEFAULT_CONFIG.ttft_watchdog_hard_cap_ms ?? 300000,
   );
   const performanceSampleCount = envOrRawNum(
     env.PERFORMANCE_SAMPLE_COUNT,
@@ -391,9 +391,9 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     ttftTimeoutMs,
     ttftRetryMaxAttempts,
     ttftRetryGateSaturationPct,
-    ttftRetryFailureWindowMs,
-    ttftRetryFailureThreshold,
     ttftRetryCooldownMs,
+    ttftWatchdogMultiplier,
+    ttftWatchdogHardCapMs,
     performanceSampleCount,
     incidentRetentionDays,
   };

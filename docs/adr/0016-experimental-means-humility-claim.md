@@ -14,7 +14,7 @@ umans-gate labels five config fields as `experimental`
 `stamp_reasoning_effort_enabled`, `experiment_rewrite_ids`,
 `experiment_ttft_watchdog`, and `experiment_strip_omo_reminder`. All
 five default to `false` in `DEFAULT_CONFIG` (`defaults.ts:6`). Four are
-backed by production-grade code and dedicated ADRs (ADR-0004 for TTFT,
+backed by production-grade code and dedicated ADRs (ADR-0026 for TTFT,
 ADR-0006 for the stamp catalog, ADR-0008 for respect-if-present
 stamping, ADR-0011 for adaptive thinking). The `ConcurrencyGate`
 (`src/limiter/gate.ts:392`) has 41 callers and full test coverage.

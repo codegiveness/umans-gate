@@ -121,7 +121,7 @@ const SERVER_FIELDS: FieldDef[] = [
     label: "Upstream Timeout",
     kind: "number",
     description:
-      "Hard timeout for upstream requests. Prevents permit leaks when upstream hangs and client stays connected. Default: 300,000 ms (5 min).",
+      "Hard timeout for upstream requests. Prevents permit leaks when upstream hangs and client stays connected. Default: 1,800,000 ms (30 min).",
     required: true,
     min: 1000,
     suffix: "ms",
@@ -233,7 +233,7 @@ const TTFT_WATCHDOG_FIELDS: FieldDef[] = [
     kind: "number",
     experimental: true,
     description:
-      "Cap on total upstream attempts. 1 = original only, 2 = +1 same-key retry, 3 = +1 rewrite-id escalation (when eligible). Default: 2.",
+      "Cap on total upstream attempts. 1 = original only, 2 = +1 same-key retry, 3 = +1 rewrite-id escalation (when eligible). Default: 3.",
     required: true,
     min: 1,
     max: 3,
@@ -251,35 +251,35 @@ const TTFT_WATCHDOG_FIELDS: FieldDef[] = [
     suffix: "%",
   },
   {
-    key: "ttft_retry_failure_threshold",
-    label: "Failure Threshold",
-    kind: "number",
-    experimental: true,
-    description:
-      "Consecutive retry failures within the failure window that trigger permanent auto-disable of the watchdog (until config reload). Default: 3.",
-    required: true,
-    min: 1,
-  },
-  {
-    key: "ttft_retry_failure_window_ms",
-    label: "Failure Window",
-    kind: "number",
-    experimental: true,
-    description:
-      "Sliding window for counting consecutive retry failures toward auto-disable threshold. Default: 300,000 ms (5 min).",
-    required: true,
-    min: 1000,
-    suffix: "ms",
-  },
-  {
     key: "ttft_retry_cooldown_ms",
     label: "Retry Cooldown",
     kind: "number",
     experimental: true,
     description:
-      "Delay between retry attempts. Gives upstream a brief recovery window before the next attempt. Default: 30,000 ms (30 s).",
+      "Delay between retry attempts. Gives upstream a brief recovery window before the next attempt. Default: 5,000 ms (5 s).",
     required: true,
     min: 0,
+    suffix: "ms",
+  },
+  {
+    key: "ttft_watchdog_multiplier",
+    label: "Watchdog Multiplier",
+    kind: "number",
+    experimental: true,
+    description:
+      "Multiplier applied to the p50 TTFT of recent captures to compute the dynamic watchdog threshold. Higher = more tolerant of slow upstreams. Default: 5.",
+    required: true,
+    min: 1,
+  },
+  {
+    key: "ttft_watchdog_hard_cap_ms",
+    label: "Watchdog Hard Cap",
+    kind: "number",
+    experimental: true,
+    description:
+      "Hard cap in ms for the dynamic watchdog threshold. Even when the p50-based threshold would be higher, the watchdog never waits longer than this. Default: 300,000 ms (5 min).",
+    required: true,
+    min: 1000,
     suffix: "ms",
   },
 ];

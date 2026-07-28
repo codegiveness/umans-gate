@@ -339,9 +339,12 @@ describe("TTFT retry visibility — in-flight cooldown + retry WS broadcasts", (
   });
 });
 
-describe("TTFT retry visibility — auto-disable broadcasts watchdog_disabled via WS", () => {
-  test("broadcasts gate WS with watchdog_disabled:true after N consecutive retry failures", async () => {
+describe("TTFT retry visibility — no auto-disable (compat shell)", () => {
+  test("watchdog stays enabled after N consecutive retry failures — no disabled WS event", async () => {
     // Always-stall upstream: every call stalls, so every retry fails.
+    // After ticket 01 the watchdog is a neutered compat shell: it never
+    // auto-disables, so no gate WS event carries watchdog_disabled:true and
+    // the REST endpoint reports watchdog_disabled:false.
     const upstream = startCountedStallUpstream(20);
     const proxy = await startProxy({
       TARGET: `http://127.0.0.1:${upstream.port}`,
@@ -353,9 +356,8 @@ describe("TTFT retry visibility — auto-disable broadcasts watchdog_disabled vi
       UPSTREAM_TIMEOUT_MS: "5000",
       EXPERIMENT_TTFT_WATCHDOG: "true",
       TTFT_TIMEOUT_MS: "200",
+      TTFT_WATCHDOG_HARD_CAP_MS: "200",
       TTFT_RETRY_COOLDOWN_MS: "0",
-      TTFT_RETRY_FAILURE_THRESHOLD: "3",
-      TTFT_RETRY_FAILURE_WINDOW_MS: "300000",
     });
     try {
       const gateEvents: Array<{ watchdog_disabled: boolean }> = [];
@@ -364,12 +366,12 @@ describe("TTFT retry visibility — auto-disable broadcasts watchdog_disabled vi
 
       const done = new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => {
-          reject(new Error("auto-disable WS test timeout"));
+          reject(new Error("no-auto-disable WS test timeout"));
         }, 15000);
 
         ws.addEventListener("open", async () => {
-          // Fire 3 sequential requests. Each stalls → retry fails →
-          // recordRetryOutcome(false). After the 3rd, watchdog auto-disables.
+          // Fire 3 sequential requests. Each stalls → retry fails.
+          // The watchdog must stay armed after all three.
           for (let i = 0; i < 3; i++) {
             try {
               await fetch(`${proxy.baseUrl}/v1/messages`, {
@@ -406,13 +408,14 @@ describe("TTFT retry visibility — auto-disable broadcasts watchdog_disabled vi
       await done;
       ws.close();
 
+      // No gate event should report watchdog_disabled:true.
       const disabledEvent = gateEvents.find((e) => e.watchdog_disabled === true);
-      expect(disabledEvent).toBeDefined();
+      expect(disabledEvent).toBeUndefined();
 
-      // Also verify the REST endpoint returns watchdog_disabled: true.
+      // REST endpoint reports watchdog_disabled:false.
       const gateRes = await fetch(`${proxy.baseUrl}/dashboard/api/gate`);
       const gateStats = (await gateRes.json()) as { watchdog_disabled: boolean };
-      expect(gateStats.watchdog_disabled).toBe(true);
+      expect(gateStats.watchdog_disabled).toBe(false);
     } finally {
       await proxy.kill();
       await upstream.close();
