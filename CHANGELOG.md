@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.9] - 2026-07-28
+
+### Fixed
+
+- **Dashboard: VisionCallCard description scrollbar thumb never rendered**:
+  the `ScrollArea` wrapper hardcoded its Viewport to `size-full`
+  (`height: 100%`), which does not resolve against a Root declaring only
+  `max-height` (no definite height). The Viewport grew with content and
+  never overflowed, so the scrollbar thumb was absent for long vision
+  descriptions. Added an optional `viewportClassName` prop to the
+  `ScrollArea` wrapper (merged via `cn`/`twMerge` after the default
+  `size-full`); `VisionCallCard` now passes `viewportClassName="max-h-40"`
+  so the Viewport itself is bounded to 160px and overflow triggers the
+  thumb. Short descriptions still size to content (Root has no forced
+  height). The 11 other `ScrollArea` callers are unchanged.
+
 ## [0.4.8] - 2026-07-28
 
 ### Fixed
