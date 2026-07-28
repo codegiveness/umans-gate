@@ -113,10 +113,16 @@ describe("StatusClient — model bridging", () => {
     upstream = startStatusUpstream({
       response: {
         models: {
-          "direct-model": { p50_ttft_ms: 2000, p50_tps: 50 },
-          "base-model-x": { p50_ttft_ms: 30000, p50_tps: 10 },
+          "direct-model": {
+            latency: { ttft_ms: { p50: 2000 } },
+            output_tokens_per_second: { p50: 50 },
+          },
+          "base-model-x": {
+            latency: { ttft_ms: { p50: 30000 } },
+            output_tokens_per_second: { p50: 10 },
+          },
         },
-        overall: { p50_ttft_ms: 8000 },
+        overall: { latency: { ttft_ms: { p50: 8000 } } },
       },
     });
     const { models } = makeMockModels(new Map());
@@ -139,13 +145,27 @@ describe("StatusClient — model bridging", () => {
     expect(result!.overallP50).toBe(8000);
   });
 
-  test("base_model.name fallback", async () => {
+  test("sibling bridging via shared base_model.name", async () => {
+    // aliased-model is NOT in status; sibling-in-status IS, and both share
+    // base_model.name "shared-base". Mirrors umans-coder → umans-kimi-k2.7.
+    const up = startStatusUpstream({
+      response: {
+        models: {
+          "sibling-in-status": {
+            latency: { ttft_ms: { p50: 30000 } },
+            output_tokens_per_second: { p50: 10 },
+          },
+        },
+        overall: { latency: { ttft_ms: { p50: 8000 } } },
+      },
+    });
     const entries = new Map<string, ModelEntry>([
-      ["aliased-model", makeModelEntry("base-model-x")],
+      ["aliased-model", makeModelEntry("shared-base")],
+      ["sibling-in-status", makeModelEntry("shared-base")],
     ]);
     const { models } = makeMockModels(entries);
     const c = new StatusClient({
-      target: `http://127.0.0.1:${upstream.port}`,
+      target: `http://127.0.0.1:${up.port}`,
       apiKey: null,
       models,
     });
@@ -153,6 +173,7 @@ describe("StatusClient — model bridging", () => {
     expect(result).not.toBeNull();
     expect(result!.modelP50).toBe(30000);
     expect(result!.tpsP50).toBe(10);
+    await up.close();
   });
 
   test("overall p50 fallback when model not found", async () => {
@@ -186,6 +207,30 @@ describe("StatusClient — model bridging", () => {
     expect(result!.tpsP50).toBeNull();
     await up.close();
   });
+
+  test("flat (legacy) shape yields null, not NaN — regression for instant-abort bug", async () => {
+    // The old/legacy flat shape { p50_ttft_ms, p50_tps } must NOT produce
+    // undefined that silently becomes NaN downstream. bridgeModel reads
+    // nested paths; missing → null via ?? null. This locks the boundary.
+    const up = startStatusUpstream({
+      response: {
+        models: { "legacy-model": { p50_ttft_ms: 2000, p50_tps: 50 } as never },
+        overall: { p50_ttft_ms: 8000 } as never,
+      },
+    });
+    const { models } = makeMockModels(new Map());
+    const c = new StatusClient({
+      target: `http://127.0.0.1:${up.port}`,
+      apiKey: null,
+      models,
+    });
+    const result = await c.fetchStatus("legacy-model");
+    expect(result).not.toBeNull();
+    expect(result!.modelP50).toBeNull();
+    expect(result!.overallP50).toBeNull();
+    expect(Number.isFinite(result!.modelP50)).toBe(false);
+    await up.close();
+  });
 });
 
 describe("StatusClient — shared-promise dedup", () => {
@@ -194,7 +239,12 @@ describe("StatusClient — shared-promise dedup", () => {
 
   beforeAll(() => {
     upstream = startStatusUpstream({
-      response: { models: { m: { p50_ttft_ms: 1000, p50_tps: null } }, overall: null },
+      response: {
+        models: {
+          m: { latency: { ttft_ms: { p50: 1000 } }, output_tokens_per_second: { p50: null } },
+        },
+        overall: null,
+      },
       delayMs: 100,
     });
     const { models } = makeMockModels(new Map());
@@ -281,16 +331,27 @@ describe("StatusClient — fetch timeout (5s)", () => {
 });
 
 describe("StatusClient — model not in cache triggers refresh", () => {
-  test("calls refresh then retries bridging", async () => {
+  test("calls refresh then retries bridging via sibling", async () => {
     const up = startStatusUpstream({
       response: {
-        models: { "base-after-refresh": { p50_ttft_ms: 5000, p50_tps: 20 } },
+        models: {
+          "sibling-in-status": {
+            latency: { ttft_ms: { p50: 5000 } },
+            output_tokens_per_second: { p50: 20 },
+          },
+        },
         overall: null,
       },
     });
-    const entry = makeModelEntry("base-after-refresh");
+    // my-model not in cache initially; after refresh, both my-model and
+    // sibling-in-status appear, sharing base_model.name "shared-base".
+    const myEntry = makeModelEntry("shared-base");
+    const siblingEntry = makeModelEntry("shared-base");
     const entries = new Map<string, ModelEntry>();
-    const populated = new Map<string, ModelEntry>([["my-model", entry]]);
+    const populated = new Map<string, ModelEntry>([
+      ["my-model", myEntry],
+      ["sibling-in-status", siblingEntry],
+    ]);
     const { models, refreshCalls } = makeMockModels(entries, populated);
     const c = new StatusClient({
       target: `http://127.0.0.1:${up.port}`,

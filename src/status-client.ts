@@ -14,23 +14,23 @@ const log = createLogger("status-client");
 const STATUS_PATH = "/v1/status";
 const FETCH_TIMEOUT_MS = 5000;
 
-/** Per-model entry in the /v1/status response. */
+/** Per-model entry in the /v1/status response (nested live shape). */
 export interface StatusModelEntry {
-  p50_ttft_ms: number;
-  p50_tps: number | null;
+  latency?: { ttft_ms?: { p50?: number | null } };
+  output_tokens_per_second?: { p50?: number | null };
 }
 
 /**
- * Shape of the /v1/status response.
+ * Shape of the /v1/status response (matches the live upstream API).
  *
- * Designed from ADR-0026: "real-time status endpoint reporting per-model
- * p50 TTFT latency over a 5-minute window" plus an overall p50. The
- * upstream is expected to return `{ models: { [name]: { p50_ttft_ms,
- * p50_tps } }, overall: { p50_ttft_ms } | null }`.
+ * ADR-0026 described a flat `{ p50_ttft_ms, p50_tps }` shape, but the live
+ * `/v1/status` endpoint returns nested `latency.ttft_ms.p50` and
+ * `output_tokens_per_second.p50`. This interface reflects the real shape.
+ * `overall` may be `null` per ADR-0026.
  */
 export interface StatusResponse {
   models: Record<string, StatusModelEntry>;
-  overall: { p50_ttft_ms: number } | null;
+  overall?: { latency?: { ttft_ms?: { p50?: number | null } } } | null;
 }
 
 /** Result of a status lookup for a specific model. */
@@ -118,31 +118,43 @@ export class StatusClient {
   /**
    * Bridge a model name to its p50 via:
    * 1. Direct match in status response
-   * 2. base_model.name via ModelsClient (refresh if not in cache), then look up base model
+   * 2. Sibling bridging: find another info entry with the same base_model.name
+   *    that IS in the status response (e.g. umans-coder → umans-kimi-k2.7,
+   *    both base "kimi-k2.7-code"; umans-qwen3.6-35b-a3b → umans-flash,
+   *    both base "Qwen3.6-35B-A3b"). Refresh info cache if model unknown.
    * 3. Overall p50 fallback
    * 4. null
    */
   private async bridgeModel(resp: StatusResponse, model: string): Promise<StatusResult> {
-    const overallP50 = resp.overall?.p50_ttft_ms ?? null;
+    const overallP50 = resp.overall?.latency?.ttft_ms?.p50 ?? null;
 
     // 1. Direct match
     const direct = resp.models[model];
     if (direct) {
-      return { modelP50: direct.p50_ttft_ms, overallP50, tpsP50: direct.p50_tps ?? null };
+      return {
+        modelP50: direct.latency?.ttft_ms?.p50 ?? null,
+        overallP50,
+        tpsP50: direct.output_tokens_per_second?.p50 ?? null,
+      };
     }
 
-    // 2. base_model.name bridging (refresh cache if model unknown)
+    // 2. Sibling bridging via shared base_model.name (refresh cache if unknown)
     let entry = this.models.get(model);
     if (!entry) {
       await this.models.refresh();
       entry = this.models.get(model);
     }
-    if (entry) {
-      const baseName = entry.info?.base_model?.name;
-      if (baseName) {
-        const baseMatch = resp.models[baseName];
-        if (baseMatch) {
-          return { modelP50: baseMatch.p50_ttft_ms, overallP50, tpsP50: baseMatch.p50_tps ?? null };
+    const baseName = entry?.info?.base_model?.name;
+    if (baseName) {
+      for (const [siblingId, sibling] of Object.entries(resp.models)) {
+        if (siblingId === model) continue;
+        const siblingEntry = this.models.get(siblingId);
+        if (siblingEntry?.info?.base_model?.name === baseName) {
+          return {
+            modelP50: sibling.latency?.ttft_ms?.p50 ?? null,
+            overallP50,
+            tpsP50: sibling.output_tokens_per_second?.p50 ?? null,
+          };
         }
       }
     }

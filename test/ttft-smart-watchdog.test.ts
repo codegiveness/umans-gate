@@ -41,13 +41,13 @@ function startSmartMock(opts: {
         return Response.json({
           models: {
             "test-model": {
-              p50_ttft_ms: opts.modelP50,
-              p50_tps: opts.tpsP50 ?? null,
+              latency: { ttft_ms: { p50: opts.modelP50 } },
+              output_tokens_per_second: { p50: opts.tpsP50 ?? null },
             },
           },
           overall:
             opts.overallP50 !== null && opts.overallP50 !== undefined
-              ? { p50_ttft_ms: opts.overallP50 }
+              ? { latency: { ttft_ms: { p50: opts.overallP50 } } }
               : null,
         });
       }

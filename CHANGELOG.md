@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-07-29
+
+### Fixed
+
+- **TTFT watchdog instant-abort bug**: `StatusClient` parsed a flat
+  `{ p50_ttft_ms, p50_tps }` shape from `/v1/status`, but the live
+  endpoint returns nested `latency.ttft_ms.p50` and
+  `output_tokens_per_second.p50`. The mismatch produced `undefined`,
+  which passed the `=== null` guard, multiplied to `NaN`, and caused
+  `setTimeout(fn, NaN)` to fire at 0ms — instantly aborting every
+  request's first attempt and sending it straight to cooldown. Fixed by
+  updating `StatusResponse`/`StatusModelEntry` interfaces to the real
+  nested shape, coercing every read to `null` via `?? null`, tightening
+  the proxy guard to `== null`, and adding a `Number.isFinite` guard
+  before re-arming the watchdog timer.
+- **Model-name bridging for aliased models**: the old `bridgeModel`
+  looked up `base_model.name` directly as a status key, but `/v1/status`
+  keys by `umans-*` ids, not base names. Models that share a base but
+  have different display ids (e.g. `umans-coder` ↔ `umans-kimi-k2.7`,
+  both base `kimi-k2.7-code`; `umans-qwen3.6-35b-a3b` ↔ `umans-flash`,
+  both base `Qwen3.6-35B-A3b`) never resolved. Replaced with sibling
+  bridging: find another info entry with the same `base_model.name`
+  that IS present in the status response.
+
 ## [0.5.0] - 2026-07-29
 
 ### Changed

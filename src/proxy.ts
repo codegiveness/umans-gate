@@ -893,7 +893,7 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
         statusClient
           .fetchStatus(reqModelName ?? "")
           .then((result: StatusResult | null) => {
-            if (!result || result.modelP50 === null) return;
+            if (!result || result.modelP50 == null) return;
             if (ttftController.signal.aborted) return;
             // Guard: if the timer was already cleared, the first chunk arrived
             // (or the timer already fired and was handled). Do NOT re-arm a new
@@ -907,6 +907,7 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
               result.modelP50 * config.ttftWatchdogMultiplier,
               effectiveHardCap,
             );
+            if (!Number.isFinite(dynamicThreshold)) return;
             clearTimeout(ttftTimer);
             currentThreshold = dynamicThreshold;
             ttftTimer = setTimeout(() => ttftController.abort(), dynamicThreshold);
