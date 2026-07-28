@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-07-29
+
+### Changed
+
+- **Smart TTFT watchdog with dynamic two-tier threshold**: replaced the
+  static 60-second TTFT watchdog (`ttft_timeout_ms`) with a dynamic
+  two-tier threshold derived from the upstream's real-time p50 latency
+  via `/v1/status`. Attempt 1 starts at a fallback
+  `min(ttft_timeout_ms, upstream_timeout_ms-1000)` and tightens to
+  `min(modelP50×multiplier, effective_hard_cap)` when the status
+  response arrives mid-flight. Attempts 2+ use
+  `effective_hard_cap = min(ttft_watchdog_hard_cap_ms, upstream_timeout_ms-1000)`.
+  Attempt 3 rewrite-escalation is now unconditional (decoupled from
+  `experiment_rewrite_ids`). After 3 failed attempts the proxy returns
+  504. `TtftWatchdogState` (auto-disable) is removed entirely. A single
+  `ttft_timeout` incident is recorded at capture lifecycle end instead
+  of per-timeout. The dashboard badge unifies retry/cooldown/watching
+  states with threshold display, and a new capture-card row 4 shows
+  `p50/tps/ratio` when upstream p50 data is available.
+
+- **`upstream_timeout_ms` default raised 300000→1800000** (30 min):
+  the prior 5-minute ceiling was too aggressive for long-running
+  reasoning models.
+
+- **`ttft_retry_max_attempts` default 2→3**: one more retry before
+  giving up, enabled by the smarter threshold.
+
+- **`ttft_retry_cooldown_ms` default 30000→5000**: shorter cooldown
+  between attempts now that false-positive kills are less likely.
+
+### Added
+
+- **`ttft_watchdog_multiplier`** (default 5): multiplier applied to the
+  model's p50 TTFT to compute the dynamic threshold.
+- **`ttft_watchdog_hard_cap_ms`** (default 300000): hard cap on the
+  dynamic threshold; also used as the attempt 2+ threshold.
+- **`src/status-client.ts`**: fetches `/v1/status` with shared-promise
+  dedup, 5-second timeout, and model bridging chain (direct model →
+  `base_model.name` via `ModelsClient` → overall p50 → null).
+- **DB columns `upstream_ttft_p50_ms` + `upstream_tps_p50`** on
+  `captures` table, propagated through `CaptureSummary`, `CaptureRow`,
+  `ResponseMeta`, and the dashboard.
+- **ADR-0026** (smart TTFT watchdog) and **ADR-0027** (upstream timeout
+  default).
+
+### Removed
+
+- **`ttft_retry_failure_threshold`** and
+  **`ttft_retry_failure_window_ms`** config fields: dead under the new
+  design (no auto-disable, no failure window).
+- **`src/experiments/ttft-watchdog-state.ts`**: the auto-disable state
+  machine is gone. The watchdog is always armed when
+  `experiment_ttft_watchdog` is enabled.
+- **Dashboard "watchdog off" badge**: removed from `gate-status.tsx`.
+
 ## [0.4.9] - 2026-07-28
 
 ### Fixed
