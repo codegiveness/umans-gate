@@ -87,12 +87,22 @@ export function newSummary(
   };
 }
 
-/** Build a summary from queued response metadata. */
+/** P50 override from DB, used when the queue's in-memory ResponseMeta
+ *  doesn't carry p50 (the detached status-fetch write bypasses the queue). */
+export interface P50Override {
+  upstream_ttft_p50_ms: number | null;
+  upstream_tps_p50: number | null;
+}
+
+/** Build a summary from queued response metadata.
+ *  @param p50Override — if provided, takes precedence over `res.$upstream_ttft_p50_ms`
+ *    (which is never populated because the p50 write bypasses the queue). */
 export function buildSummary(
   id: number,
   reqMeta: RequestMeta,
   res: ResponseMeta,
   config: ProtocolConfig,
+  p50Override?: P50Override | null,
 ): CaptureSummary {
   const u = res.$usage ?? null;
   return {
@@ -124,7 +134,7 @@ export function buildSummary(
     gate_reason: res.$gate_reason,
     retry_attempt: res.$retry_attempt ?? null,
     ttft_exceeded: res.$ttft_exceeded ?? null,
-    upstream_ttft_p50_ms: res.$upstream_ttft_p50_ms ?? null,
-    upstream_tps_p50: res.$upstream_tps_p50 ?? null,
+    upstream_ttft_p50_ms: p50Override?.upstream_ttft_p50_ms ?? res.$upstream_ttft_p50_ms ?? null,
+    upstream_tps_p50: p50Override?.upstream_tps_p50 ?? res.$upstream_tps_p50 ?? null,
   };
 }

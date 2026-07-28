@@ -401,6 +401,7 @@ export class CaptureDB {
   private stmtSetState: ReturnType<Database["prepare"]>;
   private stmtUpdateRequestBody: ReturnType<Database["prepare"]>;
   private stmtUpdateP50: ReturnType<Database["prepare"]>;
+  private stmtGetP50: ReturnType<Database["prepare"]>;
   private stmtPerformanceStats: ReturnType<Database["prepare"]>;
   private stmtInsertVision: ReturnType<Database["prepare"]>;
   private stmtUpdateVision: ReturnType<Database["prepare"]>;
@@ -495,6 +496,9 @@ export class CaptureDB {
     this.stmtUpdateP50 = this.db.prepare(
       "UPDATE captures SET upstream_ttft_p50_ms = $ttft, upstream_tps_p50 = $tps WHERE id = $id",
     );
+    this.stmtGetP50 = this.db.prepare(
+      "SELECT upstream_ttft_p50_ms, upstream_tps_p50 FROM captures WHERE id = $id",
+    ) as ReturnType<Database["prepare"]>;
     this.stmtPerformanceStats = this.db.prepare(PERFORMANCE_STATS_SQL);
     this.stmtInsertVision = this.db.prepare(
       `INSERT INTO captures
@@ -638,6 +642,15 @@ export class CaptureDB {
   /** Update only the upstream p50 TTFT/TPS columns for a capture row. */
   updateUpstreamP50(id: number, ttftP50: number | null, tpsP50: number | null): void {
     this.stmtUpdateP50.run({ $ttft: ttftP50, $tps: tpsP50, $id: id });
+  }
+
+  getUpstreamP50(
+    id: number,
+  ): { upstream_ttft_p50_ms: number | null; upstream_tps_p50: number | null } | null {
+    const row = this.stmtGetP50.get({ $id: id }) as
+      | { upstream_ttft_p50_ms: number | null; upstream_tps_p50: number | null }
+      | undefined;
+    return row ?? null;
   }
 
   /** Batch-update multiple captures in a single transaction. */

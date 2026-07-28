@@ -1,6 +1,6 @@
 # Troubleshooting
 
-> **Applies to:** umans-gate v0.5.0 · **Last updated:** 2026-07-28
+> **Applies to:** umans-gate v0.5.1 · **Last updated:** 2026-07-28
 
 Common issues and solutions for running umans-gate.
 

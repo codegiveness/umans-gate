@@ -18,6 +18,9 @@ interface QueuedUpdate {
 export interface CaptureStore {
   updateCapture(params: UpdateParams): void;
   batchUpdate(items: Array<{ id: number; res: Omit<UpdateParams, "$id"> }>): Promise<void>;
+  getUpstreamP50?(
+    id: number,
+  ): { upstream_ttft_p50_ms: number | null; upstream_tps_p50: number | null } | null;
 }
 
 /**
@@ -204,10 +207,13 @@ export class WriteQueue {
     }
     this.flushRetryCount = 0;
     if (this.onFlush) {
-      const messages: WsMessage[] = batch.map((it) => ({
-        type: "update" as const,
-        capture: buildSummary(it.id, it.reqMeta, it.res, this.config),
-      }));
+      const messages: WsMessage[] = batch.map((it) => {
+        const p50 = this.store.getUpstreamP50?.(it.id) ?? null;
+        return {
+          type: "update" as const,
+          capture: buildSummary(it.id, it.reqMeta, it.res, this.config, p50),
+        };
+      });
       this.onFlush(messages);
     }
   }

@@ -13,6 +13,7 @@ import {
   headersToObject,
   newSummary,
   redactHeaders,
+  summary,
   textDecoder,
   textEncoder,
 } from "./helpers.js";
@@ -915,6 +916,14 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
             // pruned) are safe — SQLite UPDATE on a missing row is a no-op.
             try {
               deps.db.updateUpstreamP50(capId, result.modelP50, result.tpsP50);
+              // Late broadcast: if the capture is already "done", the queue's
+              // "done" broadcast already went out (possibly without p50 if
+              // this write landed after the flush). Re-read the row and emit
+              // an "update" so the dashboard gets the p50.
+              const row = deps.db.get(capId);
+              if (row && row.state === "done") {
+                deps.ws.broadcast({ type: "update", capture: summary(row) });
+              }
             } catch {
               // Non-blocking: p50 persistence failure must not break the request path.
             }

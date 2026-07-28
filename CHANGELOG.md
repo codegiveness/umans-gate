@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-07-29
+
+### Fixed
+
+- **p50 TTFT row missing from capture card**: when the TTFT watchdog is
+  enabled, `updateUpstreamP50` writes p50 to SQLite but the WS
+  "done"/"update" broadcast always carried `upstream_ttft_p50_ms: null`
+  because `buildSummary` read from `res.$upstream_ttft_p50_ms` (never
+  populated) instead of the DB. The dashboard's 4th row (p50 / tps /
+  ratio) only appeared after a manual refresh. Fixed with a two-part
+  approach: (1) `flushNow` now re-reads p50 from the DB via
+  `getUpstreamP50` and passes it to `buildSummary` as an override, so
+  the done broadcast carries p50 when it's already in the DB; (2) the
+  detached p50 `.then()` callback in `proxy.ts` emits a late WS
+  "update" with `summary(row)` if the capture is already "done" —
+  covering the case where p50 lands after the done broadcast. The
+  overlap window (both fire) is idempotent and debounced client-side.
+
 ## [0.5.1] - 2026-07-29
 
 ### Fixed
