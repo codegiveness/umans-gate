@@ -18,6 +18,16 @@ const CHEAP_MODEL_WEIGHT = 0.5;
 /** Default weight for models without cheap pricing. */
 const DEFAULT_MODEL_WEIGHT = 1;
 
+/**
+ * Cold-start retry parameters. Hardcoded, not user-configurable.
+ * Exported as a mutable object so tests can override for fast feedback;
+ * production code reads the default values.
+ */
+export const COLD_START = {
+  intervalMs: 30_000,
+  maxRetries: 10,
+};
+
 /** Rich model info from /v1/models/info — faithfully typed from the upstream API. */
 
 export interface ModelEntry {
@@ -63,6 +73,8 @@ export class ModelsClient implements VisionLookup {
   private readonly refreshMs: number;
   private readonly path: string;
   private readonly infoPath: string;
+  private started = false;
+  private coldStartRetry = 0;
 
   constructor(opts: ModelsClientOptions) {
     this.target = opts.target.replace(/\/+$/, "");
@@ -72,14 +84,64 @@ export class ModelsClient implements VisionLookup {
   }
 
   start(): void {
-    if (this.timer) return;
-    void this.refresh().catch(() => {});
+    if (this.started) return;
+    this.started = true;
+    void this.kickoff();
+  }
+
+  private async kickoff(): Promise<void> {
+    const success = await this.refresh().catch(() => false);
+    if (!this.started) return;
+    if (success || this.fetchedAt > 0) {
+      this.beginSteadyState();
+      return;
+    }
+    if (this.coldStartRetry >= COLD_START.maxRetries) {
+      this.beginSteadyState();
+      return;
+    }
+    this.timer = setInterval(() => {
+      void this.coldStartTick().catch(() => {});
+    }, COLD_START.intervalMs);
+  }
+
+  private async coldStartTick(): Promise<void> {
+    if (!this.started) return;
+    if (this.fetchedAt > 0) {
+      this.transitionToSteadyState();
+      return;
+    }
+    this.coldStartRetry++;
+    const success = await this.refresh().catch(() => false);
+    if (!this.started) return;
+    if (success || this.fetchedAt > 0) {
+      this.transitionToSteadyState();
+      return;
+    }
+    if (this.coldStartRetry >= COLD_START.maxRetries) {
+      this.transitionToSteadyState();
+    }
+  }
+
+  private transitionToSteadyState(): void {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+    this.beginSteadyState();
+  }
+
+  private beginSteadyState(): void {
+    if (this.timer) {
+      clearInterval(this.timer);
+    }
     this.timer = setInterval(() => {
       void this.refresh().catch(() => {});
     }, this.refreshMs);
   }
 
   stop(): void {
+    this.started = false;
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;

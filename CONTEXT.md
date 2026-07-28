@@ -1,6 +1,6 @@
 # umans-gate domain glossary
 
-> **Applies to:** umans-gate v0.4.5 · **Last updated:** 2026-07-27
+> **Applies to:** umans-gate v0.4.8 · **Last updated:** 2026-07-28
 
 Pure glossary of domain terms. Definitions only: no implementation
 details, file paths, or code references.
@@ -332,6 +332,23 @@ exhausted, or rewrite escalation not eligible). Distinct from
 `incident_type` (which is always `ttft_timeout`); this is the
 audit-level detail of why the proxy declined to retry.
 _Avoid_: retry reason, suppress cause.
+
+## Model catalog
+
+**Model catalog**: the merged view of upstream `/v1/models` (list with
+pricing + context length) and `/v1/models/info` (rich capabilities per
+model). The proxy's `ModelsClient` fetches both, derives concurrency
+weights, and serves synchronous lookups. The dashboard Models tab
+renders this catalog. Distinct from the stamp overlay (which is
+proxy-local tuning, not upstream-reported). _Avoid_: model list, model
+registry.
+
+**Model refresh**: force-fetching the model catalog from upstream,
+distinct from re-reading the cached snapshot. The dashboard Refresh
+button triggers a server-side upstream re-fetch (POST), not just a
+client-side re-poll (GET). Distinct from model polling (the periodic
+background fetch on `models_refresh_ms` interval). _Avoid_: model
+reload, model update.
 
 ## Dashboard navigation
 

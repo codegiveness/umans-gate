@@ -387,6 +387,19 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
       },
     },
     {
+      method: "POST",
+      pattern: `${VIEWER}/api/models/refresh`,
+      handler: async (ctx) => {
+        if (!ctx.models) return Response.json({ models: [], fetched_at: 0, ok: false });
+        await ctx.models.refresh();
+        return Response.json({
+          models: ctx.models.list(),
+          fetched_at: ctx.models.lastFetchedAt(),
+          ok: ctx.models.healthy(),
+        });
+      },
+    },
+    {
       method: "GET",
       pattern: `${VIEWER}/api/performance`,
       handler: (ctx) => Response.json(ctx.db.getPerformanceStats()),

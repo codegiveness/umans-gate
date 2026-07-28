@@ -1,6 +1,6 @@
 # Captures Tab Reference
 
-> **Applies to:** umans-gate v0.4.7 · **Last updated:** 2026-07-27
+> **Applies to:** umans-gate v0.4.8 · **Last updated:** 2026-07-28
 
 The Captures tab is a live, master-detail log of every intercepted LLM API call.
 
