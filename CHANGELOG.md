@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.8] - 2026-07-28
+
+### Fixed
+
+- **Vision cache miss now rewrites in foreground**: `processBodyCacheOnly`
+  previously fire-and-forgot to background vision on a cache miss, forwarding
+  the original image-bearing body unchanged. Non-vision models would then
+  receive an image they cannot process. On a cache miss, the proxy now halts,
+  calls the vision model, rewrites the body with the text description, then
+  forwards. Subsequent requests for the same image hit the cache and skip the
+  vision call. Removed `enqueueBackgroundVision` and its regression test.
+
+- **Vision call request_body/request_headers now persisted**: the
+  `updateVision` SQL and `VisionUpdateParams` interface gained
+  `$reqBody`/`$reqHeaders`/`$reqSize` parameters. `VisionImageProcessor`
+  populates them, enabling dashboard inspection of the exact vision request
+  including intent context (adjacent text, system prompt excerpt).
+
+### Added
+
+- **Catalog-strategy integration tests**: three end-to-end tests covering
+  Bug 1 (non-vision model gets rewritten text, not image), Bug 2 (vision
+  request_body persisted with intent context), and vision-capable model
+  passthrough (no vision call).
+
 ## [0.4.7] - 2026-07-27
 
 ### Fixed
