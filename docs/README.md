@@ -1,6 +1,6 @@
 # umans-gate Documentation
 
-> **Current version:** v0.4.9 · **Index updated:** 2026-07-28
+> **Current version:** v0.5.0 · **Index updated:** 2026-07-28
 
 umans-gate documentation covers installation, architecture, operations, and development for the Bun-based LLM API capture proxy. Start with [README.md](../README.md) for install and quick start, then read [ARCHITECTURE.md](ARCHITECTURE.md) for system design. Operations and troubleshooting guides cover day-to-day usage. Reference docs document each dashboard tab.
 
