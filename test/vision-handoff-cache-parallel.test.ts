@@ -207,9 +207,10 @@ describe("processBodyCacheOnly parallel behavior (PERF-04)", () => {
     await handoff1.processBody(body2images, "anthropic");
 
     // Phase 2: process all 3 images via cacheOnly — third should miss.
+    // On miss, processBodyCacheOnly delegates to foreground processBody.
     const config2 = makeConfig({
       target: `http://127.0.0.1:${visionServer.port}`,
-      backgroundVision: true, // background enqueue on miss
+      backgroundVision: true,
     });
     const handoff2 = new VisionHandoff(config2, cache, null, undefined, db);
     const body3images = makeAnthropicBody(...images);
@@ -217,13 +218,11 @@ describe("processBodyCacheOnly parallel behavior (PERF-04)", () => {
     const visionCallsBefore = visionCallIdx;
     const result = await handoff2.processBodyCacheOnly(body3images, "anthropic");
 
-    // Should NOT have changed the body (one image missed).
-    expect(result.changed).toBe(false);
-    // V3: prior hits had no effect (body unchanged) → cacheHits reset to 0.
-    expect(result.stats.cacheHits).toBe(0);
+    // Foreground rewrite on miss — body changed.
+    expect(result.changed).toBe(true);
+    expect(result.stats.visionCalls).toBeGreaterThanOrEqual(1);
 
-    // Background vision should have been enqueued — wait for it.
-    // Give it time to process the miss.
+    // Foreground vision call made for the miss.
     await new Promise((r) => setTimeout(r, 500));
     const visionCallsAfter = visionCallIdx;
     expect(visionCallsAfter).toBeGreaterThan(visionCallsBefore);
@@ -231,7 +230,7 @@ describe("processBodyCacheOnly parallel behavior (PERF-04)", () => {
     visionServer.stop(true);
   });
 
-  test("all misses → { changed: false }", async () => {
+  test("all misses → foreground rewrite, changed: true", async () => {
     const images = [RED_PNG_B64, BLUE_PNG_B64];
 
     const visionServer = Bun.serve({
@@ -263,21 +262,15 @@ describe("processBodyCacheOnly parallel behavior (PERF-04)", () => {
 
     const result = await handoff.processBodyCacheOnly(body, "anthropic");
 
-    expect(result.changed).toBe(false);
-    expect(result.stats.cacheHits).toBe(0);
-    expect(result.stats.cacheMisses).toBe(0); // cacheOnly doesn't count misses in stats
+    expect(result.changed).toBe(true);
+    expect(result.stats.visionCalls).toBeGreaterThanOrEqual(1);
 
-    // Wait for background processing.
     await new Promise((r) => setTimeout(r, 500));
 
     visionServer.stop(true);
   });
 
-  test("one transcode throws → handled gracefully, { changed: false }", async () => {
-    // Use an invalid base64 string that will cause transcode to fail.
-    // decodeBase64 will return null for invalid data, which is handled.
-    // But we need transcode to actually throw — use bytes that decode
-    // but are not a valid image.
+  test("one transcode throws → foreground handles gracefully, changed: true", async () => {
     const invalidImageB64 = Buffer.from("not-an-image-at-all-just-random-bytes").toString("base64");
 
     const validImages = [RED_PNG_B64, BLUE_PNG_B64];
@@ -312,6 +305,8 @@ describe("processBodyCacheOnly parallel behavior (PERF-04)", () => {
     await handoff1.processBody(bodyValid, "anthropic");
 
     // Now process all 3 (2 valid + 1 invalid) via cacheOnly.
+    // Invalid base64 triggers foreground processBody, which handles the
+    // transcode failure via a fail-open placeholder description.
     const config2 = makeConfig({
       target: `http://127.0.0.1:${visionServer.port}`,
       backgroundVision: true,
@@ -321,10 +316,8 @@ describe("processBodyCacheOnly parallel behavior (PERF-04)", () => {
 
     const result = await handoff2.processBodyCacheOnly(bodyWithInvalid, "anthropic");
 
-    // Should not have changed — transcode error on the invalid image.
-    expect(result.changed).toBe(false);
+    expect(result.changed).toBe(true);
 
-    // Wait for background processing.
     await new Promise((r) => setTimeout(r, 500));
 
     visionServer.stop(true);

@@ -99,6 +99,9 @@ export interface VisionUpdateParams {
   $rh: string;
   $rb: string;
   $rs: number;
+  $reqBody: string;
+  $reqHeaders: string;
+  $reqSize: number;
   $ct: string;
   $sse: number;
   $dur: number;
@@ -510,6 +513,9 @@ export class CaptureDB {
         response_headers = $rh,
         response_body = $rb,
         response_size = $rs,
+        request_body = $reqBody,
+        request_headers = $reqHeaders,
+        request_size = $reqSize,
         content_type = $ct,
         is_sse = $sse,
         duration_ms = $dur,
@@ -742,6 +748,8 @@ export class CaptureDB {
       ...params,
       $rh: compressText(params.$rh, this.compressionEnabled),
       $rb: compressText(params.$rb, this.compressionEnabled),
+      $reqBody: compressText(params.$reqBody, this.compressionEnabled),
+      $reqHeaders: compressText(params.$reqHeaders, this.compressionEnabled),
     };
     this.db.transaction(() => {
       this.stmtUpdateVision.run(compressed as unknown as never);

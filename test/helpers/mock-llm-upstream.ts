@@ -116,7 +116,7 @@ export function startMockLlmUpstream(port = 0): MockUpstreamHandle {
 
 // ─── Anthropic handler ──────────────────────────────────────────────────────
 
-async function handleAnthropic(
+export async function handleAnthropic(
   body: MockRequestBody,
   callCount: number,
   seenSystemPrompts: Set<string>,
@@ -310,7 +310,7 @@ function resolveAnthropicUsage(
 
 // ─── OpenAI handler ─────────────────────────────────────────────────────────
 
-function handleOpenAi(body: MockRequestBody, _callCount: number): Response {
+export function handleOpenAi(body: MockRequestBody, _callCount: number): Response {
   const streaming = body?.stream === true;
   const includeUsage = body?.stream_options?.include_usage === true;
 

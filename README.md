@@ -65,10 +65,12 @@ umans-gate is a **local LLM API capture proxy** that sits between an agent harne
 2. **Vision strategy and non-Claude Code harnesses.** When
    `VISION_STRATEGY` is `never`, or a vision-capable model under `catalog`,
    images pass through untouched. Do NOT configure the model as
-   vision-capable on the harness side (except Claude Code). The default
-   `catalog` strategy runs in **background mode**: on a cache miss, the
-   original image-bearing body is forwarded immediately; vision processing
-   populates the cache for the *next* request.
+   vision-capable on the harness side (except Claude Code). With the default
+   `catalog` strategy, a cache miss halts the request, calls the vision
+   model to describe the image, rewrites the body with the text
+   description, then forwards — so non-vision models receive text they can
+   process. Subsequent requests for the same image hit the cache and skip
+   the vision call.
 3. **Upstream target is hardcoded.** Forwards to
    `https://api.code.umans.ai`. OpenAI chat path, warmer path, and vision
    target are also hardcoded, not configurable. Listen address is hardcoded

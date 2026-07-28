@@ -164,7 +164,7 @@ describe("processBodyCacheOnly stats on miss (V3)", () => {
     }
   });
 
-  test("any image is a cache miss → stats.cacheHits is 0 (hits had no effect), body unchanged", async () => {
+  test("any image is a cache miss → foreground rewrite, all images processed", async () => {
     // Populate cache for only 2 of 3 images — the 3rd (green) will miss.
     const visionServer = mockVisionServer(["Red pixel.", "Blue pixel.", "Green pixel."]);
     try {
@@ -176,6 +176,7 @@ describe("processBodyCacheOnly stats on miss (V3)", () => {
       await handoffWarm.processBody(makeAnthropicBody(RED_PNG_B64, BLUE_PNG_B64), "anthropic");
 
       // Phase 2: cache-only with 3 images — green is a miss, red+blue are hits.
+      // On miss, processBodyCacheOnly delegates to foreground processBody.
       const config = makeConfig({
         target: `http://127.0.0.1:${visionServer.port}`,
         backgroundVision: true,
@@ -185,19 +186,17 @@ describe("processBodyCacheOnly stats on miss (V3)", () => {
 
       const result = await handoff.processBodyCacheOnly(body, "anthropic");
 
-      // Body must NOT have changed (one image missed).
-      expect(result.changed).toBe(false);
-      // Hits accumulated before the miss had no effect — must be reset to 0.
-      expect(result.stats.cacheHits).toBe(0);
+      expect(result.changed).toBe(true);
+      expect(result.stats.visionCalls).toBeGreaterThanOrEqual(1);
 
-      // Give background vision time to process the miss.
+      // Give foreground vision time to complete and cache the miss.
       await new Promise((r) => setTimeout(r, 500));
     } finally {
       visionServer.stop(true);
     }
   });
 
-  test("miss on first image (no prior hits) → changed: false, cacheHits: 0", async () => {
+  test("miss on first image → foreground rewrite, changed: true", async () => {
     // Only populate cache for the second image — first image misses immediately.
     const visionServer = mockVisionServer(["Blue pixel.", "Red pixel."]);
     try {
@@ -206,7 +205,6 @@ describe("processBodyCacheOnly stats on miss (V3)", () => {
         backgroundVision: false,
       });
       const handoffWarm = new VisionHandoff(configWarm, cache, null, undefined, db);
-      // Warm only blue (the second image in our body).
       await handoffWarm.processBody(makeAnthropicBody(BLUE_PNG_B64), "anthropic");
 
       const config = makeConfig({
@@ -214,13 +212,12 @@ describe("processBodyCacheOnly stats on miss (V3)", () => {
         backgroundVision: true,
       });
       const handoff = new VisionHandoff(config, cache, null, undefined, db);
-      // First image (red) is a miss; blue would be a hit but we never reach it.
       const body = makeAnthropicBody(RED_PNG_B64, BLUE_PNG_B64);
 
       const result = await handoff.processBodyCacheOnly(body, "anthropic");
 
-      expect(result.changed).toBe(false);
-      expect(result.stats.cacheHits).toBe(0);
+      expect(result.changed).toBe(true);
+      expect(result.stats.visionCalls).toBeGreaterThanOrEqual(1);
 
       await new Promise((r) => setTimeout(r, 500));
     } finally {

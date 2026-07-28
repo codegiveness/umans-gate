@@ -810,10 +810,11 @@ describe("Task 8 — intent-aware vision integration (v2 base)", () => {
     }
   });
 
-  test("16. background mode (catalog strategy): forward unchanged on miss, populate cache, rewrite on next hit", async () => {
+  test("16. foreground mode (catalog strategy): rewrite on miss, cache hit on next call", async () => {
     const vision = startMockVision("A red pixel.");
     try {
       // backgroundVision: true → processBodyCacheOnly path.
+      // On cache miss, processBodyCacheNow delegates to foreground processBody.
       const config = makeConfig({
         target: `http://127.0.0.1:${vision.port}`,
         backgroundVision: true,
@@ -821,20 +822,12 @@ describe("Task 8 — intent-aware vision integration (v2 base)", () => {
       const handoff = new VisionHandoff(config, cache, null, gate, db);
 
       const body1 = makeOpenAiBody("what color is the sky?", RED_PNG_B64);
-      // First call: cache miss → forwarded unchanged, background vision call enqueued.
+      // First call: cache miss → foreground vision call, body rewritten.
       const r1 = await handoff.processBodyCacheOnly(body1, "openai");
-      expect(r1.changed).toBe(false);
+      expect(r1.changed).toBe(true);
 
-      // Wait for the background vision call to populate the cache.
-      // The background call runs processBody internally which calls vision.
-      for (let i = 0; i < 50; i++) {
-        if (vision.getCallCount() > 0) break;
-        await sleep(20);
-      }
+      // Vision call made synchronously (foreground).
       expect(vision.getCallCount()).toBe(1);
-
-      // Extra settle time for the cache write to complete.
-      await sleep(100);
 
       // Second call: cache HIT → body rewritten with description.
       const body2 = makeOpenAiBody("what color is the sky?", RED_PNG_B64);

@@ -13,12 +13,11 @@
 // + sink) is delegated to {@link VisionImageProcessor}. This class keeps:
 // catalog gate, cheap signal, image extraction, max-images policy, batch
 // triage, decomposition orchestration, body cloning, context extraction,
-// delegation to wrapper.ts for body rewriting, and the background-mode
-// fire-and-forget path (`enqueueBackgroundVision` / `processBodyCacheOnly`).
+// delegation to wrapper.ts for body rewriting, and the cache-only fast path
+// (`processBodyCacheOnly`).
 
 import type { CaptureDB } from "../db.js";
 import { ConcurrencyGate } from "../limiter/index.js";
-import { createLogger } from "../logger.js";
 import type { CaptureState, ProtocolConfig } from "../types.js";
 import type { DescriptionCache } from "./cache.js";
 import {
@@ -52,8 +51,6 @@ import {
   replaceImageBlocks,
   wrapDescription,
 } from "./wrapper.js";
-
-const log = createLogger("vision");
 
 /** Strategy for when to rewrite image-bearing requests. */
 type VisionStrategy = "never" | "catalog" | "always";
@@ -491,13 +488,13 @@ export class VisionHandoff {
     const descriptions: string[] = [];
     for (const part of kept) {
       if (part.encoding === "url") {
-        this.enqueueBackgroundVision(body, apiKind, modelName, captureId, signal);
-        return { body, changed: false, stats };
+        // Foreground: URL images can't be cache-keyed synchronously.
+        return this.processBody(body, apiKind, modelName, captureId, signal);
       }
       const decoded = decodeBase64(part.data);
       if (decoded === null) {
-        this.enqueueBackgroundVision(body, apiKind, modelName, captureId, signal);
-        return { body, changed: false, stats };
+        // Foreground: surface decode failure in vision error metadata.
+        return this.processBody(body, apiKind, modelName, captureId, signal);
       }
       let cached = "";
       try {
@@ -515,10 +512,9 @@ export class VisionHandoff {
         if (err !== CACHE_MISS) throw err;
       }
       if (cached === "") {
-        this.enqueueBackgroundVision(body, apiKind, modelName, captureId, signal);
-        // Prior hits had no effect — body is unchanged, so don't report them.
-        stats.cacheHits = 0;
-        return { body, changed: false, stats };
+        // Foreground: cache miss must halt + rewrite, else non-vision models
+        // receive an image they cannot process.
+        return this.processBody(body, apiKind, modelName, captureId, signal);
       }
       descriptions.push(wrapDescription(cached));
       stats.cacheHits++;
@@ -531,23 +527,6 @@ export class VisionHandoff {
     }));
     replaceImageBlocks(mutated, apiKind, descriptions, [], positions);
     return { body: mutated, changed: true, stats };
-  }
-
-  private enqueueBackgroundVision(
-    body: unknown,
-    apiKind: ApiKind,
-    modelName: string | undefined,
-    captureId: number | undefined,
-    _signal: AbortSignal | undefined,
-  ): void {
-    const bgSignal =
-      this.config.timeoutMs > 0 ? AbortSignal.timeout(this.config.timeoutMs) : undefined;
-    this.processBody(body, apiKind, modelName, captureId, bgSignal).catch((err) => {
-      log.warn("background vision processing failed", {
-        error: (err as Error).message,
-        captureId,
-      });
-    });
   }
 
   /**
