@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-07-29
+
+### Changed
+
+- **Three-layer test pyramid migration**: reorganized 135 flat test files
+  into `test/unit/` (70 files, 893 tests), `test/integration/` (39 files,
+  260 tests), and `test/e2e/` (15 files, 71 tests) per ADR-0028. Server
+  test runtime reduced from 5m40s to ~4m across parallel CI jobs.
+  Introduced `startInProcessProxy()` harness wrapping `createProxyServer()`
+  for in-process integration tests — drop-in compatible with the legacy
+  `startProxy()` subprocess harness.
+
+- **Dashboard test parallelism**: isolated global polyfills (ResizeObserver,
+  getAnimations, showModal, console overrides) into `beforeAll`/`afterAll`
+  blocks. Removed `maxWorkers: 1` and `fileParallelism: false`. Dashboard
+  test runtime reduced from 64s to 19s. Split into `dashboard/src/unit/`
+  (4 pure-logic files) and `dashboard/src/component/` (28 React component
+  test files).
+
+- **CI split**: replaced monolith test job with 4 parallel jobs
+  (`test-unit`, `test-integration`, `test-e2e`, `test-dashboard`). Added
+  `test:unit`, `test:integration`, `test:e2e` scripts to package.json.
+
 ## [0.5.2] - 2026-07-29
 
 ### Fixed
