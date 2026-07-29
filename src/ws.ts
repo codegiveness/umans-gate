@@ -53,6 +53,18 @@ export class WsBroadcaster {
     }
   }
 
+  /** Close all connected clients and clear the set. Used during shutdown. */
+  closeAll(): void {
+    for (const ws of this.clients) {
+      try {
+        ws.close(1001, "server shutting down");
+      } catch {
+        // Ignore close failures on already-closed sockets.
+      }
+    }
+    this.clients.clear();
+  }
+
   /** Current number of connected clients. */
   get size(): number {
     return this.clients.size;

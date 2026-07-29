@@ -935,6 +935,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     if (refreshTodayTimer) clearInterval(refreshTodayTimer);
 
     server.stop(false);
+    ws.closeAll();
 
     const drainDeadline = Date.now() + 5000;
     while (server.pendingRequests > 0 && Date.now() < drainDeadline) {
