@@ -8,7 +8,7 @@ const KIMI_BASE: StampPolicy = {
   thinking: true,
   top_k: null,
   canDisableThinking: false,
-  thinkingShape: { type: "enabled", keep: "all", budget_tokens: 32000 },
+  thinkingShape: { type: "enabled", keep: "all" },
 };
 
 describe("applyModelSpecificThinkingOverride — Kimi K2.7-Code toggle", () => {
@@ -20,7 +20,6 @@ describe("applyModelSpecificThinkingOverride — Kimi K2.7-Code toggle", () => {
     expect(out.thinkingShape).toEqual({
       type: "enabled",
       keep: "all",
-      budget_tokens: 32000,
     });
   });
 
@@ -32,7 +31,6 @@ describe("applyModelSpecificThinkingOverride — Kimi K2.7-Code toggle", () => {
     expect(out.thinkingShape).toEqual({
       type: "enabled",
       keep: "all",
-      budget_tokens: 32000,
     });
   });
 
@@ -98,7 +96,6 @@ describe("applyModelSpecificThinkingOverride — Kimi K2.7-Code toggle", () => {
     expect(out.thinkingShape).toEqual({
       type: "enabled",
       clear_thinking: false,
-      budget_tokens: 32000,
     });
   });
 });

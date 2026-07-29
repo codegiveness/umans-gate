@@ -59,7 +59,7 @@ export const STAMP_OVERLAY: Record<string, StampPolicy> = {
     thinking: true,
     top_k: 20,
     canDisableThinking: true,
-    thinkingShape: { type: "enabled", clear_thinking: false, budget_tokens: 32000 },
+    thinkingShape: { type: "enabled", clear_thinking: false },
   },
   "umans-coder": {
     max_tokens: 32767,
@@ -67,7 +67,7 @@ export const STAMP_OVERLAY: Record<string, StampPolicy> = {
     thinking: true,
     top_k: null,
     canDisableThinking: false,
-    thinkingShape: { type: "enabled", keep: "all", budget_tokens: 32000 },
+    thinkingShape: { type: "enabled", keep: "all" },
   },
   "umans-flash": {
     max_tokens: 32767,
@@ -83,7 +83,7 @@ export const STAMP_OVERLAY: Record<string, StampPolicy> = {
     thinking: true,
     top_k: null,
     canDisableThinking: false,
-    thinkingShape: { type: "enabled", keep: "all", budget_tokens: 32000 },
+    thinkingShape: { type: "enabled", keep: "all" },
   },
   "umans-qwen*": {
     max_tokens: 32767,
@@ -146,14 +146,12 @@ export function matchStampOverlay(modelName: string): StampPolicy {
 const GLM_52_THINKING_SHAPE: ThinkingConfig = {
   type: "enabled",
   clear_thinking: false,
-  budget_tokens: 32000,
 };
 
 /** Kimi K2.7-Code Preserved Thinking shape (Moonshot keep: "all"). */
 const KIMI_K27_CODE_THINKING_SHAPE: ThinkingConfig = {
   type: "enabled",
   keep: "all",
-  budget_tokens: 32000,
 };
 
 /** Adaptive fallback shape used when no child toggle activates a family-specific shape. */
@@ -166,8 +164,8 @@ const ADAPTIVE_THINKING_SHAPE: ThinkingConfig = { type: "adaptive" };
  * Toggles are checked in order; first match wins. When a child toggle is ON
  * and the model name matches the toggle's version segment, the shape is
  * overridden to the family-specific Preserved Thinking shape:
- * - GLM 5.2: `{ type: "enabled", clear_thinking: false, budget_tokens: 32000 }`
- * - Kimi K2.7-Code: `{ type: "enabled", keep: "all", budget_tokens: 32000 }`
+ * - GLM 5.2: `{ type: "enabled", clear_thinking: false }`
+ * - Kimi K2.7-Code: `{ type: "enabled", keep: "all" }`
  *
  * Otherwise the shape falls back to `{ type: "adaptive" }`.
  *

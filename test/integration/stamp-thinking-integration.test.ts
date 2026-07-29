@@ -295,7 +295,7 @@ test("Kimi K2.7-Code child ON: captured body has keep: 'all' (Kimi Preserved Thi
     const r = raw4.getLastRequest();
     expect(r).not.toBeNull();
     const parsed = JSON.parse(r!.body);
-    expect(parsed.thinking).toEqual({ type: "enabled", keep: "all", budget_tokens: 32000 });
+    expect(parsed.thinking).toEqual({ type: "enabled", keep: "all" });
     expect(parsed.max_tokens).toBe(32767);
     expect(parsed.output_config).toEqual({ effort: "high" });
     expect(parsed.temperature).toBe(1.0);

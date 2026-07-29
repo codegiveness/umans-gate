@@ -426,8 +426,8 @@ export interface ContentBlock {
  */
 export type ThinkingConfig =
   | { type: "adaptive" }
-  | { type: "enabled"; keep: "all"; budget_tokens: number }
-  | { type: "enabled"; clear_thinking: boolean; budget_tokens: number };
+  | { type: "enabled"; keep: "all" }
+  | { type: "enabled"; clear_thinking: boolean };
 
 /** Anthropic `output_config` block injected for matching models. */
 export interface OutputConfig {

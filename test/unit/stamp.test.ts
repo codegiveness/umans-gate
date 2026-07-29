@@ -235,7 +235,7 @@ describe("stampThinking — thinking:true forcing", () => {
       messages: [],
     };
     expect(stampThinking(body, { thinking: true })).toBe(true);
-    expect(body.thinking).toEqual({ type: "enabled", keep: "all", budget_tokens: 32000 });
+    expect(body.thinking).toEqual({ type: "enabled", keep: "all" });
   });
 
   it("forces {type:enabled,...} to Kimi Preserved Thinking for umans-kimi*", () => {
@@ -245,7 +245,7 @@ describe("stampThinking — thinking:true forcing", () => {
       messages: [],
     };
     expect(stampThinking(body, { thinking: true })).toBe(true);
-    expect(body.thinking).toEqual({ type: "enabled", keep: "all", budget_tokens: 32000 });
+    expect(body.thinking).toEqual({ type: "enabled", keep: "all" });
   });
 
   it("forces disabled to Kimi Preserved Thinking when canDisableThinking=false (umans-coder)", () => {
@@ -255,7 +255,7 @@ describe("stampThinking — thinking:true forcing", () => {
       messages: [],
     };
     expect(stampThinking(body, { thinking: true })).toBe(true);
-    expect(body.thinking).toEqual({ type: "enabled", keep: "all", budget_tokens: 32000 });
+    expect(body.thinking).toEqual({ type: "enabled", keep: "all" });
   });
 
   it("respects disabled when canDisableThinking=true (umans-glm)", () => {
@@ -308,7 +308,6 @@ describe("stampThinking — per-family thinkingShape", () => {
     expect(body.thinking).toEqual({
       type: "enabled",
       clear_thinking: false,
-      budget_tokens: 32000,
     });
   });
 
@@ -322,7 +321,6 @@ describe("stampThinking — per-family thinkingShape", () => {
     expect(body.thinking).toEqual({
       type: "enabled",
       clear_thinking: false,
-      budget_tokens: 32000,
     });
   });
 
@@ -349,25 +347,24 @@ describe("stampThinking — per-family thinkingShape", () => {
   it("does not re-write when body already matches policy thinkingShape (umans-glm)", () => {
     const body: AnthropicBody = {
       model: "umans-glm-5.2",
-      thinking: { type: "enabled", clear_thinking: false, budget_tokens: 32000 },
+      thinking: { type: "enabled", clear_thinking: false },
       messages: [],
     };
     expect(stampThinking(body, { thinking: true })).toBe(false);
     expect(body.thinking).toEqual({
       type: "enabled",
       clear_thinking: false,
-      budget_tokens: 32000,
     });
   });
 
   it("does not re-write when body already matches policy thinkingShape (umans-coder)", () => {
     const body: AnthropicBody = {
       model: "umans-coder",
-      thinking: { type: "enabled", keep: "all", budget_tokens: 32000 },
+      thinking: { type: "enabled", keep: "all" },
       messages: [],
     };
     expect(stampThinking(body, { thinking: true })).toBe(false);
-    expect(body.thinking).toEqual({ type: "enabled", keep: "all", budget_tokens: 32000 });
+    expect(body.thinking).toEqual({ type: "enabled", keep: "all" });
   });
 });
 
@@ -435,13 +432,12 @@ describe("stampThinking — GLM 5.2 child-toggle override", () => {
       thinking: true,
       top_k: 20,
       canDisableThinking: true,
-      thinkingShape: { type: "enabled", clear_thinking: false, budget_tokens: 32000 },
+      thinkingShape: { type: "enabled", clear_thinking: false },
     };
     expect(stampThinking(body, { thinking: true, policy })).toBe(true);
     expect(body.thinking).toEqual({
       type: "enabled",
       clear_thinking: false,
-      budget_tokens: 32000,
     });
   });
 
@@ -477,10 +473,10 @@ describe("stampThinking — Kimi K2.7-Code child-toggle override", () => {
       thinking: true,
       top_k: null,
       canDisableThinking: false,
-      thinkingShape: { type: "enabled", keep: "all", budget_tokens: 32000 },
+      thinkingShape: { type: "enabled", keep: "all" },
     };
     expect(stampThinking(body, { thinking: true, policy })).toBe(true);
-    expect(body.thinking).toEqual({ type: "enabled", keep: "all", budget_tokens: 32000 });
+    expect(body.thinking).toEqual({ type: "enabled", keep: "all" });
   });
 
   it("child ON: disabled thinking forced to Kimi Preserved Thinking (canDisable=false)", () => {
@@ -495,10 +491,10 @@ describe("stampThinking — Kimi K2.7-Code child-toggle override", () => {
       thinking: true,
       top_k: null,
       canDisableThinking: false,
-      thinkingShape: { type: "enabled", keep: "all", budget_tokens: 32000 },
+      thinkingShape: { type: "enabled", keep: "all" },
     };
     expect(stampThinking(body, { thinking: true, policy })).toBe(true);
-    expect(body.thinking).toEqual({ type: "enabled", keep: "all", budget_tokens: 32000 });
+    expect(body.thinking).toEqual({ type: "enabled", keep: "all" });
   });
 });
 
@@ -716,7 +712,7 @@ describe("resolveStampPolicy", () => {
       thinking: true,
       top_k: 20,
       canDisableThinking: false,
-      thinkingShape: { type: "enabled", clear_thinking: false, budget_tokens: 32000 },
+      thinkingShape: { type: "enabled", clear_thinking: false },
     });
   });
 
@@ -728,7 +724,7 @@ describe("resolveStampPolicy", () => {
       thinking: true,
       top_k: null,
       canDisableThinking: false,
-      thinkingShape: { type: "enabled", keep: "all", budget_tokens: 32000 },
+      thinkingShape: { type: "enabled", keep: "all" },
     });
   });
 
@@ -760,7 +756,7 @@ describe("applyModelSpecificThinkingOverride — GLM 5.2 toggle", () => {
     thinking: true,
     top_k: 20,
     canDisableThinking: true,
-    thinkingShape: { type: "enabled", clear_thinking: false, budget_tokens: 32000 },
+    thinkingShape: { type: "enabled", clear_thinking: false },
   };
 
   it("overrides thinkingShape when child ON + version matches", () => {
@@ -771,7 +767,6 @@ describe("applyModelSpecificThinkingOverride — GLM 5.2 toggle", () => {
     expect(out.thinkingShape).toEqual({
       type: "enabled",
       clear_thinking: false,
-      budget_tokens: 32000,
     });
   });
 
@@ -817,7 +812,7 @@ describe("applyModelSpecificThinkingOverride — Kimi K2.7-Code toggle", () => {
     thinking: true,
     top_k: null,
     canDisableThinking: false,
-    thinkingShape: { type: "enabled", keep: "all", budget_tokens: 32000 },
+    thinkingShape: { type: "enabled", keep: "all" },
   };
 
   it("overrides thinkingShape when child ON + version matches", () => {
@@ -825,7 +820,7 @@ describe("applyModelSpecificThinkingOverride — Kimi K2.7-Code toggle", () => {
       stampGlm52Thinking: false,
       stampKimiK27CodeThinking: true,
     });
-    expect(out.thinkingShape).toEqual({ type: "enabled", keep: "all", budget_tokens: 32000 });
+    expect(out.thinkingShape).toEqual({ type: "enabled", keep: "all" });
   });
 
   it("falls back to adaptive when child ON but version does NOT match (k2.6)", () => {
@@ -844,7 +839,6 @@ describe("applyModelSpecificThinkingOverride — Kimi K2.7-Code toggle", () => {
     expect(out.thinkingShape).toEqual({
       type: "enabled",
       clear_thinking: false,
-      budget_tokens: 32000,
     });
   });
 });

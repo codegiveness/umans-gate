@@ -72,7 +72,6 @@ describe("stamp HTTP wiring — Anthropic route", () => {
     expect(parsed.thinking).toEqual({
       type: "enabled",
       clear_thinking: false,
-      budget_tokens: 32000,
     });
     // output_config stamping
     expect(parsed.output_config).toEqual({ effort: "max" });

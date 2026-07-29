@@ -25,7 +25,7 @@ describe("resolveStampPolicy", () => {
       thinking: true,
       top_k: 20,
       canDisableThinking: false,
-      thinkingShape: { type: "enabled", clear_thinking: false, budget_tokens: 32000 },
+      thinkingShape: { type: "enabled", clear_thinking: false },
     });
   });
 
@@ -37,7 +37,7 @@ describe("resolveStampPolicy", () => {
       thinking: true,
       top_k: null,
       canDisableThinking: false,
-      thinkingShape: { type: "enabled", keep: "all", budget_tokens: 32000 },
+      thinkingShape: { type: "enabled", keep: "all" },
     });
   });
 
@@ -61,7 +61,7 @@ describe("resolveStampPolicy", () => {
       thinking: true,
       top_k: null,
       canDisableThinking: false,
-      thinkingShape: { type: "enabled", keep: "all", budget_tokens: 32000 },
+      thinkingShape: { type: "enabled", keep: "all" },
     });
   });
 

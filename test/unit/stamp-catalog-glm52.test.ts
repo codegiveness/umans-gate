@@ -8,7 +8,7 @@ const GLM_BASE: StampPolicy = {
   thinking: true,
   top_k: 20,
   canDisableThinking: true,
-  thinkingShape: { type: "enabled", clear_thinking: false, budget_tokens: 32000 },
+  thinkingShape: { type: "enabled", clear_thinking: false },
 };
 
 describe("applyModelSpecificThinkingOverride — GLM 5.2 toggle", () => {
@@ -20,7 +20,6 @@ describe("applyModelSpecificThinkingOverride — GLM 5.2 toggle", () => {
     expect(out.thinkingShape).toEqual({
       type: "enabled",
       clear_thinking: false,
-      budget_tokens: 32000,
     });
   });
 
@@ -77,7 +76,6 @@ describe("applyModelSpecificThinkingOverride — GLM 5.2 toggle", () => {
     expect(out.thinkingShape).toEqual({
       type: "enabled",
       clear_thinking: false,
-      budget_tokens: 32000,
     });
   });
 

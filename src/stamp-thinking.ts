@@ -58,9 +58,9 @@ export function isThinkingEnabled(thinking: unknown): boolean {
 function thinkingEquals(a: ThinkingConfig, b: ThinkingConfig): boolean {
   if (a.type !== b.type) return false;
   if (a.type === "enabled" && b.type === "enabled") {
-    if ("keep" in a && "keep" in b) return a.keep === b.keep && a.budget_tokens === b.budget_tokens;
+    if ("keep" in a && "keep" in b) return a.keep === b.keep;
     if ("clear_thinking" in a && "clear_thinking" in b)
-      return a.clear_thinking === b.clear_thinking && a.budget_tokens === b.budget_tokens;
+      return a.clear_thinking === b.clear_thinking;
     return false;
   }
   return true;
@@ -77,8 +77,8 @@ function thinkingEquals(a: ThinkingConfig, b: ThinkingConfig): boolean {
  * - Any other shape: forced to `policy.thinkingShape`.
  *
  * The per-family `thinkingShape` (ADR-0017) drives the forced value:
- * GLM → `{ type:"enabled", clear_thinking:false, budget_tokens:32000 }`,
- * Kimi/Coder → `{ type:"enabled", keep:"all", budget_tokens:32000 }`,
+ * GLM → `{ type:"enabled", clear_thinking:false }`,
+ * Kimi/Coder → `{ type:"enabled", keep:"all" }`,
  * others → `{ type:"adaptive" }`.
  *
  * `max_tokens` is stamped from policy when `options.maxTokens` is true.
