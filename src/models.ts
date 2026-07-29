@@ -148,6 +148,7 @@ export class ModelsClient implements VisionLookup {
       clearInterval(this.timer);
       this.timer = null;
     }
+    this.onChangeCb = null;
   }
 
   /** Subscribe to catalog updates (fired after each successful or failed refresh). */

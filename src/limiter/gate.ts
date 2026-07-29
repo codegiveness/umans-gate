@@ -596,6 +596,7 @@ export class ConcurrencyGate {
 
   shutdown(): void {
     this.semaphore.shutdown();
+    this.onStatsCbs.length = 0;
   }
 
   private emitStats(): void {

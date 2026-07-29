@@ -41,6 +41,7 @@ export class UmansUsageClient {
       clearInterval(this.timer);
       this.timer = null;
     }
+    this.onChangeCbs.length = 0;
   }
 
   getSnapshot(): UsageSnapshot {
