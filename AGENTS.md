@@ -121,17 +121,17 @@ are never overwritten. All env vars have `snake_case` JSON equivalents.
 | `ws_close_on_backpressure_limit` | `true` |
 | `vision_pending_max_batch` | `50` |
 | `compression_enabled` | `true` |
-| `upstream_timeout_ms` | `300000` |
+| `upstream_timeout_ms` | `1800000` |
 | `experiment_rewrite_ids` | `false` |
 | `experiment_rewrite_ttl_ms` | `3600000` |
 | `experiment_strip_omo_reminder` | `false` |
 | `experiment_ttft_watchdog` | `false` |
 | `ttft_timeout_ms` | `60000` |
-| `ttft_retry_max_attempts` | `2` |
+| `ttft_retry_max_attempts` | `3` |
 | `ttft_retry_gate_saturation_pct` | `80` |
-| `ttft_retry_failure_window_ms` | `300000` |
-| `ttft_retry_failure_threshold` | `3` |
-| `ttft_retry_cooldown_ms` | `30000` |
+| `ttft_retry_cooldown_ms` | `5000` |
+| `ttft_watchdog_multiplier` | `5` |
+| `ttft_watchdog_hard_cap_ms` | `300000` |
 | `performance_sample_count` | `200` |
 | `incident_retention_days` | `30` |
 

@@ -430,6 +430,7 @@ const QUEUE_FIELDS: FieldDef[] = [
     kind: "number",
     description:
       "Maximum depth of the write-behind database flush queue (distinct from the concurrency queue). Controls buffered capture writes before backpressure applies. Default: 100.",
+    restartRequired: true,
     min: 1,
   },
 ];
@@ -449,6 +450,7 @@ const CAPTURE_STORAGE_FIELDS: FieldDef[] = [
     kind: "number",
     description:
       "Maximum buffered bytes per WebSocket connection before backpressure applies. Client pauses until it catches up. 0 = Bun default. Default: 1,048,576 (1 MB).",
+    restartRequired: true,
     min: 0,
     suffix: "bytes",
   },
@@ -458,6 +460,7 @@ const CAPTURE_STORAGE_FIELDS: FieldDef[] = [
     kind: "boolean",
     description:
       "When on, WebSocket connections exceeding the backpressure limit are forcibly closed instead of pausing. Prevents slow clients from accumulating unbounded buffer. Default: on.",
+    restartRequired: true,
   },
 ];
 

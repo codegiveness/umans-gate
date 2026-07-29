@@ -223,7 +223,7 @@ umans-gate loads configuration from a JSON file with environment variable overri
 | `MAX_CAPTURES` | `200` | Ring buffer size |
 | `DB_PATH` | `./umans-gate.db` | SQLite database path |
 | `UPSTREAM_PROTOCOL` | `http1.1` | `http1.1` or `http2` |
-| `UPSTREAM_TIMEOUT_MS` | `300000` | Upstream fetch timeout (5 min) |
+| `UPSTREAM_TIMEOUT_MS` | `1800000` | Upstream fetch timeout (30 min) |
 | `STAMP_CLAUDE_CODE_ENABLED` | `false` | Toggle Claude Code stamp bundle (Anthropic) |
 | `STAMP_REASONING_EFFORT_ENABLED` | `false` | Toggle `reasoning_effort` stamping (OpenAI) |
 | `UMANS_API_KEY` | _(empty)_ | Unlocks `/v1/usage`, gate sizing, rate-limit, vision |
