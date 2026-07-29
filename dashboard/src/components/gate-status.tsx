@@ -1,6 +1,5 @@
 import { ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
 import { PenaltyBadge } from "@/components/penalty-badge";
-import { ServiceModeBadge } from "@/components/service-mode-badge";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { badgeGold, badgeInfo, badgeWarning } from "@/lib/badge-colors";
@@ -115,7 +114,6 @@ export function GateStatus({
             </Tooltip>
           )}
           <PenaltyBadge input={mergePenaltyInput(stats, usageSnapshot)} />
-          <ServiceModeBadge snapshot={usageSnapshot} />
         </div>
       </div>
 

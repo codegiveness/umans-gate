@@ -25,9 +25,9 @@ export function PenaltyBadge({ input }: { input: GateHealthInput | null }) {
           {result.label}
         </Badge>
       </TooltipTrigger>
-      <TooltipContent side="bottom" className="max-w-[280px]">
+      <TooltipContent side="bottom" className="max-w-[320px]">
         <div className="space-y-1">
-          {result.admissionDetail && <p>{result.admissionDetail}</p>}
+          {result.admissionDetail && input.serviceMode == null && <p>{result.admissionDetail}</p>}
           {result.offendingCategories.length > 0 && (
             <div className="space-y-1">
               {result.offendingCategories.map((cat) => (
@@ -47,23 +47,38 @@ export function PenaltyBadge({ input }: { input: GateHealthInput | null }) {
               ))}
             </div>
           )}
-          {input.boxedReason && <p>reason: {input.boxedReason}</p>}
-          {input.boxed && input.boxedUntil !== null && (
+          {input.boxedReason && input.serviceMode == null && <p>reason: {input.boxedReason}</p>}
+          {input.boxed && input.boxedUntil !== null && input.serviceMode == null && (
             <p className="text-background/70">boxed until {fmtUtcDateTime(input.boxedUntil)}</p>
           )}
-          {input.unitsDemoted && input.demotedUntil !== null && (
+          {input.unitsDemoted && input.demotedUntil !== null && input.serviceMode == null && (
             <p className="text-background/70">demoted until {fmtUtcDateTime(input.demotedUntil)}</p>
           )}
-          {input.serviceMode != null &&
-            input.serviceMode.current !== "normal" &&
-            input.serviceMode.resetsAt !== null && (
-              <p className="text-background/70">
-                resets at {fmtUtcDateTime(input.serviceMode.resetsAt)}
-              </p>
-            )}
           {accountWide && <p className="text-background/70">Account-wide — all models</p>}
           {result.tier === "green" && result.offendingCategories.length === 0 && (
             <p className="text-background/70">All systems nominal</p>
+          )}
+          {input.serviceMode != null && (
+            <div className="space-y-0.5 border-t border-background/10 pt-1">
+              <p className="text-background/70">
+                service_mode: {input.serviceMode.current}
+                {input.serviceMode.resetsAt !== null && (
+                  <span> · resets_at {fmtUtcDateTime(input.serviceMode.resetsAt)}</span>
+                )}
+              </p>
+              <p className="text-background/70">
+                priority: {input.priorityLow ? "low" : "normal"}
+                {input.boxed ? " · boxed" : ""}
+                {input.unitsDemoted ? " · units_demoted" : ""}
+                {input.boxedReason ? ` · reason: ${input.boxedReason}` : ""}
+                {input.boxedUntil !== null && (
+                  <span> · boxed_until {fmtUtcDateTime(input.boxedUntil)}</span>
+                )}
+                {input.demotedUntil !== null && (
+                  <span> · demoted_until {fmtUtcDateTime(input.demotedUntil)}</span>
+                )}
+              </p>
+            </div>
           )}
         </div>
       </TooltipContent>

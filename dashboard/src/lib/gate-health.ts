@@ -70,6 +70,7 @@ export interface GateHealthInput {
   unitsDemoted?: boolean;
   demotedUntil?: number | null;
   serviceMode?: { current: string; resetsAt: number | null } | null;
+  priorityLow?: boolean;
 }
 
 /** Structured result consumed by `<PenaltyBadge>`. */
@@ -313,6 +314,12 @@ export function mergePenaltyInput(
       ? usageSnapshot.serviceMode
       : null;
 
+  const priorityLow = gateStats
+    ? gateStats.priorityLow
+    : usageSnapshot
+      ? usageSnapshot.priorityLow
+      : false;
+
   const admissionDetail = buildAdmissionDetail(
     admissionLabel,
     boxedReason,
@@ -349,5 +356,6 @@ export function mergePenaltyInput(
     unitsDemoted,
     demotedUntil,
     serviceMode,
+    priorityLow,
   };
 }
