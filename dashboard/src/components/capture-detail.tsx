@@ -26,6 +26,7 @@ function useCooldownCountdown(
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!isActive || cooldownEndsAt == null) return;
+    setNow(Date.now());
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, [isActive, cooldownEndsAt]);

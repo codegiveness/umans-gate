@@ -1,6 +1,7 @@
 import { existsSync, rmSync, unlinkSync } from "node:fs";
 import type { Subprocess } from "bun";
 import { spawn } from "bun";
+import { assertDashboardAssetsFresh } from "./dashboard-assets.js";
 
 export interface ProxyHandle {
   proc: Subprocess<"ignore", "ignore", "pipe">;
@@ -39,6 +40,8 @@ export interface StartProxyOptions {
 }
 
 export async function startProxy(options: StartProxyOptions = {}): Promise<ProxyHandle> {
+  assertDashboardAssetsFresh();
+
   const {
     TARGET = "http://127.0.0.1:9099",
     umansApiKey,

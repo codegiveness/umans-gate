@@ -26,7 +26,10 @@ function loadJsonConfig(path: string): RawConfig {
     const text = readFileSync(path, "utf-8");
     const parsed = JSON.parse(text) as RawConfig;
     return parsed ?? {};
-  } catch {
+  } catch (err) {
+    console.error(`Failed to parse config at ${path}, using defaults`, {
+      error: err instanceof Error ? err.message : String(err),
+    });
     return {};
   }
 }

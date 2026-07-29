@@ -18,6 +18,7 @@
 
 import type { CaptureDB } from "../db.js";
 import { ConcurrencyGate } from "../limiter/index.js";
+import { createLogger } from "../logger.js";
 import type { CaptureState, ProtocolConfig } from "../types.js";
 import type { DescriptionCache } from "./cache.js";
 import {
@@ -54,6 +55,8 @@ import {
 
 /** Strategy for when to rewrite image-bearing requests. */
 type VisionStrategy = "never" | "catalog" | "always";
+
+const log = createLogger("vision");
 
 const DEFAULT_VISION_BREAKER_THRESHOLD = 100;
 const DEFAULT_VISION_BREAKER_WINDOW_MS = 5000;
@@ -399,7 +402,12 @@ export class VisionHandoff {
         results.push(
           await this.imageProcessor.processImage(part, captureId, signal, visionContext),
         );
-      } catch {
+      } catch (err) {
+        log.warn("vision image processing failed, inserting placeholder", {
+          captureId,
+          positionInBatch: part.positionInBatch,
+          error: err instanceof Error ? err.message : String(err),
+        });
         results.push({
           description: failurePlaceholder("generic", "unexpected error"),
           cacheHit: false,

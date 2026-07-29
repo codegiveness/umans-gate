@@ -297,7 +297,8 @@ class Semaphore {
     if (this.shutdownRequested) return;
     this.pendingReleases.push({ weight, intention });
     if (this.releaseTimer === null) {
-      this.releaseTimer = setTimeout(() => {
+      const timer = setTimeout(() => {
+        this.cooldownTimers.delete(timer);
         this.releaseTimer = null;
         const batch = this.pendingReleases;
         this.pendingReleases = [];
@@ -312,7 +313,8 @@ class Semaphore {
         this.assertInvariants();
         this.onEmitStats();
       }, this.releaseCooldownMs);
-      this.cooldownTimers.add(this.releaseTimer);
+      this.releaseTimer = timer;
+      this.cooldownTimers.add(timer);
     }
   }
 

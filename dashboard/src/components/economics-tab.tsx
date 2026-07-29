@@ -81,7 +81,11 @@ const SORT_KEYS: SortKey[] = [
 ];
 
 export function EconomicsTab() {
-  const now = new Date();
+  // `now` is captured once at mount to stabilize useMemo deps. A fresh
+  // `new Date()` in the render body would change identity every render and
+  // defeat memoization. The year/month picker is user-driven, so a stale
+  // `now` only affects the default selection — acceptable trade-off.
+  const [now] = useState(() => new Date());
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const { summary, daily, loading, error, refresh } = useEconomics(year, month);

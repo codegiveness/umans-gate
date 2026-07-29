@@ -91,6 +91,7 @@ export function useCapturesSocket({
 
     let ws: WebSocket | null = null;
     let cancelled = false;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
     // Dispatch registry: one entry per WS message type.
     const handlers: WsHandlerMap = {
@@ -127,6 +128,7 @@ export function useCapturesSocket({
     };
 
     function connect() {
+      if (cancelled) return;
       try {
         ws = new WebSocket(buildWsUrl());
       } catch {
@@ -155,7 +157,7 @@ export function useCapturesSocket({
       ws.onclose = () => {
         setWsState("down");
         if (!cancelled) {
-          setTimeout(connect, 1000);
+          reconnectTimer = setTimeout(connect, 1000);
         }
       };
 
@@ -168,6 +170,7 @@ export function useCapturesSocket({
 
     return () => {
       cancelled = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
       ws?.close();
     };
   }, [backendReachable, setWsState]);

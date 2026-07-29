@@ -243,10 +243,15 @@ Tests use `bun:test`. Each test spawns a proxy on a free port via
 `test/helpers/proxy.ts`, which starts `bun src/cli.ts` with a test config.
 Mock upstreams are in `test/helpers/`.
 
-> **Integration tests require the dashboard to be built.** The CLI embeds
-> `dashboard/dist/`. If missing, the proxy fails to start and `beforeAll`
-> hooks time out. Run `cd dashboard && bun run build` if dist is missing
-> or stale (takes <1s).
+> **Integration tests require the dashboard to be built.** The CLI imports
+> `src/embedded-assets.ts`, which references hashed files under
+> `dashboard/dist/`. If dist is missing or `embedded-assets.ts` is stale,
+> the proxy fails to start with a cryptic "Cannot find module" error and
+> `beforeAll` hooks time out. Run `bun run build` (not just
+> `cd dashboard && bun run build`) to regenerate both dashboard/dist/ and
+> src/embedded-assets.ts. The test harness in `test/helpers/proxy.ts`
+> performs a staleness check and fails fast with a clear message if assets
+> are missing or older than dist.
 
 ## Release process
 

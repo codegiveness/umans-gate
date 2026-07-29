@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CaptureRowItem } from "@/components/capture-row-item";
 import { flushEffects } from "@/test/utils";
@@ -396,5 +396,144 @@ describe("CaptureRowItem row 4 — p50/tps/ratio", () => {
 
     expect(screen.queryByText(/\d\.\dx/)).not.toBeInTheDocument();
     expect(screen.getByText(/p50 1\.0s/)).toBeInTheDocument();
+  });
+});
+
+describe("CaptureRowItem cooldown countdown — stale-now on state transition", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({
+      shouldAdvanceTime: false,
+      toFake: ["setTimeout", "clearTimeout", "setInterval", "clearInterval", "Date"],
+    });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("shows accurate countdown when transitioning streaming→cooling_down after delay", async () => {
+    const T0 = 1_700_000_000_000;
+    vi.setSystemTime(T0);
+
+    const c = makeCapture({ id: 1, state: "streaming", started_at: T0 });
+    const { rerender } = render(
+      <CaptureRowItem
+        capture={c}
+        selected={false}
+        isActive={false}
+        optionId="opt-1"
+        onActivate={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("running")).toBeInTheDocument();
+    expect(screen.queryByText(/cd \d+s/)).not.toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(3000);
+    });
+
+    vi.setSystemTime(T0 + 3000);
+    const updated = makeCapture({
+      ...c,
+      state: "cooling_down",
+      retryAttempt: 1,
+      cooldownEndsAt: T0 + 3000 + 5000,
+    });
+    await act(async () => {
+      rerender(
+        <CaptureRowItem
+          capture={updated}
+          selected={false}
+          isActive={false}
+          optionId="opt-1"
+          onActivate={vi.fn()}
+        />,
+      );
+    });
+
+    expect(screen.getByText("retry 1 · cd 5s")).toBeInTheDocument();
+  });
+
+  it("cooldown badge (no retry) shows accurate countdown after streaming→cooling_down transition", async () => {
+    const T0 = 1_700_000_000_000;
+    vi.setSystemTime(T0);
+
+    const c = makeCapture({ id: 1, state: "streaming", started_at: T0 });
+    const { rerender } = render(
+      <CaptureRowItem
+        capture={c}
+        selected={false}
+        isActive={false}
+        optionId="opt-1"
+        onActivate={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("running")).toBeInTheDocument();
+
+    await act(async () => {
+      vi.advanceTimersByTime(3000);
+    });
+
+    vi.setSystemTime(T0 + 3000);
+    const updated = makeCapture({
+      ...c,
+      state: "cooling_down",
+      retryAttempt: 0,
+      cooldownEndsAt: T0 + 3000 + 5000,
+    });
+    await act(async () => {
+      rerender(
+        <CaptureRowItem
+          capture={updated}
+          selected={false}
+          isActive={false}
+          optionId="opt-1"
+          onActivate={vi.fn()}
+        />,
+      );
+    });
+
+    expect(screen.getByText("cooldown 5s")).toBeInTheDocument();
+  });
+
+  it("useLiveAge shows accurate age when transitioning done→streaming after delay", async () => {
+    const T0 = 1_700_000_000_000;
+    vi.setSystemTime(T0);
+
+    const c = makeCapture({ id: 1, state: "done", started_at: T0, duration_ms: 100 });
+    const { rerender } = render(
+      <CaptureRowItem
+        capture={c}
+        selected={false}
+        isActive={false}
+        optionId="opt-1"
+        onActivate={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText("0s")).not.toBeInTheDocument();
+
+    vi.setSystemTime(T0 + 3000);
+
+    const updated = makeCapture({
+      ...c,
+      state: "streaming",
+      started_at: T0,
+      duration_ms: null,
+    });
+    await act(async () => {
+      rerender(
+        <CaptureRowItem
+          capture={updated}
+          selected={false}
+          isActive={false}
+          optionId="opt-1"
+          onActivate={vi.fn()}
+        />,
+      );
+    });
+
+    expect(screen.getByText("3s")).toBeInTheDocument();
   });
 });

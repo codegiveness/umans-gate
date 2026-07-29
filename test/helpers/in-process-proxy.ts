@@ -34,6 +34,7 @@ import type {
 } from "../../src/index.js";
 import type { ModelsClient } from "../../src/models.js";
 import type { ProxyConfig } from "../../src/types.js";
+import { assertDashboardAssetsFresh } from "./dashboard-assets.js";
 
 export interface InProcessProxyHandle {
   /** OS-assigned port the proxy listens on. */
@@ -118,6 +119,8 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export async function startInProcessProxy(
   options: StartInProcessProxyOptions,
 ): Promise<InProcessProxyHandle> {
+  assertDashboardAssetsFresh();
+
   const { createProxyServer } = await import("../../src/index.js");
 
   // Unique temp paths using crypto.randomUUID() for guaranteed uniqueness
