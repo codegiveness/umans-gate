@@ -408,12 +408,16 @@ export class CaptureDB {
   private stmtListVision: ReturnType<Database["prepare"]>;
   private stmtClearVision: ReturnType<Database["prepare"]>;
   private stmtListVisionRecords: ReturnType<Database["prepare"]>;
+  private stmtSweepVision: ReturnType<Database["prepare"]>;
   private readonly visionDescStore: VisionDescriptionStore;
   private rowCount: number;
   readonly maxCaptures: number;
   compressionEnabled: boolean;
   performanceSampleLimit: number;
   incidentRetentionDays: number;
+  readonly visionCacheTtlMs: number;
+  lastVisionSweepAt = 0;
+  private static readonly VISION_SWEEP_INTERVAL_MS = 60_000;
   onPrune: ((prunedIds: number[]) => void) | null = null;
 
   constructor(
@@ -421,6 +425,7 @@ export class CaptureDB {
       Partial<
         Pick<ProxyConfig, "compressionEnabled" | "performanceSampleCount"> & {
           incidentRetentionDays?: number;
+          visionCacheTtlMs?: number;
         }
       >,
   ) {
@@ -429,6 +434,7 @@ export class CaptureDB {
     this.compressionEnabled = config.compressionEnabled ?? true;
     this.performanceSampleLimit = config.performanceSampleCount ?? 200;
     this.incidentRetentionDays = config.incidentRetentionDays ?? 30;
+    this.visionCacheTtlMs = config.visionCacheTtlMs ?? 604_800_000;
 
     migrateCaptureSchema(this.db);
     restrictDbFilePermissions(config.dbPath);
@@ -472,10 +478,8 @@ export class CaptureDB {
       WHERE id = $id
     `);
     this.stmtDeleteOld = this.db.prepare(
-      "DELETE FROM captures WHERE id IN (SELECT id FROM captures ORDER BY id DESC LIMIT $excess OFFSET $limit)",
+      "DELETE FROM captures WHERE id IN (SELECT id FROM captures WHERE is_vision = 0 ORDER BY id DESC LIMIT $excess OFFSET $limit)",
     );
-    this.sweepStaleCaptures();
-    this.sweepIncidents();
     this.stmtGet = this.db.prepare("SELECT * FROM captures WHERE id = $id");
     this.stmtList = this.db.prepare(
       `SELECT id, method, path, response_status, is_sse, content_type,
@@ -488,7 +492,7 @@ export class CaptureDB {
               upstream_ttft_p50_ms, upstream_tps_p50
        FROM captures ORDER BY id DESC LIMIT ?`,
     );
-    this.stmtCount = this.db.prepare("SELECT COUNT(*) AS c FROM captures");
+    this.stmtCount = this.db.prepare("SELECT COUNT(*) AS c FROM captures WHERE is_vision = 0");
     this.stmtSetState = this.db.prepare("UPDATE captures SET state = $state WHERE id = $id");
     this.stmtUpdateRequestBody = this.db.prepare(
       "UPDATE captures SET request_body = $rb, request_size = $rs WHERE id = $id",
@@ -576,8 +580,14 @@ export class CaptureDB {
        FROM captures WHERE is_vision = 1
        ORDER BY id DESC LIMIT ?`,
     );
+    this.stmtSweepVision = this.db.prepare(
+      "DELETE FROM captures WHERE is_vision = 1 AND started_at < $cutoff",
+    );
     this.visionDescStore = new VisionDescriptionStore(this.db);
     this.rowCount = (this.stmtCount.get() as { c: number }).c;
+    this.sweepStaleCaptures();
+    this.sweepIncidents();
+    this.sweepVisionCaptures();
   }
 
   /** Mark captures stuck in "streaming" or "enqueued" from a previous run as "done".
@@ -602,7 +612,9 @@ export class CaptureDB {
       const excess = Math.max(0, ++this.rowCount - this.maxCaptures);
       if (excess > 0) {
         const rows = this.db
-          .prepare("SELECT id FROM captures ORDER BY id DESC LIMIT $excess OFFSET $limit")
+          .prepare(
+            "SELECT id FROM captures WHERE is_vision = 0 ORDER BY id DESC LIMIT $excess OFFSET $limit",
+          )
           .all({ $limit: this.maxCaptures, $excess: excess }) as { id: number }[];
         prunedIds = rows.map((r) => r.id);
         this.stmtDeleteOld.run({ $limit: this.maxCaptures, $excess: excess });
@@ -746,7 +758,8 @@ export class CaptureDB {
     this.rowCount = 0;
   }
 
-  /** Insert a vision-call capture row. Returns the new row id. */
+  /** Insert a vision-call capture row. Returns the new row id.
+   *  Vision rows are exempt from ring-buffer eviction (see startCapture). */
   insertVisionCapture(params: VisionInsertParams): number {
     const compressed = {
       ...params,
@@ -755,22 +768,11 @@ export class CaptureDB {
       $rh2: compressText(params.$rh2, this.compressionEnabled),
       $rb2: compressText(params.$rb2, this.compressionEnabled),
     };
-    let id = 0;
-    let prunedIds: number[] = [];
-    this.db.transaction(() => {
-      id = Number(this.stmtInsertVision.run(compressed as unknown as never).lastInsertRowid);
-      const excess = Math.max(0, ++this.rowCount - this.maxCaptures);
-      if (excess > 0) {
-        const rows = this.db
-          .prepare("SELECT id FROM captures ORDER BY id DESC LIMIT $excess OFFSET $limit")
-          .all({ $limit: this.maxCaptures, $excess: excess }) as { id: number }[];
-        prunedIds = rows.map((r) => r.id);
-        this.stmtDeleteOld.run({ $limit: this.maxCaptures, $excess: excess });
-        this.rowCount = this.maxCaptures;
-      }
-    })();
-    if (prunedIds.length > 0) {
-      this.onPrune?.(prunedIds);
+    const id = Number(this.stmtInsertVision.run(compressed as unknown as never).lastInsertRowid);
+    const now = Date.now();
+    if (now - this.lastVisionSweepAt >= CaptureDB.VISION_SWEEP_INTERVAL_MS) {
+      this.lastVisionSweepAt = now;
+      this.sweepVisionCaptures();
     }
     return id;
   }
@@ -795,10 +797,18 @@ export class CaptureDB {
     return this.stmtListVision.all(Math.min(limit, 1000)) as CaptureRow[];
   }
 
-  /** Delete only vision-call captures (is_vision=1). */
+  /** Delete only vision-call captures (is_vision=1).
+   *  Does not affect rowCount (which tracks non-vision rows only). */
   clearVisionCaptures(): void {
-    const deleted = this.stmtClearVision.run();
-    this.rowCount = Math.max(0, this.rowCount - (deleted.changes ?? 0));
+    this.stmtClearVision.run();
+  }
+
+  /** Delete vision-call rows older than `ttlMs` (default: configured visionCacheTtlMs).
+   *  Uses started_at (not finished_at) so crashed/in-flight rows are also cleaned. */
+  sweepVisionCaptures(ttlMs?: number): number {
+    const cutoff = Date.now() - (ttlMs ?? this.visionCacheTtlMs);
+    const result = this.stmtSweepVision.run({ $cutoff: cutoff });
+    return Number(result.changes);
   }
 
   /**

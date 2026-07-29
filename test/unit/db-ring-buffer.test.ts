@@ -149,3 +149,132 @@ test("ring-buffer cleanup of 10,000 excess rows completes in <50ms", () => {
   expect(elapsed).toBeLessThan(50);
   db.close();
 });
+
+const VISION_META = JSON.stringify({
+  status: "ok",
+  httpStatus: 200,
+  latencyMs: 42,
+  description: "a cat",
+  error: null,
+  imageHash: "abc123",
+  imageSize: 1234,
+  model: "vision-model",
+  target: "http://vision",
+});
+
+function insertVisionCapture(db: CaptureDB, idx: number): number {
+  return db.insertVisionCapture({
+    $method: "POST",
+    $path: "/v1/messages",
+    $url: "http://up",
+    $rh: "{}",
+    $rb: `body-${idx}`,
+    $rs: 7,
+    $status: 200,
+    $rh2: "{}",
+    $rb2: "{}",
+    $rs2: 2,
+    $ct: "application/json",
+    $dur: 10,
+    $state: "done",
+    $started_at: Date.now(),
+    $finished_at: Date.now(),
+    $inp: "http1.1",
+    $outp: "http2",
+    $model: "vision-model",
+    $parent_capture_id: null,
+    $vision_meta: VISION_META,
+    $provider: "anthropic",
+    $streaming: 0,
+    $input_tokens: 1,
+    $output_tokens: 2,
+    $cache_creation_tokens: null,
+    $cache_read_tokens: null,
+    $total_input_tokens: null,
+    $total_output_tokens: null,
+    $thinking_tokens: null,
+    $thinking_block_count: null,
+    $ttft_ms: null,
+    $tps: null,
+    $usage_missing: 0,
+    $metrics_extracted_at: null,
+  });
+}
+
+test("vision rows are not evicted when non-vision ring buffer overflows", () => {
+  const maxCaptures = 5;
+  const db = new CaptureDB({ dbPath, maxCaptures } as {
+    dbPath: string;
+    maxCaptures: number;
+  });
+  const visionId = insertVisionCapture(db, 0);
+  for (let i = 0; i < maxCaptures + 3; i++) {
+    insertCapture(db, i);
+  }
+  expect(db.get(visionId)).not.toBeNull();
+  expect(db.listVisionCaptures(1000).length).toBe(1);
+  db.close();
+});
+
+test("rowCount counts only non-vision rows after vision inserts", () => {
+  const maxCaptures = 5;
+  const db = new CaptureDB({ dbPath, maxCaptures } as {
+    dbPath: string;
+    maxCaptures: number;
+  });
+  insertVisionCapture(db, 0);
+  insertVisionCapture(db, 1);
+  for (let i = 0; i < maxCaptures; i++) {
+    insertCapture(db, i);
+  }
+  // list() returns ALL rows (vision + non-vision): 5 non-vision + 2 vision = 7
+  expect(db.list(1000).length).toBe(maxCaptures + 2);
+  expect(db.listVisionCaptures(1000).length).toBe(2);
+  // Insert one more non-vision — should evict oldest non-vision, keep vision
+  insertCapture(db, 99);
+  expect(db.list(1000).length).toBe(maxCaptures + 2);
+  expect(db.listVisionCaptures(1000).length).toBe(2);
+  db.close();
+});
+
+test("clearVisionCaptures does not affect non-vision rowCount", () => {
+  const maxCaptures = 5;
+  const db = new CaptureDB({ dbPath, maxCaptures } as {
+    dbPath: string;
+    maxCaptures: number;
+  });
+  for (let i = 0; i < 3; i++) {
+    insertCapture(db, i);
+  }
+  insertVisionCapture(db, 0);
+  insertVisionCapture(db, 1);
+  db.clearVisionCaptures();
+  expect(db.list(1000).length).toBe(3);
+  insertCapture(db, 99);
+  expect(db.list(1000).length).toBe(4);
+  db.close();
+});
+
+test("restart preserves vision rows and re-inits rowCount to non-vision count only", () => {
+  const maxCaptures = 5;
+  const db = new CaptureDB({ dbPath, maxCaptures } as {
+    dbPath: string;
+    maxCaptures: number;
+  });
+  for (let i = 0; i < maxCaptures; i++) {
+    insertCapture(db, i);
+  }
+  insertVisionCapture(db, 0);
+  insertVisionCapture(db, 1);
+  db.close();
+
+  const db2 = new CaptureDB({ dbPath, maxCaptures } as {
+    dbPath: string;
+    maxCaptures: number;
+  });
+  expect(db2.listVisionCaptures(1000).length).toBe(2);
+  insertCapture(db2, 99);
+  expect(db2.listVisionCaptures(1000).length).toBe(2);
+  expect(db2.list(1000).length).toBe(maxCaptures + 2);
+  db2.close();
+});

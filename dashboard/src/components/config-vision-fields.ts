@@ -112,7 +112,7 @@ export const VISION_TUNING_FIELDS: FieldDef[] = [
     label: "Cache TTL",
     kind: "number",
     description:
-      "TTL for vision description cache entries. Expired entries treated as misses and re-fetched. Default: 604,800,000 ms (7 days).",
+      "TTL for vision description cache entries and vision call capture rows. Expired entries are treated as misses and re-fetched; vision call rows are auto-deleted. Default: 604,800,000 ms (7 days).",
     restartRequired: true,
     min: 1000,
     suffix: "ms",

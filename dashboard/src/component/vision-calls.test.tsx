@@ -28,6 +28,10 @@ vi.mock("@/hooks/use-vision-calls", () => ({
   }),
 }));
 
+vi.mock("@/hooks/use-config-context", () => ({
+  useConfigContext: () => ({ config: { vision_cache_ttl_ms: 604800000 } }),
+}));
+
 function makeRecord(overrides: Partial<VisionCallRecord> = {}): VisionCallRecord {
   return {
     id: 1,
