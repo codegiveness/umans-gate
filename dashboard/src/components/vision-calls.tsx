@@ -7,9 +7,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Loader } from "@/components/ui/loader";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useConfigContext } from "@/hooks/use-config-context";
 import { useVisionCalls } from "@/hooks/use-vision-calls";
 import { badgeInfo, badgeSuccess } from "@/lib/badge-colors";
-import { fmtSize, fmtTime, fmtUtcTime } from "@/lib/format";
+import { fmtDaysUntil, fmtSize, fmtTime, fmtUtcTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { VisionCallRecord } from "@/types/vision";
 
@@ -60,8 +61,13 @@ const STATUS_TIP: Record<string, string> = {
   skipped: "Vision processing was skipped",
 };
 
+const DEFAULT_VISION_TTL_MS = 604_800_000;
+
 export function VisionCalls() {
   const { records, loading, error, refresh, clear } = useVisionCalls();
+  const { config } = useConfigContext();
+  const ttlMs = config?.vision_cache_ttl_ms ?? DEFAULT_VISION_TTL_MS;
+  const ttlDays = Math.round(ttlMs / 86_400_000);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   return (
@@ -69,6 +75,9 @@ export function VisionCalls() {
       <header className="flex items-center justify-between border-b border-border bg-card px-4 py-3">
         <h2 className="text-sm font-semibold flex items-center gap-2">
           Vision Calls <Badge variant="secondary">{records.length}</Badge>
+          <span className="text-xs text-muted-foreground font-normal">
+            Auto-removes after {ttlDays} day{ttlDays !== 1 ? "s" : ""}
+          </span>
         </h2>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -117,7 +126,7 @@ export function VisionCalls() {
         <ScrollArea className="min-h-0 flex-1">
           <div className="mx-auto flex w-full max-w-7xl flex-col gap-2 px-4 py-3">
             {records.map((rec) => (
-              <VisionCallCard key={rec.id} record={rec} />
+              <VisionCallCard key={rec.id} record={rec} ttlMs={ttlMs} />
             ))}
           </div>
         </ScrollArea>
@@ -143,7 +152,7 @@ export function VisionCalls() {
   );
 }
 
-function VisionCallCard({ record }: { record: VisionCallRecord }) {
+function VisionCallCard({ record, ttlMs }: { record: VisionCallRecord; ttlMs: number }) {
   const isOk = record.status === "ok" || record.status === "cache_hit";
 
   return (
@@ -182,7 +191,9 @@ function VisionCallCard({ record }: { record: VisionCallRecord }) {
               <span className="text-xs text-muted-foreground">capture #{record.captureId}</span>
             )}
           </div>
-          <span className="text-xs text-muted-foreground">{fmtUtcTime(record.timestamp)}</span>
+          <span className="text-xs text-muted-foreground">
+            {fmtUtcTime(record.timestamp)} · expires in {fmtDaysUntil(record.timestamp + ttlMs)}
+          </span>
         </div>
 
         <div className="flex items-center gap-3 text-sm flex-wrap">

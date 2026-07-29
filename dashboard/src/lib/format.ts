@@ -76,6 +76,15 @@ export function fmtDurationUntil(ts: number | null): string {
   return `${minutes}m`;
 }
 
+export function fmtDaysUntil(ts: number | null): string {
+  if (!ts) return "";
+  const ms = ts - Date.now();
+  if (ms <= 0) return "expired";
+  const days = Math.ceil(ms / 86_400_000);
+  if (days >= 1) return `${days}d`;
+  return fmtDurationUntil(ts);
+}
+
 /** Full UTC date-time: `MMM d, yyyy, HH:mm:ss` (24-hour). Empty for nullish/zero. */
 export function fmtUtcDateTime(ts: number | null | undefined): string {
   if (!ts) return "";
