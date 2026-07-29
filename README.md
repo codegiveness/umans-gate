@@ -1,4 +1,4 @@
-# umans-gate: LLM API capture proxy for Anthropic and OpenAI-compatible endpoints
+# umans-gate: stop guessing what your harness sends upstream
 
 [![npm version](https://img.shields.io/npm/v/umans-gate.svg)](https://www.npmjs.com/package/umans-gate)
 [![npm downloads](https://img.shields.io/npm/dm/umans-gate.svg)](https://www.npmjs.com/package/umans-gate)
