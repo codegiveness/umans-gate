@@ -1,89 +1,79 @@
 import { describe, expect, it } from "bun:test";
-import { applyModelSpecificThinkingOverride, type StampPolicy } from "../../src/stamp-catalog.js";
+import { resolvePerModelRule } from "../../src/stamp-catalog.js";
+import type { PerModelRule } from "../../src/types.js";
 
-/** A representative GLM overlay policy used as the input base. */
-const GLM_BASE: StampPolicy = {
-  max_tokens: 131071,
-  effort: "max",
-  thinking: true,
-  top_k: 20,
-  canDisableThinking: true,
-  thinkingShape: { type: "enabled", clear_thinking: false },
+const GLM_RULE: PerModelRule = {
+  pattern: "umans-glm-*",
+  anthropicThinkingShape: { type: "enabled", clear_thinking: false },
+  openaiThinkingShape: { type: "enabled", keep: "all" },
 };
 
-describe("applyModelSpecificThinkingOverride — GLM 5.2 toggle", () => {
-  it("overrides thinkingShape to GLM Preserved Thinking when child ON + version matches", () => {
-    const out = applyModelSpecificThinkingOverride(GLM_BASE, "umans-glm-5.2", {
-      stampGlm52Thinking: true,
-      stampKimiK27CodeThinking: false,
-    });
-    expect(out.thinkingShape).toEqual({
+describe("resolvePerModelRule — GLM pattern", () => {
+  it("matches umans-glm-5.2 against umans-glm-* glob", () => {
+    const rule = resolvePerModelRule("umans-glm-5.2", [GLM_RULE]);
+    expect(rule).not.toBeNull();
+    expect(rule?.anthropicThinkingShape).toEqual({
       type: "enabled",
       clear_thinking: false,
     });
   });
 
-  it("falls back to adaptive when child ON but version does NOT match", () => {
-    const out = applyModelSpecificThinkingOverride(GLM_BASE, "umans-glm-5.1", {
-      stampGlm52Thinking: true,
-      stampKimiK27CodeThinking: false,
-    });
-    expect(out.thinkingShape).toEqual({ type: "adaptive" });
+  it("matches umans-glm-5.2-turbo against umans-glm-* glob", () => {
+    const rule = resolvePerModelRule("umans-glm-5.2-turbo", [GLM_RULE]);
+    expect(rule).not.toBeNull();
+    expect(rule?.pattern).toBe("umans-glm-*");
   });
 
-  it("falls back to adaptive when child OFF (regardless of model)", () => {
-    const out = applyModelSpecificThinkingOverride(GLM_BASE, "umans-glm-5.2", {
-      stampGlm52Thinking: false,
-      stampKimiK27CodeThinking: false,
-    });
-    expect(out.thinkingShape).toEqual({ type: "adaptive" });
+  it("returns null when no rule matches", () => {
+    const rule = resolvePerModelRule("umans-kimi-k2.7", [GLM_RULE]);
+    expect(rule).toBeNull();
   });
 
-  it("does NOT override canDisableThinking — stays from the base policy", () => {
-    const out = applyModelSpecificThinkingOverride(GLM_BASE, "umans-glm-5.2", {
-      stampGlm52Thinking: true,
-      stampKimiK27CodeThinking: false,
-    });
-    expect(out.canDisableThinking).toBe(GLM_BASE.canDisableThinking);
+  it("returns null for undefined model name", () => {
+    const rule = resolvePerModelRule(undefined, [GLM_RULE]);
+    expect(rule).toBeNull();
   });
 
-  it("does NOT override max_tokens, effort, top_k, thinking", () => {
-    const out = applyModelSpecificThinkingOverride(GLM_BASE, "umans-glm-5.2", {
-      stampGlm52Thinking: true,
-      stampKimiK27CodeThinking: false,
-    });
-    expect(out.max_tokens).toBe(GLM_BASE.max_tokens);
-    expect(out.effort).toBe(GLM_BASE.effort);
-    expect(out.top_k).toBe(GLM_BASE.top_k);
-    expect(out.thinking).toBe(GLM_BASE.thinking);
+  it("returns null when rules array is empty", () => {
+    const rule = resolvePerModelRule("umans-glm-5.2", []);
+    expect(rule).toBeNull();
   });
 
-  it("returns a new object (does not mutate the input policy)", () => {
-    const input = { ...GLM_BASE };
-    const out = applyModelSpecificThinkingOverride(input, "umans-glm-5.2", {
-      stampGlm52Thinking: true,
-      stampKimiK27CodeThinking: false,
-    });
-    expect(out).not.toBe(input);
-    expect(input.thinkingShape).toEqual(GLM_BASE.thinkingShape);
+  it("first-match-wins when multiple rules could match", () => {
+    const broad: PerModelRule = {
+      pattern: "umans-*",
+      anthropicThinkingShape: { type: "adaptive" },
+    };
+    const specific: PerModelRule = {
+      pattern: "umans-glm-*",
+      anthropicThinkingShape: { type: "enabled", clear_thinking: false },
+    };
+    const rule = resolvePerModelRule("umans-glm-5.2", [broad, specific]);
+    expect(rule?.pattern).toBe("umans-*");
   });
 
-  it("matches version segment with suffix (umans-glm-5.2-turbo)", () => {
-    const out = applyModelSpecificThinkingOverride(GLM_BASE, "umans-glm-5.2-turbo", {
-      stampGlm52Thinking: true,
-      stampKimiK27CodeThinking: false,
-    });
-    expect(out.thinkingShape).toEqual({
-      type: "enabled",
-      clear_thinking: false,
-    });
+  it("exact pattern match (no glob suffix)", () => {
+    const exact: PerModelRule = {
+      pattern: "umans-coder",
+      anthropicThinkingShape: { type: "enabled", keep: "all" },
+    };
+    const rule = resolvePerModelRule("umans-coder", [exact]);
+    expect(rule).not.toBeNull();
+    expect(rule?.pattern).toBe("umans-coder");
   });
 
-  it("falls back to adaptive for undefined model name even when child is ON", () => {
-    const out = applyModelSpecificThinkingOverride(GLM_BASE, undefined, {
-      stampGlm52Thinking: true,
-      stampKimiK27CodeThinking: false,
-    });
-    expect(out.thinkingShape).toEqual({ type: "adaptive" });
+  it("exact pattern does NOT match prefix-only", () => {
+    const exact: PerModelRule = {
+      pattern: "umans-coder",
+      anthropicThinkingShape: { type: "enabled", keep: "all" },
+    };
+    const rule = resolvePerModelRule("umans-coder-v2", [exact]);
+    expect(rule).toBeNull();
+  });
+
+  it("* wildcard matches any model", () => {
+    const fallback: PerModelRule = { pattern: "*", anthropicThinkingShape: { type: "adaptive" } };
+    const rule = resolvePerModelRule("anything-here", [fallback]);
+    expect(rule?.pattern).toBe("*");
   });
 });

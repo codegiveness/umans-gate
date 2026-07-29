@@ -1,6 +1,6 @@
 // Config loader: merges env vars > JSON config file > defaults into ProxyConfig.
 
-import type { IncomingProtocol, ProxyConfig } from "../types.js";
+import type { IncomingProtocol, PerModelRule, ProxyConfig } from "../types.js";
 import {
   OPENAI_CHAT_PATH,
   STAMP_REASONING_EFFORT_VALUE,
@@ -19,6 +19,27 @@ import {
   str,
 } from "./env.js";
 import { ensureConfigFile } from "./file.js";
+import type { StampModelRuleRaw } from "./types.js";
+
+/**
+ * Parse raw config.json `stamp_model_rules` entries into PerModelRule[].
+ * Filters out entries without a valid pattern string.
+ */
+function parseStampModelRules(raw: StampModelRuleRaw[] | undefined): PerModelRule[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter(
+      (r): r is StampModelRuleRaw =>
+        r != null && typeof r.pattern === "string" && r.pattern.length > 0,
+    )
+    .map((r) => ({
+      pattern: r.pattern,
+      anthropicThinkingShape: r.anthropic_thinking_shape,
+      openaiThinkingShape: r.openai_thinking_shape,
+      openaiExtraBody: r.openai_extra_body,
+      openaiVetoReasoningEffort: r.openai_veto_reasoning_effort,
+    }));
+}
 
 /**
  * Load configuration.
@@ -43,14 +64,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     env.STAMP_CLAUDE_CODE_ENABLED ?? raw.stamp_claude_code_enabled,
     false,
   );
-  const stampGlm52Thinking = bool(
-    env.STAMP_GLM_5_2_THINKING_ENABLED ?? raw.stamp_glm_5_2_thinking_enabled,
-    false,
-  );
-  const stampKimiK27CodeThinking = bool(
-    env.STAMP_KIMI_K2_7_CODE_THINKING_ENABLED ?? raw.stamp_kimi_k2_7_code_thinking_enabled,
-    false,
-  );
+  const stampModelRules = parseStampModelRules(raw.stamp_model_rules);
   const stampReasoningEffortEnabled = bool(
     env.STAMP_REASONING_EFFORT_ENABLED ?? raw.stamp_reasoning_effort_enabled,
     false,
@@ -322,8 +336,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     upstreamProtocol,
     incomingProtocol: "http1.1" as IncomingProtocol,
     stampClaudeCode,
-    stampGlm52Thinking,
-    stampKimiK27CodeThinking,
+    stampModelRules,
     stampReasoningEffort,
     openaiPath,
     warmerEnabled,

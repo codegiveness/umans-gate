@@ -120,32 +120,45 @@ When thinking is **enabled** (present and not disabled):
 - `context_management`: stamped
 - `reasoning_effort`: **always stripped** from Anthropic bodies
 
-### Child-toggle gating (ADR-0019)
+### Per-model rule gating (ADR-0020)
 
-The `thinkingShape` forced above is resolved by
-`applyModelSpecificThinkingOverride(policy, modelName, config)`, which
-checks the child toggles in order (first match wins):
+The `thinkingShape` forced above can be overridden per-model via
+`stamp_model_rules` in config.json. The `PerModelRuleStep` (pipeline position 4,
+after AnthropicBody, before ContextManagement) resolves the first matching rule
+via `resolvePerModelRule(modelName, rules)` — first-match-wins glob.
 
-- `stamp_glm_5_2_thinking_enabled` ON + model name contains `"5.2"` →
-  GLM Preserved Thinking `{ type: "enabled", clear_thinking: false, budget_tokens: 32000 }`
-- `stamp_kimi_k2_7_code_thinking_enabled` ON + model name contains
-  `"k2.7-code"` → Kimi Preserved Thinking
-  `{ type: "enabled", keep: "all", budget_tokens: 32000 }`
-- Otherwise → `{ type: "adaptive" }` (adaptive fallback)
+Per-model rules are **independent** of `stamp_claude_code_enabled` and
+`stamp_reasoning_effort_enabled` — they fire whenever a matching rule exists.
 
-When a child toggle is OFF or the version does not match, the shape is
-`{ type: "adaptive" }`, even for models whose overlay declares a
-family-specific shape. This is a deliberate behavior change: the previous
-unconditional family-specific shapes are now opt-in via the child toggles.
+All `STAMP_OVERLAY` entries now use `thinkingShape: { type: "adaptive" }`.
+When a rule matches with `anthropicThinkingShape`, that shape overrides
+the overlay's adaptive shape (rule wins). When no rule matches, adaptive
+is used.
 
-`canDisableThinking` is **not overridden** by the child toggles. It stays
-from the resolved overlay policy (GLM=true, Kimi=false). This means a
-client-sent disabled thinking block on a Kimi request is still forced (to
-the overridden shape when the Kimi child is ON, or to adaptive when OFF).
+`canDisableThinking` is **not overridden** by per-model rules. It stays from
+the resolved overlay policy or `/v1/models/info`.
 
-`reasoning_effort` is never stamped on Kimi K2.7-Code (K3-only feature).
-The existing `reasoning_effort` stripping on Anthropic routes handles
-this regardless of child toggle state.
+On OpenAI routes, per-model rules can:
+- `openaiThinkingShape`: force the `thinking` field to this shape.
+- `openaiExtraBody`: merge into `body.extra_body` (shallow merge) on BOTH routes.
+- `openaiVetoReasoningEffort`: skip `reasoning_effort` injection entirely
+  (for models that error on it, e.g. `umans-kimi-k2.7`).
+
+Reference docs for vendor thinking parameters:
+- z.ai: https://docs.z.ai/guides/capabilities/thinking-mode
+- z.ai (reasoning_effort): https://docs.z.ai/guides/capabilities/thinking
+- z.ai (migration): https://docs.z.ai/guides/overview/migrate-to-glm-new
+- kimi: https://platform.kimi.ai/docs/guide/use-thinking-models
+- kimi (reasoning_effort): https://platform.kimi.ai/docs/guide/use-reasoning-effort
+- qwen: https://docs.qwencloud.com/developer-guides/text-generation/thinking
+- umans /v1/models/info: https://api.code.umans.ai/v1/models/info
+
+`reasoning_effort` is never stamped on models with `openaiVetoReasoningEffort`
+(e.g. kimi-k2.7 which errors on it). The veto is surgical: only
+`reasoning_effort` injection is skipped — `OpenAiReasoningStep` still forces
+temperature=1.0 and strips output_config/context_management. The `thinking`
+field is NOT stripped by `stampReasoning` — `PerModelRuleStep` controls it
+via `openaiThinkingShape`.
 
 `canDisableThinking` comes from `/v1/models/info` `reasoning.can_disable`,
 overridden at parse time. See ADR-0011 for the full truth table.
@@ -158,7 +171,7 @@ When `stampReasoningEffort` is enabled (non-null) on OpenAI routes:
   absence).
 - `reasoning_effort` absent + `thinking` enabled → **inject**
   `reasoning_effort` from `policy.effort` (`"max"` for GLM, `"high"` for
-  others). Strip `thinking`.
+  others). `thinking` is **preserved** (PerModelRuleStep controls it).
 - `reasoning_effort` absent + `thinking` disabled → respect (leave alone).
 - `reasoning_effort` present + disabled value (`off`/`none`/`null`) +
   `canDisableThinking: true` → respect.
@@ -166,17 +179,29 @@ When `stampReasoningEffort` is enabled (non-null) on OpenAI routes:
   `canDisableThinking: false` (Kimi, Coder) → **force** to `policy.effort`.
 - `reasoning_effort` present + any other value → **force** to
   `policy.effort`.
-- When `reasoning_effort` is present or injected, `thinking` is
-  **stripped**.
 - When `reasoning_effort` is active, `output_config` and
   `context_management` are **stripped** (Anthropic-specific fields have no
-  place on an OpenAI route).
+  place on an OpenAI route). `thinking` is **NOT stripped** —
+  `PerModelRuleStep` controls it via `openaiThinkingShape`.
 - When `reasoning_effort` is active, `temperature` is **forced to 1.0**
   (reasoning models reject temperature != 1.0).
 
 The target effort is `policy.effort`, NOT the
 `STAMP_REASONING_EFFORT_VALUE` config constant (which is always `"high"`).
 GLM models get `"max"`.
+
+### Per-model OpenAI behavior (ADR-0020)
+
+Per-model rules (see §6) can modify OpenAI route behavior independently of
+`stampReasoningEffort`:
+- `openaiThinkingShape`: forces the `thinking` field to this shape.
+  `stampReasoning` does NOT strip `thinking` — this step owns it.
+- `openaiExtraBody`: merges into `body.extra_body` on BOTH routes
+  (e.g. `{enable_thinking:true, preserve_thinking:true}` for Qwen models).
+- `openaiVetoReasoningEffort`: skips `reasoning_effort` injection entirely.
+  Surgical: only the injection is skipped — temperature forcing,
+  output_config/context_management strip still fire when
+  `stampReasoningEffort` is on.
 
 ## 8. Don't re-verify codegraph results with grep
 

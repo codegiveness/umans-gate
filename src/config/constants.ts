@@ -1,7 +1,5 @@
 // Hardcoded constants — app is Umans-specific, not user-configurable.
 
-import type { ThinkingConfig } from "../types.js";
-
 /** Hardcoded constants — app is Umans-specific, not user-configurable. */
 export const UPSTREAM_TARGET = "https://api.code.umans.ai";
 export const OPENAI_CHAT_PATH = "chat/completions";
@@ -14,10 +12,6 @@ export const STAMP_CACHE_TTL_VALUE = "1h";
 export const STAMP_TOP_K_VALUE = 20;
 /** Temperature value forced when stamp_claude_code_enabled is true. */
 export const STAMP_TEMPERATURE_VALUE = 1.0;
-/** Thinking block injected when stamp_claude_code_enabled is true. */
-export const STAMP_THINKING_VALUE: ThinkingConfig = {
-  type: "adaptive",
-};
 
 /** anthropic-beta header injected on all Anthropic /v1/messages requests. */
 export const STAMP_ANTHROPIC_BETA_HEADER =

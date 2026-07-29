@@ -6,6 +6,8 @@ import type { OpenAiBody } from "./types.js";
 export interface StampReasoningOptions {
   reasoningEffort: "high" | "max" | null | undefined;
   policy?: StampPolicy;
+  /** When true, skip reasoning_effort injection but still strip Anthropic fields + force temperature. */
+  vetoReasoningEffort?: boolean;
 }
 
 const DISABLED_EFFORT_VALUES = new Set(["off", "none", "null"]);
@@ -32,9 +34,10 @@ function isReasoningEffortDisabled(value: unknown): boolean {
  * - `reasoning_effort` present + any other value: force to policy effort.
  *
  * When `reasoning_effort` is present or injected, Anthropic-specific fields
- * are stripped from the body: `thinking`, `output_config`,
- * `context_management`. These have no meaning on an OpenAI route.
- * `temperature` is forced to 1.0 — reasoning models reject temperature != 1.0.
+ * are stripped from the body: `output_config`, `context_management`.
+ * The `thinking` field is NEVER stripped — `PerModelRuleStep` controls it via
+ * `openaiThinkingShape`. `temperature` is forced to 1.0 — reasoning models
+ * reject temperature != 1.0.
  *
  * Mutates the body in place. Returns true if the body was changed.
  */
@@ -53,7 +56,11 @@ export function stampReasoning(body: OpenAiBody, options: StampReasoningOptions)
 
   let reasoningActive = false;
 
-  if (!hasReasoning && hasThinking) {
+  if (options.vetoReasoningEffort === true) {
+    if (!hasThinking) return false;
+    if (isThinkingDisabled(body.thinking)) return false;
+    reasoningActive = true;
+  } else if (!hasReasoning && hasThinking) {
     if (isThinkingDisabled(body.thinking)) return false;
     if (!policy.thinking) return false;
     body.reasoning_effort = targetEffort;
@@ -70,9 +77,6 @@ export function stampReasoning(body: OpenAiBody, options: StampReasoningOptions)
   }
 
   if (reasoningActive) {
-    if (hasThinking) {
-      delete body.thinking;
-    }
     if ("output_config" in body) {
       delete body.output_config;
       changed = true;

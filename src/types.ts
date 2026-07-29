@@ -185,10 +185,8 @@ export interface ProxyConfig {
   incomingProtocol: IncomingProtocol;
   /** Apply the Claude Code stamp bundle on Anthropic requests (TTL, top_k, max_tokens, thinking, output_config, context_management). */
   stampClaudeCode: boolean;
-  /** When true and stampClaudeCode is on, stamps GLM 5.2 Preserved Thinking (clear_thinking: false) for models matching "5.2". */
-  stampGlm52Thinking: boolean;
-  /** When true and stampClaudeCode is on, stamps Kimi K2.7-Code Preserved Thinking (keep: "all") for models matching "k2.7-code". */
-  stampKimiK27CodeThinking: boolean;
+  /** Per-model stamp rules from config.json. Overrides thinking behavior for specific model patterns. */
+  stampModelRules: PerModelRule[];
   /** Value to inject as `reasoning_effort` on OpenAI request bodies. Null = disabled. */
   stampReasoningEffort: "high" | "max" | null;
   openaiPath: string;
@@ -347,8 +345,7 @@ export interface ProtocolConfig {
 /** Stamp-related fields used by the proxy stamp pipeline. */
 export interface StampConfig {
   stampClaudeCode: ProxyConfig["stampClaudeCode"];
-  stampGlm52Thinking: ProxyConfig["stampGlm52Thinking"];
-  stampKimiK27CodeThinking: ProxyConfig["stampKimiK27CodeThinking"];
+  stampModelRules: ProxyConfig["stampModelRules"];
   stampReasoningEffort: ProxyConfig["stampReasoningEffort"];
   openaiPath: ProxyConfig["openaiPath"];
   experimentStripOmoReminder: ProxyConfig["experimentStripOmoReminder"];
@@ -416,24 +413,44 @@ export interface ContentBlock {
 /**
  * Anthropic `thinking` block injected for matching models.
  *
- * Three variants are produced by the stamp pipeline:
- * - `adaptive`: the proxy's legacy adaptive thinking shape (used by
- *   `umans-coder`, `umans-flash`, `umans-qwen*`, and the fallback `*`
- *   policy when thinking is forced).
- * - `enabled` with `keep: "all"`: Kimi Preserved Thinking shape, used by
- *   `umans-kimi*` and `umans-coder` (both Kimi K2.7-Code base).
- *   See ADR-0017.
- * - `enabled` with `clear_thinking: false`: Z.ai Preserved Thinking shape,
- *   used by `umans-glm*`. See ADR-0017.
+ * Four variants supported by the type union:
+ * - `adaptive`: the proxy's default thinking shape. All `STAMP_OVERLAY`
+ *   entries currently use this.
+ * - `enabled` with `keep: "all"`: Kimi Preserved Thinking. Available via
+ *   `PerModelRule.anthropicThinkingShape` (ADR-0020).
+ * - `enabled` with `clear_thinking: false`: Z.ai Preserved Thinking.
+ *   Available via `PerModelRule.anthropicThinkingShape` (ADR-0020).
+ * - `enabled` (bare): Qwen Preserved Thinking. Available via
+ *   `PerModelRule.anthropicThinkingShape` (ADR-0020).
  */
 export type ThinkingConfig =
   | { type: "adaptive" }
   | { type: "enabled"; keep: "all" }
-  | { type: "enabled"; clear_thinking: boolean };
+  | { type: "enabled"; clear_thinking: boolean }
+  | { type: "enabled" };
 
 /** Anthropic `output_config` block injected for matching models. */
 export interface OutputConfig {
   effort: "high" | "max";
+}
+
+/**
+ * Per-model stamp rule from `config.json` (`stamp_model_rules`).
+ * Overrides thinking behavior for specific model name patterns.
+ * Complements the static `STAMP_OVERLAY` — first-match-wins.
+ * See ADR-0020.
+ */
+export interface PerModelRule {
+  /** Glob pattern for model name matching (e.g. "umans-glm-*", "umans-coder"). */
+  pattern: string;
+  /** Anthropic route: force this thinkingShape onto the request. */
+  anthropicThinkingShape?: ThinkingConfig;
+  /** OpenAI route: force this thinkingShape onto the request. */
+  openaiThinkingShape?: ThinkingConfig;
+  /** Merge this into body.extra_body on BOTH routes. */
+  openaiExtraBody?: Record<string, unknown>;
+  /** OpenAI route: skip reasoning_effort injection (vendor errors on it). */
+  openaiVetoReasoningEffort?: boolean;
 }
 
 /** Anthropic request body shape (subset we care about for TTL stamping). */

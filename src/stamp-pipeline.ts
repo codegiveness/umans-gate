@@ -18,10 +18,10 @@ import { createLogger } from "./logger.js";
 import type { ParsedModelInfo } from "./model-info-parser.js";
 import { restampBreakpoints } from "./restamp-breakpoints.js";
 import { stampCacheTtl } from "./stamp.js";
-import { applyModelSpecificThinkingOverride, resolveStampPolicy } from "./stamp-catalog.js";
+import { resolvePerModelRule, resolveStampPolicy } from "./stamp-catalog.js";
 import { stampReasoning } from "./stamp-reasoning.js";
 import { stampTemperature } from "./stamp-temperature.js";
-import { isThinkingEnabled, stampThinking } from "./stamp-thinking.js";
+import { isThinkingDisabled, isThinkingEnabled, stampThinking } from "./stamp-thinking.js";
 import { stampTopK } from "./stamp-topk.js";
 import type {
   AnthropicBody,
@@ -131,11 +131,7 @@ export const AnthropicBodyStep: StampStep = {
     if (body === null || typeof body !== "object") return false;
     const b = body as AnthropicBody;
     let changed = false;
-    const basePolicy = resolveStampPolicy(ctx.modelName, ctx.catalog);
-    const policy = applyModelSpecificThinkingOverride(basePolicy, ctx.modelName, {
-      stampGlm52Thinking: ctx.config.stampGlm52Thinking,
-      stampKimiK27CodeThinking: ctx.config.stampKimiK27CodeThinking,
-    });
+    const policy = resolveStampPolicy(ctx.modelName, ctx.catalog);
     if (
       stampThinking(b, {
         maxTokens: true,
@@ -178,6 +174,61 @@ export const ContextManagementStep: StampStep = {
   },
 };
 
+/**
+ * Per-model rule step (ADR-0020). Applies config-driven per-model overrides
+ * for thinking shape (Anthropic) and thinking-strip/extra_body/veto (OpenAI).
+ * Independent of stampClaudeCode and stampReasoningEffort — fires whenever
+ * a matching rule exists.
+ *
+ * Position: after AnthropicBody (so rules can override its thinkingShape),
+ * before ContextManagement (so a rule-forced thinking enables context mgmt),
+ * before OpenAiReasoning (so veto flag is visible).
+ */
+export const PerModelRuleStep: StampStep = {
+  label: "per-model-rule",
+  applies(ctx) {
+    if (ctx.config.stampModelRules.length === 0) return false;
+    return resolvePerModelRule(ctx.modelName, ctx.config.stampModelRules) !== null;
+  },
+  apply(body, ctx) {
+    if (body === null || typeof body !== "object") return false;
+    const rule = resolvePerModelRule(ctx.modelName, ctx.config.stampModelRules);
+    if (!rule) return false;
+    let changed = false;
+
+    const shape = ctx.isOpenAi ? rule.openaiThinkingShape : rule.anthropicThinkingShape;
+    if (shape) {
+      const existing = (body as Record<string, unknown>).thinking;
+      if (ctx.isOpenAi && (existing == null || isThinkingDisabled(existing))) {
+        (body as Record<string, unknown>).thinking = { type: "disabled" };
+      } else {
+        (body as Record<string, unknown>).thinking = { ...shape };
+      }
+      changed = true;
+    }
+
+    if (rule.openaiExtraBody) {
+      const existing = (body as Record<string, unknown>).extra_body;
+      const merged = {
+        ...(typeof existing === "object" && existing !== null ? existing : {}),
+        ...rule.openaiExtraBody,
+      };
+      (body as Record<string, unknown>).extra_body = merged;
+      changed = true;
+    }
+
+    if (changed) {
+      log.info("applied per-model rule", {
+        method: ctx.method,
+        path: ctx.url.pathname,
+        pattern: rule.pattern,
+      });
+      return true;
+    }
+    return false;
+  },
+};
+
 export const OpenAiReasoningStep: StampStep = {
   label: "openai-reasoning",
   applies(ctx) {
@@ -186,9 +237,11 @@ export const OpenAiReasoningStep: StampStep = {
   apply(body, ctx) {
     if (body === null || typeof body !== "object") return false;
     const policy = resolveStampPolicy(ctx.modelName, ctx.catalog);
+    const rule = resolvePerModelRule(ctx.modelName, ctx.config.stampModelRules);
     const changed = stampReasoning(body as OpenAiBody, {
       reasoningEffort: ctx.config.stampReasoningEffort,
       policy,
+      vetoReasoningEffort: rule?.openaiVetoReasoningEffort === true,
     });
     if (changed) {
       log.info(`stamped reasoning_effort=${ctx.config.stampReasoningEffort}`, {
@@ -311,6 +364,7 @@ export const STAMP_PIPELINE: StampStep[] = [
   RestampBreakpointsStep,
   CacheTtlStep,
   AnthropicBodyStep,
+  PerModelRuleStep,
   ContextManagementStep,
   OpenAiReasoningStep,
   OpenAiStreamUsageStep,

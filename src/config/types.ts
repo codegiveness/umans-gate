@@ -1,6 +1,20 @@
 // Raw config types: the shape of the JSON config file and the input accepted
 // by validateConfig/saveConfig (numeric fields accept strings from HTML forms).
 
+import type { PerModelRule } from "../types.js";
+
+/**
+ * Raw per-model rule shape as it appears in config.json.
+ * Transformed into PerModelRule (with camelCase keys) by the loader.
+ */
+export type StampModelRuleRaw = {
+  pattern: string;
+  anthropic_thinking_shape?: PerModelRule["anthropicThinkingShape"];
+  openai_thinking_shape?: PerModelRule["openaiThinkingShape"];
+  openai_extra_body?: Record<string, unknown>;
+  openai_veto_reasoning_effort?: boolean;
+};
+
 /**
  * Fields removed from user config (hardcoded — app is Umans-specific):
  *   target              → "https://api.code.umans.ai"
@@ -18,10 +32,13 @@ export interface RawConfig {
   upstream_protocol?: string;
   /** When true, applies the full Claude Code stamp bundle on Anthropic requests (TTL, top_k, max_tokens, thinking, output_config, context_management). */
   stamp_claude_code_enabled?: boolean;
-  /** When true and stamp_claude_code_enabled is on, stamps GLM 5.2 Preserved Thinking (clear_thinking: false). Only applies to models whose name contains "5.2". Default false. */
-  stamp_glm_5_2_thinking_enabled?: boolean;
-  /** When true and stamp_claude_code_enabled is on, stamps Kimi K2.7-Code Preserved Thinking (keep: "all"). Only applies to models whose name contains "k2.7-code". Default false. */
-  stamp_kimi_k2_7_code_thinking_enabled?: boolean;
+  /**
+   * Per-model stamp rules (ADR-0020). Overrides thinking behavior for specific
+   * model name patterns. Complements the static STAMP_OVERLAY — first-match-wins.
+   * Each rule can set Anthropic thinkingShape, OpenAI thinking-strip, extra_body,
+   * and reasoning_effort veto. Empty array = current behavior (overlay only).
+   */
+  stamp_model_rules?: StampModelRuleRaw[];
   /** When true, stamps reasoning_effort onto OpenAI-compatible requests (effort=max for umans-glm* models, effort=high for all others) and removes max_tokens/thinking. */
   stamp_reasoning_effort_enabled?: boolean;
   warmer_enabled?: boolean;

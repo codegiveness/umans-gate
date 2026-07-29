@@ -41,7 +41,7 @@ describe("resolveStampPolicy", () => {
     const p = resolveStampPolicy("umans-legacy", catalog);
     expect(p.max_tokens).toBe(32767);
     expect(p.effort).toBe("high");
-    expect(p.thinking).toBe(false);
+    expect(p.thinking).toBe(true);
     expect(p.top_k).toBe(null);
   });
 
@@ -61,7 +61,7 @@ describe("resolveStampPolicy", () => {
     const p = resolveStampPolicy(undefined, catalog);
     expect(p.max_tokens).toBe(32767);
     expect(p.effort).toBe("high");
-    expect(p.thinking).toBe(false);
+    expect(p.thinking).toBe(true);
     expect(p.top_k).toBe(null);
   });
 });

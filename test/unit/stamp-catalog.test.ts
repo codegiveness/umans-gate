@@ -17,7 +17,7 @@ function catalogWith(
 }
 
 describe("resolveStampPolicy", () => {
-  it("resolves umans-glm* to the GLM policy (max effort, top_k=20, Z.ai Preserved Thinking)", () => {
+  it("resolves umans-glm* to the GLM policy (max effort, top_k=20, adaptive)", () => {
     const catalog = catalogWith("umans-glm-foo");
     expect(resolveStampPolicy("umans-glm-foo", catalog)).toEqual({
       max_tokens: 131071,
@@ -25,11 +25,11 @@ describe("resolveStampPolicy", () => {
       thinking: true,
       top_k: 20,
       canDisableThinking: false,
-      thinkingShape: { type: "enabled", clear_thinking: false },
+      thinkingShape: { type: "adaptive" },
     });
   });
 
-  it("resolves umans-coder to the high-effort thinking policy with Kimi Preserved Thinking", () => {
+  it("resolves umans-coder to the high-effort thinking policy with adaptive shape", () => {
     const catalog = catalogWith("umans-coder");
     expect(resolveStampPolicy("umans-coder", catalog)).toEqual({
       max_tokens: 32767,
@@ -37,7 +37,7 @@ describe("resolveStampPolicy", () => {
       thinking: true,
       top_k: null,
       canDisableThinking: false,
-      thinkingShape: { type: "enabled", keep: "all" },
+      thinkingShape: { type: "adaptive" },
     });
   });
 
@@ -53,7 +53,7 @@ describe("resolveStampPolicy", () => {
     });
   });
 
-  it("resolves umans-kimi* to the high-effort thinking policy with Kimi Preserved Thinking", () => {
+  it("resolves umans-kimi* to the high-effort thinking policy with adaptive shape", () => {
     const catalog = catalogWith("umans-kimi-bar");
     expect(resolveStampPolicy("umans-kimi-bar", catalog)).toEqual({
       max_tokens: 32767,
@@ -61,7 +61,7 @@ describe("resolveStampPolicy", () => {
       thinking: true,
       top_k: null,
       canDisableThinking: false,
-      thinkingShape: { type: "enabled", keep: "all" },
+      thinkingShape: { type: "adaptive" },
     });
   });
 
@@ -81,7 +81,7 @@ describe("resolveStampPolicy", () => {
     const catalog = catalogWith("umans-coder");
     const resolved = resolveStampPolicy("umans-legacy", catalog);
     expect(resolved).toEqual(STAMP_OVERLAY["*"]);
-    expect(resolved.thinking).toBe(false);
+    expect(resolved.thinking).toBe(true);
     expect(resolved.top_k).toBeNull();
     expect(resolved.thinkingShape).toEqual({ type: "adaptive" });
   });

@@ -20,10 +20,17 @@ beforeAll(async () => {
   proxy = await startInProcessProxy({
     target: `http://127.0.0.1:${raw.port}`,
     stampClaudeCodeEnabled: true,
-    stampGlm52ThinkingEnabled: true,
     stampReasoningEffortEnabled: true,
     warmerEnabled: false,
     releaseCooldownMs: 0,
+    configOverrides: {
+      stampModelRules: [
+        {
+          pattern: "umans-glm-*",
+          anthropicThinkingShape: { type: "enabled", clear_thinking: false },
+        },
+      ],
+    },
   });
 });
 
@@ -116,8 +123,8 @@ describe("stamp HTTP wiring — OpenAI route", () => {
     const parsed = JSON.parse(r!.body);
     // reasoning_effort injected from thinking (GLM = max)
     expect(parsed.reasoning_effort).toBe("max");
-    // thinking stripped (OpenAI route)
-    expect(parsed.thinking).toBeUndefined();
+    // thinking preserved (PerModelRuleStep controls thinking, not stampReasoning)
+    expect(parsed.thinking).toEqual({ type: "adaptive" });
     // top_k injected (GLM = 20, after model)
     expect(parsed.top_k).toBe(20);
     expect(parsed.model).toBe("umans-glm-5.2");

@@ -68,10 +68,6 @@ export interface StartInProcessProxyOptions {
   visionTarget?: string;
   /** Enable Claude Code stamp bundle. */
   stampClaudeCodeEnabled?: boolean;
-  /** Enable GLM 5.2 Preserved Thinking stamp. */
-  stampGlm52ThinkingEnabled?: boolean;
-  /** Enable Kimi K2.7-Code Preserved Thinking stamp. */
-  stampKimiK27CodeThinkingEnabled?: boolean;
   /** Enable reasoning_effort stamping on OpenAI route. */
   stampReasoningEffortEnabled?: boolean;
   /** Umans API key (enables usage polling, gate sizing). */
@@ -146,8 +142,7 @@ export async function startInProcessProxy(
         dbPath,
         visionStrategy: options.visionStrategy ?? "never",
         stampClaudeCode: options.stampClaudeCodeEnabled ?? false,
-        stampGlm52Thinking: options.stampGlm52ThinkingEnabled ?? false,
-        stampKimiK27CodeThinking: options.stampKimiK27CodeThinkingEnabled ?? false,
+        stampModelRules: [],
         stampReasoningEffort: options.stampReasoningEffortEnabled ? "max" : null,
         umansApiKey: options.umansApiKey ?? null,
         dashboardToken: options.dashboardToken ?? null,
