@@ -493,7 +493,7 @@ describe("CaptureRowItem row 4 — p50/tps/ratio", () => {
     expect(screen.getByText(/p50: ttft 1\.0s/)).toBeInTheDocument();
   });
 
-  it("renders path + status combined label at start of row 4", async () => {
+  it("renders /v1/status + status combined label at start of row 4", async () => {
     const c = makeCapture({
       id: 1,
       state: "done",
@@ -514,10 +514,10 @@ describe("CaptureRowItem row 4 — p50/tps/ratio", () => {
     );
     await flushEffects();
 
-    expect(screen.getByText("/v1/messages 200")).toBeInTheDocument();
+    expect(screen.getByText("/v1/status 200")).toBeInTheDocument();
   });
 
-  it("renders path without status when response_status is null", async () => {
+  it("renders /v1/status without status when response_status is null", async () => {
     const c = makeCapture({
       id: 1,
       state: "done",
@@ -539,10 +539,10 @@ describe("CaptureRowItem row 4 — p50/tps/ratio", () => {
     await flushEffects();
 
     // Row 4 path span has class "text-muted-foreground/70" (Row 2 path is "text-foreground/80")
-    const row4Spans = screen.getAllByText("/v1/messages");
+    const row4Spans = screen.getAllByText("/v1/status");
     const row4Path = row4Spans.find((el) => el.className.includes("text-muted-foreground/70"));
     expect(row4Path).toBeDefined();
-    expect(screen.queryByText("/v1/messages null")).not.toBeInTheDocument();
+    expect(screen.queryByText("/v1/status null")).not.toBeInTheDocument();
   });
 });
 

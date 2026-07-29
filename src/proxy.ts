@@ -620,6 +620,29 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
   let ttftTimeoutCount = 0; // number of TTFT timeouts across the lifecycle.
   let currentThreshold: number | null = null; // threshold used by the current attempt.
 
+  // Detached status fetch — fires before the upstream fetch loop so the
+  // dashboard gets p50 data early. Shares the in-flight promise with the
+  // watchdog's own fetch (if armed), so no extra HTTP request.
+  if (statusClient) {
+    statusClient
+      .fetchStatus(reqModelName ?? "")
+      .then((result: StatusResult | null) => {
+        if (!result || result.modelP50 == null) return;
+        try {
+          deps.db.updateUpstreamP50(capId, result.modelP50, result.tpsP50);
+          const row = deps.db.get(capId);
+          if (row) {
+            deps.ws.broadcast({ type: "update", capture: summary(row) });
+          }
+        } catch {
+          // Non-blocking: p50 persistence failure must not break the request path.
+        }
+      })
+      .catch(() => {
+        // Status fetch failure already logged inside StatusClient.
+      });
+  }
+
   /** Cooldown sleep that aborts early if the client disconnects. */
   const ttftCooldown = async (): Promise<void> => {
     if (config.ttftRetryCooldownMs <= 0) return;
@@ -933,21 +956,6 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
             clearTimeout(ttftTimer);
             currentThreshold = dynamicThreshold;
             ttftTimer = setTimeout(() => ttftController.abort(), dynamicThreshold);
-            // Write p50 data to the capture row. Late writes (after row
-            // pruned) are safe — SQLite UPDATE on a missing row is a no-op.
-            try {
-              deps.db.updateUpstreamP50(capId, result.modelP50, result.tpsP50);
-              // Late broadcast: if the capture is already "done", the queue's
-              // "done" broadcast already went out (possibly without p50 if
-              // this write landed after the flush). Re-read the row and emit
-              // an "update" so the dashboard gets the p50.
-              const row = deps.db.get(capId);
-              if (row && row.state === "done") {
-                deps.ws.broadcast({ type: "update", capture: summary(row) });
-              }
-            } catch {
-              // Non-blocking: p50 persistence failure must not break the request path.
-            }
           })
           .catch(() => {
             // Status fetch failure already logged inside StatusClient.

@@ -323,13 +323,13 @@ export function CaptureRowItem({
           <RowTip
             tip={
               <>
-                Request path + status — <span className="font-mono">{c.path}</span>{" "}
+                p50 source — <span className="font-mono">/v1/status</span> · capture status{" "}
                 <span className="font-mono">{c.response_status ?? "—"}</span>
               </>
             }
           >
             <span className="shrink-0 truncate font-mono text-muted-foreground/70">
-              {c.path}
+              /v1/status
               {c.response_status != null ? ` ${c.response_status}` : ""}
             </span>
           </RowTip>

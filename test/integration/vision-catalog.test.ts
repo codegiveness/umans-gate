@@ -83,6 +83,10 @@ function startMockLlmUpstreamWithCatalog(port = 0): MockUpstreamHandle & {
     async fetch(req) {
       const url = new URL(req.url);
 
+      if (url.pathname === "/v1/status") {
+        return new Response("not found", { status: 404 });
+      }
+
       if (url.pathname === "/v1/models") {
         return Response.json({
           data: [

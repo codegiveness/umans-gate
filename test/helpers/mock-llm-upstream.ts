@@ -78,6 +78,12 @@ export function startMockLlmUpstream(port = 0): MockUpstreamHandle {
     async fetch(req) {
       const url = new URL(req.url);
       const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
+
+      // /v1/status is fetched by StatusClient, not an LLM API call.
+      if (url.pathname === "/v1/status") {
+        return new Response("not found", { status: 404 });
+      }
+
       requests.push(body);
       callCount++;
 
