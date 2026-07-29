@@ -19,7 +19,7 @@ import { WatchdogBanner } from "@/components/watchdog-banner";
 import { WsStatusBadge } from "@/components/ws-status-badge";
 import { useCaptures } from "@/hooks/use-captures";
 import { useClipboard } from "@/hooks/use-clipboard";
-import { ConfigProvider } from "@/hooks/use-config-context";
+import { ConfigProvider, useConfigContext } from "@/hooks/use-config-context";
 import { useUsage } from "@/hooks/use-usage";
 
 const ConfigTab = lazy(() =>
@@ -53,6 +53,47 @@ const Toaster = lazy(() => import("@/components/ui/sonner").then((m) => ({ defau
 
 function TabPanelFallback() {
   return <Loader />;
+}
+
+function CapturesTab({
+  captures,
+  selectedId,
+  wsState,
+  gateStats,
+  usageSnapshot,
+  listError,
+  isLoadingList,
+  onSelect,
+  onClear,
+  onRetry,
+}: {
+  captures: ReturnType<typeof useCaptures>["captures"];
+  selectedId: ReturnType<typeof useCaptures>["selectedId"];
+  wsState: ReturnType<typeof useCaptures>["wsState"];
+  gateStats: ReturnType<typeof useCaptures>["gateStats"];
+  usageSnapshot: ReturnType<typeof useUsage>["data"];
+  listError: ReturnType<typeof useCaptures>["listError"];
+  isLoadingList: ReturnType<typeof useCaptures>["isLoadingList"];
+  onSelect: ReturnType<typeof useCaptures>["selectCapture"];
+  onClear: ReturnType<typeof useCaptures>["clearCaptures"];
+  onRetry: ReturnType<typeof useCaptures>["retryList"];
+}) {
+  const { config } = useConfigContext();
+  return (
+    <CaptureList
+      captures={captures}
+      selectedId={selectedId}
+      wsState={wsState}
+      gateStats={gateStats}
+      usageSnapshot={usageSnapshot}
+      listError={listError}
+      isLoading={isLoadingList}
+      onSelect={onSelect}
+      onClear={onClear}
+      onRetry={onRetry}
+      watchdogMultiplier={config?.ttft_watchdog_multiplier}
+    />
+  );
 }
 
 interface TabTipProps {
@@ -204,14 +245,14 @@ export function App() {
                 <TabsContent value="captures" className="flex-1 overflow-hidden" keepMounted>
                   <MasterDetailLayout
                     master={
-                      <CaptureList
+                      <CapturesTab
                         captures={captures}
                         selectedId={selectedId}
                         wsState={wsState}
                         gateStats={gateStats}
                         usageSnapshot={usageSnapshot}
                         listError={listError}
-                        isLoading={isLoadingList}
+                        isLoadingList={isLoadingList}
                         onSelect={selectCapture}
                         onClear={clearCaptures}
                         onRetry={retryList}

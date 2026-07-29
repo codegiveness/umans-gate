@@ -30,6 +30,7 @@ interface CaptureListProps {
   onSelect: (id: number) => void;
   onClear: () => void;
   onRetry: () => void;
+  watchdogMultiplier?: number;
 }
 
 /**
@@ -50,6 +51,7 @@ export function CaptureList({
   onSelect,
   onClear,
   onRetry,
+  watchdogMultiplier,
 }: CaptureListProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const { closeDrawer, isOpen } = useMasterDetail();
@@ -195,6 +197,7 @@ export function CaptureList({
                     isActive={virtualRow.index === activeIndex}
                     optionId={`capture-opt-${c.id}`}
                     onActivate={() => handleRowClick(virtualRow.index)}
+                    watchdogMultiplier={watchdogMultiplier}
                   />
                 </div>
               );

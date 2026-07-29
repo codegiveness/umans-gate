@@ -1175,6 +1175,19 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
       }
     } // end else (non-rewrite-escalation fetch path)
 
+    // Early upstream status — surface HTTP status before stream drains.
+    // Later state broadcasts (retry/cooldown) omit responseStatus so this
+    // value sticks until the final update replaces it with the DB value.
+    if (upstream) {
+      ws.broadcast({
+        type: "state",
+        captureId: capId,
+        state: "streaming",
+        responseStatus: upstream.status,
+        statusSource: "upstream" as const,
+      });
+    }
+
     const resHeadersRaw = headersToObject(upstream.headers);
     const resHeadersJson = JSON.stringify(resHeadersRaw);
     const contentType = upstream.headers.get("content-type") ?? "";

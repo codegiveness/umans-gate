@@ -237,9 +237,9 @@ describe("CaptureRowItem row 4 — p50/tps/ratio", () => {
     );
     await flushEffects();
 
-    expect(screen.getByText(/p50 1\.0s/)).toBeInTheDocument();
-    expect(screen.getByText("50.0 t/s")).toBeInTheDocument();
-    expect(screen.getByText("1.5x")).toBeInTheDocument();
+    expect(screen.getByText(/p50: ttft 1\.0s/)).toBeInTheDocument();
+    expect(screen.getByText(/p50: ttft 1\.0s 50\.0 t\/s/)).toBeInTheDocument();
+    expect(screen.getByText("ttft 1.5x")).toBeInTheDocument();
   });
 
   it("does NOT render row 4 when upstream_ttft_p50_ms is null", async () => {
@@ -255,16 +255,17 @@ describe("CaptureRowItem row 4 — p50/tps/ratio", () => {
     );
     await flushEffects();
 
-    expect(screen.queryByText(/^p50/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^p50:/)).not.toBeInTheDocument();
   });
 
-  it("shows ~ prefix on p50 when upstream_tps_p50 is null (overall p50 used)", async () => {
+  it("omits t/s from p50 span when upstream_tps_p50 is null", async () => {
     const c = makeCapture({
       id: 1,
       state: "done",
       ttft_ms: 800,
       upstream_ttft_p50_ms: 1000,
       upstream_tps_p50: null,
+      tps: null,
     });
     render(
       <CaptureRowItem
@@ -277,10 +278,11 @@ describe("CaptureRowItem row 4 — p50/tps/ratio", () => {
     );
     await flushEffects();
 
-    expect(screen.getByText(/~1\.0s/)).toBeInTheDocument();
+    expect(screen.getByText(/p50: ttft 1\.0s/)).toBeInTheDocument();
+    expect(screen.queryByText(/p50: ttft.*t\/s/)).not.toBeInTheDocument();
   });
 
-  it("does NOT show ~ prefix when upstream_tps_p50 is non-null", async () => {
+  it("includes t/s in p50 span when upstream_tps_p50 is non-null", async () => {
     const c = makeCapture({
       id: 1,
       state: "done",
@@ -299,15 +301,14 @@ describe("CaptureRowItem row 4 — p50/tps/ratio", () => {
     );
     await flushEffects();
 
-    expect(screen.getByText(/p50 1\.0s/)).toBeInTheDocument();
-    expect(screen.queryByText(/~1\.0s/)).not.toBeInTheDocument();
+    expect(screen.getByText(/p50: ttft 1\.0s 50\.0 t\/s/)).toBeInTheDocument();
   });
 
-  it("renders ratio with amber color when ratio > 1.5x", async () => {
+  it("renders ratio with muted color when ratio <= wm (default 5)", async () => {
     const c = makeCapture({
       id: 1,
       state: "done",
-      ttft_ms: 1600,
+      ttft_ms: 3000,
       upstream_ttft_p50_ms: 1000,
       upstream_tps_p50: 50,
     });
@@ -322,17 +323,42 @@ describe("CaptureRowItem row 4 — p50/tps/ratio", () => {
     );
     await flushEffects();
 
-    const ratioEl = screen.getByText("1.6x");
+    const ratioEl = screen.getByText("ttft 3.0x");
+    expect(ratioEl).toHaveClass("text-muted-foreground");
+    expect(ratioEl).not.toHaveClass("text-amber-600");
+    expect(ratioEl).not.toHaveClass("text-destructive");
+  });
+
+  it("renders ratio with amber color when ratio > wm and < wm*2 (default 5–10)", async () => {
+    const c = makeCapture({
+      id: 1,
+      state: "done",
+      ttft_ms: 7500,
+      upstream_ttft_p50_ms: 1000,
+      upstream_tps_p50: 50,
+    });
+    render(
+      <CaptureRowItem
+        capture={c}
+        selected={false}
+        isActive={false}
+        optionId="opt-1"
+        onActivate={vi.fn()}
+      />,
+    );
+    await flushEffects();
+
+    const ratioEl = screen.getByText("ttft 7.5x");
     expect(ratioEl).toHaveClass("text-amber-600");
     expect(ratioEl).not.toHaveClass("text-destructive");
   });
 
-  it("renders ratio with red color when ratio > 2x", async () => {
+  it("renders ratio with destructive color when ratio >= wm*2 (default >=10)", async () => {
     const c = makeCapture({
       id: 1,
       state: "done",
-      ttft_ms: 2500,
-      upstream_ttft_p50_ms: 1000,
+      ttft_ms: 20000,
+      upstream_ttft_p50_ms: 2000,
       upstream_tps_p50: 50,
     });
     render(
@@ -346,15 +372,15 @@ describe("CaptureRowItem row 4 — p50/tps/ratio", () => {
     );
     await flushEffects();
 
-    const ratioEl = screen.getByText("2.5x");
+    const ratioEl = screen.getByText("ttft 10.0x");
     expect(ratioEl).toHaveClass("text-destructive");
   });
 
-  it("renders ratio with muted color when ratio <= 1.5x", async () => {
+  it("renders ratio with muted color at ratio = wm (boundary, default 5)", async () => {
     const c = makeCapture({
       id: 1,
       state: "done",
-      ttft_ms: 1200,
+      ttft_ms: 5000,
       upstream_ttft_p50_ms: 1000,
       upstream_tps_p50: 50,
     });
@@ -369,10 +395,79 @@ describe("CaptureRowItem row 4 — p50/tps/ratio", () => {
     );
     await flushEffects();
 
-    const ratioEl = screen.getByText("1.2x");
+    const ratioEl = screen.getByText("ttft 5.0x");
     expect(ratioEl).toHaveClass("text-muted-foreground");
     expect(ratioEl).not.toHaveClass("text-amber-600");
-    expect(ratioEl).not.toHaveClass("text-destructive");
+  });
+
+  it("renders ratio with destructive color at ratio = wm*2 (boundary, default 10)", async () => {
+    const c = makeCapture({
+      id: 1,
+      state: "done",
+      ttft_ms: 10000,
+      upstream_ttft_p50_ms: 1000,
+      upstream_tps_p50: 50,
+    });
+    render(
+      <CaptureRowItem
+        capture={c}
+        selected={false}
+        isActive={false}
+        optionId="opt-1"
+        onActivate={vi.fn()}
+      />,
+    );
+    await flushEffects();
+
+    const ratioEl = screen.getByText("ttft 10.0x");
+    expect(ratioEl).toHaveClass("text-destructive");
+  });
+
+  it("uses watchdogMultiplier prop for thresholds when provided", async () => {
+    const c = makeCapture({
+      id: 1,
+      state: "done",
+      ttft_ms: 6000,
+      upstream_ttft_p50_ms: 1000,
+      upstream_tps_p50: 50,
+    });
+    render(
+      <CaptureRowItem
+        capture={c}
+        selected={false}
+        isActive={false}
+        optionId="opt-1"
+        onActivate={vi.fn()}
+        watchdogMultiplier={3}
+      />,
+    );
+    await flushEffects();
+
+    const ratioEl = screen.getByText("ttft 6.0x");
+    expect(ratioEl).toHaveClass("text-destructive");
+  });
+
+  it("defaults to wm=5 when watchdogMultiplier is undefined", async () => {
+    const c = makeCapture({
+      id: 1,
+      state: "done",
+      ttft_ms: 4000,
+      upstream_ttft_p50_ms: 1000,
+      upstream_tps_p50: 50,
+    });
+    render(
+      <CaptureRowItem
+        capture={c}
+        selected={false}
+        isActive={false}
+        optionId="opt-1"
+        onActivate={vi.fn()}
+      />,
+    );
+    await flushEffects();
+
+    const ratioEl = screen.getByText("ttft 4.0x");
+    expect(ratioEl).toHaveClass("text-muted-foreground");
   });
 
   it("omits ratio when capture ttft_ms is null", async () => {
@@ -394,8 +489,60 @@ describe("CaptureRowItem row 4 — p50/tps/ratio", () => {
     );
     await flushEffects();
 
-    expect(screen.queryByText(/\d\.\dx/)).not.toBeInTheDocument();
-    expect(screen.getByText(/p50 1\.0s/)).toBeInTheDocument();
+    expect(screen.queryByText(/ttft \d\.\dx/)).not.toBeInTheDocument();
+    expect(screen.getByText(/p50: ttft 1\.0s/)).toBeInTheDocument();
+  });
+
+  it("renders path + status combined label at start of row 4", async () => {
+    const c = makeCapture({
+      id: 1,
+      state: "done",
+      ttft_ms: 1500,
+      upstream_ttft_p50_ms: 1000,
+      upstream_tps_p50: 50,
+      path: "/v1/messages",
+      response_status: 200,
+    });
+    render(
+      <CaptureRowItem
+        capture={c}
+        selected={false}
+        isActive={false}
+        optionId="opt-1"
+        onActivate={vi.fn()}
+      />,
+    );
+    await flushEffects();
+
+    expect(screen.getByText("/v1/messages 200")).toBeInTheDocument();
+  });
+
+  it("renders path without status when response_status is null", async () => {
+    const c = makeCapture({
+      id: 1,
+      state: "done",
+      ttft_ms: 1500,
+      upstream_ttft_p50_ms: 1000,
+      upstream_tps_p50: 50,
+      path: "/v1/messages",
+      response_status: null,
+    });
+    render(
+      <CaptureRowItem
+        capture={c}
+        selected={false}
+        isActive={false}
+        optionId="opt-1"
+        onActivate={vi.fn()}
+      />,
+    );
+    await flushEffects();
+
+    // Row 4 path span has class "text-muted-foreground/70" (Row 2 path is "text-foreground/80")
+    const row4Spans = screen.getAllByText("/v1/messages");
+    const row4Path = row4Spans.find((el) => el.className.includes("text-muted-foreground/70"));
+    expect(row4Path).toBeDefined();
+    expect(screen.queryByText("/v1/messages null")).not.toBeInTheDocument();
   });
 });
 

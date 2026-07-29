@@ -34,6 +34,8 @@ interface UseCapturesSocketParams {
     retryAttempt?: number,
     cooldownEndsAt?: number,
     threshold?: number | null,
+    responseStatus?: number | null,
+    statusSource?: "upstream" | "gate" | null,
   ) => void;
   /** WS `gate` — replace gate stats. */
   onGateStats: (stats: GateStats) => void;
@@ -104,6 +106,8 @@ export function useCapturesSocket({
           msg.retryAttempt,
           msg.cooldownEndsAt,
           msg.threshold,
+          msg.responseStatus,
+          msg.statusSource,
         ),
       gate: (msg) => onGateStatsRef.current(msg.stats),
       new: (msg) => onCaptureUpsertRef.current(msg.capture, true),

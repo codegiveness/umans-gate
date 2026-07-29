@@ -25,6 +25,7 @@ interface CaptureRowItemProps {
   isActive: boolean;
   optionId: string;
   onActivate: () => void;
+  watchdogMultiplier?: number;
 }
 
 /**
@@ -92,10 +93,25 @@ export function CaptureRowItem({
   isActive,
   optionId,
   onActivate,
+  watchdogMultiplier,
 }: CaptureRowItemProps) {
   const isRunning = c.state === "enqueued" || c.state === "streaming" || c.state === "cooling_down";
   const liveAge = useLiveAge(c.started_at, isRunning);
   const cooldownSeconds = useCooldownCountdown(c.cooldownEndsAt, c.state === "cooling_down");
+
+  const wm = watchdogMultiplier ?? 5;
+  const ratio =
+    c.ttft_ms != null && c.upstream_ttft_p50_ms != null && c.upstream_ttft_p50_ms > 0
+      ? c.ttft_ms / c.upstream_ttft_p50_ms
+      : null;
+  const ratioColorClass =
+    ratio == null
+      ? "text-muted-foreground"
+      : ratio >= wm * 2
+        ? "text-destructive"
+        : ratio > wm
+          ? "text-amber-600"
+          : "text-muted-foreground";
 
   return (
     <div
@@ -303,7 +319,21 @@ export function CaptureRowItem({
       </div>
 
       {c.upstream_ttft_p50_ms != null && c.upstream_ttft_p50_ms > 0 && (
-        <div className="mt-1.5 flex items-center gap-3 text-[11px] tabular-nums text-muted-foreground">
+        <div className="mt-1.5 flex items-center gap-2 overflow-hidden text-[11px] tabular-nums text-muted-foreground">
+          <RowTip
+            tip={
+              <>
+                Request path + status — <span className="font-mono">{c.path}</span>{" "}
+                <span className="font-mono">{c.response_status ?? "—"}</span>
+              </>
+            }
+          >
+            <span className="shrink-0 truncate font-mono text-muted-foreground/70">
+              {c.path}
+              {c.response_status != null ? ` ${c.response_status}` : ""}
+            </span>
+          </RowTip>
+          <span className="shrink-0 text-muted-foreground/40">·</span>
           <RowTip
             tip={
               c.upstream_tps_p50 == null
@@ -311,38 +341,30 @@ export function CaptureRowItem({
                 : "Upstream p50 TTFT (model-specific) — median time to first token for this model"
             }
           >
-            <span>
-              p50 {c.upstream_tps_p50 == null ? "~" : ""}
-              {(c.upstream_ttft_p50_ms / 1000).toFixed(1)}s
+            <span className="shrink-0">
+              p50: ttft {(c.upstream_ttft_p50_ms / 1000).toFixed(1)}s
+              {c.upstream_tps_p50 != null && ` ${c.upstream_tps_p50.toFixed(1)} t/s`}
             </span>
           </RowTip>
-          <RowTip tip="Upstream p50 tokens per second — median generation rate for this model">
-            <span>{c.upstream_tps_p50 != null ? `${c.upstream_tps_p50.toFixed(1)} t/s` : "—"}</span>
-          </RowTip>
           {c.ttft_ms != null && c.ttft_ms > 0 && (
-            <RowTip
-              tip={
-                <>
-                  Ratio — this capture&apos;s TTFT vs the upstream p50
-                  <br />
-                  <span className="font-mono">
-                    {fmtTtft(c.ttft_ms)} / {(c.upstream_ttft_p50_ms / 1000).toFixed(1)}s
-                  </span>
-                </>
-              }
-            >
-              <span
-                className={cn(
-                  c.ttft_ms / c.upstream_ttft_p50_ms > 2
-                    ? "text-destructive"
-                    : c.ttft_ms / c.upstream_ttft_p50_ms > 1.5
-                      ? "text-amber-600"
-                      : "text-muted-foreground",
-                )}
+            <>
+              <span className="shrink-0 text-muted-foreground/40">·</span>
+              <RowTip
+                tip={
+                  <>
+                    Ratio — this capture&apos;s TTFT vs the upstream p50
+                    <br />
+                    <span className="font-mono">
+                      {fmtTtft(c.ttft_ms)} / {(c.upstream_ttft_p50_ms / 1000).toFixed(1)}s
+                    </span>
+                  </>
+                }
               >
-                {(c.ttft_ms / c.upstream_ttft_p50_ms).toFixed(1)}x
-              </span>
-            </RowTip>
+                <span className={cn("shrink-0", ratioColorClass)}>
+                  ttft {(c.ttft_ms / c.upstream_ttft_p50_ms).toFixed(1)}x
+                </span>
+              </RowTip>
+            </>
           )}
         </div>
       )}

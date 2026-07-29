@@ -66,24 +66,33 @@ export function useCaptures(): UseCapturesResult {
     onVisionClear: () => {
       setCaptures((prev) => prev.filter((c) => !c.is_vision));
     },
-    onCaptureState: (captureId, state, retryAttempt, cooldownEndsAt, threshold) => {
+    onCaptureState: (
+      captureId,
+      state,
+      retryAttempt,
+      cooldownEndsAt,
+      threshold,
+      responseStatus,
+      statusSource,
+    ) => {
       setCaptures((prev) => {
         const i = prev.findIndex((c) => c.id === captureId);
         if (i < 0) return prev;
         const next = prev.slice();
-        next[i] = {
+        const updated: CaptureSummary = {
           ...next[i],
           state,
-          // Always patch transient fields — undefined clears stale values
-          // left over from a prior cooling_down state (WS streaming message
-          // omits cooldownEndsAt, so the old value would otherwise persist).
           retryAttempt,
           cooldownEndsAt: state === "cooling_down" ? cooldownEndsAt : undefined,
-          // Persist threshold through cooldown→streaming-retry. The streaming
-          // retry WS message omits threshold; clearing it here would lose the
-          // value the badge needs during the watching phase.
           threshold: state === "cooling_down" ? threshold : next[i].threshold,
         };
+        if (responseStatus !== undefined) {
+          updated.response_status = responseStatus;
+        }
+        if (statusSource !== undefined) {
+          updated.status_source = statusSource;
+        }
+        next[i] = updated;
         return next;
       });
     },
@@ -95,7 +104,17 @@ export function useCaptures(): UseCapturesResult {
         const i = prev.findIndex((x) => x.id === capture.id);
         if (i >= 0) {
           const next = prev.slice();
-          next[i] = capture;
+          const merged = { ...next[i], ...capture };
+          // Preserve early-patched status when incoming summary has null
+          // (newSummary() hardcodes response_status: null — merge would
+          // overwrite the early upstream status with null).
+          if (capture.response_status == null && next[i].response_status != null) {
+            merged.response_status = next[i].response_status;
+          }
+          if (capture.status_source == null && next[i].status_source != null) {
+            merged.status_source = next[i].status_source;
+          }
+          next[i] = merged;
           return next;
         }
         // New capture: prepend (newest id goes to front since ids are monotonic)

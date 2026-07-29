@@ -202,6 +202,8 @@ export type WsMessage =
       retryAttempt?: number;
       cooldownEndsAt?: number;
       threshold?: number | null;
+      responseStatus?: number | null;
+      statusSource?: "upstream" | "gate" | null;
     }
   | { type: "gate"; stats: GateStats }
   | { type: "clear" }
