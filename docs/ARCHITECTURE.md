@@ -1,6 +1,6 @@
 # Architecture
 
-> **Applies to:** umans-gate v0.5.2 · **Last updated:** 2026-07-28
+> **Applies to:** umans-gate v0.5.3 · **Last updated:** 2026-07-29
 
 umans-gate is a Bun-based capture proxy that sits between an LLM harness and
 the upstream API, intercepting traffic to capture, stamp, and optionally

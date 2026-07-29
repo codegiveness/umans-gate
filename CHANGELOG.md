@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.4] - 2026-07-29
+
+### Fixed
+
+- **Capture list card height**: set virtualizer row height from 92px to 100px
+  and added `h-full` to the `CaptureRowItem` root so each card fills its row
+  with a fixed, predictable height.
+
 ## [0.5.3] - 2026-07-29
 
 ### Changed
