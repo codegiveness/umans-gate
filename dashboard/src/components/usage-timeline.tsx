@@ -15,6 +15,7 @@ import {
 } from "recharts";
 
 import { Card, CardContent } from "@/components/ui/card";
+import { ChartFrame } from "@/components/ui/chart-frame";
 import { Spinner } from "@/components/ui/spinner";
 import { fmtInt, fmtTokensCompact, fmtUtcTime } from "@/lib/format";
 import type { UsageDailyRow, UsageEventRow, UsageSampleRow } from "@/types";
@@ -269,7 +270,7 @@ function ConcurrencyLane({ samples, onsets }: ConcurrencyLaneProps): React.JSX.E
       className="flex flex-col gap-1"
     >
       <LaneHeader title="Concurrency" subtitle="raw + weighted + hard cap" />
-      <div className="h-32 w-full">
+      <ChartFrame className="h-32">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: 8 }}>
             <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="2 2" opacity={0.4} />
@@ -319,7 +320,7 @@ function ConcurrencyLane({ samples, onsets }: ConcurrencyLaneProps): React.JSX.E
             />
           </LineChart>
         </ResponsiveContainer>
-      </div>
+      </ChartFrame>
     </div>
   );
 }
@@ -351,7 +352,7 @@ function RequestsLane({ samples, onsets }: LaneProps): React.JSX.Element {
       className="flex flex-col gap-1"
     >
       <LaneHeader title="Requests" subtitle="in-window + limit + remaining" />
-      <div className="h-32 w-full">
+      <ChartFrame className="h-32">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: 8 }}>
             <defs>
@@ -414,7 +415,7 @@ function RequestsLane({ samples, onsets }: LaneProps): React.JSX.Element {
             />
           </AreaChart>
         </ResponsiveContainer>
-      </div>
+      </ChartFrame>
     </div>
   );
 }
@@ -447,7 +448,7 @@ function TokenFlowLane({ samples, onsets }: LaneProps): React.JSX.Element {
       className="flex flex-col gap-1"
     >
       <LaneHeader title="Token flow" subtitle="in + out + cached (stacked)" />
-      <div className="h-32 w-full">
+      <ChartFrame className="h-32">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: 8 }}>
             <defs>
@@ -523,7 +524,7 @@ function TokenFlowLane({ samples, onsets }: LaneProps): React.JSX.Element {
             />
           </AreaChart>
         </ResponsiveContainer>
-      </div>
+      </ChartFrame>
     </div>
   );
 }
@@ -561,7 +562,7 @@ function CacheHitRateLane({
         title="Cache hit rate"
         subtitle={avgPct === null ? "30-day avg: —" : `30-day avg: ${Math.round(avgPct)}%`}
       />
-      <div className="h-32 w-full">
+      <ChartFrame className="h-32">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: 8 }}>
             <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="2 2" opacity={0.4} />
@@ -611,7 +612,7 @@ function CacheHitRateLane({
             />
           </LineChart>
         </ResponsiveContainer>
-      </div>
+      </ChartFrame>
     </div>
   );
 }
@@ -656,7 +657,7 @@ function DegradationLane({ samples, onsets, bands }: DegradationLaneProps): Reac
         title="Degradation state"
         subtitle="priority (yellow) + service_mode (orange) bands"
       />
-      <div className="h-16 w-full">
+      <ChartFrame className="h-16">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 2, right: 8, bottom: 0, left: 8 }}>
             <XAxis
@@ -705,7 +706,7 @@ function DegradationLane({ samples, onsets, bands }: DegradationLaneProps): Reac
             />
           </AreaChart>
         </ResponsiveContainer>
-      </div>
+      </ChartFrame>
       {lastTs === 0 && firstTs === 0 ? null : null}
     </div>
   );
