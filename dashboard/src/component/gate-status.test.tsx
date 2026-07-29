@@ -80,8 +80,8 @@ describe("GateStatus service mode", () => {
       />,
     );
     await flushEffects();
-    expect(container).toHaveTextContent("service mode: degraded");
-    expect(container).toHaveTextContent("resets at");
+    expect(container).toHaveTextContent("service_mode: degraded");
+    expect(container).toHaveTextContent("resets_at");
   });
 
   it("renders demoted badge when units demoted", async () => {
@@ -396,7 +396,7 @@ describe("GateStatus penalty badge tooltip sections", () => {
       />,
     );
     await flushEffects();
-    expect(container).toHaveTextContent("service mode: interactive");
+    expect(container).toHaveTextContent("service_mode: interactive");
     expect(container).toHaveTextContent("Frontier models");
   });
 
@@ -412,8 +412,8 @@ describe("GateStatus penalty badge tooltip sections", () => {
       />,
     );
     await flushEffects();
-    expect(container).toHaveTextContent("boxed: rate_limit_exceeded");
-    expect(container).toHaveTextContent("boxed until");
+    expect(container).toHaveTextContent("reason: rate_limit_exceeded");
+    expect(container).toHaveTextContent("boxed_until");
   });
 
   it("shows demotedUntil in tooltip when demoted", async () => {
@@ -427,7 +427,7 @@ describe("GateStatus penalty badge tooltip sections", () => {
       />,
     );
     await flushEffects();
-    expect(container).toHaveTextContent("demoted until");
+    expect(container).toHaveTextContent("demoted_until");
   });
 
   it("shows Account-wide tooltip when boxed with no offending budgets", async () => {
@@ -443,6 +443,44 @@ describe("GateStatus penalty badge tooltip sections", () => {
     );
     await flushEffects();
     expect(container).toHaveTextContent("Account-wide — all models");
+  });
+
+  it("renders exactly one status badge when service mode interactive with usageSnapshot", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          serviceMode: { current: "interactive", resetsAt: null },
+        }}
+        usageSnapshot={{
+          ...snapshotWith([makeBudgetEntry({ usedPct: 30, mode: "interactive" })]),
+          serviceMode: { current: "interactive", resetsAt: null },
+        }}
+      />,
+    );
+    await flushEffects();
+    const badges = container.querySelectorAll("[data-slot='badge']");
+    const badgeTexts = Array.from(badges).map((b) => b.textContent?.trim() ?? "");
+    // Regression: ServiceModeBadge used to render "interactive" → two pills
+    expect(badgeTexts.filter((t) => t === "interactive")).toHaveLength(1);
+  });
+
+  it("shows service_mode and priority tuple in tooltip when nominal", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          serviceMode: { current: "interactive", resetsAt: null },
+        }}
+        usageSnapshot={{
+          ...snapshotWith([makeBudgetEntry({ usedPct: 30, mode: "interactive" })]),
+          serviceMode: { current: "interactive", resetsAt: null },
+        }}
+      />,
+    );
+    await flushEffects();
+    expect(container).toHaveTextContent("service_mode:");
+    expect(container).toHaveTextContent("priority:");
   });
 });
 

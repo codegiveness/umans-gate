@@ -433,12 +433,19 @@ describe("mergePenaltyInput", () => {
   it("derives admissionLabel 'low' when priorityLow true (no boxing)", () => {
     const result = mergePenaltyInput({ ...gateStatsBase, priorityLow: true }, usageSnapshotBase);
     expect(result?.admissionLabel).toBe("low");
+    expect(result?.priorityLow).toBe(true);
+  });
+
+  it("passes priorityLow false through mergePenaltyInput", () => {
+    const result = mergePenaltyInput(gateStatsBase, usageSnapshotBase);
+    expect(result?.priorityLow).toBe(false);
   });
 
   it("uses usageSnapshot admission fields when gateStats null", () => {
     const result = mergePenaltyInput(null, { ...usageSnapshotBase, priorityLow: true });
     expect(result).not.toBeNull();
     expect(result?.admissionLabel).toBe("low");
+    expect(result?.priorityLow).toBe(true);
     expect(result?.budgets).toHaveLength(1);
   });
 
