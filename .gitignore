@@ -56,6 +56,9 @@ plans/
 .scratch/
 docs/agents/
 
+# ADRs (local only, not published)
+docs/adr/
+
 # Stray build output at repo root (sourcemaps, fonts, html, bins)
 /*.js
 /*.js.map
