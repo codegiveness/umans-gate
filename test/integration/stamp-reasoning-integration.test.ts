@@ -45,7 +45,7 @@ test("OpenAI route injects reasoning_effort when thinking is enabled (umans-code
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
   expect(parsed.reasoning_effort).toBe("high");
-  expect(parsed.thinking).toBeUndefined();
+  expect(parsed.thinking).toEqual({ type: "enabled" });
   expect(parsed.output_config).toBeUndefined();
   expect(parsed.context_management).toBeUndefined();
   expect(parsed.temperature).toBe(1.0);
@@ -62,7 +62,7 @@ test("OpenAI route injects reasoning_effort=max when thinking is adaptive (umans
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
   expect(parsed.reasoning_effort).toBe("max");
-  expect(parsed.thinking).toBeUndefined();
+  expect(parsed.thinking).toEqual({ type: "adaptive" });
 });
 
 test("OpenAI route does NOT inject when both reasoning_effort and thinking are absent", async () => {
@@ -115,7 +115,7 @@ test("OpenAI route forces existing reasoning_effort=low to high (umans-coder)", 
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
   expect(parsed.reasoning_effort).toBe("high");
-  expect(parsed.thinking).toBeUndefined();
+  expect(parsed.thinking).toEqual({ type: "enabled" });
 });
 
 test("OpenAI route respects reasoning_effort=none when canDisable=true (umans-glm)", async () => {
@@ -159,7 +159,7 @@ test("OpenAI route strips Anthropic fields and forces temperature when forcing r
   expect(r).not.toBeNull();
   const parsed = JSON.parse(r!.body);
   expect(parsed.reasoning_effort).toBe("high");
-  expect(parsed.thinking).toBeUndefined();
+  expect(parsed.thinking).toEqual({ type: "adaptive" });
   expect(parsed.output_config).toBeUndefined();
   expect(parsed.context_management).toBeUndefined();
   expect(parsed.temperature).toBe(1.0);

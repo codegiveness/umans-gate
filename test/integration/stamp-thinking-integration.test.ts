@@ -273,12 +273,20 @@ test("claude code toggle with thinking present stamps max_tokens + output_config
 
 // ─── Kimi K2.7-Code child toggle ON restores Preserved Thinking (ADR-0019) ──
 
-test("Kimi K2.7-Code child ON: captured body has keep: 'all' (Kimi Preserved Thinking)", async () => {
+test("Kimi K2.7-Code rule ON: captured body has keep: 'all' (Kimi Preserved Thinking)", async () => {
   const raw4 = await startRawUpstream();
   const proxy4 = await startProxy({
     TARGET: `http://127.0.0.1:${raw4.port}`,
     STAMP_CLAUDE_CODE_ENABLED: "true",
-    STAMP_KIMI_K2_7_CODE_THINKING_ENABLED: "true",
+    configOverrides: {
+      stamp_claude_code_enabled: true,
+      stamp_model_rules: [
+        {
+          pattern: "umans-kimi-k2.7-code",
+          anthropic_thinking_shape: { type: "enabled", keep: "all" },
+        },
+      ],
+    },
   });
   try {
     raw4.getLastRequest();
@@ -305,12 +313,20 @@ test("Kimi K2.7-Code child ON: captured body has keep: 'all' (Kimi Preserved Thi
   }
 });
 
-test("Kimi K2.7-Code child ON: k2.6 model falls back to adaptive (version mismatch)", async () => {
+test("Kimi K2.7-Code rule ON: k2.6 model falls back to adaptive (pattern mismatch)", async () => {
   const raw5 = await startRawUpstream();
   const proxy5 = await startProxy({
     TARGET: `http://127.0.0.1:${raw5.port}`,
     STAMP_CLAUDE_CODE_ENABLED: "true",
-    STAMP_KIMI_K2_7_CODE_THINKING_ENABLED: "true",
+    configOverrides: {
+      stamp_claude_code_enabled: true,
+      stamp_model_rules: [
+        {
+          pattern: "umans-kimi-k2.7-code",
+          anthropic_thinking_shape: { type: "enabled", keep: "all" },
+        },
+      ],
+    },
   });
   try {
     raw5.getLastRequest();

@@ -1,19 +1,12 @@
 // Catalog-driven stamp policy overlay (ADR-0006).
 //
 // Declares a `StampPolicy` per model family and exposes
-// `resolveStampPolicy()` — the single lookup the stamp pipeline will use
-// once the old `isGlmModel()` / `modelMatchesThinkingPattern()` branches
-// are rewired (ticket 07). Until then this module is additive: nothing
-// calls it, but it ships green alongside the legacy prefix matchers.
-//
-// The overlay is data, not config — stamp values are proxy-specific
-// tuning (not model capabilities), so they live in code rather than
-// config.json. The table can be extracted to config later without
-// touching the lookup logic.
+// `resolveStampPolicy()` — the single lookup the stamp pipeline uses
+// to resolve per-model tuning (max_tokens, effort, thinking, top_k).
+// Complemented by user-configured `stamp_model_rules` (ADR-0020).
 
 import type { ParsedModelInfo } from "./model-info-parser.js";
-import { modelVersionMatches } from "./models/version.js";
-import type { ThinkingConfig } from "./types.js";
+import type { PerModelRule, ThinkingConfig } from "./types.js";
 
 /**
  * Stamp tuning for a single model family.
@@ -30,10 +23,9 @@ import type { ThinkingConfig } from "./types.js";
  *   at parse time.
  * - `thinkingShape`: the `ThinkingConfig` value forced on the body when
  *   `stampThinking` decides to overwrite `body.thinking` (thinking is
- *   enabled and not respected as disabled). Per ADR-0017 each model family
- *   gets its own shape: GLM uses Z.ai Preserved Thinking
- *   (`clear_thinking: false`), Kimi/Coder use Kimi Preserved Thinking
- *   (`keep: "all"`), others use adaptive.
+ *   enabled and not respected as disabled). All overlay entries
+ *   currently use `{ type: "adaptive" }`; per-family preserved-thinking
+ *   shapes are applied via user-configured `stamp_model_rules` (ADR-0020).
  */
 export interface StampPolicy {
   max_tokens: number;
@@ -59,7 +51,7 @@ export const STAMP_OVERLAY: Record<string, StampPolicy> = {
     thinking: true,
     top_k: 20,
     canDisableThinking: true,
-    thinkingShape: { type: "enabled", clear_thinking: false },
+    thinkingShape: { type: "adaptive" },
   },
   "umans-coder": {
     max_tokens: 32767,
@@ -67,11 +59,19 @@ export const STAMP_OVERLAY: Record<string, StampPolicy> = {
     thinking: true,
     top_k: null,
     canDisableThinking: false,
-    thinkingShape: { type: "enabled", keep: "all" },
+    thinkingShape: { type: "adaptive" },
   },
   "umans-flash": {
     max_tokens: 32767,
     effort: "high",
+    thinking: true,
+    top_k: null,
+    canDisableThinking: true,
+    thinkingShape: { type: "adaptive" },
+  },
+  "umans-kimi-k3": {
+    max_tokens: 131071,
+    effort: "max",
     thinking: true,
     top_k: null,
     canDisableThinking: true,
@@ -83,7 +83,7 @@ export const STAMP_OVERLAY: Record<string, StampPolicy> = {
     thinking: true,
     top_k: null,
     canDisableThinking: false,
-    thinkingShape: { type: "enabled", keep: "all" },
+    thinkingShape: { type: "adaptive" },
   },
   "umans-qwen*": {
     max_tokens: 32767,
@@ -96,7 +96,7 @@ export const STAMP_OVERLAY: Record<string, StampPolicy> = {
   "*": {
     max_tokens: 32767,
     effort: "high",
-    thinking: false,
+    thinking: true,
     top_k: null,
     canDisableThinking: true,
     thinkingShape: { type: "adaptive" },
@@ -142,49 +142,24 @@ export function matchStampOverlay(modelName: string): StampPolicy {
   return STAMP_OVERLAY["*"];
 }
 
-/** GLM 5.2 Preserved Thinking shape (Z.ai clear_thinking: false). */
-const GLM_52_THINKING_SHAPE: ThinkingConfig = {
-  type: "enabled",
-  clear_thinking: false,
-};
-
-/** Kimi K2.7-Code Preserved Thinking shape (Moonshot keep: "all"). */
-const KIMI_K27_CODE_THINKING_SHAPE: ThinkingConfig = {
-  type: "enabled",
-  keep: "all",
-};
-
-/** Adaptive fallback shape used when no child toggle activates a family-specific shape. */
-const ADAPTIVE_THINKING_SHAPE: ThinkingConfig = { type: "adaptive" };
-
 /**
- * Override the `thinkingShape` on a resolved StampPolicy based on the
- * model-specific child toggles and model version match (ADR-0019).
- *
- * Toggles are checked in order; first match wins. When a child toggle is ON
- * and the model name matches the toggle's version segment, the shape is
- * overridden to the family-specific Preserved Thinking shape:
- * - GLM 5.2: `{ type: "enabled", clear_thinking: false }`
- * - Kimi K2.7-Code: `{ type: "enabled", keep: "all" }`
- *
- * Otherwise the shape falls back to `{ type: "adaptive" }`.
- *
- * `canDisableThinking` and all other policy fields are NOT overridden —
- * they stay from the resolved overlay policy.
- *
- * Returns a new StampPolicy object (shallow spread) so the base
- * STAMP_OVERLAY entries are not mutated.
+ * Resolve the first matching `PerModelRule` from a config-provided rule list.
+ * First-match-wins glob matching (same semantics as `matchStampOverlay`).
+ * Returns `null` when no rule matches or the rules array is empty.
  */
-export function applyModelSpecificThinkingOverride(
-  policy: StampPolicy,
+export function resolvePerModelRule(
   modelName: string | undefined,
-  config: { stampGlm52Thinking: boolean; stampKimiK27CodeThinking: boolean },
-): StampPolicy {
-  if (config.stampGlm52Thinking && modelVersionMatches(modelName, "5.2")) {
-    return { ...policy, thinkingShape: GLM_52_THINKING_SHAPE };
+  rules: PerModelRule[],
+): PerModelRule | null {
+  if (!Array.isArray(rules) || rules.length === 0) return null;
+  if (typeof modelName !== "string") return null;
+  for (const rule of rules) {
+    if (rule.pattern === "*") return rule;
+    if (rule.pattern.endsWith("*")) {
+      if (modelName.startsWith(rule.pattern.slice(0, -1))) return rule;
+    } else if (modelName === rule.pattern) {
+      return rule;
+    }
   }
-  if (config.stampKimiK27CodeThinking && modelVersionMatches(modelName, "k2.7-code")) {
-    return { ...policy, thinkingShape: KIMI_K27_CODE_THINKING_SHAPE };
-  }
-  return { ...policy, thinkingShape: ADAPTIVE_THINKING_SHAPE };
+  return null;
 }

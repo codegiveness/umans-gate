@@ -57,15 +57,9 @@ const RELOAD_FIELDS: Array<{
     },
   },
   {
-    rawKey: "stamp_glm_5_2_thinking_enabled",
+    rawKey: "stamp_model_rules",
     apply: (live, fresh) => {
-      live.stampGlm52Thinking = fresh.stampGlm52Thinking;
-    },
-  },
-  {
-    rawKey: "stamp_kimi_k2_7_code_thinking_enabled",
-    apply: (live, fresh) => {
-      live.stampKimiK27CodeThinking = fresh.stampKimiK27CodeThinking;
+      live.stampModelRules = fresh.stampModelRules;
     },
   },
   {

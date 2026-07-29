@@ -61,6 +61,9 @@ function thinkingEquals(a: ThinkingConfig, b: ThinkingConfig): boolean {
     if ("keep" in a && "keep" in b) return a.keep === b.keep;
     if ("clear_thinking" in a && "clear_thinking" in b)
       return a.clear_thinking === b.clear_thinking;
+    // Bare {type:"enabled"} (no keep/clear_thinking) — equal only to another bare enabled.
+    if (!("keep" in a) && !("keep" in b) && !("clear_thinking" in a) && !("clear_thinking" in b))
+      return true;
     return false;
   }
   return true;
@@ -76,10 +79,9 @@ function thinkingEquals(a: ThinkingConfig, b: ThinkingConfig): boolean {
  *   `policy.thinkingShape` (e.g. Kimi K2.7 where reasoning cannot be disabled).
  * - Any other shape: forced to `policy.thinkingShape`.
  *
- * The per-family `thinkingShape` (ADR-0017) drives the forced value:
- * GLM → `{ type:"enabled", clear_thinking:false }`,
- * Kimi/Coder → `{ type:"enabled", keep:"all" }`,
- * others → `{ type:"adaptive" }`.
+ * The `thinkingShape` is currently `{ type: "adaptive" }` for all overlay
+ * entries; per-family preserved-thinking shapes can be applied via
+ * `stamp_model_rules` (ADR-0020).
  *
  * `max_tokens` is stamped from policy when `options.maxTokens` is true.
  * `output_config` is injected when `options.outputConfig` is truthy AND

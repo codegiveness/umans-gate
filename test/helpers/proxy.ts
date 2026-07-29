@@ -1,4 +1,4 @@
-import { existsSync, rmSync, unlinkSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import type { Subprocess } from "bun";
 import { spawn } from "bun";
 import { assertDashboardAssetsFresh } from "./dashboard-assets.js";
@@ -36,7 +36,15 @@ export interface StartProxyOptions {
   dashboardToken?: string;
   envOverrides?: Record<string, string>;
   proxyPort?: number;
-  [key: string]: string | number | boolean | undefined | Record<string, string>;
+  /** Raw config.json fields written to the temp config dir before launch. */
+  configOverrides?: Record<string, unknown>;
+  [key: string]:
+    | string
+    | number
+    | boolean
+    | undefined
+    | Record<string, string>
+    | Record<string, unknown>;
 }
 
 export async function startProxy(options: StartProxyOptions = {}): Promise<ProxyHandle> {
@@ -48,10 +56,17 @@ export async function startProxy(options: StartProxyOptions = {}): Promise<Proxy
     dashboardToken,
     envOverrides = {},
     proxyPort,
+    configOverrides,
   } = options;
   const port = proxyPort ?? (await findFreePort());
   const dbPath = `/tmp/umans-gate-test-${port}-${Date.now()}.db`;
   const configHome = `/tmp/umans-gate-test-config-${port}-${Date.now()}`;
+  mkdirSync(configHome, { recursive: true });
+  if (configOverrides && Object.keys(configOverrides).length > 0) {
+    const configDir = `${configHome}/umans-gate`;
+    mkdirSync(configDir, { recursive: true });
+    writeFileSync(`${configDir}/config.json`, JSON.stringify(configOverrides, null, 2));
+  }
   const extraEnv: Record<string, string> = {};
   for (const [k, v] of Object.entries(options)) {
     if (

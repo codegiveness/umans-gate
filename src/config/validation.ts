@@ -190,8 +190,6 @@ export const FIELD_RULES: FieldRule[] = [
   ...(
     [
       "stamp_claude_code_enabled",
-      "stamp_glm_5_2_thinking_enabled",
-      "stamp_kimi_k2_7_code_thinking_enabled",
       "stamp_reasoning_effort_enabled",
       "compression_enabled",
       "use_hard_cap",

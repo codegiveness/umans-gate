@@ -3,10 +3,25 @@ import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { API_BASE, CONFIG_API_BASE } from "@/lib/constants";
 
+export interface StampModelRuleEntry {
+  pattern: string;
+  anthropic_thinking_shape?:
+    | { type: "adaptive" }
+    | { type: "enabled"; keep: "all" }
+    | { type: "enabled"; clear_thinking: boolean }
+    | { type: "enabled" };
+  openai_thinking_shape?:
+    | { type: "adaptive" }
+    | { type: "enabled"; keep: "all" }
+    | { type: "enabled"; clear_thinking: boolean }
+    | { type: "enabled" };
+  openai_extra_body?: Record<string, unknown>;
+  openai_veto_reasoning_effort?: boolean;
+}
+
 export interface StampRawConfig {
   stamp_claude_code_enabled?: boolean;
-  stamp_glm_5_2_thinking_enabled?: boolean;
-  stamp_kimi_k2_7_code_thinking_enabled?: boolean;
+  stamp_model_rules?: StampModelRuleEntry[];
   stamp_reasoning_effort_enabled?: boolean;
 }
 

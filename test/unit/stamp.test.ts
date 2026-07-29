@@ -2,7 +2,7 @@
 //
 // Covers stampCacheTtl, stampThinking, stampReasoning, stampTopK,
 // stampTemperature, and the catalog helpers matchStampOverlay /
-// resolveStampPolicy / applyModelSpecificThinkingOverride.
+// resolveStampPolicy / resolvePerModelRule.
 //
 // The stamp functions MUTATE the body in place and return a boolean (true
 // if changed). Tests construct a body, call the function, then assert on
@@ -12,7 +12,6 @@ import { describe, expect, it } from "bun:test";
 import { parseModelInfoResponse } from "../../src/model-info-parser.js";
 import { stampCacheTtl } from "../../src/stamp.js";
 import {
-  applyModelSpecificThinkingOverride,
   matchStampOverlay,
   resolveStampPolicy,
   STAMP_OVERLAY,
@@ -203,14 +202,14 @@ describe("stampThinking — output_config", () => {
     expect(body.output_config).toBeUndefined();
   });
 
-  it("does NOT stamp output_config for unknown model with thinking=false policy", () => {
+  it("stamps output_config for unknown model with thinking=true policy", () => {
     const body: AnthropicBody = {
       model: "umans-legacy",
       thinking: { type: "adaptive" } as never,
       messages: [],
     };
-    expect(stampThinking(body, { outputConfig: true })).toBe(false);
-    expect(body.output_config).toBeUndefined();
+    expect(stampThinking(body, { outputConfig: true })).toBe(true);
+    expect(body.output_config).toEqual({ effort: "high" });
   });
 
   it("uses custom output_config object when thinking is enabled", () => {
@@ -228,34 +227,34 @@ describe("stampThinking — output_config", () => {
 // ─── stampThinking: thinking forcing ───────────────────────────────────────
 
 describe("stampThinking — thinking:true forcing", () => {
-  it("forces {type:enabled,...} to Kimi Preserved Thinking for umans-coder", () => {
+  it("forces {type:enabled,...} to adaptive for umans-coder", () => {
     const body: AnthropicBody = {
       model: "umans-coder",
       thinking: { type: "enabled", budget_tokens: 1024 } as never,
       messages: [],
     };
     expect(stampThinking(body, { thinking: true })).toBe(true);
-    expect(body.thinking).toEqual({ type: "enabled", keep: "all" });
+    expect(body.thinking).toEqual({ type: "adaptive" });
   });
 
-  it("forces {type:enabled,...} to Kimi Preserved Thinking for umans-kimi*", () => {
+  it("forces {type:enabled,...} to adaptive for umans-kimi*", () => {
     const body: AnthropicBody = {
       model: "umans-kimi-k2.7",
       thinking: { type: "enabled", budget_tokens: 1024 } as never,
       messages: [],
     };
     expect(stampThinking(body, { thinking: true })).toBe(true);
-    expect(body.thinking).toEqual({ type: "enabled", keep: "all" });
+    expect(body.thinking).toEqual({ type: "adaptive" });
   });
 
-  it("forces disabled to Kimi Preserved Thinking when canDisableThinking=false (umans-coder)", () => {
+  it("forces disabled to adaptive when canDisableThinking=false (umans-coder)", () => {
     const body: AnthropicBody = {
       model: "umans-coder",
       thinking: { type: "disabled" } as never,
       messages: [],
     };
     expect(stampThinking(body, { thinking: true })).toBe(true);
-    expect(body.thinking).toEqual({ type: "enabled", keep: "all" });
+    expect(body.thinking).toEqual({ type: "adaptive" });
   });
 
   it("respects disabled when canDisableThinking=true (umans-glm)", () => {
@@ -298,30 +297,23 @@ describe("stampThinking — thinking:true forcing", () => {
 // ─── stampThinking: per-family thinkingShape (ADR-0017) ────────────────────
 
 describe("stampThinking — per-family thinkingShape", () => {
-  it("forces non-adaptive to GLM Preserved Thinking for umans-glm*", () => {
+  it("forces non-adaptive to adaptive for umans-glm*", () => {
     const body: AnthropicBody = {
       model: "umans-glm-5.2",
       thinking: { type: "enabled", budget_tokens: 1024 } as never,
       messages: [],
     };
     expect(stampThinking(body, { thinking: true })).toBe(true);
-    expect(body.thinking).toEqual({
-      type: "enabled",
-      clear_thinking: false,
-    });
+    expect(body.thinking).toEqual({ type: "adaptive" });
   });
 
-  it("forces adaptive to GLM Preserved Thinking for umans-glm*", () => {
+  it("forces adaptive to adaptive for umans-glm* (already matches)", () => {
     const body: AnthropicBody = {
       model: "umans-glm-5.2",
       thinking: { type: "adaptive" },
       messages: [],
     };
-    expect(stampThinking(body, { thinking: true })).toBe(true);
-    expect(body.thinking).toEqual({
-      type: "enabled",
-      clear_thinking: false,
-    });
+    expect(stampThinking(body, { thinking: true })).toBe(false);
   });
 
   it("keeps adaptive for umans-flash (non-GLM, non-Kimi family)", () => {
@@ -347,24 +339,21 @@ describe("stampThinking — per-family thinkingShape", () => {
   it("does not re-write when body already matches policy thinkingShape (umans-glm)", () => {
     const body: AnthropicBody = {
       model: "umans-glm-5.2",
-      thinking: { type: "enabled", clear_thinking: false },
+      thinking: { type: "adaptive" },
       messages: [],
     };
     expect(stampThinking(body, { thinking: true })).toBe(false);
-    expect(body.thinking).toEqual({
-      type: "enabled",
-      clear_thinking: false,
-    });
+    expect(body.thinking).toEqual({ type: "adaptive" });
   });
 
   it("does not re-write when body already matches policy thinkingShape (umans-coder)", () => {
     const body: AnthropicBody = {
       model: "umans-coder",
-      thinking: { type: "enabled", keep: "all" },
+      thinking: { type: "adaptive" },
       messages: [],
     };
     expect(stampThinking(body, { thinking: true })).toBe(false);
-    expect(body.thinking).toEqual({ type: "enabled", keep: "all" });
+    expect(body.thinking).toEqual({ type: "adaptive" });
   });
 });
 
@@ -533,7 +522,7 @@ describe("stampReasoning — inject from thinking", () => {
     };
     expect(stampReasoning(body, { reasoningEffort: "high", policy: CODER_POLICY })).toBe(true);
     expect(body.reasoning_effort).toBe("high");
-    expect(body.thinking).toBeUndefined();
+    expect(body.thinking).toEqual({ type: "enabled" });
   });
 
   it("injects reasoning_effort=max when thinking adaptive (umans-glm)", () => {
@@ -543,7 +532,7 @@ describe("stampReasoning — inject from thinking", () => {
     };
     expect(stampReasoning(body, { reasoningEffort: "max", policy: GLM_POLICY })).toBe(true);
     expect(body.reasoning_effort).toBe("max");
-    expect(body.thinking).toBeUndefined();
+    expect(body.thinking).toEqual({ type: "adaptive" });
   });
 
   it("does not inject when thinking disabled and canDisableThinking=false (umans-coder)", () => {
@@ -570,7 +559,7 @@ describe("stampReasoning — force existing reasoning_effort", () => {
     expect(body.reasoning_effort).toBe("max");
   });
 
-  it("strips thinking when forcing existing reasoning_effort", () => {
+  it("preserves thinking when forcing existing reasoning_effort", () => {
     const body: OpenAiBody = {
       model: "umans-coder",
       reasoning_effort: "low",
@@ -578,7 +567,7 @@ describe("stampReasoning — force existing reasoning_effort", () => {
     };
     expect(stampReasoning(body, { reasoningEffort: "high", policy: CODER_POLICY })).toBe(true);
     expect(body.reasoning_effort).toBe("high");
-    expect(body.thinking).toBeUndefined();
+    expect(body.thinking).toEqual({ type: "enabled" });
   });
 });
 
@@ -648,7 +637,7 @@ describe("stampReasoning — field stripping + temperature", () => {
     };
     expect(stampReasoning(body, { reasoningEffort: "high", policy: CODER_POLICY })).toBe(true);
     expect(body.reasoning_effort).toBe("high");
-    expect(body.thinking).toBeUndefined();
+    expect(body.thinking).toEqual({ type: "enabled" });
     expect(body.output_config).toBeUndefined();
     expect(body.context_management).toBeUndefined();
     expect(body.temperature).toBe(1.0);
@@ -712,11 +701,11 @@ describe("resolveStampPolicy", () => {
       thinking: true,
       top_k: 20,
       canDisableThinking: false,
-      thinkingShape: { type: "enabled", clear_thinking: false },
+      thinkingShape: { type: "adaptive" },
     });
   });
 
-  it("resolves umans-coder to the high-effort Kimi Preserved Thinking policy", () => {
+  it("resolves umans-coder to the high-effort adaptive policy", () => {
     const catalog = catalogWith("umans-coder");
     expect(resolveStampPolicy("umans-coder", catalog)).toEqual({
       max_tokens: 32767,
@@ -724,7 +713,7 @@ describe("resolveStampPolicy", () => {
       thinking: true,
       top_k: null,
       canDisableThinking: false,
-      thinkingShape: { type: "enabled", keep: "all" },
+      thinkingShape: { type: "adaptive" },
     });
   });
 
@@ -732,7 +721,7 @@ describe("resolveStampPolicy", () => {
     const catalog = catalogWith("umans-coder");
     const resolved = resolveStampPolicy("umans-legacy", catalog);
     expect(resolved).toEqual(STAMP_OVERLAY["*"]);
-    expect(resolved.thinking).toBe(false);
+    expect(resolved.thinking).toBe(true);
     expect(resolved.top_k).toBeNull();
   });
 
@@ -744,102 +733,6 @@ describe("resolveStampPolicy", () => {
   it("falls back to pattern match when the catalog is empty", () => {
     const catalog = catalogWith();
     expect(resolveStampPolicy("umans-glm-anything", catalog)).toEqual(STAMP_OVERLAY["umans-glm*"]);
-  });
-});
-
-// ─── applyModelSpecificThinkingOverride ───────────────────────────────────
-
-describe("applyModelSpecificThinkingOverride — GLM 5.2 toggle", () => {
-  const GLM_BASE: StampPolicy = {
-    max_tokens: 131071,
-    effort: "max",
-    thinking: true,
-    top_k: 20,
-    canDisableThinking: true,
-    thinkingShape: { type: "enabled", clear_thinking: false },
-  };
-
-  it("overrides thinkingShape when child ON + version matches", () => {
-    const out = applyModelSpecificThinkingOverride(GLM_BASE, "umans-glm-5.2", {
-      stampGlm52Thinking: true,
-      stampKimiK27CodeThinking: false,
-    });
-    expect(out.thinkingShape).toEqual({
-      type: "enabled",
-      clear_thinking: false,
-    });
-  });
-
-  it("falls back to adaptive when child ON but version does NOT match", () => {
-    const out = applyModelSpecificThinkingOverride(GLM_BASE, "umans-glm-5.1", {
-      stampGlm52Thinking: true,
-      stampKimiK27CodeThinking: false,
-    });
-    expect(out.thinkingShape).toEqual({ type: "adaptive" });
-  });
-
-  it("falls back to adaptive when child OFF", () => {
-    const out = applyModelSpecificThinkingOverride(GLM_BASE, "umans-glm-5.2", {
-      stampGlm52Thinking: false,
-      stampKimiK27CodeThinking: false,
-    });
-    expect(out.thinkingShape).toEqual({ type: "adaptive" });
-  });
-
-  it("does NOT override canDisableThinking", () => {
-    const out = applyModelSpecificThinkingOverride(GLM_BASE, "umans-glm-5.2", {
-      stampGlm52Thinking: true,
-      stampKimiK27CodeThinking: false,
-    });
-    expect(out.canDisableThinking).toBe(GLM_BASE.canDisableThinking);
-  });
-
-  it("returns a new object (does not mutate input)", () => {
-    const input = { ...GLM_BASE };
-    const out = applyModelSpecificThinkingOverride(input, "umans-glm-5.2", {
-      stampGlm52Thinking: true,
-      stampKimiK27CodeThinking: false,
-    });
-    expect(out).not.toBe(input);
-    expect(input.thinkingShape).toEqual(GLM_BASE.thinkingShape);
-  });
-});
-
-describe("applyModelSpecificThinkingOverride — Kimi K2.7-Code toggle", () => {
-  const KIMI_BASE: StampPolicy = {
-    max_tokens: 32767,
-    effort: "high",
-    thinking: true,
-    top_k: null,
-    canDisableThinking: false,
-    thinkingShape: { type: "enabled", keep: "all" },
-  };
-
-  it("overrides thinkingShape when child ON + version matches", () => {
-    const out = applyModelSpecificThinkingOverride(KIMI_BASE, "umans-kimi-k2.7-code", {
-      stampGlm52Thinking: false,
-      stampKimiK27CodeThinking: true,
-    });
-    expect(out.thinkingShape).toEqual({ type: "enabled", keep: "all" });
-  });
-
-  it("falls back to adaptive when child ON but version does NOT match (k2.6)", () => {
-    const out = applyModelSpecificThinkingOverride(KIMI_BASE, "umans-kimi-k2.6", {
-      stampGlm52Thinking: false,
-      stampKimiK27CodeThinking: true,
-    });
-    expect(out.thinkingShape).toEqual({ type: "adaptive" });
-  });
-
-  it("GLM toggle takes precedence when both children ON and GLM model matches", () => {
-    const out = applyModelSpecificThinkingOverride(KIMI_BASE, "umans-glm-5.2", {
-      stampGlm52Thinking: true,
-      stampKimiK27CodeThinking: true,
-    });
-    expect(out.thinkingShape).toEqual({
-      type: "enabled",
-      clear_thinking: false,
-    });
   });
 });
 

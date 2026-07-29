@@ -148,22 +148,12 @@ const STAMP_FIELDS: FieldDef[] = [
     experimental: true,
   },
   {
-    key: "stamp_glm_5_2_thinking_enabled",
-    label: "GLM 5.2 Preserved Thinking",
-    kind: "toggle",
+    key: "stamp_model_rules",
+    label: "Per-Model Rules",
+    kind: "json",
     description:
-      "When on (and Claude Code Style is on), stamps GLM 5.2 Preserved Thinking (clear_thinking: false) on models whose name contains '5.2'. Z.ai docs: 'Preserved Thinking retains reasoning content across turns — set clear_thinking: false and return unmodified reasoning_content.' When off, falls back to {type: 'adaptive'}. Only affects thinkingShape — TTL, top_k, max_tokens, output_config, context_management continue per parent overlay. Default: off.",
+      "Per-model thinking/reasoning overrides (ADR-0020). Each rule matches a model name pattern (glob, first-match-wins) and can: override Anthropic thinkingShape, strip thinking on OpenAI, merge extra_body on OpenAI, or veto reasoning_effort injection. Independent of the master toggles above. Default: empty (no rules). Refs: z.ai https://docs.z.ai/guides/capabilities/thinking-mode, kimi https://platform.kimi.ai/docs/guide/use-thinking-models, qwen https://docs.qwencloud.com/developer-guides/text-generation/thinking",
     experimental: true,
-    dependsOn: "stamp_claude_code_enabled",
-  },
-  {
-    key: "stamp_kimi_k2_7_code_thinking_enabled",
-    label: "Kimi K2.7-Code Preserved Thinking",
-    kind: "toggle",
-    description:
-      'When on (and Claude Code Style is on), stamps Kimi K2.7-Code Preserved Thinking (keep: "all") on models whose name contains \'k2.7-code\'. Moonshot docs: \'kimi-k2.7-code: thinking is always on, Preserved Thinking is always on. Only {"type":"enabled","keep":"all"} is accepted; any other configuration returns an error.\' When off, falls back to {type: \'adaptive\'}. Default: off.',
-    experimental: true,
-    dependsOn: "stamp_claude_code_enabled",
   },
   {
     key: "stamp_reasoning_effort_enabled",
