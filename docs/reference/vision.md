@@ -1,6 +1,6 @@
 # Vision Calls Tab Reference
 
-> **Applies to:** umans-gate v0.5.5 · **Last updated:** 2026-07-29
+> **Applies to:** umans-gate v0.5.6 · **Last updated:** 2026-07-29
 
 The Vision Calls tab inspects image-bearing requests and their model-generated text descriptions.
 
