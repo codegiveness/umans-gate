@@ -66,3 +66,4 @@ docs/agents/
 
 # Misc
 *.log
+release/

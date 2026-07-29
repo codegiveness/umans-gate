@@ -1,6 +1,6 @@
 # Models Tab Reference
 
-> **Applies to:** umans-gate v0.5.3 · **Last updated:** 2026-07-29
+> **Applies to:** umans-gate v0.5.4 · **Last updated:** 2026-07-29
 
 The Models tab displays the upstream model catalog with pricing and capability metadata.
 
