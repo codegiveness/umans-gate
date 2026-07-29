@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.5] - 2026-07-29
+
+### Added
+
+- **Service mode badge** in dashboard capture list (feat).
+
+### Changed
+
+- **GLM 5.2 + Kimi K2.7 thinking shapes**: removed `budget_tokens` field from
+  stamping (feat/stamp).
+
+### Fixed
+
+- **Stale-now React timers**: fixed stale closures in `useNow` hook causing
+  dashboard time displays to freeze.
+- **4 server/dashboard bugs**: fixed in the same pass.
+- **Test harness guard**: prevents false failures from timing flakiness.
+
+### Performance
+
+- **Test harness**: fixed handler leak, `unref`'d timers, replaced `sleeps`
+  with poll-until helpers for faster, more reliable tests.
+
 ## [0.5.4] - 2026-07-29
 
 ### Fixed
