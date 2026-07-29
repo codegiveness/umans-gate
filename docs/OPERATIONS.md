@@ -1,6 +1,6 @@
 # Operations
 
-> **Applies to:** umans-gate v0.5.4 · **Last updated:** 2026-07-29
+> **Applies to:** umans-gate v0.5.5 · **Last updated:** 2026-07-29
 
 umans-gate operations: start/stop, upgrades, health checks, backup, and
 configuration management. For reactive problem-solving, see

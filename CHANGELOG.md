@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.6] - 2026-07-29
+
+### Fixed
+
+- **Dual interactive badge**: GateStatus rendered both PenaltyBadge and
+  ServiceModeBadge when `service_mode.current` was `interactive`, producing
+  two green pills. Merged ServiceModeBadge into PenaltyBadge tooltip with
+  `service_mode`/`priority` tuple section. Suppressed duplicate standalone
+  detail lines when tuple is present.
+- **Missing tooltip info**: PenaltyBadge tooltip dropped `priority` and
+  `service_mode` tuple info when nominal (showed only "All systems nominal").
+  Now shows tuple whenever `serviceMode != null`.
+
 ## [0.5.5] - 2026-07-29
 
 ### Added
