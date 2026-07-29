@@ -49,7 +49,18 @@ All prefixed `/dashboard/api/`.
 
 ## What the Config Tab Does
 
-The Config tab edits proxy settings and applies hot-reloadable fields without a restart. All config fields are hot-reloadable except those marked `restartRequired` (e.g. `port`, `db_path`, `upstream_protocol`, `vision_strategy`, `vision_model`, `warmer_*`, `umans_api_key`, `dashboard_token`). The full hot-reloadable set is defined in `src/config/reload.ts` (`RELOAD_FIELDS`); restart-required fields are in `RESTART_REQUIRED_FIELDS` in the same file. Fields marked `restartRequired` require a server restart via `/restart` or a process manager.
+The Config tab edits proxy settings and applies hot-reloadable fields without a restart. All config fields are hot-reloadable except those marked `restartRequired` (e.g. `port`, `max_captures`, `db_path`, `idle_timeout`, `upstream_protocol`, `queue_max_depth`, `ws_backpressure_limit`, `ws_close_on_backpressure_limit`, `warmer_*`, `usage_refresh_ms`, `umans_api_key`, `dashboard_token`, `models_refresh_ms`, and all `vision_*` tuning fields). The full hot-reloadable set is defined in `src/config/reload.ts` (`RELOAD_FIELDS`); restart-required fields are in `RESTART_REQUIRED_FIELDS` in the same file. Fields marked `restartRequired` require a server restart via `/restart` or a process manager.
+
+Notable hot-reloadable fields: `stamp_claude_code_enabled`,
+`stamp_model_rules` (per-model thinking-shape rules table, ADR-0029),
+`stamp_reasoning_effort_enabled`, all `concurrency_*` and `breaker_*`
+fields, all `ttft_*` fields, `experiment_*` toggles,
+`capture_body_max_bytes`, `compression_enabled`, `upstream_timeout_ms`,
+`performance_sample_count`, `incident_retention_days`, and the
+vision intent-aware fields (`vision_intent_strategy`,
+`vision_decomposition_*`, `vision_crafting_timeout_ms`,
+`vision_adjacent_text_max_chars`, `vision_recent_messages_count`,
+`vision_system_prompt_max_chars`).
 
 ## Config file
 

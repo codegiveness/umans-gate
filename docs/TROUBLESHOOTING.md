@@ -68,17 +68,38 @@ Stamps only apply when `stamp_claude_code_enabled` is `true`:
 Claude Code stamps apply to Anthropic routes (`/v1/messages`).
 OpenAI-compatible routes use `stamp_reasoning_effort_enabled` instead.
 
-### `max_tokens` / `thinking` not being removed on OpenAI route
+### `output_config` / `context_management` not being stripped on OpenAI route
 
-The `stamp_reasoning_effort_enabled` flag removes `max_tokens` and `thinking`
-from OpenAI-compatible requests and injects `reasoning_effort`. Enable it if
-upstream rejects fields like `thinking`:
+The `stamp_reasoning_effort_enabled` flag injects `reasoning_effort`,
+strips `output_config` and `context_management`, and forces
+`temperature: 1.0` on OpenAI-compatible requests. The `thinking` field is
+controlled by `stamp_model_rules` (`PerModelRuleStep`, ADR-0029), not by
+`reasoning_effort` stamping. Enable the flag if upstream rejects
+Anthropic-specific fields:
 
 ```json
 {
   "stamp_reasoning_effort_enabled": true
 }
 ```
+
+To override the thinking shape for a specific model family on OpenAI
+routes, add a per-model rule with `openai_thinking_shape`:
+
+```json
+{
+  "stamp_model_rules": [
+    {
+      "pattern": "umans-kimi-k2.7",
+      "openai_thinking_shape": { "type": "enabled", "keep": "all" },
+      "openai_veto_reasoning_effort": true
+    }
+  ]
+}
+```
+
+See [ADR-0029](adr/0029-per-model-stamp-rules-table.md) for the full
+per-model rules spec and target table.
 
 ## What to do if the vision handoff is not working
 

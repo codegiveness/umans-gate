@@ -55,73 +55,123 @@ proxy.ts → parse body → stamp pipeline → vision handoff → forward upstre
 ```
 
 The stamp pipeline (`src/stamp-pipeline.ts`) applies modifications in this
-order when `stamp_claude_code_enabled` is on:
+order when `stamp_claude_code_enabled` is on (Anthropic route):
 
-1. **TTL stamping** (`stamp.ts`): adds `ttl` to `cache_control` ephemeral blocks
-2. **`top_k` injection** (`stamp-topk.ts`): injects `top_k: 20` after `model`
-3. **`temperature` stamping** (`stamp-temperature.ts`): forces `temperature: 1.0`
-4. **`max_tokens` / `thinking` / `output_config`** (`stamp-thinking.ts`): model-aware injection
-5. **`context_management`**: injected when `stamp_claude_code_enabled` is on, route is Anthropic, and thinking is enabled
+1. **Restamp breakpoints** (`restamp-breakpoints.ts`): re-layout `cache_control` breakpoints to Layout B (system[0] + last user message) before TTL stamping. See ADR 0002.
+2. **TTL stamping** (`stamp.ts`): adds `ttl` to `cache_control` ephemeral blocks
+3. **Anthropic body** (`stamp-thinking.ts`): injects `max_tokens`, `thinking` (adaptive overlay), `output_config`; strips `reasoning_effort` if present
+4. **Per-model rule** (`stamp-catalog.ts` `resolvePerModelRule`): overrides `thinking` shape per model family from `stamp_model_rules` (ADR-0029). Independent of master toggles — fires whenever a matching rule exists.
+5. **`context_management`**: injected when thinking is enabled after per-model rules
+6. **`top_k` injection** (`stamp-topk.ts`): injects `top_k: 20` after `model`
+7. **`temperature` stamping** (`stamp-temperature.ts`): forces `temperature: 1.0` when thinking is enabled
 
 For OpenAI-compatible requests, `stamp-reasoning.ts` handles
-`reasoning_effort` injection separately.
+`reasoning_effort` injection (strips `output_config`/`context_management`,
+forces `temperature: 1.0`), and `OpenAiStreamUsageStep` injects
+`stream_options.include_usage: true` on streaming requests. The `thinking`
+field is controlled by `PerModelRuleStep`, not by `reasoning_effort`
+stamping. A post-stamp `StripOmoReminderStep` (gated by
+`experiment_strip_omo_reminder`) strips oh-my-openagent reminder blocks.
 
 ```
-                        STAMP PIPELINE (stamp_claude_code_enabled = true)
+                        STAMP PIPELINE (src/stamp-pipeline.ts, 10 steps)
                         ────────────────────────────────────────────────────
 
-  Anthropic request body
+  Anthropic request body (stamp_claude_code_enabled = true)
         │
         ▼
-┌───────────────────┐
-│ 1. TTL stamping   │  stamp.ts
-│   + ttl:"1h" on   │  → cache_control ephemeral blocks
-│     ephemeral     │
-└───────┬───────────┘
+┌───────────────────────┐
+│ 1. RestampBreakpoints │  restamp-breakpoints.ts (ADR 0002)
+│   Layout B: system[0] │  → cache_control breakpoints re-laid before TTL
+│   + last user         │
+└───────┬───────────────┘
         │
         ▼
-┌───────────────────┐
-│ 2. top_k injection│  stamp-topk.ts
-│   + top_k: 20     │  → injected after model field
-└───────┬───────────┘
+┌───────────────────────┐
+│ 2. CacheTtl           │  stamp.ts
+│   + ttl:"1h" on       │  → cache_control ephemeral blocks
+│     ephemeral         │
+└───────┬───────────────┘
         │
         ▼
-┌───────────────────┐
-│ 3. temperature    │  stamp-temperature.ts
-│   = 1.0 (forced)  │
-└───────┬───────────┘
+┌───────────────────────┐
+│ 3. AnthropicBody      │  stamp-thinking.ts
+│   + max_tokens        │  → umans-glm*: 131071, others: 32767
+│   + thinking(overlay) │  → { type: "adaptive" } (overlay default)
+│   + output_config     │  → { effort: "high"|"max" } from policy
+│   - reasoning_effort  │  → stripped if present
+└───────┬───────────────┘
         │
         ▼
-┌───────────────────┐
-│ 4. max_tokens     │  stamp-thinking.ts
-│   + thinking      │  → umans-glm* models: 131071
-│   + output_config  │     others: 32767
-│                   │  → thinking: { type: "adaptive" }
-│                   │     (umans-coder/flash/kimi*/qwen*)
-│                   │  → output_config: { effort: "high"|"max" }
-└───────┬───────────┘
+┌───────────────────────┐
+│ 4. PerModelRule       │  stamp-catalog.ts (ADR-0029)
+│   overrides thinking  │  → stamp_model_rules: glob pattern, first-match
+│   shape per model     │     wins. Independent of master toggles.
+│   + openai_extra_body │  → merged into body.extra_body
+└───────┬───────────────┘
         │
         ▼
-┌───────────────────┐
-│ 5. context_mgmt   │  injected when stampClaudeCode && !isOpenAi && thinking enabled
-│   + clear_thinking │  → { edits: [{ type: clear_thinking_20251015,
-│     keep: "all"   │       keep: "all" }] }
-└───────┬───────────┘
+┌───────────────────────┐
+│ 5. ContextManagement  │  injected when isThinkingEnabled(body.thinking)
+│   + clear_thinking    │  → { edits: [{ type: clear_thinking_20251015,
+│     keep: "all"       │       keep: "all" }] }
+└───────┬───────────────┘
+        │
+        ▼
+┌───────────────────────┐
+│ 8. TopK               │  stamp-topk.ts (when thinking enabled)
+│   + top_k: 20         │  → injected after model field
+└───────┬───────────────┘
+        │
+        ▼
+┌───────────────────────┐
+│ 9. Temperature        │  stamp-temperature.ts (when thinking enabled)
+│   = 1.0 (forced)      │
+└───────┬───────────────┘
+        │
+        ▼
+┌───────────────────────┐
+│ 10. StripOmoReminder  │  experiments/strip-omo-reminder.ts
+│   (opt-in, default    │  → strips [Category+Skill Reminder] from
+│    off)               │     messages[0].content (Anthropic only)
+└───────┬───────────────┘
         │
         ▼
   Stamped body ──────────► forwarded upstream AND captured
                           (inspector shows exactly what went to API)
 
 
-  OpenAI-compatible request body
+  OpenAI-compatible request body (stamp_reasoning_effort_enabled)
         │
         ▼
-┌───────────────────┐
-│ reasoning_effort  │  stamp-reasoning.ts
-│ + high / max      │  → high (default), max (umans-glm*)
-│ - max_tokens      │  → removes max_tokens + thinking
-│ - thinking        │
-└───────────────────┘
+┌───────────────────────┐
+│ 4. PerModelRule       │  stamp-catalog.ts (ADR-0029)
+│   thinking shape      │  → openai_thinking_shape overrides thinking
+│   + openai_extra_body │  → openai_veto_reasoning_effort flag set
+└───────┬───────────────┘
+        │
+        ▼
+┌───────────────────────┐
+│ 6. OpenAiReasoning    │  stamp-reasoning.ts
+│   + reasoning_effort  │  → high (default), max (umans-glm*)
+│   - output_config     │  → strips output_config + context_management
+│   - context_management│  → forces temperature: 1.0
+│   = temperature: 1.0  │  → thinking NOT stripped (controlled by step 4)
+│   veto? skip inject   │  → openai_veto_reasoning_effort skips injection
+└───────┬───────────────┘
+        │
+        ▼
+┌───────────────────────┐
+│ 7. OpenAiStreamUsage  │  when stream: true + reasoning active
+│   + stream_options    │  → { include_usage: true } if not already set
+│     .include_usage    │
+└───────┬───────────────┘
+        │
+        ▼
+┌───────────────────────┐
+│ 8. TopK               │  stamp-topk.ts (when reasoning_effort present)
+│   + top_k: 20         │
+└───────────────────────┘
 ```
 
 ### 3. Vision Handoff

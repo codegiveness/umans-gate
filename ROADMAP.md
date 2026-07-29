@@ -6,13 +6,13 @@ umans-gate roadmap: planned direction and likely priorities. Items are not
 committed or scheduled. They shift based on upstream API changes and personal
 development needs.
 
-## What already exists in v0.4.5
+## What already exists in v0.5.6
 
 - ✅ Capture proxy with SQLite storage, WAL mode, and zstd body compression
 - ✅ Anthropic `cache_control` TTL stamping via unified stamp pipeline
 - ✅ Full stamp bundle: TTL, `top_k`, `max_tokens`, `thinking`,
   `output_config`, `context_management`, `temperature`
-- ✅ OpenAI-compatible `reasoning_effort` stamping (strips `thinking`/`max_tokens`)
+- ✅ OpenAI-compatible `reasoning_effort` stamping (strips `output_config`/`context_management`, forces `temperature: 1.0`)
 - ✅ Vision handoff pipeline (image → text description, cached 7-day TTL)
 - ✅ Intent-aware vision prompting (generic, slotted, crafted, decomposed)
 - ✅ Concurrency gate (semaphore + circuit breaker + intention-based reservations)
@@ -31,9 +31,10 @@ development needs.
 - ✅ CodeQL code scanning (weekly + on push/PR)
 - ✅ Release automation: version sync, docs update, pre-release validation
 - ✅ CI version consistency gate (version-check.yml)
-- ✅ Model-specific thinking block shapes (ADR-0017): `umans-glm*` and
-  `umans-kimi*`/`umans-coder` force preserved-thinking shapes; other families
-  keep `{ type: "adaptive" }`
+- ✅ Per-model stamp rules table (ADR-0029): config-driven
+  `stamp_model_rules` replaces vendor-specific flags (ADR-0019); per-model
+  thinking shapes on both Anthropic and OpenAI routes, `openai_extra_body`,
+  and `reasoning_effort` veto. Glob pattern matching, first-match-wins.
 - ✅ One-click dashboard update without `DASHBOARD_TOKEN` requirement
   (ADR-0015); version info pushed over WebSocket
 - ✅ Performance stats: `ttft_max` and `tps_min` alongside mean/percentile

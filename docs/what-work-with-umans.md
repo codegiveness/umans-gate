@@ -2,7 +2,7 @@
 
 > **Applies to:** umans-gate v0.5.6 · **Last updated:** 2026-07-29
 
-This document maps umans-gate v0.4.5, a Bun-based LLM capture proxy, to the
+This document maps umans-gate v0.5.6, a Bun-based LLM capture proxy, to the
 [umans-open-stack](https://github.com/umans-ai/umans-open-stack) playbook
 categories.
 
@@ -203,5 +203,5 @@ playbook configuration in their own application.
 
 - `docs/reference/`: per-tab reference (captures, vision, performance,
   economics, usage, models, config)
-- `docs/adr/`: 24 architecture decision records
+- `docs/adr/`: 29 architecture decision records
 - `AGENTS.md`: contributor guide with stamping truth tables (ADR-0011)

@@ -138,11 +138,19 @@ are never overwritten. All env vars have `snake_case` JSON equivalents.
 
 The Config tab can save and hot-reload via
 `POST /dashboard/api/config/reload`. **All config fields are hot-reloadable
-except those marked `restartRequired`** (e.g. `port`, `db_path`,
-`upstream_protocol`, `vision_strategy`, `vision_model`, `warmer_*`,
-`umans_api_key`, `dashboard_token`). The full set of hot-reloadable fields
-is defined in `src/config/reload.ts` (`RELOAD_FIELDS`); restart-required
-fields are listed in `RESTART_REQUIRED_FIELDS` in the same file.
+except those marked `restartRequired`** (e.g. `port`, `max_captures`,
+`db_path`, `idle_timeout`, `upstream_protocol`, `queue_max_depth`,
+`ws_backpressure_limit`, `ws_close_on_backpressure_limit`, `warmer_*`,
+`usage_refresh_ms`, `models_refresh_ms`, `umans_api_key`,
+`dashboard_token`, `vision_strategy`, `vision_model`, `vision_prompt`,
+`vision_prompt_version`, `vision_max_images`, `vision_max_description_tokens`,
+`vision_reasoning_effort`, `vision_timeout_ms`, `vision_cache_size`,
+`vision_cache_ttl_ms`, `vision_cache_max_rows`, `vision_persistent_cache`,
+`vision_max_dimension`, `vision_jpeg_quality`, `vision_image_format`,
+`vision_image_detail`, `vision_concurrency`, `vision_pending_max_batch`).
+The full set of hot-reloadable fields is defined in `src/config/reload.ts`
+(`RELOAD_FIELDS`); restart-required fields are listed in
+`RESTART_REQUIRED_FIELDS` in the same file.
 
 ## Development workflow
 
@@ -272,3 +280,61 @@ AI agents (Claude Code, Codex, Copilot, Cursor) must also read
 [`.github/AGENT_RULES.md`](.github/AGENT_RULES.md) before writing code. It
 contains the recurring mistakes, thinking stamping rules, and
 `reasoning_effort` stamping rules that are easy to get wrong.
+
+## Agent skills
+
+This repo uses the [Matt Pocock engineering skills](https://github.com/mattpocock/skills)
+convention for issue tracking, triage, and domain documentation. All
+artifacts below are tracked in git and public.
+
+### Issue tracker
+
+Issues and specs live as markdown files under `.scratch/<feature-slug>/`.
+See [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md) for the
+full conventions (one feature per directory, `spec.md`, numbered issue
+files, `Status:` lines, comments under `## Comments`).
+
+### Triage labels
+
+Five canonical roles used as-is. See
+[`docs/agents/triage-labels.md`](docs/agents/triage-labels.md).
+
+| Label | Meaning |
+|---|---|
+| `needs-triage` | Maintainer needs to evaluate this issue |
+| `needs-info` | Waiting on reporter for more information |
+| `ready-for-agent` | Fully specified, ready for an AFK agent |
+| `ready-for-human` | Requires human implementation |
+| `wontfix` | Will not be actioned |
+
+### Domain docs
+
+Single context: one `CONTEXT.md` plus `docs/adr/` at the repo root.
+
+**Before exploring, read:**
+- `CONTEXT.md` at the repo root (or `CONTEXT-MAP.md` if it exists, which
+  points at one `CONTEXT.md` per context).
+- `docs/adr/`: read ADRs that touch the area you're about to work in.
+
+If any of these files don't exist, **proceed silently**. Don't flag their
+absence; don't suggest creating them upfront.
+
+**ADR file structure:**
+
+```
+/
+├── CONTEXT.md
+├── docs/adr/
+│   ├── 0001-accept-cache-hit-rate-instability.md
+│   └── ...
+└── src/
+```
+
+**Use the glossary's vocabulary.** When your output names a domain concept
+(in an issue title, a refactor proposal, a test name), use the term as
+defined in `CONTEXT.md`. Don't drift to synonyms the glossary avoids.
+
+**Flag ADR conflicts.** If your output contradicts an existing ADR, surface
+it explicitly rather than silently overriding:
+
+> _Contradicts ADR-0007, but worth reopening because…_

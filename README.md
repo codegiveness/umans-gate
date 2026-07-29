@@ -8,7 +8,7 @@
 
 **umans-gate** is a local capture proxy for LLM APIs that intercepts Anthropic and OpenAI-compatible traffic, stores every request and response in a SQLite ring buffer, and serves a live inspection dashboard over WebSocket. Run one command; point your agent harness at it; observe every byte on the wire.
 
-*Personal-use project, MIT-licensed, maintained by [codegiveness](https://github.com/codegiveness). Not affiliated with, endorsed by, or an official product of Umans AI. Last updated: 2026-07-27 · Version 0.4.5.*
+*Personal-use project, MIT-licensed, maintained by [codegiveness](https://github.com/codegiveness). Not affiliated with, endorsed by, or an official product of Umans AI. Last updated: 2026-07-29 · Version 0.5.6.*
 
 **Author:** [codegiveness](https://github.com/codegiveness), independent developer building LLM tooling and observability infrastructure. Source code published under MIT for transparency. No commercial support tier.
 
@@ -226,6 +226,7 @@ umans-gate loads configuration from a JSON file with environment variable overri
 | `UPSTREAM_TIMEOUT_MS` | `1800000` | Upstream fetch timeout (30 min) |
 | `STAMP_CLAUDE_CODE_ENABLED` | `false` | Toggle Claude Code stamp bundle (Anthropic) |
 | `STAMP_REASONING_EFFORT_ENABLED` | `false` | Toggle `reasoning_effort` stamping (OpenAI) |
+| `STAMP_MODEL_RULES` | `[]` | Per-model thinking-shape rules table (ADR-0029, hot-reloadable) |
 | `UMANS_API_KEY` | _(empty)_ | Unlocks `/v1/usage`, gate sizing, rate-limit, vision |
 | `DASHBOARD_TOKEN` | _(empty)_ | Secures dashboard + `/health` + `/metrics` + WS |
 | `CONCURRENCY_HARD_CAP` | `16` | Max concurrent upstream (auto from `/v1/usage`) |
@@ -256,12 +257,24 @@ When `STAMP_CLAUDE_CODE_ENABLED` is `true`, the proxy applies the following stam
 - **`top_k`**: `20`
 - **`temperature`**: `1.0`
 - **`max_tokens`**: `131071` for `umans-glm*` models, `32767` for others
-- **`thinking`**: `{ "type": "adaptive" }`
+- **`thinking`**: `{ "type": "adaptive" }` as the overlay default; per-model shapes via `STAMP_MODEL_RULES` (ADR-0029)
 - **`output_config`**: effort `high` or `max`
 - **`context_management`**: `clear_thinking`
 
+**Per-model rules** (`STAMP_MODEL_RULES`, ADR-0029): a config-driven rules
+table that overrides the adaptive thinking shape per model family on both
+Anthropic and OpenAI routes. Each rule matches a model name pattern (glob,
+first-match-wins) and can set `anthropic_thinking_shape`,
+`openai_thinking_shape`, `openai_extra_body`, and
+`openai_veto_reasoning_effort`. Rules are independent of the master toggles
+and hot-reloadable. See [ADR-0029](docs/adr/0029-per-model-stamp-rules-table.md)
+for the full spec and target table.
+
 For OpenAI-compatible requests, `STAMP_REASONING_EFFORT_ENABLED` injects
-`reasoning_effort` and removes `max_tokens` and `thinking` fields.
+`reasoning_effort`, strips `output_config` and `context_management`, and
+forces `temperature: 1.0`. The `thinking` field is controlled by
+`STAMP_MODEL_RULES` (`PerModelRuleStep`), not by `reasoning_effort`
+stamping.
 
 ### How vision handoff works
 
@@ -352,7 +365,7 @@ Yes. umans-gate intercepts Anthropic API traffic, which is what Claude Code uses
 
 ### Does umans-gate work with OpenAI-compatible APIs?
 
-Yes. The proxy intercepts OpenAI-compatible traffic on `/v1/chat/completions`. With `STAMP_REASONING_EFFORT_ENABLED=true`, it injects `reasoning_effort` and strips `max_tokens` and `thinking` fields that the OpenAI endpoint does not recognize.
+Yes. The proxy intercepts OpenAI-compatible traffic on `/v1/chat/completions`. With `STAMP_REASONING_EFFORT_ENABLED=true`, it injects `reasoning_effort`, strips `output_config` and `context_management`, and forces `temperature: 1.0`. The `thinking` field is controlled by `STAMP_MODEL_RULES` (per-model rules, ADR-0029), not by `reasoning_effort` stamping.
 
 ### What is the difference between umans-gate and a regular HTTP proxy?
 

@@ -61,44 +61,57 @@ unconditional), and **config** that gates it.
 ### 2.1 Stamp pipeline (Claude Code bundle)
 
 - **What**: Applies the full Claude Code stamp bundle to Anthropic requests
-  in order: TTL, `top_k`, `temperature`, `max_tokens`, `thinking`,
-  `output_config`, `context_management`.
+  in order: RestampBreakpoints, TTL, AnthropicBody (max_tokens, thinking,
+  output_config), PerModelRule, context_management, top_k, temperature.
+  See [ARCHITECTURE.md](ARCHITECTURE.md) for the full 10-step pipeline.
 - **Where**: `src/stamp-pipeline.ts` (orchestrator), called from
-  `src/proxy.ts`. Modules: `src/stamp.ts` (TTL), `src/stamp-topk.ts`
-  (`top_k`), `src/stamp-temperature.ts` (temperature),
-  `src/stamp-thinking.ts` (`max_tokens`, `thinking`, `output_config`),
-  `src/stamp-catalog.ts` (per-model `max_tokens`/`effort` via
-  `STAMP_OVERLAY`).
+  `src/proxy.ts`. Modules: `src/restamp-breakpoints.ts` (Layout B),
+  `src/stamp.ts` (TTL), `src/stamp-thinking.ts` (max_tokens, thinking,
+  output_config), `src/stamp-catalog.ts` (per-model `max_tokens`/`effort`
+  via `STAMP_OVERLAY` + `stamp_model_rules`), `src/stamp-topk.ts` (top_k),
+  `src/stamp-temperature.ts` (temperature).
 - **When**: Anthropic route only (`/v1/messages`), gated by
   `config.stampClaudeCodeEnabled`.
 - **Config**: `stamp_claude_code_enabled` JSON (default: `false`) /
   `STAMP_CLAUDE_CODE_ENABLED` env.
 - **Stamp values** (when enabled):
+  - RestampBreakpoints: Layout B (system[0] + last user message), ADR 0002
   - TTL: `"1h"` on every `cache_control: {type:"ephemeral"}` block
-  - `top_k`: `20`
-  - `temperature`: `1.0`
   - `max_tokens`: `131071` for `umans-glm*`, `32767` for others
-  - `thinking`: `{ "type": "adaptive" }` for `umans-coder`, `umans-flash`,
-    `umans-kimi*`, `umans-qwen*`, `umans-glm*`
+  - `thinking`: `{ "type": "adaptive" }` (overlay default); per-model
+    shapes via `stamp_model_rules` (see §2.5)
   - `output_config`: `{ "effort": "high" }` for most; `{ "effort": "max" }`
     for `umans-glm*`
   - `context_management`: `{ "edits": [{ "type": "clear_thinking_20251015", "keep": "all" }] }`
+  - `top_k`: `20`
+  - `temperature`: `1.0` (forced when thinking enabled)
 - **Rationale**: Extends the KV cache window (TTL), satisfies model-specific
   requirements, enables adaptive reasoning. Single toggle ensures correct
-  order with consistent values.
+  order with consistent values. Per-model rules (ADR-0029) override the
+  adaptive thinking shape per family without touching the master toggle.
 
 ### 2.2 OpenAI-compatible `reasoning_effort` injection
 
-- **What**: Removes `max_tokens` and `thinking` from the body, then injects
-  `"reasoning_effort": "high"` (or `"max"` for `umans-glm*`).
-- **Where**: `src/stamp-reasoning.ts`, called from `src/proxy.ts`.
+- **What**: Injects `"reasoning_effort": "high"` (or `"max"` for
+  `umans-glm*`), strips `output_config` and `context_management`, and
+  forces `temperature: 1.0`. The `thinking` field is **not** stripped —
+  it is controlled by `PerModelRuleStep` via `openai_thinking_shape`
+  (ADR-0029). When `openai_veto_reasoning_effort` is set on a matching
+  per-model rule, `reasoning_effort` injection is skipped but the
+  Anthropic-field strip + temperature force still run.
+- **Where**: `src/stamp-reasoning.ts`, called from `src/proxy.ts` via
+  `src/stamp-pipeline.ts` (`OpenAiReasoningStep`).
 - **When**: OpenAI-compatible route only (`/v1/chat/completions`), gated by
   `config.stampReasoningEffort !== null`.
 - **Config**: `stamp_reasoning_effort_enabled` JSON (default: `false`) /
-  `STAMP_REASONING_EFFORT_ENABLED` env.
-- **Rationale**: The upstream OpenAI endpoint only recognizes
-  `reasoning_effort`; forwarding `max_tokens` or `thinking` can cause
-  errors.
+  `STAMP_REASONING_EFFORT_ENABLED` env. Per-model veto via
+  `stamp_model_rules[].openai_veto_reasoning_effort` (ADR-0029).
+- **Rationale**: The upstream OpenAI endpoint recognizes `reasoning_effort`
+  but rejects `output_config`/`context_management` (Anthropic-specific) and
+  `temperature != 1.0` when reasoning is active. Stripping those prevents
+  errors. The `thinking` field is left to per-model rules because some
+  OpenAI models accept a thinking shape (e.g. Kimi, Qwen via
+  `extra_body`) while others reject it.
 
 ### 2.3 Body re-serialization
 
@@ -143,6 +156,44 @@ unconditional), and **config** that gates it.
   Text is KV-cacheable; image bytes are not.
 - **Serialization**: Vision calls are serialized by a `ConcurrencyGate`
   (default concurrency = 1) because the upstream has limited vision slots.
+
+### 2.5 Per-model rule overrides (ADR-0029)
+
+- **What**: Overrides the thinking shape per model family on both Anthropic
+  and OpenAI routes, merges `openai_extra_body` into `body.extra_body`, and
+  sets an `openai_veto_reasoning_effort` flag consumed by
+  `OpenAiReasoningStep`. Rules match model names by glob pattern,
+  first-match-wins.
+- **Where**: `src/stamp-pipeline.ts` (`PerModelRuleStep`), resolves via
+  `src/stamp-catalog.ts` (`resolvePerModelRule`).
+- **When**: Both routes, whenever `stamp_model_rules` is non-empty AND a
+  rule matches the request model. **Independent of**
+  `stamp_claude_code_enabled` and `stamp_reasoning_effort_enabled` — a
+  rule fires whenever a matching model is detected, regardless of whether
+  the master toggles are on.
+- **Config**: `stamp_model_rules` JSON (default: `[]`, hot-reloadable). Each
+  rule: `pattern` (glob), `anthropic_thinking_shape`, `openai_thinking_shape`,
+  `openai_extra_body`, `openai_veto_reasoning_effort`.
+- **Rationale**: Replaces vendor-specific config flags (ADR-0019) with a
+  config-driven table. Adding a new model family is a `config.json` edit,
+  not a code change. See
+  [ADR-0029](adr/0029-per-model-stamp-rules-table.md) for the full spec
+  and target table.
+
+### 2.6 OpenAI stream usage injection
+
+- **What**: Injects `stream_options: { include_usage: true }` on
+  streaming OpenAI-compatible requests when `reasoning_effort` stamping is
+  active and the body does not already set `include_usage: true`.
+- **Where**: `src/stamp-pipeline.ts` (`OpenAiStreamUsageStep`).
+- **When**: OpenAI-compatible route only, when `body.stream === true` and
+  `config.stampReasoningEffort !== null` and
+  `body.stream_options.include_usage !== true`.
+- **Config**: Gated by `stamp_reasoning_effort_enabled` (same as
+  `OpenAiReasoningStep`).
+- **Rationale**: Reasoning models report token usage in the final stream
+  chunk only when `include_usage: true`. Without it, the proxy cannot
+  capture accurate token counts for economics and usage tracking.
 
 ---
 
@@ -233,28 +284,31 @@ unconditional), and **config** that gates it.
 
 ## What is the TTFT-watchdog gated retry (experimental)?
 
-- **What**: Each upstream fetch gets a first-byte watchdog. If no chunk
-  arrives within `ttft_timeout_ms` (default 60s), the fetch is aborted and a
-  gated retry may follow. Ladder: (1) original with watchdog, (2) same-key
-  retry if gated, (3) rewrite-id escalation if eligible. Auto-disables after
-  `ttft_retry_failure_threshold` consecutive failures within
-  `ttft_retry_failure_window_ms`.
-- **Where**: `src/proxy.ts` (retry loop),
-  `src/experiments/ttft-watchdog-state.ts` (auto-disable state). See ADR
-  0004.
+- **What**: Each upstream fetch gets a first-byte watchdog with a dynamic
+  two-tier threshold. Attempt 1 uses `min(p50 × ttft_watchdog_multiplier,
+  ttft_watchdog_hard_cap_ms)` where p50 is the model's real-time median
+  TTFT fetched in parallel from `/v1/status`; `ttft_timeout_ms` (default
+  60s) is the fallback before the status response arrives. If no chunk
+  arrives within the threshold, the fetch is aborted and a gated retry may
+  follow. Retry ladder: (1) original with watchdog, (2) same-key retry if
+  gated, (3) rewrite-id escalation if eligible.
+- **Where**: `src/proxy.ts` (retry loop), `src/status-client.ts` (p50
+  fetch), `src/experiments/ttft-watchdog-state.ts` (state). See ADR-0026
+  (supersedes ADR-0004).
 - **When**: Only when `experiment_ttft_watchdog: true` (default: false).
   Streaming (SSE) responses only.
-- **Config**: `experiment_ttft_watchdog`, `ttft_timeout_ms`,
-  `ttft_retry_max_attempts`, `ttft_retry_gate_saturation_pct`,
-  `ttft_retry_failure_window_ms`, `ttft_retry_failure_threshold`,
-  `ttft_retry_cooldown_ms`. All hot-reloadable.
+- **Config** (all hot-reloadable): `experiment_ttft_watchdog` (default:
+  false), `ttft_timeout_ms` (60000), `ttft_watchdog_multiplier` (5),
+  `ttft_watchdog_hard_cap_ms` (300000), `ttft_retry_max_attempts` (3),
+  `ttft_retry_gate_saturation_pct` (80), `ttft_retry_cooldown_ms` (5000).
 - **Response headers** (when feature is on):
   - `X-Proxy-Retry-Attempt: <n>`: 0 = no retry, 1 = same-key, 2 = rewrite
   - `X-Proxy-TTFT-Exceeded: 1`: present when the watchdog fired
   - `X-Proxy-Breaker-State: <closed|half_open|open>`: at response time
-- **Rationale**: Detects stuck fetches early (60s, not 5min) and retries
-  without doubling load on a degraded upstream. Self-falsifying: auto
-  -disables when retries consistently also fail. See ADR 0004.
+- **Rationale**: Detects stuck fetches early and retries without doubling
+  load on a degraded upstream. The dynamic threshold adapts per-model: a
+  fast model with p50 TTFT of 2s triggers at ~10s (2s × 5), not 60s; a
+  slow model with p50 of 8s triggers at ~40s, not 60s. See ADR-0026.
 
 ---
 
