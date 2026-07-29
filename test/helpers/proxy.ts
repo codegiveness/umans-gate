@@ -92,7 +92,7 @@ export async function startProxy(options: StartProxyOptions = {}): Promise<Proxy
     healthHeaders.Authorization = `Bearer ${dashboardToken}`;
   }
   let started = false;
-  for (let attempt = 0; attempt < 100; attempt++) {
+  for (let attempt = 0; attempt < 50; attempt++) {
     try {
       const res = await fetch(healthUrl, { headers: healthHeaders });
       if (res.ok) {
@@ -100,7 +100,7 @@ export async function startProxy(options: StartProxyOptions = {}): Promise<Proxy
         break;
       }
     } catch {
-      await sleep(100);
+      await sleep(20);
     }
   }
   if (!started) {
@@ -111,7 +111,7 @@ export async function startProxy(options: StartProxyOptions = {}): Promise<Proxy
       // stderr already consumed or unavailable
     }
     throw new Error(
-      `Proxy server did not start within 10s on port ${port}. stderr: ${errOutput.slice(0, 500)}`,
+      `Proxy server did not start within 1s on port ${port}. stderr: ${errOutput.slice(0, 500)}`,
     );
   }
 
@@ -122,7 +122,7 @@ export async function startProxy(options: StartProxyOptions = {}): Promise<Proxy
     dbPath,
     kill: async () => {
       proc.kill(9);
-      await sleep(400);
+      await sleep(150);
       try {
         if (existsSync(dbPath)) unlinkSync(dbPath);
       } catch {

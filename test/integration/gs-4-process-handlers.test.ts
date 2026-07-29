@@ -26,13 +26,11 @@ test("index.ts registers uncaughtException handler", () => {
 });
 
 test("unhandledRejection handler logs the reason", () => {
-  const match = indexSource.match(/process\.on\("unhandledRejection"[^}]*\{[^}]*reason[^}]*\}\)/s);
-  expect(match).not.toBeNull();
+  expect(indexSource).toContain('process.on("unhandledRejection", unhandledRejectionHandler)');
+  expect(indexSource).toMatch(/unhandledRejectionHandler.*reason/s);
 });
 
 test("uncaughtException handler logs message and stack", () => {
-  const match = indexSource.match(
-    /process\.on\("uncaughtException"[^}]*\{[^}]*err\.message[^}]*\}\)/s,
-  );
-  expect(match).not.toBeNull();
+  expect(indexSource).toContain('process.on("uncaughtException", uncaughtExceptionHandler)');
+  expect(indexSource).toMatch(/uncaughtExceptionHandler.*err\.message.*err\.stack/s);
 });

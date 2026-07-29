@@ -8,9 +8,43 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
 import { CaptureDB } from "../../src/db.js";
+import { pollUntil } from "../helpers/poll-until.js";
 import { startProxy } from "../helpers/proxy.js";
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+async function waitForIncidentCount(dbPath: string, count: number): Promise<Database> {
+  const db = new Database(dbPath, { readonly: true });
+  await pollUntil(() => {
+    const row = db.prepare("SELECT COUNT(*) AS n FROM incidents").get() as { n: number };
+    return row.n >= count;
+  });
+  return db;
+}
+
+interface IncidentRow {
+  capture_id: number;
+  responsible_party: string;
+  incident_type: string;
+  upstream_status: number | null;
+  served_status: number;
+  capture_model: string | null;
+  capture_path: string | null;
+}
+
+async function waitForIncidentWithModel(baseUrl: string, count: number): Promise<IncidentRow[]> {
+  let result: IncidentRow[] = [];
+  await pollUntil(async () => {
+    const res = await fetch(`${baseUrl}/dashboard/api/incidents`);
+    if (!res.ok) return false;
+    const incidents = (await res.json()) as IncidentRow[];
+    if (incidents.length < count) return false;
+    if (incidents.some((i) => i.capture_model === null)) return false;
+    result = incidents;
+    return true;
+  });
+  return result;
+}
 
 function start500Upstream(): { port: number; close: () => Promise<void> } {
   const server = Bun.serve({
@@ -63,9 +97,7 @@ describe("Incident attribution — upstream 500", () => {
       expect(res.status).toBe(500);
       await res.text();
 
-      await sleep(300);
-
-      const db = new Database(proxy.dbPath, { readonly: true });
+      const db = await waitForIncidentCount(proxy.dbPath, 1);
       const incidents = db
         .prepare(
           "SELECT capture_id, responsible_party, incident_type, upstream_status, served_status FROM incidents",
@@ -109,19 +141,7 @@ describe("Incident attribution — upstream 500", () => {
       expect(res.status).toBe(500);
       await res.text();
 
-      await sleep(300);
-
-      const incidentsRes = await fetch(`${proxy.baseUrl}/dashboard/api/incidents`);
-      expect(incidentsRes.status).toBe(200);
-      const incidents = (await incidentsRes.json()) as Array<{
-        capture_id: number;
-        responsible_party: string;
-        incident_type: string;
-        upstream_status: number | null;
-        served_status: number;
-        capture_model: string | null;
-        capture_path: string | null;
-      }>;
+      const incidents = await waitForIncidentWithModel(proxy.baseUrl, 1);
       expect(incidents.length).toBe(1);
       expect(incidents[0].responsible_party).toBe("upstream");
       expect(incidents[0].incident_type).toBe("upstream_error");
@@ -193,9 +213,7 @@ describe("Incident attribution — 429 rate limit", () => {
       expect(res2.status).toBe(429);
       await res2.text();
 
-      await sleep(300);
-
-      const db = new Database(proxy.dbPath, { readonly: true });
+      const db = await waitForIncidentCount(proxy.dbPath, 1);
       const rateLimited = db
         .prepare(
           "SELECT capture_id, responsible_party, incident_type, upstream_status, served_status FROM incidents WHERE incident_type = 'rate_limited'",
@@ -246,9 +264,7 @@ describe("Incident attribution — 504 TTFT timeout (retry suppressed: cap_reach
       expect(res.status).toBe(504);
       await res.text();
 
-      await sleep(300);
-
-      const db = new Database(proxy.dbPath, { readonly: true });
+      const db = await waitForIncidentCount(proxy.dbPath, 1);
       const incidents = db
         .prepare(
           "SELECT capture_id, responsible_party, incident_type, upstream_status, served_status, reason FROM incidents",
@@ -329,9 +345,7 @@ describe("Incident attribution — 499 client abort (acquirePermit)", () => {
       // incident row must be client_aborted.
       expect([0, 499]).toContain(res2Status);
 
-      await sleep(300);
-
-      const db = new Database(proxy.dbPath, { readonly: true });
+      const db = await waitForIncidentCount(proxy.dbPath, 1);
       const aborted = db
         .prepare(
           "SELECT capture_id, responsible_party, incident_type, upstream_status, served_status FROM incidents WHERE incident_type = 'client_aborted'",
@@ -383,7 +397,7 @@ describe("Incident retention purge", () => {
       });
       expect(res.status).toBe(500);
       await res.text();
-      await sleep(300);
+      await waitForIncidentCount(proxy.dbPath, 1);
 
       const dbPath = proxy.dbPath;
       const db = new Database(dbPath);
@@ -490,9 +504,7 @@ describe("Incident reason — structured upstream error body", () => {
       expect(res.status).toBe(500);
       await res.text();
 
-      await sleep(300);
-
-      const db = new Database(proxy.dbPath, { readonly: true });
+      const db = await waitForIncidentCount(proxy.dbPath, 1);
       const incidents = db
         .prepare(
           "SELECT capture_id, responsible_party, incident_type, upstream_status, served_status, reason FROM incidents",

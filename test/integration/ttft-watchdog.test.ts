@@ -7,9 +7,32 @@
 // When the feature is OFF, behavior is unchanged.
 
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { pollUntil } from "../helpers/poll-until.js";
 import { type ProxyHandle, startProxy } from "../helpers/proxy.js";
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+async function waitForGateActive(proxy: ProxyHandle, expected: number): Promise<void> {
+  await pollUntil(async () => {
+    const active = await getGateActive(proxy);
+    return active === expected;
+  });
+}
+
+async function waitForUpstreamCalls(
+  upstream: { getCallCount(): number },
+  expected: number,
+): Promise<void> {
+  await pollUntil(() => upstream.getCallCount() >= expected);
+}
+
+async function waitForTtftIncident(proxy: ProxyHandle, expectedCount: number): Promise<void> {
+  await pollUntil(async () => {
+    const res = await fetch(`${proxy.baseUrl}/dashboard/api/incidents`);
+    const incidents = (await res.json()) as Array<{ incident_type: string }>;
+    return incidents.filter((i) => i.incident_type === "ttft_timeout").length >= expectedCount;
+  });
+}
 
 /** Upstream that returns 200 + a ReadableStream that NEVER enqueues — simulates
  *  a stuck-on-first-byte connection. Only counts LLM-message POSTs. */
@@ -208,7 +231,7 @@ describe("TTFT watchdog — feature ON, TTFT timeout", () => {
     await r1.text();
 
     // Give the finally block a moment to release the permit
-    await sleep(100);
+    await waitForGateActive(proxy, 0);
     const active = await getGateActive(proxy);
     expect(active).toBe(0);
   });
@@ -260,7 +283,7 @@ describe("TTFT watchdog — client abort during TTFT race", () => {
       // expected — abort throws
     }
     // Give the proxy a moment to settle
-    await sleep(150);
+    await waitForUpstreamCalls(upstream, 1);
     // No retry: only one upstream fetch happened
     expect(upstream.getCallCount()).toBe(1);
   });
@@ -306,10 +329,11 @@ describe("TTFT watchdog — client abort during cooldown between retries", () =>
       } catch {
         // expected — abort throws
       }
-      await sleep(150);
+      await waitForUpstreamCalls(upstream, 1);
       // Only one fetch happened — the cooldown was interrupted before attempt 2.
       expect(upstream.getCallCount()).toBe(1);
       // Permit released (gate active = 0).
+      await waitForGateActive(proxy, 0);
       expect(await getGateActive(proxy)).toBe(0);
     } finally {
       await proxy.kill();
@@ -838,7 +862,7 @@ describe("TTFT watchdog — ticket 03 same-key retry", () => {
       expect(res.status).toBe(200);
       await res.text();
       // Give the TransformStream flush + releasePermit a moment to settle.
-      await sleep(150);
+      await waitForGateActive(proxy, 0);
       const active = await getGateActive(proxy);
       expect(active).toBe(0);
     } finally {
@@ -904,7 +928,7 @@ describe("TTFT watchdog — ticket 01 no auto-disable", () => {
       expect(r1.headers.get("x-proxy-retry-attempt")).toBe("1");
       expect(r1.headers.get("x-proxy-ttft-exceeded")).toBe("1");
       await r1.text();
-      await sleep(150);
+      await waitForGateActive(proxy, 0);
 
       // Request 2: same pattern. Watchdog still armed (no auto-disable).
       const r2 = await fetch(`${proxy.baseUrl}/v1/messages`, {
@@ -915,7 +939,7 @@ describe("TTFT watchdog — ticket 01 no auto-disable", () => {
       expect(r2.status).toBe(504);
       expect(r2.headers.get("x-proxy-retry-attempt")).toBe("1");
       await r2.text();
-      await sleep(150);
+      await waitForGateActive(proxy, 0);
 
       // Request 3: watchdog still armed → retry happens → 2 upstream fetches.
       const callsBeforeR3 = callCount;
@@ -1281,7 +1305,7 @@ describe("TTFT watchdog — client abort during rewrite-escalation fetch", () =>
       } catch {
         // expected — abort throws
       }
-      await sleep(150);
+      await waitForUpstreamCalls(upstream, 3);
       // All 3 fetches happened (2 TTFT-timeouts + 1 client abort).
       expect(upstream.getCallCount()).toBe(3);
 
@@ -1453,7 +1477,7 @@ describe("TTFT watchdog — ticket 04 single incident per capture", () => {
       });
       expect(res.status).toBe(504);
       await res.text();
-      await sleep(200);
+      await waitForTtftIncident(proxy, 1);
 
       const incidentsRes = await fetch(`${proxy.baseUrl}/dashboard/api/incidents`);
       const incidents = (await incidentsRes.json()) as Array<{
@@ -1498,7 +1522,7 @@ describe("TTFT watchdog — ticket 04 single incident per capture", () => {
       });
       expect(res.status).toBe(200);
       await res.text();
-      await sleep(200);
+      await waitForTtftIncident(proxy, 1);
 
       const incidentsRes = await fetch(`${proxy.baseUrl}/dashboard/api/incidents`);
       const incidents = (await incidentsRes.json()) as Array<{

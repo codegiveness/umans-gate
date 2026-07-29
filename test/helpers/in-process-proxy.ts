@@ -14,8 +14,10 @@
 // becomes async or reads env lazily, this harness will break.
 //
 // The factory registers `unhandledRejection` / `uncaughtException` handlers
-// (log-only, no re-throw) that shutdown() does not remove. Bounded to 1 per
-// test file since bun:test isolates files by process.
+// (log-only, no re-throw). shutdown() removes them, so calling kill() after
+// each test keeps the handler count bounded to 1 per in-process instance.
+// If kill() times out and force-stops the server, the handlers leak — but
+// they are log-only and harmless.
 //
 // See ADR-0028 (docs/adr/0028-three-layer-test-pyramid.md) and CONTEXT.md
 // → "In-process proxy" glossary entry.

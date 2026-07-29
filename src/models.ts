@@ -103,6 +103,7 @@ export class ModelsClient implements VisionLookup {
     this.timer = setInterval(() => {
       void this.coldStartTick().catch(() => {});
     }, COLD_START.intervalMs);
+    this.timer.unref?.();
   }
 
   private async coldStartTick(): Promise<void> {
@@ -138,6 +139,7 @@ export class ModelsClient implements VisionLookup {
     this.timer = setInterval(() => {
       void this.refresh().catch(() => {});
     }, this.refreshMs);
+    this.timer.unref?.();
   }
 
   stop(): void {

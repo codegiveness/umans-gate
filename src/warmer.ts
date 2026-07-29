@@ -30,6 +30,7 @@ export class ConnectionWarmer {
     if (this.timer || this.intervalMs <= 0) return;
     void this.ping();
     this.timer = setInterval(() => void this.ping(), this.intervalMs);
+    this.timer.unref?.();
   }
 
   stop(): void {

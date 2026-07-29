@@ -968,21 +968,24 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
 
     process.removeListener("SIGINT", sigHandler);
     process.removeListener("SIGTERM", sigHandler);
+    process.removeListener("unhandledRejection", unhandledRejectionHandler);
+    process.removeListener("uncaughtException", uncaughtExceptionHandler);
   };
 
   const sigHandler = () => {
     shutdown().finally(() => process.exit(0));
   };
+  const unhandledRejectionHandler = (reason: unknown) => {
+    log.error("unhandledRejection", { reason: String(reason) });
+  };
+  const uncaughtExceptionHandler = (err: Error) => {
+    log.error("uncaughtException", { message: err.message, stack: err.stack });
+  };
 
   process.once("SIGINT", sigHandler);
   process.once("SIGTERM", sigHandler);
-
-  process.on("unhandledRejection", (reason) => {
-    log.error("unhandledRejection", { reason: String(reason) });
-  });
-  process.on("uncaughtException", (err) => {
-    log.error("uncaughtException", { message: err.message, stack: err.stack });
-  });
+  process.on("unhandledRejection", unhandledRejectionHandler);
+  process.on("uncaughtException", uncaughtExceptionHandler);
 
   return {
     server,

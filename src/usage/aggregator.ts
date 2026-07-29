@@ -33,6 +33,7 @@ export class UmansUsageClient {
     if (!this.apiKey || this.timer) return;
     void this.refresh();
     this.timer = setInterval(() => void this.refresh(), this.refreshMs);
+    this.timer.unref?.();
   }
 
   stop(): void {

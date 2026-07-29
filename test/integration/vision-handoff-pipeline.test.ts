@@ -8,8 +8,22 @@
 import { describe, expect, test } from "bun:test";
 import { startInProcessProxy } from "../helpers/in-process-proxy";
 import { startMockLlmUpstream } from "../helpers/mock-llm-upstream";
+import { pollUntil } from "../helpers/poll-until.js";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function waitForVisionAndUpstream(
+  vision: { getCallCount(): number },
+  upstream: { getCallCount(): number },
+  visionCount: number,
+  upstreamCount: number,
+  timeout = 5000,
+): Promise<void> {
+  await pollUntil(
+    () => vision.getCallCount() >= visionCount && upstream.getCallCount() >= upstreamCount,
+    { timeout },
+  );
+}
 
 /** 1x1 red PNG (base64). */
 const RED_PNG_B64 =
@@ -131,7 +145,7 @@ describe("Vision handoff integration (in-process)", () => {
       });
       expect(res.status).toBe(200);
       await res.text();
-      await sleep(150);
+      await waitForVisionAndUpstream(vision, upstream, 0, 1);
 
       expect(upstream.getCallCount()).toBe(1);
       const received = upstream.getRequest(0) as ReceivedBody;
@@ -183,7 +197,7 @@ describe("Vision handoff integration (in-process)", () => {
       });
       expect(res.status).toBe(200);
       await res.text();
-      await sleep(200);
+      await waitForVisionAndUpstream(vision, upstream, 1, 1);
 
       expect(vision.getCallCount()).toBe(1);
       expect(upstream.getCallCount()).toBe(1);
@@ -244,7 +258,7 @@ describe("Vision handoff integration (in-process)", () => {
       });
       expect(res1.status).toBe(200);
       await res1.text();
-      await sleep(200);
+      await waitForVisionAndUpstream(vision, upstream, 1, 1);
       expect(vision.getCallCount()).toBe(1);
 
       const res2 = await fetch(`${proxy.baseUrl}/v1/chat/completions`, {
@@ -254,7 +268,7 @@ describe("Vision handoff integration (in-process)", () => {
       });
       expect(res2.status).toBe(200);
       await res2.text();
-      await sleep(200);
+      await waitForVisionAndUpstream(vision, upstream, 1, 2);
 
       expect(vision.getCallCount()).toBe(1);
       expect(upstream.getCallCount()).toBe(2);
@@ -315,7 +329,7 @@ describe("Vision handoff integration (in-process)", () => {
       });
       expect(res.status).toBe(200);
       await res.text();
-      await sleep(200);
+      await waitForVisionAndUpstream(vision, upstream, 1, 1);
 
       expect(vision.getCallCount()).toBe(1);
       expect(upstream.getCallCount()).toBe(1);
@@ -374,7 +388,7 @@ describe("Vision handoff integration (in-process)", () => {
       });
       expect(res.status).toBe(200);
       await res.text();
-      await sleep(200);
+      await waitForVisionAndUpstream(vision, upstream, 0, 1);
 
       expect(vision.getCallCount()).toBe(0);
       expect(upstream.getCallCount()).toBe(1);
@@ -436,7 +450,7 @@ describe("Vision handoff integration (in-process)", () => {
       });
       expect(res.status).toBe(200);
       await res.text();
-      await sleep(200);
+      await waitForVisionAndUpstream(vision, upstream, 1, 1);
 
       expect(vision.getCallCount()).toBe(1);
       expect(upstream.getCallCount()).toBe(1);
@@ -499,12 +513,12 @@ describe("Vision handoff integration (in-process)", () => {
       const res1 = await makeImageRequest();
       expect(res1.status).toBe(200);
       await res1.text();
-      await sleep(300);
+      await waitForVisionAndUpstream(vision, upstream, 1, 1);
 
       const res2 = await makeImageRequest();
       expect(res2.status).toBe(200);
       await res2.text();
-      await sleep(200);
+      await waitForVisionAndUpstream(vision, upstream, 1, 2);
 
       expect(vision.getCallCount()).toBe(1);
       expect(upstream.getCallCount()).toBe(2);
@@ -595,7 +609,7 @@ describe("Vision handoff integration (in-process)", () => {
         expect(res.status).toBe(200);
         await res.text();
       }
-      await sleep(200);
+      await pollUntil(() => visionCallCount >= 3 && upstream.getCallCount() >= 3);
 
       expect(visionCallCount).toBe(3);
       expect(callIntervals.length).toBe(3);
@@ -727,7 +741,7 @@ describe("Vision handoff integration (in-process)", () => {
       const res2 = await req2;
       expect(res2).toBeNull();
 
-      await sleep(300);
+      await pollUntil(() => visionCallCount >= 1, { timeout: 1000 });
       expect(visionCallCount).toBe(1);
     } finally {
       await proxy.kill();
@@ -793,7 +807,7 @@ describe("Vision handoff integration (in-process)", () => {
       });
       expect(res.status).toBe(200);
       await res.text();
-      await sleep(200);
+      await pollUntil(() => visionCallCount >= 1 && upstream.getCallCount() >= 1);
 
       expect(visionCallCount).toBe(1);
 
@@ -863,7 +877,7 @@ describe("Vision handoff integration (in-process)", () => {
       });
       expect(res.status).toBe(200);
       await res.text();
-      await sleep(200);
+      await waitForVisionAndUpstream(vision, upstream, 1, 1);
 
       expect(vision.getCallCount()).toBe(1);
       expect(upstream.getCallCount()).toBe(1);
