@@ -31,7 +31,7 @@ const BLUE_CLASS = "bg-blue-500/10 text-blue-600 dark:text-blue-400";
 const GREEN_CLASS =
   "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400";
 
-const TIER_CLASS: Record<Tier, string> = {
+export const TIER_CLASS: Record<Tier, string> = {
   red: RED_CLASS,
   amber: AMBER_CLASS,
   blue: BLUE_CLASS,
@@ -115,6 +115,17 @@ function worstTier(...tiers: Tier[]): Tier {
  * - BLUE if a non-normal, non-low service mode is set.
  * - GREEN otherwise.
  */
+export function serviceModeTier(snap: UsageSnapshot): Tier {
+  if (snap.boxedUntil !== null) return "red";
+  if (snap.unitsDemoted) return "red";
+  const mode = snap.serviceMode.current;
+  if (mode === "normal" || mode === "interactive") {
+    return snap.priorityLow ? "amber" : "green";
+  }
+  if (LOW_SERVICE_MODES.includes(mode) || mode.startsWith("low_")) return "amber";
+  return "blue";
+}
+
 export function computeGateHealth(input: GateHealthInput): GateHealthResult {
   const offending = input.budgets.filter(isOffending).map(toOffending);
 
