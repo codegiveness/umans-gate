@@ -5,6 +5,7 @@ import { Area, AreaChart, Brush, ResponsiveContainer, XAxis, YAxis } from "recha
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { ChartFrame } from "@/components/ui/chart-frame";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -402,14 +403,14 @@ function HeatmapBrush({ rows, from, to, onBrushRange }: HeatmapBrushProps): Reac
 
   return (
     <div data-testid="heatmap-brush" className="w-full">
-      <div className="h-[72px] w-full">
+      <ChartFrame className="h-[72px]">
         <ResponsiveAreaChart
           points={points}
           startIndex={brushStart}
           endIndex={brushEnd}
           onBrushRange={onBrushRange}
         />
-      </div>
+      </ChartFrame>
     </div>
   );
 }
