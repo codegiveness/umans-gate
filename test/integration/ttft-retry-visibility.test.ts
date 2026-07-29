@@ -191,8 +191,8 @@ describe("TTFT retry visibility — persisted retry_attempt and ttft_exceeded", 
   });
 });
 
-describe("TTFT retry success — incident row + ttft_ms reset", () => {
-  test("success-after-retry records a ttft_timeout incident with proxy attribution", async () => {
+describe("TTFT retry success — no incident row (200 served is not an incident)", () => {
+  test("success-after-retry records no incident (servedStatus=200 violates incident invariant)", async () => {
     // Stall on call 1, emit on call 2 → same-key retry succeeds.
     const upstream = startCountedStallUpstream(1);
     const proxy = await startProxy({
@@ -221,8 +221,10 @@ describe("TTFT retry success — incident row + ttft_ms reset", () => {
 
       await sleep(300);
 
-      // Incident row: every watchdog firing must be auditable with proxy
-      // attribution, even when the retry succeeds (served_status=200).
+      // No incident row: per CONTEXT.md, the incidents table stores only
+      // non-200 captures. A successful retry (servedStatus=200) is a
+      // near-miss, not an incident. TTFT near-miss tracking belongs in
+      // metrics/logs, not the incident table.
       const incidentsRes = await fetch(
         `${proxy.baseUrl}/dashboard/api/incidents?incident_type=ttft_timeout`,
       );
@@ -237,13 +239,7 @@ describe("TTFT retry success — incident row + ttft_ms reset", () => {
         retry_attempt: number | null;
         ttft_exceeded: number | null;
       }>;
-      expect(incidents.length).toBe(1);
-      expect(incidents[0].responsible_party).toBe("proxy");
-      expect(incidents[0].incident_type).toBe("ttft_timeout");
-      expect(incidents[0].upstream_status).toBe(null);
-      expect(incidents[0].served_status).toBe(200);
-      expect(incidents[0].retry_attempt).toBe(1);
-      expect(incidents[0].ttft_exceeded).toBe(1);
+      expect(incidents.length).toBe(0);
     } finally {
       await proxy.kill();
       await upstream.close();

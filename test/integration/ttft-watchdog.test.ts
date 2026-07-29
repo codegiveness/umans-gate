@@ -1487,14 +1487,14 @@ describe("TTFT watchdog — ticket 04 single incident per capture", () => {
       }>;
       const ttftIncidents = incidents.filter((i) => i.incident_type === "ttft_timeout");
       expect(ttftIncidents.length).toBe(1);
-      expect(ttftIncidents[0].reason).toContain("all retries exhausted");
+      expect(ttftIncidents[0].reason).toContain("rewrite escalation failed");
     } finally {
       await proxy.kill();
       await upstream.close();
     }
   });
 
-  test("retry succeeds → single ttft_timeout incident with success reason", async () => {
+  test("retry succeeds → no incident recorded (200 served is not an incident)", async () => {
     const upstream = startCountedStallUpstream(1);
     const proxy = await startProxy({
       TARGET: `http://127.0.0.1:${upstream.port}`,
@@ -1522,7 +1522,6 @@ describe("TTFT watchdog — ticket 04 single incident per capture", () => {
       });
       expect(res.status).toBe(200);
       await res.text();
-      await waitForTtftIncident(proxy, 1);
 
       const incidentsRes = await fetch(`${proxy.baseUrl}/dashboard/api/incidents`);
       const incidents = (await incidentsRes.json()) as Array<{
@@ -1530,9 +1529,7 @@ describe("TTFT watchdog — ticket 04 single incident per capture", () => {
         incident_type: string;
         reason: string | null;
       }>;
-      const ttftIncidents = incidents.filter((i) => i.incident_type === "ttft_timeout");
-      expect(ttftIncidents.length).toBe(1);
-      expect(ttftIncidents[0].reason).toContain("succeeded on attempt");
+      expect(incidents.length).toBe(0);
     } finally {
       await proxy.kill();
       await upstream.close();
