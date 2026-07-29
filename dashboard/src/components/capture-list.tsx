@@ -34,10 +34,10 @@ interface CaptureListProps {
 
 /**
  * Fixed row height for the virtualizer. Must be >= actual rendered row
- * height to prevent overlap. Calculated from: py-3 (24) + 3 content rows
- * (~65) + border (1) = ~90px; 2px buffer for font/badge variance.
+ * height to prevent overlap. Set to 100px so each capture card has a
+ * fixed, predictable height.
  */
-const ROW_HEIGHT = 92;
+const ROW_HEIGHT = 100;
 
 export function CaptureList({
   captures,

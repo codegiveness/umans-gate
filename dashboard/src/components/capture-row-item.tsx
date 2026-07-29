@@ -109,7 +109,7 @@ export function CaptureRowItem({
         }
       }}
       className={cn(
-        "cursor-pointer border-b border-border px-4 py-3 w-full transition-colors hover:bg-accent overflow-hidden",
+        "cursor-pointer border-b border-border px-4 py-3 w-full h-full transition-colors hover:bg-accent overflow-hidden",
         selected && "bg-accent",
         isActive && !selected && "bg-accent/50",
       )}
