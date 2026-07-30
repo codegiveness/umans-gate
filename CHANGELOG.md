@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.9] - 2026-07-30
+
+### Changed
+
+- **Config tab descriptions rewritten for non-technical users**: ~70 field
+  descriptions across `config-sections.ts` and `config-vision-fields.ts`
+  rewritten in plain language from the user perspective. Removed internal
+  jargon (ADR references, code shapes like `{type:'enabled',keep:'all'}`,
+  internal field names) while keeping defaults, units, and key behaviors
+  visible. Reviewed by Oracle — 6 accuracy fixes applied after initial
+  rewrite (HTTP/2 perf claim, circuit breaker trigger wording, opencode-only
+  limitation on ID rewrite, vision intent strategy description, GLM rule
+  jargon, circuit breaker section wording).
+
 ## [0.5.8] - 2026-07-30
 
 ### Added
