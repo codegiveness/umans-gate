@@ -15,10 +15,12 @@
 **Setup in 30 seconds.**
 
 ```bash
-npx umans-gate
+npm install -g umans-gate && umans-gate service install
 ```
 
-The proxy listens on `http://localhost:1945`. The dashboard is served at
+This installs the proxy as a **background service** — it auto-starts on
+boot, survives terminal close, and auto-restarts on crash. The proxy
+listens on `http://localhost:1945`. The dashboard is served at
 `http://localhost:1945/dashboard/`. Point any Anthropic or
 OpenAI-compatible harness at the proxy URL. Every request and response
 is captured to SQLite.
@@ -80,8 +82,10 @@ umans-gate is a **local LLM API capture proxy** that sits between an agent harne
 5. **API key unlocks key features.** Without `UMANS_API_KEY`, the proxy
    still captures traffic, but `/v1/usage` polling, concurrency gate sizing,
    rate-limit validation, and vision handoff stay disabled.
-6. **Foreground by default.** `umans-gate` won't survive reboots. Run
-   `umans-gate service install` to register as a managed service.
+6. **Service install recommended.** Without `service install`,
+   `umans-gate` runs in the foreground and won't survive reboots or
+   terminal close. Run `umans-gate service install` to register as a
+   managed service.
 7. **Default concurrency and the hard cap toggle.** `CONCURRENCY_HARD_CAP`
    defaults to `16`, `CONCURRENCY_SOFT_LIMIT` to `8`. By default
    (`USE_HARD_CAP=false`), the effective limit is the soft limit. Both are
@@ -110,14 +114,22 @@ umans-gate ships as a pre-compiled npm binary and a standalone Bun/TypeScript so
 **npm (recommended):**
 
 ```bash
-npm install -g umans-gate && umans-gate
+npm install -g umans-gate && umans-gate service install
 ```
 
-**npx (no install):**
+The `service install` step registers umans-gate as a background service —
+it auto-starts on boot and survives terminal close. If you skip it,
+`umans-gate` runs in the foreground and dies when you close your terminal.
+
+**npx (temporary, no install):**
 
 ```bash
 npx umans-gate
 ```
+
+> ⚠️ `npx` runs a temporary instance that dies when you close the
+> terminal. Don't use it for regular use — install with `npm install -g`
+> and `service install` instead.
 
 **Bun (for developers):**
 
@@ -141,7 +153,9 @@ cd umans-gate && bun install && bun src/cli.ts
 
 Point any Anthropic or OpenAI-compatible agent harness at the proxy URL (`http://localhost:1945`). Every request and response is captured to SQLite and visible in the live dashboard at `/dashboard/`.
 
-1. **Start the proxy:** `umans-gate`
+1. **Start the proxy:** `umans-gate service install` (installs as
+   background service — auto-starts on boot, survives terminal close).
+   Already installed? Start it with `umans-gate service start`.
 2. **Point your harness** to `http://localhost:1945`:
 
    ```bash
@@ -166,7 +180,9 @@ Point any Anthropic or OpenAI-compatible agent harness at the proxy URL (`http:/
    require `Authorization: Bearer <token>`. WebSocket requires
    `?token=<token>`. Includes brute-force protection.
 
-6. **Make it survive reboots** (optional): `umans-gate service install`
+6. **Make it survive reboots:** `umans-gate service install` (already
+   done if you followed the install steps above; this is just for
+   reference).
 
 ## Updating
 
