@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.8] - 2026-07-30
+
+### Added
+
+- **Per-model toggle UI for `stamp_model_rules`**: 6 toggle cards (Kimi K2.7,
+  GLM 5.x, Coder, Kimi K3, Flash, Qwen) in the Experimental > Request Stamp
+  section. Each toggle adds/removes a canonical `PerModelRule` entry — pure
+  UI over the existing array, no backend logic change. Replaces the raw JSON
+  editor (`kind: 'json'`) with `kind: 'modelRules'`. Refs: ADR-0020,
+  docs/reference/request-body-matrix.md.
+
+### Fixed
+
+- **Penalty badge tooltip**: tooltip previously filtered budget categories
+  through `isOffending()`, hiding healthy categories (interactive mode, low
+  usage). Now renders all categories with humanized wording per Oracle review
+  (section headers, urgency coloring, jargon removed: boxed→rate-limited,
+  units_demoted→compute units demoted, broken run-on lines fixed).
+- **accountWide false-positive**: `interactive` service mode no longer
+  triggers the "Account-wide — all models" indicator, consistent with
+  `serviceModeTier` which treats interactive as green.
+- **JSON validator blocked saves**: the old `kind: 'json'` validator rejected
+  arrays ("must be a JSON object"), blocking the Save button whenever
+  `stamp_model_rules` had content. The new `modelRules` validator is a no-op;
+  arrays pass. Backend had no such rule.
+
 ## [0.5.7] - 2026-07-30
 
 ### Security
