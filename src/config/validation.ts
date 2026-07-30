@@ -727,7 +727,7 @@ export const WARNING_RULES: WarningRule[] = [
     name: "stamp_claude_code_off",
     warning: (n) =>
       n.stamp_claude_code_enabled !== true
-        ? "Claude Code stamping is off — ephemeral cache entries will have no default TTL, no top_k/max_tokens/thinking/output_config/context_management injection"
+        ? "Claude Code stamping is off — TTL, top_k, max_tokens, thinking, output_config, and context_management stamps are inactive. This is informational and safe to ignore if stamping is intentionally disabled."
         : null,
   },
   {

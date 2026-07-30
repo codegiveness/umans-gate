@@ -1198,7 +1198,7 @@ test("char: warning — rate_limit_requests=100 does NOT produce rate-limit warn
 test("char: warning — stamp_claude_code_enabled !== true produces warning", () => {
   const r = validateConfig({ stamp_claude_code_enabled: false });
   expect(r.warnings).toContain(
-    "Claude Code stamping is off — ephemeral cache entries will have no default TTL, no top_k/max_tokens/thinking/output_config/context_management injection",
+    "Claude Code stamping is off — TTL, top_k, max_tokens, thinking, output_config, and context_management stamps are inactive. This is informational and safe to ignore if stamping is intentionally disabled.",
   );
   expect(r.errors).toEqual([]);
 });
@@ -1206,7 +1206,7 @@ test("char: warning — stamp_claude_code_enabled !== true produces warning", ()
 test("char: warning — stamp_claude_code_enabled=true does NOT produce Claude Code warning", () => {
   const r = validateConfig({ stamp_claude_code_enabled: true });
   expect(r.warnings).not.toContain(
-    "Claude Code stamping is off — ephemeral cache entries will have no default TTL, no top_k/max_tokens/thinking/output_config/context_management injection",
+    "Claude Code stamping is off — TTL, top_k, max_tokens, thinking, output_config, and context_management stamps are inactive. This is informational and safe to ignore if stamping is intentionally disabled.",
   );
 });
 
@@ -1242,7 +1242,7 @@ test("char: default config (empty input) produces exactly the 2 default warnings
   // Default config has: warmer_enabled=true (no warning), rate_limit_requests=0 (no warning, auto-derive),
   // stamp_claude_code_enabled=false (warning), umans_api_key="" (warning)
   expect(r.warnings).toEqual([
-    "Claude Code stamping is off — ephemeral cache entries will have no default TTL, no top_k/max_tokens/thinking/output_config/context_management injection",
+    "Claude Code stamping is off — TTL, top_k, max_tokens, thinking, output_config, and context_management stamps are inactive. This is informational and safe to ignore if stamping is intentionally disabled.",
     "umans_api_key is empty — proxy runs in fail-safe mode (worst-case limits, priority_low=true). Set umans_api_key in the Server section to enable usage-based limits.",
   ]);
 });
