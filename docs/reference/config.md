@@ -1,6 +1,6 @@
 # Config Tab Reference
 
-> **Applies to:** umans-gate v0.5.8 · **Last updated:** 2026-07-30
+> **Applies to:** umans-gate v0.5.9 · **Last updated:** 2026-07-30
 
 The Config tab edits proxy settings and triggers live reload or restart.
 

@@ -1,6 +1,6 @@
 # Benchmarks
 
-> **Applies to:** umans-gate v0.5.8 · **Last updated:** 2026-07-30
+> **Applies to:** umans-gate v0.5.9 · **Last updated:** 2026-07-30
 
 Benchmark results for umans-gate proxy optimizations, measured against
 `https://api.code.umans.ai/v1`.

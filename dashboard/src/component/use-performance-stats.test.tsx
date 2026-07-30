@@ -22,7 +22,11 @@ function jsonResponse(body: unknown) {
   };
 }
 
-function makeRow(model: string, provider: "anthropic" | "openai", requestCount: number): PerformanceStatsRow {
+function makeRow(
+  model: string,
+  provider: "anthropic" | "openai",
+  requestCount: number,
+): PerformanceStatsRow {
   return {
     model,
     provider,

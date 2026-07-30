@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.10] - 2026-07-30
+
+### Fixed
+
+- **Performance tab duplicate cards + polling race condition**: `usePollingResource`
+  had a fetch race where overlapping fetches (interval + capture-done refresh +
+  visibility change) were never aborted, and the React key was only `row.model`
+  (collides when same model spans providers). Fix: abort previous controller
+  before each refresh; dedupe stats by `(model, provider)` keeping highest
+  `request_count`; `cache: no-store` on `apiFetch`; composite React key
+  `model::provider`. Regression tests added.
+
+- **Dashboard card flicker during live captures**: `onCaptureUpsert` guarded
+  only `response_status` and `status_source` against null-overwrite from
+  intermediate update broadcasts. Three more fields (`model`,
+  `upstream_ttft_p50_ms`, `upstream_tps_p50`) suffered the same problem,
+  causing model name and p50 row to disappear/reappear around TTFT. Fix:
+  extend the null-guard pattern to those three fields. Tests added.
+
+### Changed
+
+- **Dashboard font: Geist Variable → Inter**: swapped
+  `@fontsource-variable/geist` for `@fontsource-variable/inter` for taller
+  x-height + opsz axis, improving data-dense dashboard readability. Same
+  OFL-1.1 license, same single-woff2 loading pattern.
+
+### Added
+
+- **TRANSPARENCY.md**: adversarial-trust document covering all outbound
+  endpoints, `UMANS_API_KEY` handling (where it goes, is stored, never goes),
+  loopback-only listen address, per-egress off-switch column, negative-space
+  list with copy-pasteable verification commands, and "no formal audit"
+  disclaimer. Reviewed against 13 exemplar docs + Oracle review.
+
 ## [0.5.9] - 2026-07-30
 
 ### Changed
