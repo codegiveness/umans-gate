@@ -30,6 +30,8 @@ export function usePollingResource<T>({
 
   const hasDataRef = useRef(false);
 
+  const abortRef = useRef<AbortController | null>(null);
+
   const latestRef = useRef({ endpoint, errorMessage, parse });
   latestRef.current = { endpoint, errorMessage, parse };
 
@@ -67,7 +69,9 @@ export function usePollingResource<T>({
   }, []);
 
   const refresh = useCallback(() => {
+    abortRef.current?.abort();
     const controller = new AbortController();
+    abortRef.current = controller;
     setLoading(true);
     setError(null);
     void fetchData(controller.signal);
@@ -79,14 +83,19 @@ export function usePollingResource<T>({
   useCaptureDoneListener(() => refreshRef.current());
 
   useEffect(() => {
+    abortRef.current?.abort();
     const controller = new AbortController();
+    abortRef.current = controller;
     void fetchData(controller.signal);
 
     let interval: ReturnType<typeof setInterval> | null = null;
 
     const startPolling = () => {
       if (interval === null) {
-        interval = setInterval(() => fetchData(controller.signal), pollInterval);
+        interval = setInterval(() => {
+          const sig = abortRef.current?.signal;
+          if (sig && !sig.aborted) void fetchData(sig);
+        }, pollInterval);
       }
     };
 
@@ -101,7 +110,8 @@ export function usePollingResource<T>({
       if (document.hidden) {
         stopPolling();
       } else {
-        void fetchData(controller.signal);
+        const sig = abortRef.current?.signal;
+        if (sig && !sig.aborted) void fetchData(sig);
         startPolling();
       }
     };

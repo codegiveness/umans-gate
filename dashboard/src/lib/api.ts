@@ -48,7 +48,7 @@ export async function apiFetch(input: string, init?: RequestInit): Promise<Respo
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const res = await fetch(input, { ...init, headers });
+  const res = await fetch(input, { cache: "no-store", ...init, headers });
 
   if (res.status === 401) {
     window.dispatchEvent(new CustomEvent(UNAUTHORIZED_EVENT));

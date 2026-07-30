@@ -280,4 +280,27 @@ describe("usePollingResource visibility-aware polling", () => {
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(globalThis.fetch).toHaveBeenCalledTimes(2);
   });
+
+  it("polling continues with a live signal after refresh() aborts the previous controller", async () => {
+    mockFetch(async () => {
+      callCount++;
+      return jsonResponse({ value: callCount });
+    });
+
+    const { result } = renderHook(() => useTestHook(100));
+
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      result.current.refresh();
+    });
+
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(2), {
+      timeout: 500,
+    });
+
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(3), {
+      timeout: 500,
+    });
+  });
 });

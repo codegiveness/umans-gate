@@ -92,7 +92,7 @@ export function PerformanceMeter() {
                 </div>
               )}
               {stats.map((row) => (
-                <ModelPerfCard key={row.model} row={row} />
+                <ModelPerfCard key={`${row.model}::${row.provider}`} row={row} />
               ))}
             </div>
           )}
