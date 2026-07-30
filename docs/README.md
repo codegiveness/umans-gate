@@ -13,6 +13,7 @@ umans-gate documentation covers installation, architecture, operations, and deve
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — system design, data flow, stamp pipeline, concurrency gate
 - [proxy-modifications.md](proxy-modifications.md) — every modification the proxy applies to traffic
+- [TRANSPARENCY.md](TRANSPARENCY.md) — every endpoint the app contacts, where your API key goes, what it never does
 
 ## Operate it
 
