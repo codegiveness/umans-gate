@@ -31,6 +31,7 @@ import {
 import { EMBEDDED_ASSET_PATHS } from "./embedded-assets.js";
 import { summary } from "./helpers.js";
 import type { InFlightCooldowns } from "./in-flight-cooldowns.js";
+import type { IncidentType } from "./incidents.js";
 import type { ConcurrencyGate } from "./limiter/index.js";
 import type { ModelsClient } from "./models.js";
 import { isServiceInstalled } from "./service/index.js";
@@ -45,6 +46,19 @@ import type { WsBroadcaster } from "./ws.js";
 
 interface NamedBlob extends Blob {
   name: string;
+}
+
+const SECURITY_HEADERS: Record<string, string> = {
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "no-referrer",
+  "X-Frame-Options": "DENY",
+};
+
+function withSecurityHeaders(resp: Response): Response {
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) {
+    if (!resp.headers.has(k)) resp.headers.set(k, v);
+  }
+  return resp;
 }
 
 // Prevent tree-shaking of the embedded asset imports.
@@ -664,7 +678,18 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
           conditions.push("i.responsible_party = $party");
           params.$party = party;
         }
+        const VALID_INCIDENT_TYPES: ReadonlySet<IncidentType> = new Set([
+          "upstream_error",
+          "ttft_timeout",
+          "id_rewrite",
+          "rate_limited",
+          "gate_rejected",
+          "client_aborted",
+        ]);
         if (type) {
+          if (!VALID_INCIDENT_TYPES.has(type as IncidentType)) {
+            return Response.json({ error: "invalid incident_type" }, { status: 400 });
+          }
           conditions.push("i.incident_type = $type");
           params.$type = type;
         }
@@ -800,5 +825,5 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
     return new Response("not found", { status: 404 });
   }
 
-  return { handleViewer, VIEWER };
+  return { handleViewer, withSecurityHeaders, VIEWER };
 }

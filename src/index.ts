@@ -110,6 +110,7 @@ const LLM_ROUTES = new Set([
 /** Options for {@link createRequestDispatcher}. */
 interface RequestDispatcherOptions {
   handleViewer: (url: URL, req: Request) => Promise<Response | null>;
+  withSecurityHeaders: (resp: Response) => Response;
   handleProxy: (req: Request, url: URL) => Promise<Response>;
   handleHealth: () => Response;
   handleMetrics: () => Response;
@@ -131,6 +132,7 @@ interface RequestDispatcherOptions {
 function createRequestDispatcher(options: RequestDispatcherOptions) {
   const {
     handleViewer,
+    withSecurityHeaders,
     handleProxy,
     handleHealth,
     handleMetrics,
@@ -198,7 +200,8 @@ function createRequestDispatcher(options: RequestDispatcherOptions) {
     // Viewer routes (dashboard + REST API)
     if (url.pathname === VIEWER || url.pathname.startsWith(`${VIEWER}/`)) {
       const resp = await handleViewer(url, req);
-      return resp ?? new Response("not found", { status: 404 });
+      const final = resp ?? new Response("not found", { status: 404 });
+      return withSecurityHeaders(final);
     }
 
     // Health check endpoint
@@ -814,7 +817,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
   // Only active when dashboardToken is configured. 10 failures per 60s window.
   const authFailureLimiter = config.dashboardToken ? new AuthFailureLimiter(10, 60) : undefined;
 
-  const { handleViewer, VIEWER } = createViewerRouter({
+  const { handleViewer, withSecurityHeaders, VIEWER } = createViewerRouter({
     db,
     ws,
     config,
@@ -868,6 +871,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
 
   const fetch = createRequestDispatcher({
     handleViewer,
+    withSecurityHeaders,
     handleProxy,
     handleHealth,
     handleMetrics,
@@ -882,6 +886,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     hostname: config.host,
     reusePort: true,
     idleTimeout: config.idleTimeout,
+    maxRequestBodySize: 1024 * 1024 * 128,
     fetch,
     error(err): Response {
       log.error("uncaught server error", {

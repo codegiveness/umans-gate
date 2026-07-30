@@ -32,7 +32,8 @@
     "rules": {
       "preset": "recommended",
       "security": {
-        "noDangerouslySetInnerHtml": "off"
+        "noDangerouslySetInnerHtml": "off",
+        "noSecrets": "warn"
       },
       "style": {
         "noNonNullAssertion": "off"
