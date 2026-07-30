@@ -16,7 +16,7 @@ When `stamp_model_rules` is empty → no per-model overrides, only the static
 `STAMP_OVERLAY` applies.
 
 > **PerModelRule fires regardless of master switches.** A rule with
-> `pattern: "umans-glm-*"` and `anthropic_thinking_shape` will override
+> `pattern: "umans-glm-5.2"` and `anthropic_thinking_shape` will override
 > `body.thinking` on the Anthropic route even when
 > `stamp_claude_code_enabled: false`. The other 9 steps still require
 > their master switch.
@@ -84,7 +84,7 @@ overlay's `canDisableThinking` is used as-is.
 |---|---|---|---|
 | `pattern` | both | string (glob) | Model name match. First-match-wins. `*` suffix = prefix match. |
 | `anthropic_thinking_shape` | Anthropic | ThinkingConfig | Forces `body.thinking` to this shape. Overrides overlay. |
-| `openai_thinking_shape` | OpenAI | ThinkingConfig | Forces `body.thinking` to this shape. If client thinking null/disabled → `{type:"disabled"}`. |
+| `openai_thinking_shape` | OpenAI | ThinkingConfig | Forces `body.thinking` to this shape **when a reasoning signal is active** (thinking enabled OR reasoning_effort non-disabled). When no signal is present → no stamp (thinking left untouched). |
 | `openai_extra_body` | BOTH | object | Shallow-merges into `body.extra_body`. Applies on both routes. |
 | `openai_veto_reasoning_effort` | OpenAI | boolean | Surgically skips `reasoning_effort` injection. Still strips output_config/context_management + forces temp=1.0 — but only when thinking is enabled. When thinking is absent or disabled, veto = no-op. |
 
@@ -101,9 +101,8 @@ overlay's `canDisableThinking` is used as-is.
 
 ## Anthropic route — `stamp_claude_code_enabled: true`
 
-Steps 1-3 + 5 + 8 + 9 fire. Step 4 (PerModelRule) fires if rules exist.
-Step 10 (StripOmoReminder) fires additionally if
-`experiment_strip_omo_reminder: true`.
+Steps 1-3 + 4 + 5 + 8 + 9 fire. Step 10 (StripOmoReminder) fires
+additionally if `experiment_strip_omo_reminder: true`.
 
 ### What each step stamps
 
@@ -112,7 +111,7 @@ Step 10 (StripOmoReminder) fires additionally if
 | 1. RestampBreakpoints | Rewrites `cache_control` breakpoints to Layout B (system[0] + last user message). Runs first so CacheTtl stamps the restamped breakpoints. See ADR-0002. |
 | 2. CacheTtl | Stamps `ttl="1h"` on all `cache_control: {type:"ephemeral"}` blocks that lack a `ttl`. |
 | 3. AnthropicBody | Forces `body.thinking` to overlay's `{type:"adaptive"}` (only if thinking present; never injected when absent). Sets `max_tokens` (only if thinking enabled). Injects `output_config={effort: policy.effort}` (only if thinking enabled AND `policy.thinking`). Strips `reasoning_effort` if present. |
-| 4. PerModelRule | **Overrides** `body.thinking` with rule's `anthropic_thinking_shape` (wins over step 3). Also merges `extra_body` if rule has it. |
+| 4. PerModelRule | **Overrides** `body.thinking` with rule's `anthropic_thinking_shape` — but **respects `canDisableThinking`**: when thinking is disabled/absent AND canDisable=true → no force (clean passthrough). When canDisable=false → forces shape AND stamps `max_tokens` + `output_config` (step 3 skipped them). Also merges `extra_body` if rule has it. |
 | 5. ContextManagement | Injects `context_management={edits:[{type:"clear_thinking_20251015",keep:"all"}]}` (deep-copied). Guard: `isThinkingEnabled(body.thinking)` must be true. |
 | 8. TopK | Injects `top_k=20` (only GLM has `top_k=20`; others null → skip). Guard: `isThinkingEnabled` must be true. |
 | 9. Temperature | Forces `temperature=1.0`. Guard: `isThinkingEnabled` must be true. |
@@ -125,22 +124,79 @@ Step 10 (StripOmoReminder) fires additionally if
 - `body.thinking` disabled form AND `canDisableThinking: false` → forced to `policy.thinkingShape` (e.g. Kimi K2.7 where reasoning cannot be disabled).
 - Any other thinking shape → forced to `policy.thinkingShape`.
 
-### Per-model final body (Anthropic, all stamps on + all 6 rules configured)
+### PerModelRule forcing semantics (Anthropic)
 
-| Model | Step 3 thinking | Step 4 rule shape | FINAL thinking | max_tokens | output_config | top_k | temperature | context_mgmt | extra_body |
-|---|---|---|---|---|---|---|---|---|---|
-| umans-kimi-k2.7 | {adaptive} | {enabled,keep:all} | **{enabled,keep:all}** | 32767 | {effort:high} | — | 1.0 | ✅ | — |
-| umans-glm-5.2 | {adaptive} | {enabled,clear_thinking:false} | **{enabled,clear_thinking:false}** | 131071 | {effort:max} | 20 | 1.0 | ✅ | — |
-| umans-coder | {adaptive} | {enabled,keep:all} | **{enabled,keep:all}** | 32767 | {effort:high} | — | 1.0 | ✅ | — |
-| umans-kimi-k3 | {adaptive} | {adaptive} | **{type:adaptive}** | 131071 | {effort:max} | — | 1.0 | ✅ | — |
-| umans-flash | {adaptive} | {enabled} (bare) | **{type:enabled}** | 32767 | {effort:high} | — | 1.0 | ✅ | — |
-| umans-qwen3.6-35b-a3b | {adaptive} | {enabled} (bare) | **{type:enabled}** | 32767 | {effort:high} | — | 1.0 | ✅ | — |
-| unknown model | {adaptive} | (no rule) | **{type:adaptive}** | 32767 | {effort:high} | — | 1.0 | ✅ | — |
+Step 4 uses the same `canDisableThinking` policy as step 3:
 
-> `extra_body` is also merged on the Anthropic route if the rule has
-> `openai_extra_body` set (applies to both routes per code).
+- `body.thinking` enabled (any non-disabled shape) → **always force** to `anthropicThinkingShape` (overrides step 3's adaptive).
+- `body.thinking` disabled/absent AND `canDisableThinking: true` → **respect** (no force, no max_tokens, no output_config). Clean passthrough.
+- `body.thinking` disabled/absent AND `canDisableThinking: false` → **force** to `anthropicThinkingShape` AND stamp `max_tokens` + `output_config` (step 3 skipped them because it saw disabled/absent thinking; PerModelRule revives them).
 
-> `output_config` effort comes from `policy.effort`: `umans-glm*` + `umans-kimi-k3` = `"max"`, all others = `"high"`.
+### Per-model Anthropic result matrix (all toggles on + all 6 rules configured)
+
+**Model configurations:**
+
+| # | Pattern | `anthropicThinkingShape` | extra_body | `effort` | `max_tokens` | `top_k` | `canDisable` |
+|---|---|---|---|---|---|---|---|
+| 1 | `umans-kimi-k2.7` | `{type:"enabled", keep:"all"}` | — | `"high"` | 32767 | — | `false` |
+| 2 | `umans-glm-5.2` | `{type:"enabled", clear_thinking:false}` | — | `"max"` | 131071 | `20` | `true` |
+| 3 | `umans-coder` | `{type:"enabled", keep:"all"}` | — | `"high"` | 32767 | — | `false` |
+| 4 | `umans-kimi-k3` | `{type:"adaptive"}` | — | `"max"` | 131071 | — | `true` |
+| 5 | `umans-flash` | `{type:"enabled"}` (bare) | `{enable_thinking, preserve_thinking}` | `"high"` | 32767 | — | `true` |
+| 6 | `umans-qwen3.6-35b-a3b` | `{type:"enabled"}` (bare) | `{enable_thinking, preserve_thinking}` | `"high"` | 32767 | — | `true` |
+
+> `effort`, `max_tokens`, `top_k`, `canDisable` come from `STAMP_OVERLAY` (code-level, intentionally broad globs). `anthropicThinkingShape`, `extra_body` come from per-model rules (config-level, model-specific patterns).
+
+#### Scenario T: thinking present (`thinking:{type:"enabled"}` or any non-disabled shape)
+
+Step 3 stamps max_tokens + output_config. Step 4 overrides thinking to rule shape. Steps 5/8/9 fire.
+
+| Model | `thinking` | `max_tokens` | `output_config` | `context_mgmt` | `top_k` | `temp` | extra_body |
+|---|---|---|---|---|---|---|---|
+| `umans-kimi-k2.7` | `{type:"enabled", keep:"all"}` | 32767 | `{effort:"high"}` | ✅ | — | `1.0` | — |
+| `umans-glm-5.2` | `{type:"enabled", clear_thinking:false}` | 131071 | `{effort:"max"}` | ✅ | `20` | `1.0` | — |
+| `umans-coder` | `{type:"enabled", keep:"all"}` | 32767 | `{effort:"high"}` | ✅ | — | `1.0` | — |
+| `umans-kimi-k3` | `{type:"adaptive"}` | 131071 | `{effort:"max"}` | ✅ | — | `1.0` | — |
+| `umans-flash` | `{type:"enabled"}` | 32767 | `{effort:"high"}` | ✅ | — | `1.0` | `{enable_thinking:true, preserve_thinking:true}` |
+| `umans-qwen3.6-35b-a3b` | `{type:"enabled"}` | 32767 | `{effort:"high"}` | ✅ | — | `1.0` | `{enable_thinking:true, preserve_thinking:true}` |
+
+#### Scenario D: thinking disabled (`thinking:{type:"disabled"}`)
+
+**canDisable=true** (GLM, kimi-k3, flash, qwen): respect disabled. No force, no max_tokens, no output_config, no context_mgmt, no top_k, no temp.
+
+**canDisable=false** (kimi-k2.7, coder): force shape. Stamp max_tokens + output_config (step 3 skipped them, PerModelRule revives them). context_mgmt + temp fire.
+
+| Model | `thinking` | `max_tokens` | `output_config` | `context_mgmt` | `top_k` | `temp` | `canDisable` |
+|---|---|---|---|---|---|---|---|
+| `umans-kimi-k2.7` | `{type:"enabled", keep:"all"}` | 32767 | `{effort:"high"}` | ✅ | — | `1.0` | `false` |
+| `umans-glm-5.2` | `{type:"disabled"}` (respected) | — | — | — | — | — | `true` |
+| `umans-coder` | `{type:"enabled", keep:"all"}` | 32767 | `{effort:"high"}` | ✅ | — | `1.0` | `false` |
+| `umans-kimi-k3` | `{type:"disabled"}` (respected) | — | — | — | — | — | `true` |
+| `umans-flash` | `{type:"disabled"}` (respected) | — | — | — | — | — | `true` |
+| `umans-qwen3.6-35b-a3b` | `{type:"disabled"}` (respected) | — | — | — | — | — | `true` |
+
+#### Scenario N: thinking absent (no `thinking` block)
+
+Same as scenario D — canDisable=true models leave thinking absent, canDisable=false models force + stamp.
+
+| Model | `thinking` | `max_tokens` | `output_config` | `context_mgmt` | `top_k` | `temp` | `canDisable` |
+|---|---|---|---|---|---|---|---|
+| `umans-kimi-k2.7` | `{type:"enabled", keep:"all"}` | 32767 | `{effort:"high"}` | ✅ | — | `1.0` | `false` |
+| `umans-glm-5.2` | absent (respected) | — | — | — | — | — | `true` |
+| `umans-coder` | `{type:"enabled", keep:"all"}` | 32767 | `{effort:"high"}` | ✅ | — | `1.0` | `false` |
+| `umans-kimi-k3` | absent (respected) | — | — | — | — | — | `true` |
+| `umans-flash` | absent (respected) | — | — | — | — | — | `true` |
+| `umans-qwen3.6-35b-a3b` | absent (respected) | — | — | — | — | — | `true` |
+
+### Key points (Anthropic route)
+
+- **PerModelRule respects `canDisableThinking`** — same semantics as step 3. canDisable=true → respect disabled/absent. canDisable=false → force shape.
+- **canDisable=false models (kimi-k2.7, coder):** always get thinking forced + max_tokens + output_config, even when client sent disabled or absent. PerModelRule stamps max_tokens + output_config directly (step 3 skipped them because it saw disabled/absent thinking).
+- **canDisable=true models:** when thinking is disabled/absent → clean passthrough. No thinking, no max_tokens, no output_config, no context_mgmt, no top_k, no temp.
+- **context_management, top_k, temperature** only fire when thinking is enabled after all steps — i.e. scenario T (all models) or scenario D/N (canDisable=false models only).
+- **veto flag has no effect on Anthropic** — `openai_veto_reasoning_effort` only affects `OpenAiReasoningStep`.
+- **reasoning_effort is always stripped** by step 3 if present.
+- `extra_body` is also merged on the Anthropic route if the rule has `openai_extra_body` set (applies to both routes per code).
 
 ### Header & URL side-effects (Anthropic, stampClaudeCode on)
 
@@ -162,7 +218,7 @@ AND `body.reasoning_effort` is present.
 
 | Step | What it does |
 |---|---|
-| 4. PerModelRule | Sets `body.thinking` to rule's `openai_thinking_shape`. If client thinking is null/disabled → `{type:"disabled"}`. Merges `extra_body` if rule has it. |
+| 4. PerModelRule | Sets `body.thinking` to rule's `openai_thinking_shape` **when a reasoning signal is active** (thinking enabled OR reasoning_effort non-disabled). When no signal → no stamp (thinking left untouched). Merges `extra_body` if rule has it. |
 | 6. OpenAiReasoning | Calls `stampReasoning()`: injects `reasoning_effort` from `policy.effort` (unless vetoed). Strips `output_config` + `context_management`. Forces `temperature=1.0`. **Thinking is NEVER stripped** — PerModelRuleStep owns it. |
 | 7. OpenAiStreamUsage | Injects `stream_options={include_usage:true}` if `stream=true`. Skips if `stream_options.include_usage` is already `true`. |
 | 8. TopK | Injects `top_k=20` (only GLM + only if reasoning_effort present). |
@@ -182,24 +238,93 @@ AND `body.reasoning_effort` is present.
 > If thinking is enabled → strip + force temp (no injection). If thinking
 > is absent or disabled → no-op, regardless of reasoning_effort presence.
 
-### Per-model final body (OpenAI, all stamps on + all 6 rules configured)
+> **PerModelRule interaction:** The "thinking absent + reasoning absent"
+> row in the matrix above describes `OpenAiReasoningStep` only. When
+> PerModelRuleStep runs first (step 4) and detects no reasoning signal,
+> it also skips — leaving `thinking` absent entirely (no
+> `{type:"disabled"}` stamp). This prevents 400 errors on strict upstreams
+> that reject orphaned disabled-thinking blocks without reasoning_effort.
 
-| Model | Step 4 thinking | Step 4 extra_body | Step 6 reasoning_effort | Step 6 temp | Step 8 top_k | Veto? |
-|---|---|---|---|---|---|---|
-| umans-kimi-k2.7 | {enabled,keep:all} | — | NOT injected | 1.0 | — | YES |
-| umans-glm-5.2 | {enabled,keep:all} | — | **max** | 1.0 | 20 | no |
-| umans-coder | {enabled,keep:all} | — | NOT injected | 1.0 | — | YES |
-| umans-kimi-k3 | {enabled} | — | **max** | 1.0 | — | no |
-| umans-flash | {enabled} | {enable_thinking:true, preserve_thinking:true} | **high** | 1.0 | — | no |
-| umans-qwen3.6-35b-a3b | {enabled} | {enable_thinking:true, preserve_thinking:true} | **high** | 1.0 | — | no |
-| unknown model | {enabled} | — | **high** | 1.0 | — | no |
+### PerModelRule detection logic (OpenAI)
 
-Key points:
+`PerModelRuleStep` on OpenAI routes uses OR logic to detect whether a
+reasoning signal is active:
+
+```
+reasoningActive = isThinkingEnabled(body.thinking) || !isReasoningEffortDisabled(body.reasoning_effort)
+```
+
+- `isThinkingEnabled` = thinking present AND not disabled (`{type:"disabled"}`, `{type:"off"}`, `{type:"none"}`, `{enabled:false}`)
+- `isReasoningEffortDisabled` = reasoning_effort absent OR `"off"` / `"none"` / `"null"`
+
+When `reasoningActive=true` → stamps `body.thinking` with `openaiThinkingShape`.
+When `reasoningActive=false` → **no stamp** (thinking left untouched — clean passthrough).
+
+### Per-model OpenAI result matrix (all toggles on + all 6 rules configured)
+
+**Model configurations:**
+
+| # | Pattern | `openaiThinkingShape` | veto | extra_body | `effort` | `top_k` | `canDisable` |
+|---|---|---|---|---|---|---|---|
+| 1 | `umans-kimi-k2.7` | `{type:"enabled", keep:"all"}` | yes | — | `"high"` | — | `false` |
+| 2 | `umans-glm-5.2` | `{type:"enabled", clear_thinking:false}` | — | — | `"max"` | `20` | `true` |
+| 3 | `umans-coder` | `{type:"enabled", keep:"all"}` | yes | — | `"high"` | — | `false` |
+| 4 | `umans-kimi-k3` | `{type:"enabled"}` (bare) | — | — | `"max"` | — | `true` |
+| 5 | `umans-flash` | `{type:"enabled"}` (bare) | — | `{enable_thinking, preserve_thinking}` | `"high"` | — | `true` |
+| 6 | `umans-qwen3.6-35b-a3b` | `{type:"enabled"}` (bare) | — | `{enable_thinking, preserve_thinking}` | `"high"` | — | `true` |
+
+> `effort`, `top_k`, `canDisable` come from `STAMP_OVERLAY` (code-level, intentionally broad globs). `openaiThinkingShape`, `veto`, `extra_body` come from per-model rules (config-level, model-specific patterns).
+
+#### Scenario T: thinking identified (`thinking:{type:"enabled"}`, no `reasoning_effort`)
+
+| Model | `thinking` | `reasoning_effort` | `temp` | `top_k` | extra_body |
+|---|---|---|---|---|---|
+| `umans-kimi-k2.7` | `{type:"enabled", keep:"all"}` | absent (veto blocks inject) | `1.0` | — | — |
+| `umans-glm-5.2` | `{type:"enabled", clear_thinking:false}` | `"max"` | `1.0` | `20` | — |
+| `umans-coder` | `{type:"enabled", keep:"all"}` | absent (veto blocks inject) | `1.0` | — | — |
+| `umans-kimi-k3` | `{type:"enabled"}` | `"max"` | `1.0` | — | — |
+| `umans-flash` | `{type:"enabled"}` | `"high"` | `1.0` | — | `{enable_thinking:true, preserve_thinking:true}` |
+| `umans-qwen3.6-35b-a3b` | `{type:"enabled"}` | `"high"` | `1.0` | — | `{enable_thinking:true, preserve_thinking:true}` |
+
+#### Scenario R: reasoning identified (`reasoning_effort:"high"`, no `thinking`)
+
+| Model | `thinking` | `reasoning_effort` | `temp` | `top_k` | extra_body |
+|---|---|---|---|---|---|
+| `umans-kimi-k2.7` | `{type:"enabled", keep:"all"}` | `"high"` (kept, veto skips force) | `1.0` | — | — |
+| `umans-glm-5.2` | `{type:"enabled", clear_thinking:false}` | `"max"` (forced) | `1.0` | `20` | — |
+| `umans-coder` | `{type:"enabled", keep:"all"}` | `"high"` (kept, veto skips force) | `1.0` | — | — |
+| `umans-kimi-k3` | `{type:"enabled"}` | `"max"` (forced) | `1.0` | — | — |
+| `umans-flash` | `{type:"enabled"}` | `"high"` (forced) | `1.0` | — | `{enable_thinking:true, preserve_thinking:true}` |
+| `umans-qwen3.6-35b-a3b` | `{type:"enabled"}` | `"high"` (forced) | `1.0` | — | `{enable_thinking:true, preserve_thinking:true}` |
+
+#### Scenario N: neither identified (both `thinking` and `reasoning_effort` absent)
+
+| Model | `thinking` | `reasoning_effort` | `temp` | `top_k` |
+|---|---|---|---|---|
+| all 6 | absent | absent | — | — |
+
+Clean passthrough. No stamps. No `thinking:{type:"disabled"}` injection.
+
+#### Scenario D: reasoning disabled (`reasoning_effort:"off"`, no `thinking`)
+
+| Model | `thinking` | `reasoning_effort` | `temp` | `top_k` | Why |
+|---|---|---|---|---|---|
+| `umans-kimi-k2.7` | absent | `"off"` | — | — | PerModelRule no stamp → veto `!hasThinking` → return false |
+| `umans-glm-5.2` | absent | `"off"` | — | `20` | canDisable=true → respected. TopK stamps (re defined) |
+| `umans-coder` | absent | `"off"` | — | — | PerModelRule no stamp → veto `!hasThinking` → return false |
+| `umans-kimi-k3` | absent | `"off"` | — | — | canDisable=true → respected |
+| `umans-flash` | absent | `"off"` | — | — | canDisable=true → respected |
+| `umans-qwen3.6-35b-a3b` | absent | `"off"` | — | — | canDisable=true → respected |
+
+> GLM gets `top_k=20` in scenario D because `TopKStep` gates on `reasoning_effort !== undefined` (not on whether reasoning is active). Only GLM has `top_k !== null` in its overlay.
+
+### Key points (OpenAI route)
 
 - `reasoning_effort` value comes from `policy.effort`: GLM + kimi-k3 = `"max"`, all others = `"high"`.
-- Veto models (kimi-k2.7, coder): `reasoning_effort` never injected (vendor errors on it). Output_config/context_management still stripped, temperature still forced to 1.0 — guaranteed in practice because veto models force `thinking: {enabled}` via per-model rule and `canDisableThinking: false` in the overlay.
+- Veto models (kimi-k2.7, coder): `reasoning_effort` never injected (vendor errors on it). Output_config/context_management still stripped, temperature still forced to 1.0 — but only when thinking is enabled (set by PerModelRuleStep).
 - Thinking is **preserved** (set by PerModelRuleStep, never deleted by stampReasoning).
 - `extra_body` merges on **both** routes (not just OpenAI).
+- When no reasoning signal (scenario N/D) → thinking left absent, no `{type:"disabled"}` stamp. Prevents 400 on strict upstreams that reject orphaned disabled-thinking blocks.
 
 ---
 
@@ -253,9 +378,9 @@ trigger `experiment_rewrite_ids` body rewriting if the retry hits a 502/529.
       "openai_veto_reasoning_effort": true
     },
     {
-      "pattern": "umans-glm-*",
+      "pattern": "umans-glm-5.2",
       "anthropic_thinking_shape": { "type": "enabled", "clear_thinking": false },
-      "openai_thinking_shape": { "type": "enabled", "keep": "all" }
+      "openai_thinking_shape": { "type": "enabled", "clear_thinking": false }
     },
     {
       "pattern": "umans-coder",
@@ -275,7 +400,7 @@ trigger `experiment_rewrite_ids` body rewriting if the retry hits a 502/529.
       "openai_extra_body": { "enable_thinking": true, "preserve_thinking": true }
     },
     {
-      "pattern": "umans-qwen*",
+      "pattern": "umans-qwen3.6-35b-a3b",
       "anthropic_thinking_shape": { "type": "enabled" },
       "openai_thinking_shape": { "type": "enabled" },
       "openai_extra_body": { "enable_thinking": true, "preserve_thinking": true }

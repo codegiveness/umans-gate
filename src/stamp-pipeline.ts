@@ -19,9 +19,9 @@ import type { ParsedModelInfo } from "./model-info-parser.js";
 import { restampBreakpoints } from "./restamp-breakpoints.js";
 import { stampCacheTtl } from "./stamp.js";
 import { resolvePerModelRule, resolveStampPolicy } from "./stamp-catalog.js";
-import { stampReasoning } from "./stamp-reasoning.js";
+import { isReasoningEffortDisabled, stampReasoning } from "./stamp-reasoning.js";
 import { stampTemperature } from "./stamp-temperature.js";
-import { isThinkingDisabled, isThinkingEnabled, stampThinking } from "./stamp-thinking.js";
+import { isThinkingEnabled, stampThinking } from "./stamp-thinking.js";
 import { stampTopK } from "./stamp-topk.js";
 import type {
   AnthropicBody,
@@ -199,12 +199,42 @@ export const PerModelRuleStep: StampStep = {
     const shape = ctx.isOpenAi ? rule.openaiThinkingShape : rule.anthropicThinkingShape;
     if (shape) {
       const existing = (body as Record<string, unknown>).thinking;
-      if (ctx.isOpenAi && (existing == null || isThinkingDisabled(existing))) {
-        (body as Record<string, unknown>).thinking = { type: "disabled" };
+      if (ctx.isOpenAi) {
+        // On OpenAI routes, reasoning_effort (non-disabled) is the canonical
+        // "reasoning active" signal — equivalent to an enabled thinking block
+        // on Anthropic. Apply openaiThinkingShape only when a reasoning
+        // signal is active. When no signal is present (both thinking and
+        // reasoning_effort absent/disabled), leave thinking untouched —
+        // stamping {type:"disabled"} without reasoning_effort causes 400 on
+        // strict upstreams that reject orphaned disabled-thinking blocks.
+        const reasoningEffort = (body as Record<string, unknown>).reasoning_effort;
+        const reasoningActive =
+          isThinkingEnabled(existing) || !isReasoningEffortDisabled(reasoningEffort);
+        if (reasoningActive) {
+          (body as Record<string, unknown>).thinking = { ...shape };
+          changed = true;
+        }
       } else {
-        (body as Record<string, unknown>).thinking = { ...shape };
+        // Anthropic route: respect canDisableThinking from the overlay policy.
+        // When thinking is enabled → force rule shape (override step 3's adaptive).
+        // When thinking is disabled/absent AND canDisable=false → force rule shape
+        //   and stamp max_tokens + output_config (step 3 skipped them because
+        //   thinking was disabled; we're reviving reasoning so they're needed).
+        // When thinking is disabled/absent AND canDisable=true → leave untouched.
+        //   No max_tokens, no output_config, no context_mgmt, no top_k, no temp.
+        //   The client explicitly disabled reasoning; respect it.
+        const policy = resolveStampPolicy(ctx.modelName, ctx.catalog);
+        if (isThinkingEnabled(existing) || !policy.canDisableThinking) {
+          (body as Record<string, unknown>).thinking = { ...shape };
+          if (!isThinkingEnabled(existing)) {
+            // Reviving from disabled/absent — step 3 skipped max_tokens + output_config.
+            const b = body as Record<string, unknown>;
+            b.max_tokens = policy.max_tokens;
+            b.output_config = { effort: policy.effort };
+          }
+          changed = true;
+        }
       }
-      changed = true;
     }
 
     if (rule.openaiExtraBody) {

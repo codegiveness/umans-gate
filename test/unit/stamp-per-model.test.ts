@@ -191,7 +191,7 @@ describe("PerModelRuleStep — Anthropic route", () => {
     expect(PerModelRuleStep.applies(ctx)).toBe(false);
   });
 
-  it("fires even when stampClaudeCode is OFF (independent)", () => {
+  it("fires even when stampClaudeCode is OFF (independent, thinking enabled)", () => {
     const rules: PerModelRule[] = [
       {
         pattern: "umans-glm-*",
@@ -201,7 +201,11 @@ describe("PerModelRuleStep — Anthropic route", () => {
     const config = makeConfig({ stampClaudeCode: false, stampModelRules: rules });
     const ctx = makeCtx(config, "umans-glm-5.2", false);
     expect(PerModelRuleStep.applies(ctx)).toBe(true);
-    const body: Record<string, unknown> = { model: "umans-glm-5.2", messages: [] };
+    const body: Record<string, unknown> = {
+      model: "umans-glm-5.2",
+      thinking: { type: "adaptive" },
+      messages: [],
+    };
     expect(PerModelRuleStep.apply(body, ctx)).toBe(true);
     expect(body.thinking).toEqual({ type: "enabled", clear_thinking: false });
   });
@@ -545,8 +549,8 @@ describe("PerModelRuleStep — umans-kimi-k3 (adaptive rule)", () => {
   });
 });
 
-describe("PerModelRuleStep — null/disabled thinking → {disabled}", () => {
-  it("OpenAI: null thinking → {type:disabled}", () => {
+describe("PerModelRuleStep — no reasoning signal → thinking untouched", () => {
+  it("OpenAI: null thinking + null reasoning_effort → thinking absent (no stamp)", () => {
     const rules: PerModelRule[] = [
       {
         pattern: "umans-glm-*",
@@ -557,10 +561,10 @@ describe("PerModelRuleStep — null/disabled thinking → {disabled}", () => {
     const ctx = makeCtx(config, "umans-glm-5.2", true);
     const body: Record<string, unknown> = { model: "umans-glm-5.2", messages: [] };
     PerModelRuleStep.apply(body, ctx);
-    expect(body.thinking).toEqual({ type: "disabled" });
+    expect(body.thinking).toBeUndefined();
   });
 
-  it("OpenAI: disabled thinking → {type:disabled}", () => {
+  it("OpenAI: disabled thinking + null reasoning_effort → thinking stays disabled (no override)", () => {
     const rules: PerModelRule[] = [
       {
         pattern: "umans-glm-*",
@@ -578,7 +582,7 @@ describe("PerModelRuleStep — null/disabled thinking → {disabled}", () => {
     expect(body.thinking).toEqual({ type: "disabled" });
   });
 
-  it("Anthropic: null thinking → rule shape forced (not disabled)", () => {
+  it("Anthropic: null thinking + canDisable=true (GLM) → thinking stays absent (no force)", () => {
     const rules: PerModelRule[] = [
       {
         pattern: "umans-glm-*",
@@ -589,6 +593,118 @@ describe("PerModelRuleStep — null/disabled thinking → {disabled}", () => {
     const ctx = makeCtx(config, "umans-glm-5.2", false);
     const body: Record<string, unknown> = { model: "umans-glm-5.2", messages: [] };
     PerModelRuleStep.apply(body, ctx);
-    expect(body.thinking).toEqual({ type: "enabled", clear_thinking: false });
+    expect(body.thinking).toBeUndefined();
+  });
+
+  it("Anthropic: null thinking + canDisable=false (Kimi K2.7) → force shape + max_tokens + output_config", () => {
+    const rules: PerModelRule[] = [
+      {
+        pattern: "umans-kimi-k2.7",
+        anthropicThinkingShape: { type: "enabled", keep: "all" },
+      },
+    ];
+    const config = makeConfig({ stampModelRules: rules });
+    const ctx = makeCtx(config, "umans-kimi-k2.7", false);
+    const body: Record<string, unknown> = { model: "umans-kimi-k2.7", messages: [] };
+    PerModelRuleStep.apply(body, ctx);
+    expect(body.thinking).toEqual({ type: "enabled", keep: "all" });
+    expect(body.max_tokens).toBe(32767);
+    expect(body.output_config).toEqual({ effort: "high" });
+  });
+
+  it("Anthropic: disabled thinking + canDisable=true (GLM) → thinking stays disabled (no force)", () => {
+    const rules: PerModelRule[] = [
+      {
+        pattern: "umans-glm-*",
+        anthropicThinkingShape: { type: "enabled", clear_thinking: false },
+      },
+    ];
+    const config = makeConfig({ stampModelRules: rules });
+    const ctx = makeCtx(config, "umans-glm-5.2", false);
+    const body: Record<string, unknown> = {
+      model: "umans-glm-5.2",
+      thinking: { type: "disabled" },
+      messages: [],
+    };
+    PerModelRuleStep.apply(body, ctx);
+    expect(body.thinking).toEqual({ type: "disabled" });
+  });
+
+  it("Anthropic: disabled thinking + canDisable=false (Kimi K2.7) → force shape + max_tokens + output_config", () => {
+    const rules: PerModelRule[] = [
+      {
+        pattern: "umans-kimi-k2.7",
+        anthropicThinkingShape: { type: "enabled", keep: "all" },
+      },
+    ];
+    const config = makeConfig({ stampModelRules: rules });
+    const ctx = makeCtx(config, "umans-kimi-k2.7", false);
+    const body: Record<string, unknown> = {
+      model: "umans-kimi-k2.7",
+      thinking: { type: "disabled" },
+      messages: [],
+    };
+    PerModelRuleStep.apply(body, ctx);
+    expect(body.thinking).toEqual({ type: "enabled", keep: "all" });
+    expect(body.max_tokens).toBe(32767);
+    expect(body.output_config).toEqual({ effort: "high" });
+  });
+});
+
+describe("PerModelRuleStep — OpenAI reasoning_effort → thinking shape resolution", () => {
+  it("OpenAI: reasoning_effort present + null thinking → shape applied (not disabled)", () => {
+    const rules: PerModelRule[] = [
+      {
+        pattern: "umans-glm-*",
+        openaiThinkingShape: { type: "enabled", keep: "all" },
+      },
+    ];
+    const config = makeConfig({ stampModelRules: rules });
+    const ctx = makeCtx(config, "umans-glm-5.2", true);
+    const body: Record<string, unknown> = {
+      model: "umans-glm-5.2",
+      reasoning_effort: "high",
+      messages: [],
+    };
+    PerModelRuleStep.apply(body, ctx);
+    expect(body.thinking).toEqual({ type: "enabled", keep: "all" });
+    expect(body.reasoning_effort).toBe("high");
+  });
+
+  it("OpenAI: reasoning_effort:off + null thinking → thinking absent (no stamp)", () => {
+    const rules: PerModelRule[] = [
+      {
+        pattern: "umans-glm-*",
+        openaiThinkingShape: { type: "enabled", keep: "all" },
+      },
+    ];
+    const config = makeConfig({ stampModelRules: rules });
+    const ctx = makeCtx(config, "umans-glm-5.2", true);
+    const body: Record<string, unknown> = {
+      model: "umans-glm-5.2",
+      reasoning_effort: "off",
+      messages: [],
+    };
+    PerModelRuleStep.apply(body, ctx);
+    expect(body.thinking).toBeUndefined();
+  });
+
+  it("OpenAI: reasoning_effort present + disabled thinking → shape applied (reasoning wins)", () => {
+    const rules: PerModelRule[] = [
+      {
+        pattern: "umans-glm-*",
+        openaiThinkingShape: { type: "enabled", keep: "all" },
+      },
+    ];
+    const config = makeConfig({ stampModelRules: rules });
+    const ctx = makeCtx(config, "umans-glm-5.2", true);
+    const body: Record<string, unknown> = {
+      model: "umans-glm-5.2",
+      reasoning_effort: "high",
+      thinking: { type: "disabled" },
+      messages: [],
+    };
+    PerModelRuleStep.apply(body, ctx);
+    expect(body.thinking).toEqual({ type: "enabled", keep: "all" });
   });
 });

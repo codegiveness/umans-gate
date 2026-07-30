@@ -12,7 +12,7 @@ export interface StampReasoningOptions {
 
 const DISABLED_EFFORT_VALUES = new Set(["off", "none", "null"]);
 
-function isReasoningEffortDisabled(value: unknown): boolean {
+export function isReasoningEffortDisabled(value: unknown): boolean {
   if (value == null) return true;
   if (typeof value === "string" && DISABLED_EFFORT_VALUES.has(value.toLowerCase())) return true;
   return false;

@@ -1,6 +1,6 @@
 # Transparency report: every endpoint umans-gate contacts
 
-> **Applies to:** umans-gate v0.5.9 · **Last updated:** 2026-07-30
+> **Applies to:** umans-gate v0.5.10 · **Last updated:** 2026-07-30
 
 umans-gate needs your Umans API key to unlock `/v1/usage` polling,
 concurrency sizing, rate-limit validation, and vision handoff. This

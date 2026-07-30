@@ -28,13 +28,13 @@ export const CANONICAL_STAMP_MODEL_RULES: CanonicalModelRule[] = [
     },
   },
   {
-    pattern: "umans-glm-*",
-    label: "GLM 5.x",
+    pattern: "umans-glm-5.2",
+    label: "GLM 5.2",
     description: "Keeps thinking on for both routes, with slightly different settings per route.",
     rule: {
-      pattern: "umans-glm-*",
+      pattern: "umans-glm-5.2",
       anthropic_thinking_shape: { type: "enabled", clear_thinking: false },
-      openai_thinking_shape: { type: "enabled", keep: "all" },
+      openai_thinking_shape: { type: "enabled", clear_thinking: false },
     },
   },
   {
@@ -71,11 +71,11 @@ export const CANONICAL_STAMP_MODEL_RULES: CanonicalModelRule[] = [
     },
   },
   {
-    pattern: "umans-qwen*",
-    label: "Qwen",
+    pattern: "umans-qwen3.6-35b-a3b",
+    label: "Qwen 3.6 35B A3B",
     description: "Thinking on for both routes. Adds extra flags to enable and preserve thinking.",
     rule: {
-      pattern: "umans-qwen*",
+      pattern: "umans-qwen3.6-35b-a3b",
       anthropic_thinking_shape: { type: "enabled" },
       openai_thinking_shape: { type: "enabled" },
       openai_extra_body: { enable_thinking: true, preserve_thinking: true },

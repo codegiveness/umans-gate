@@ -441,7 +441,7 @@ export interface OutputConfig {
  * See ADR-0020.
  */
 export interface PerModelRule {
-  /** Glob pattern for model name matching (e.g. "umans-glm-*", "umans-coder"). */
+  /** Glob pattern for model name matching (e.g. "umans-glm-5.2", "umans-coder"). */
   pattern: string;
   /** Anthropic route: force this thinkingShape onto the request. */
   anthropicThinkingShape?: ThinkingConfig;
