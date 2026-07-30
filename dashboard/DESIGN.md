@@ -8,7 +8,7 @@ color, spacing value, or font size not declared here.
 ## Design tokens source
 
 - **shadcn/ui style:** `base-nova` (Base UI preset, Nova theme. Lucide
-  icons, Geist font)
+  icons, Inter font)
 - **Primitive library:** `@base-ui/react@1.6.0`. Base UI only. No
   `@radix-ui/*` packages. Every component in `src/components/ui/` MUST be
   a stock shadcn Base UI wrapper; extend via `className` / `render` prop,
@@ -85,7 +85,7 @@ config experimental/Umans API badges.
 
 ## Typography
 
-- **Body / sans:** `Geist Variable` (via `@fontsource-variable/geist`),
+- **Body / sans:** `Inter Variable` (via `@fontsource-variable/inter`),
   Tailwind `font-sans` / default `font-family`. Nova preset default; no
   manual font stacks.
 - **Monospace (Tailwind):** `ui-monospace`, `"SF Mono"`, `Menlo`, `monospace`

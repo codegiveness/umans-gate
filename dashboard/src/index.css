@@ -43,8 +43,8 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
-  --font-sans: "Geist Variable", sans-serif;
-  --font-heading: "Geist Variable", sans-serif;
+  --font-sans: "Inter Variable", sans-serif;
+  --font-heading: "Inter Variable", sans-serif;
 }
 
 @layer base {
