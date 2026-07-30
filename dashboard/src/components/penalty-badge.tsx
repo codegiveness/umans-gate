@@ -5,7 +5,8 @@ import { computeGateHealth, type GateHealthInput } from "@/lib/gate-health";
 
 /**
  * Unified penalty badge. Renders the pill (label) plus a structured tooltip
- * listing all offending budget categories and account-level penalties.
+ * with the full /v1/usage penalty surface — every priority budget category,
+ * account-level priority state, and service mode. Nothing filtered or cut.
  *
  * Pass null to render nothing (no layout shift on fresh dashboards).
  */
@@ -13,10 +14,15 @@ export function PenaltyBadge({ input }: { input: GateHealthInput | null }) {
   if (input === null) return null;
 
   const result = computeGateHealth(input);
+  // Exclude "interactive" from account-wide — serviceModeTier treats it as
+  // green (same as "normal"), so the badge shouldn't claim account-wide
+  // penalty for it.
   const accountWide =
     input.boxed ||
     input.unitsDemoted ||
-    (input.serviceMode != null && input.serviceMode.current !== "normal");
+    (input.serviceMode != null &&
+      input.serviceMode.current !== "normal" &&
+      input.serviceMode.current !== "interactive");
 
   return (
     <Tooltip>
@@ -25,60 +31,77 @@ export function PenaltyBadge({ input }: { input: GateHealthInput | null }) {
           {result.label}
         </Badge>
       </TooltipTrigger>
-      <TooltipContent side="bottom" className="max-w-[320px]">
-        <div className="space-y-1">
-          {result.admissionDetail && input.serviceMode == null && <p>{result.admissionDetail}</p>}
-          {result.offendingCategories.length > 0 && (
-            <div className="space-y-1">
-              {result.offendingCategories.map((cat) => (
-                <div key={cat.label} className="space-y-0.5">
-                  <p>
-                    {cat.label} {cat.usedPct}%
-                  </p>
-                  <p className="text-background/70">
-                    {cat.models.length > 0 ? cat.models.join(", ") : "Account-wide — all models"}
-                  </p>
-                  <p className="text-background/70">mode: {cat.mode}</p>
-                  {cat.overBudgetToday && <p className="text-background/70">over budget today</p>}
-                  {cat.resetsAt !== null && (
-                    <p className="text-background/70">resets in {fmtDurationUntil(cat.resetsAt)}</p>
-                  )}
-                </div>
-              ))}
+      <TooltipContent side="bottom" className="max-w-[440px]">
+        <div className="space-y-2">
+          {/* Budget categories — every category, nothing filtered */}
+          {input.budgets.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-background/50">
+                Budget categories
+              </p>
+              {input.budgets.map((cat) => {
+                const urgent = cat.overBudgetToday || cat.usedPct >= 80;
+                return (
+                  <div key={cat.category} className="space-y-0.5">
+                    <p className={urgent ? "font-semibold text-amber-400" : ""}>
+                      {cat.label} — {cat.usedPct}% used
+                      {cat.overBudgetToday ? " · over budget" : ""}
+                    </p>
+                    <p className="text-background/60">
+                      {cat.models.length > 0 ? cat.models.join(", ") : "Account-wide — all models"}
+                    </p>
+                    <p className="text-background/60">
+                      {cat.mode === "interactive" ? "Normal service" : `Throttled: ${cat.mode}`}
+                      {cat.resetsAt != null ? ` · resets in ${fmtDurationUntil(cat.resetsAt)}` : ""}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
+          ) : (
+            <p className="text-background/60">No budget categories configured</p>
           )}
-          {input.boxedReason && input.serviceMode == null && <p>reason: {input.boxedReason}</p>}
-          {input.boxed && input.boxedUntil !== null && input.serviceMode == null && (
-            <p className="text-background/70">boxed until {fmtUtcDateTime(input.boxedUntil)}</p>
+
+          {/* Account-level priority + service mode */}
+          <div className="space-y-1 border-t border-background/15 pt-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-background/50">
+              Account state
+            </p>
+            <p className="text-background/70">
+              Priority: {input.priorityLow ? "low (reduced throughput)" : "normal"}
+              {input.boxed ? " · rate-limited" : ""}
+              {input.unitsDemoted ? " · compute units demoted" : ""}
+            </p>
+            {input.boxedReason && <p className="text-background/60">Reason: {input.boxedReason}</p>}
+            {input.boxedUntil != null && (
+              <p className="text-background/60">boxed_until {fmtUtcDateTime(input.boxedUntil)}</p>
+            )}
+            {input.demotedUntil != null && (
+              <p className="text-background/60">
+                demoted_until {fmtUtcDateTime(input.demotedUntil)}
+              </p>
+            )}
+            {input.serviceMode != null && (
+              <p className="text-background/70">
+                service_mode:{" "}
+                {input.serviceMode.current === "interactive" ||
+                input.serviceMode.current === "normal"
+                  ? "normal"
+                  : input.serviceMode.current}
+                {input.serviceMode.resetsAt != null
+                  ? ` · resets_at ${fmtUtcDateTime(input.serviceMode.resetsAt)}`
+                  : ""}
+              </p>
+            )}
+          </div>
+
+          {accountWide && (
+            <p className="text-background/60">⚠ Affects all models on this account</p>
           )}
-          {input.unitsDemoted && input.demotedUntil !== null && input.serviceMode == null && (
-            <p className="text-background/70">demoted until {fmtUtcDateTime(input.demotedUntil)}</p>
-          )}
-          {accountWide && <p className="text-background/70">Account-wide — all models</p>}
           {result.tier === "green" && result.offendingCategories.length === 0 && (
-            <p className="text-background/70">All systems nominal</p>
-          )}
-          {input.serviceMode != null && (
-            <div className="space-y-0.5 border-t border-background/10 pt-1">
-              <p className="text-background/70">
-                service_mode: {input.serviceMode.current}
-                {input.serviceMode.resetsAt !== null && (
-                  <span> · resets_at {fmtUtcDateTime(input.serviceMode.resetsAt)}</span>
-                )}
-              </p>
-              <p className="text-background/70">
-                priority: {input.priorityLow ? "low" : "normal"}
-                {input.boxed ? " · boxed" : ""}
-                {input.unitsDemoted ? " · units_demoted" : ""}
-                {input.boxedReason ? ` · reason: ${input.boxedReason}` : ""}
-                {input.boxedUntil !== null && (
-                  <span> · boxed_until {fmtUtcDateTime(input.boxedUntil)}</span>
-                )}
-                {input.demotedUntil !== null && (
-                  <span> · demoted_until {fmtUtcDateTime(input.demotedUntil)}</span>
-                )}
-              </p>
-            </div>
+            <p className="font-medium text-emerald-400">
+              ✓ All categories healthy — no throttling active
+            </p>
           )}
         </div>
       </TooltipContent>

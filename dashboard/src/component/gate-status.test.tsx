@@ -233,7 +233,7 @@ describe("GateStatus penalty badge", () => {
     expect(container).toHaveTextContent("Frontier models");
     expect(container).toHaveTextContent("umans-glm-5.2");
     expect(container).toHaveTextContent("umans-o3");
-    expect(container).toHaveTextContent("mode: standard");
+    expect(container).toHaveTextContent("Throttled: standard");
     expect(container).toHaveTextContent("resets in");
   });
 
@@ -348,7 +348,7 @@ describe("GateStatus penalty badge tooltip sections", () => {
   it("shows 'All systems nominal' when healthy and no budget", async () => {
     const { container } = render(<GateStatus stats={baseStats} />);
     await flushEffects();
-    expect(container).toHaveTextContent("All systems nominal");
+    expect(container).toHaveTextContent("All categories healthy — no throttling active");
   });
 
   it("omits admission detail when state is high", async () => {
@@ -396,7 +396,7 @@ describe("GateStatus penalty badge tooltip sections", () => {
       />,
     );
     await flushEffects();
-    expect(container).toHaveTextContent("service_mode: interactive");
+    expect(container).toHaveTextContent("service_mode: normal");
     expect(container).toHaveTextContent("Frontier models");
   });
 
@@ -412,7 +412,7 @@ describe("GateStatus penalty badge tooltip sections", () => {
       />,
     );
     await flushEffects();
-    expect(container).toHaveTextContent("reason: rate_limit_exceeded");
+    expect(container).toHaveTextContent("Reason: rate_limit_exceeded");
     expect(container).toHaveTextContent("boxed_until");
   });
 
@@ -442,7 +442,7 @@ describe("GateStatus penalty badge tooltip sections", () => {
       />,
     );
     await flushEffects();
-    expect(container).toHaveTextContent("Account-wide — all models");
+    expect(container).toHaveTextContent("Affects all models on this account");
   });
 
   it("renders exactly one status badge when service mode interactive with usageSnapshot", async () => {
@@ -480,7 +480,7 @@ describe("GateStatus penalty badge tooltip sections", () => {
     );
     await flushEffects();
     expect(container).toHaveTextContent("service_mode:");
-    expect(container).toHaveTextContent("priority:");
+    expect(container).toHaveTextContent("Priority:");
   });
 });
 
