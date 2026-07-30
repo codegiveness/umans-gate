@@ -6,7 +6,7 @@ export const VISION_GENERAL_FIELDS: FieldDef[] = [
     label: "Strategy",
     kind: "select",
     description:
-      "Controls when the proxy intercepts image-bearing requests for vision description. 'never' disables interception; 'catalog' (default) intercepts only for models lacking vision support (background mode — first request with new image passes through, cache populated for next); 'always' forces interception for all requests. Default: catalog.",
+      "When the proxy should describe images for the model. 'never' = don't touch images. 'catalog' (default) = only when the model can't see images. 'always' = describe every image. Default: catalog.",
     options: [
       { value: "never", label: "Never" },
       { value: "catalog", label: "Catalog" },
@@ -15,14 +15,14 @@ export const VISION_GENERAL_FIELDS: FieldDef[] = [
     restartRequired: true,
     required: true,
     tooltip:
-      "When strategy is 'catalog' (default), vision processing runs in background mode: the first request with a new image is forwarded upstream untouched, and the cache is populated for the next request. Switch to 'always' to intercept synchronously (adds latency to first-image requests).",
+      "In 'catalog' mode, the first request with a new image passes through untouched while the description is saved in the background. Pick 'always' to describe images right away (adds a small delay to the first request).",
   },
   {
     key: "vision_model",
     label: "Model",
     kind: "select",
     description:
-      "Model used to generate image descriptions during vision interception. Dropdown populated from /v1/models/info at runtime. Default: umans-flash.",
+      "Which model describes the images. The list comes from your available models. Default: umans-flash.",
     restartRequired: true,
     required: true,
   },
@@ -34,7 +34,7 @@ export const VISION_TUNING_FIELDS: FieldDef[] = [
     label: "Prompt",
     kind: "textarea",
     description:
-      "System prompt sent to the vision model when generating image descriptions. Cached entries with a mismatched vision_prompt_version are treated as misses — bump version manually when you change this prompt to invalidate old cache entries. Default: built-in prompt producing exhaustive, structured descriptions (image type, OCR, visual elements, data/charts, contextual clues, quality notes).",
+      "The instructions sent to the vision model when describing images. Bump the version number below when you change this so old descriptions are regenerated. Default: a built-in prompt that describes images in detail.",
     restartRequired: true,
     required: true,
   },
@@ -43,7 +43,7 @@ export const VISION_TUNING_FIELDS: FieldDef[] = [
     label: "Prompt Version",
     kind: "number",
     description:
-      "Version tag for the vision prompt. Bump manually when you edit vision_prompt to invalidate cached descriptions generated with an older prompt. Entries with mismatched version are treated as misses. Default: 2.",
+      "A number tag for your prompt. Raise it when you edit the prompt so old descriptions are redone. Default: 2.",
     restartRequired: true,
     required: true,
     min: 1,
@@ -52,8 +52,7 @@ export const VISION_TUNING_FIELDS: FieldDef[] = [
     key: "vision_max_images",
     label: "Max Images",
     kind: "number",
-    description:
-      "Maximum images processed in a single vision interception request. Additional images ignored. Default: 5.",
+    description: "Most images described in one request. Extra images are ignored. Default: 5.",
     restartRequired: true,
     required: true,
     min: 1,
@@ -64,7 +63,7 @@ export const VISION_TUNING_FIELDS: FieldDef[] = [
     label: "Max Description Tokens",
     kind: "number",
     description:
-      "Maximum tokens the vision model may generate per image description. Higher = more detail, more latency. Default: 4,096.",
+      "Longest description the vision model can write per image. More tokens = more detail but slower. Default: 4,096.",
     restartRequired: true,
     required: true,
     min: 1,
@@ -75,7 +74,7 @@ export const VISION_TUNING_FIELDS: FieldDef[] = [
     label: "Reasoning Effort",
     kind: "select",
     description:
-      "Reasoning effort for the vision model. 'none' disables reasoning; low/medium/high increase reasoning depth at cost of latency. 'Default (null)' uses the model's built-in default. Default: none.",
+      "How hard the vision model thinks before answering. 'none' = fastest, 'high' = deepest. 'Default' lets the model pick. Default: none.",
     options: [
       { value: "", label: "Default (null)" },
       { value: "none", label: "None" },
@@ -90,8 +89,7 @@ export const VISION_TUNING_FIELDS: FieldDef[] = [
     key: "vision_timeout_ms",
     label: "Timeout",
     kind: "number",
-    description:
-      "Timeout for vision interception requests. 0 = no timeout (wait indefinitely). Default: 0.",
+    description: "How long to wait for the vision model. 0 = wait forever. Default: 0.",
     restartRequired: true,
     required: true,
     min: 0,
@@ -102,7 +100,7 @@ export const VISION_TUNING_FIELDS: FieldDef[] = [
     label: "Cache Size",
     kind: "number",
     description:
-      "Maximum entries in the in-memory vision description cache. Oldest evicted when full. Default: 1,000.",
+      "How many image descriptions to keep in memory. Oldest are dropped when full. Default: 1,000.",
     restartRequired: true,
     required: true,
     min: 100,
@@ -111,8 +109,7 @@ export const VISION_TUNING_FIELDS: FieldDef[] = [
     key: "vision_cache_ttl_ms",
     label: "Cache TTL",
     kind: "number",
-    description:
-      "TTL for vision description cache entries and vision call capture rows. Expired entries are treated as misses and re-fetched; vision call rows are auto-deleted. Default: 604,800,000 ms (7 days).",
+    description: "How long an image description is kept before it's redone. Default: 7 days.",
     restartRequired: true,
     min: 1000,
     suffix: "ms",
@@ -122,7 +119,7 @@ export const VISION_TUNING_FIELDS: FieldDef[] = [
     label: "Cache Max Rows",
     kind: "number",
     description:
-      "Maximum rows in the persistent (on-disk SQLite) vision cache. Oldest evicted when table is full. Default: 10,000.",
+      "Most image descriptions saved on disk. Oldest are dropped when full. Default: 10,000.",
     restartRequired: true,
     min: 100,
   },
@@ -131,7 +128,7 @@ export const VISION_TUNING_FIELDS: FieldDef[] = [
     label: "Persistent Cache",
     kind: "boolean",
     description:
-      "When on, vision description cache is persisted to SQLite and survives restarts. When off, in-memory only. Default: on.",
+      "When on, image descriptions survive restarts. When off, they're forgotten on restart. Default: on.",
     restartRequired: true,
   },
   {
@@ -139,7 +136,7 @@ export const VISION_TUNING_FIELDS: FieldDef[] = [
     label: "Concurrency",
     kind: "number",
     description:
-      "Maximum concurrent vision interception requests. Higher = parallel image processing but more upstream load. Default: 1.",
+      "How many images to describe at the same time. Higher = faster but more API load. Default: 1.",
     restartRequired: true,
     required: true,
     min: 1,
@@ -150,7 +147,7 @@ export const VISION_TUNING_FIELDS: FieldDef[] = [
     label: "Max Dimension",
     kind: "number",
     description:
-      "Maximum width or height for preprocessed images. Images exceeding this are downscaled proportionally before sending to the vision model. Default: 2,048 px.",
+      "Biggest width or height for images sent to the vision model. Bigger images are shrunk first. Default: 2,048 px.",
     restartRequired: true,
     min: 256,
     max: 8192,
@@ -161,7 +158,7 @@ export const VISION_TUNING_FIELDS: FieldDef[] = [
     label: "JPEG Quality",
     kind: "number",
     description:
-      "JPEG encoding quality for preprocessed images when vision_image_format is 'jpeg'. Higher = sharper, larger files. Ignored when format is 'png'. Default: 92.",
+      "Quality for JPEG images sent to the vision model. Higher = sharper but bigger files. Only used when format is JPEG. Default: 92.",
     restartRequired: true,
     min: 1,
     max: 100,
@@ -171,7 +168,7 @@ export const VISION_TUNING_FIELDS: FieldDef[] = [
     label: "Image Format",
     kind: "select",
     description:
-      "Output image format for preprocessed images sent to the vision model. 'jpeg' = smaller payloads, lossy; 'png' = lossless, larger. Default: png.",
+      "Picture format sent to the vision model. JPEG = smaller, slight quality loss. PNG = perfect quality, bigger. Default: PNG.",
     options: [
       { value: "jpeg", label: "JPEG" },
       { value: "png", label: "PNG" },
@@ -183,7 +180,7 @@ export const VISION_TUNING_FIELDS: FieldDef[] = [
     label: "Image Detail",
     kind: "select",
     description:
-      "OpenAI-style image detail level sent to the vision model. 'low' = single low-res pass; 'high' = higher detail (more tokens, more accurate); 'auto' = model decides based on image size. Default: high.",
+      "Detail level for images sent to the vision model. 'low' = quick and fuzzy. 'high' = sharp but uses more tokens. 'auto' = model decides. Default: high.",
     options: [
       { value: "auto", label: "Auto" },
       { value: "low", label: "Low" },
@@ -196,7 +193,7 @@ export const VISION_TUNING_FIELDS: FieldDef[] = [
     label: "Pending Max Batch",
     kind: "number",
     description:
-      "Maximum pending vision requests batched into a single processing cycle. Higher = more throughput under load, more latency for first request in batch. Default: 50.",
+      "Most image tasks processed together. Higher = faster under load but the first task waits longer. Default: 50.",
     restartRequired: true,
     min: 1,
   },
@@ -205,7 +202,7 @@ export const VISION_TUNING_FIELDS: FieldDef[] = [
     label: "Intent Strategy",
     kind: "select",
     description:
-      "Controls how the vision model is prompted once interception is decided. 'off' = generic OCR prompt for all images; 'slotted' = includes user's adjacent question in prompt; 'crafted' = LLM call reformulates single-image questions into neutral, focused image-description requests (Strategy D); 'auto' (default) = deterministic triage picks best strategy per request based on adjacent text, image count, and tool-result status.",
+      "How the vision model is prompted. 'off' = generic description without context. 'slotted' = includes your nearby question. 'crafted' = rewrites your question to focus on the image. 'auto' (default) = proxy picks the best one for each request.",
     options: [
       { value: "off", label: "Off (generic only)" },
       { value: "slotted", label: "Slotted" },
@@ -219,7 +216,7 @@ export const VISION_TUNING_FIELDS: FieldDef[] = [
     label: "Decomposition Enabled",
     kind: "boolean",
     description:
-      "When on, multi-image requests with explicit image references are split into per-image sub-questions via a cheap LLM call (DecoVQA+ pattern). Sub-questions are neutrally phrased to defend against Visual Sycophancy. Results cached in-memory per batch key. Any failure falls back to slotted strategy. Default: on.",
+      "When on, requests with multiple images are split into one question per image. Better answers for multi-image questions. Falls back to slotted if it fails. Default: on.",
     restartRequired: false,
   },
   {
@@ -227,7 +224,7 @@ export const VISION_TUNING_FIELDS: FieldDef[] = [
     label: "Decomposition Timeout",
     kind: "number",
     description:
-      "Timeout for the decomposition LLM call. On timeout, request falls back to slotted strategy. Default: 3,000 ms.",
+      "How long to wait for the split-up step. If it takes too long, falls back to slotted. Default: 3 seconds.",
     restartRequired: false,
     min: 100,
     suffix: "ms",
@@ -237,7 +234,7 @@ export const VISION_TUNING_FIELDS: FieldDef[] = [
     label: "Crafting Timeout",
     kind: "number",
     description:
-      "Timeout for the crafting LLM call (Strategy D). On timeout, request falls back to slotted strategy. Default: 3,000 ms.",
+      "How long to wait for the question-rewrite step. If it takes too long, falls back to slotted. Default: 3 seconds.",
     restartRequired: false,
     min: 100,
     suffix: "ms",
@@ -247,7 +244,7 @@ export const VISION_TUNING_FIELDS: FieldDef[] = [
     label: "Adjacent Text Max Chars",
     kind: "number",
     description:
-      "Maximum characters extracted from text blocks adjacent to an image block, used as context for triage and crafted/decomposed prompts. 0 = no extraction. Default: 500.",
+      "How much nearby text to grab as context when describing an image. 0 = none. Default: 500.",
     restartRequired: false,
     min: 0,
   },
@@ -255,8 +252,7 @@ export const VISION_TUNING_FIELDS: FieldDef[] = [
     key: "vision_recent_messages_count",
     label: "Recent Messages Count",
     kind: "number",
-    description:
-      "Number of recent user messages included in vision context (VisionContext.recentMessages). 0 = disabled. Default: 6.",
+    description: "How many of your recent messages to include as context. 0 = none. Default: 6.",
     restartRequired: false,
     min: 0,
   },
@@ -265,7 +261,7 @@ export const VISION_TUNING_FIELDS: FieldDef[] = [
     label: "System Prompt Max Chars",
     kind: "number",
     description:
-      "Maximum characters extracted from the original system prompt for vision context. 0 = no extraction. Default: 1,000.",
+      "How much of the original system prompt to include as context. 0 = none. Default: 1,000.",
     restartRequired: false,
     min: 0,
   },
