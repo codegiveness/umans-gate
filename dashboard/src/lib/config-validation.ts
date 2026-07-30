@@ -28,6 +28,7 @@ const KIND_VALIDATORS: Record<FieldKind, FieldValidator> = {
   select: () => ({}),
   textarea: () => ({}),
   toggle: () => ({}),
+  modelRules: () => ({}),
 };
 
 function validateNumberField(def: FieldDef, value: unknown): FieldValidation {

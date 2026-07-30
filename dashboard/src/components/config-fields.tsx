@@ -1,6 +1,7 @@
 import { Beaker, Cloud, Download, Info, RotateCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { FieldDef, GroupDef, SectionDef } from "@/components/config-sections";
+import { CANONICAL_STAMP_MODEL_RULES } from "@/components/config-sections";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +20,7 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { RawConfig } from "@/hooks/use-config";
+import type { RawConfig, StampModelRuleEntry } from "@/hooks/use-config";
 import { badgeInfo, badgeWarning } from "@/lib/badge-colors";
 import { cn } from "@/lib/utils";
 
@@ -142,6 +143,52 @@ function JsonRenderer({ def, value, onChange, id, isInvalid }: RendererProps) {
   return <JsonFieldRow def={def} value={value} onChange={onChange} id={id} isInvalid={isInvalid} />;
 }
 
+function ModelRulesRenderer({ id, value, onChange }: RendererProps) {
+  const rules = Array.isArray(value) ? (value as StampModelRuleEntry[]) : [];
+  const canonicalByPattern = new Map(CANONICAL_STAMP_MODEL_RULES.map((c) => [c.pattern, c.rule]));
+  const enabledPatterns = new Set(rules.map((r) => r.pattern));
+
+  const toggleRule = (pattern: string, on: boolean) => {
+    if (on) {
+      const canonical = canonicalByPattern.get(pattern);
+      if (!canonical) return;
+      const next = [...rules.filter((r) => r.pattern !== pattern), canonical];
+      onChange(next);
+    } else {
+      onChange(rules.filter((r) => r.pattern !== pattern));
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      {CANONICAL_STAMP_MODEL_RULES.map((c) => (
+        <label
+          key={c.pattern}
+          htmlFor={`${id}-${c.pattern}`}
+          className="flex items-start gap-3 rounded-md border border-border p-3 hover:bg-accent/40"
+        >
+          <div className="pt-0.5">
+            <Switch
+              id={`${id}-${c.pattern}`}
+              checked={enabledPatterns.has(c.pattern)}
+              onCheckedChange={(v) => toggleRule(c.pattern, v)}
+            />
+          </div>
+          <div className="flex flex-1 flex-col gap-0.5">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-sm font-medium">{c.label}</span>
+              <code className="rounded bg-muted px-1 py-0.5 text-[10px] text-muted-foreground">
+                {c.pattern}
+              </code>
+            </div>
+            <span className="text-xs text-muted-foreground">{c.description}</span>
+          </div>
+        </label>
+      ))}
+    </div>
+  );
+}
+
 function TextRenderer({ def, value, onChange, id, isInvalid, placeholder }: RendererProps) {
   return (
     <div className="relative flex items-center">
@@ -175,6 +222,7 @@ const FIELD_RENDERERS: Record<FieldDef["kind"], FieldRenderer> = {
   password: PasswordRenderer,
   number: NumberRenderer,
   json: JsonRenderer,
+  modelRules: ModelRulesRenderer,
   text: TextRenderer,
 };
 

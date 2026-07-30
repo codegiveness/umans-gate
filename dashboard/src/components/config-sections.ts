@@ -1,5 +1,91 @@
 import { VISION_GENERAL_FIELDS, VISION_TUNING_FIELDS } from "@/components/config-vision-fields";
-import type { RawConfig } from "@/hooks/use-config";
+import type { RawConfig, StampModelRuleEntry } from "@/hooks/use-config";
+
+/**
+ * Canonical per-model stamp rules (ADR-0020 / request-body-matrix.md).
+ * Each toggle in the modelRules renderer adds/removes the matching entry
+ * from `stamp_model_rules`. No logic change — pure UI over the existing
+ * array field.
+ */
+export interface CanonicalModelRule {
+  pattern: string;
+  label: string;
+  description: string;
+  rule: StampModelRuleEntry;
+}
+
+export const CANONICAL_STAMP_MODEL_RULES: CanonicalModelRule[] = [
+  {
+    pattern: "umans-kimi-k2.7",
+    label: "Kimi K2.7",
+    description:
+      "Preserved thinking ({type:'enabled',keep:'all'}) on both routes; vetoes reasoning_effort on OpenAI (vendor errors on it).",
+    rule: {
+      pattern: "umans-kimi-k2.7",
+      anthropic_thinking_shape: { type: "enabled", keep: "all" },
+      openai_thinking_shape: { type: "enabled", keep: "all" },
+      openai_veto_reasoning_effort: true,
+    },
+  },
+  {
+    pattern: "umans-glm-*",
+    label: "GLM 5.x",
+    description:
+      "Z.ai preserved thinking ({type:'enabled',clear_thinking:false}) on Anthropic; Kimi-style {keep:'all'} on OpenAI.",
+    rule: {
+      pattern: "umans-glm-*",
+      anthropic_thinking_shape: { type: "enabled", clear_thinking: false },
+      openai_thinking_shape: { type: "enabled", keep: "all" },
+    },
+  },
+  {
+    pattern: "umans-coder",
+    label: "Coder",
+    description:
+      "Preserved thinking ({type:'enabled',keep:'all'}) on both routes; vetoes reasoning_effort on OpenAI.",
+    rule: {
+      pattern: "umans-coder",
+      anthropic_thinking_shape: { type: "enabled", keep: "all" },
+      openai_thinking_shape: { type: "enabled", keep: "all" },
+      openai_veto_reasoning_effort: true,
+    },
+  },
+  {
+    pattern: "umans-kimi-k3",
+    label: "Kimi K3",
+    description:
+      "Adaptive thinking on Anthropic; bare {type:'enabled'} on OpenAI. No veto (reasoning_effort allowed).",
+    rule: {
+      pattern: "umans-kimi-k3",
+      anthropic_thinking_shape: { type: "adaptive" },
+      openai_thinking_shape: { type: "enabled" },
+    },
+  },
+  {
+    pattern: "umans-flash",
+    label: "Flash",
+    description:
+      "Bare {type:'enabled'} on both routes; injects extra_body {enable_thinking:true, preserve_thinking:true}.",
+    rule: {
+      pattern: "umans-flash",
+      anthropic_thinking_shape: { type: "enabled" },
+      openai_thinking_shape: { type: "enabled" },
+      openai_extra_body: { enable_thinking: true, preserve_thinking: true },
+    },
+  },
+  {
+    pattern: "umans-qwen*",
+    label: "Qwen",
+    description:
+      "Bare {type:'enabled'} on both routes; injects extra_body {enable_thinking:true, preserve_thinking:true}.",
+    rule: {
+      pattern: "umans-qwen*",
+      anthropic_thinking_shape: { type: "enabled" },
+      openai_thinking_shape: { type: "enabled" },
+      openai_extra_body: { enable_thinking: true, preserve_thinking: true },
+    },
+  },
+];
 
 /**
  * Field helpers.
@@ -13,7 +99,8 @@ type FieldKind =
   | "textarea"
   | "password"
   | "toggle"
-  | "json";
+  | "json"
+  | "modelRules";
 
 export interface FieldDef {
   key: keyof RawConfig;
@@ -150,9 +237,9 @@ const STAMP_FIELDS: FieldDef[] = [
   {
     key: "stamp_model_rules",
     label: "Per-Model Rules",
-    kind: "json",
+    kind: "modelRules",
     description:
-      "Per-model thinking/reasoning overrides (ADR-0020). Each rule matches a model name pattern (glob, first-match-wins) and can: override Anthropic thinkingShape, strip thinking on OpenAI, merge extra_body on OpenAI, or veto reasoning_effort injection. Independent of the master toggles above. Default: empty (no rules). Refs: z.ai https://docs.z.ai/guides/capabilities/thinking-mode, kimi https://platform.kimi.ai/docs/guide/use-thinking-models, qwen https://docs.qwencloud.com/developer-guides/text-generation/thinking",
+      "Per-model thinking/reasoning overrides (ADR-0020). Each toggle adds/removes a canonical rule for one model family. Rules match a model name pattern (glob, first-match-wins) and can override Anthropic thinkingShape, strip thinking on OpenAI, merge extra_body on OpenAI, or veto reasoning_effort injection. Independent of the master toggles above. Default: empty (no rules). Refs: z.ai https://docs.z.ai/guides/capabilities/thinking-mode, kimi https://platform.kimi.ai/docs/guide/use-thinking-models, qwen https://docs.qwencloud.com/developer-guides/text-generation/thinking",
     experimental: true,
   },
   {
