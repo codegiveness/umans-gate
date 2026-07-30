@@ -105,14 +105,27 @@ export function useCaptures(): UseCapturesResult {
         if (i >= 0) {
           const next = prev.slice();
           const merged = { ...next[i], ...capture };
-          // Preserve early-patched status when incoming summary has null
-          // (newSummary() hardcodes response_status: null — merge would
-          // overwrite the early upstream status with null).
+          // Preserve early-patched values when an incoming update message
+          // carries null for fields that were already populated by an
+          // earlier broadcast. newSummary() hardcodes these to null, and
+          // summary(row) reads the DB (which hasn't been written yet for
+          // in-flight fields), so without these guards the TTFT first-chunk
+          // update and the p50 detached-fetch update would null out values
+          // the dashboard already showed — causing flicker.
           if (capture.response_status == null && next[i].response_status != null) {
             merged.response_status = next[i].response_status;
           }
           if (capture.status_source == null && next[i].status_source != null) {
             merged.status_source = next[i].status_source;
+          }
+          if (capture.model == null && next[i].model != null) {
+            merged.model = next[i].model;
+          }
+          if (capture.upstream_ttft_p50_ms == null && next[i].upstream_ttft_p50_ms != null) {
+            merged.upstream_ttft_p50_ms = next[i].upstream_ttft_p50_ms;
+          }
+          if (capture.upstream_tps_p50 == null && next[i].upstream_tps_p50 != null) {
+            merged.upstream_tps_p50 = next[i].upstream_tps_p50;
           }
           next[i] = merged;
           return next;

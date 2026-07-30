@@ -246,4 +246,122 @@ describe("useCaptures WS state + update handlers", () => {
     expect(result.current.captures[0].response_status).toBe(200);
     expect(result.current.captures[0].state).toBe("done");
   });
+
+  // Regression: model, upstream_ttft_p50_ms, upstream_tps_p50 must NOT be
+  // overwritten to null when an update message (e.g. the TTFT first-chunk
+  // broadcast or the p50 detached-fetch broadcast) carries null for these
+  // fields. The merge must preserve early-patched non-null values, the same
+  // way response_status and status_source are already guarded.
+  describe("null-overwrite guard for model + upstream p50 fields", () => {
+    it("preserves model when TTFT update carries model: null", async () => {
+      const { result, ws } = await setupSocket();
+
+      act(() => {
+        ws.onmessage?.({
+          data: JSON.stringify({
+            type: "new",
+            capture: makeCapture({ id: 1, model: "umans-glm-4.6" }),
+          }),
+        } as MessageEvent);
+      });
+
+      // p50 detached-fetch update: DB row has model=null, brings p50 data
+      act(() => {
+        ws.onmessage?.({
+          data: JSON.stringify({
+            type: "update",
+            capture: makeCapture({
+              id: 1,
+              model: null,
+              upstream_ttft_p50_ms: 2400,
+              upstream_tps_p50: 50.6,
+            }),
+          }),
+        } as MessageEvent);
+      });
+
+      expect(result.current.captures[0].model).toBe("umans-glm-4.6");
+      expect(result.current.captures[0].upstream_ttft_p50_ms).toBe(2400);
+      expect(result.current.captures[0].upstream_tps_p50).toBe(50.6);
+    });
+
+    it("preserves upstream_ttft_p50_ms + upstream_tps_p50 when TTFT update nulls them", async () => {
+      const { result, ws } = await setupSocket();
+
+      act(() => {
+        ws.onmessage?.({
+          data: JSON.stringify({
+            type: "new",
+            capture: makeCapture({ id: 1, model: "umans-glm-4.6" }),
+          }),
+        } as MessageEvent);
+      });
+
+      // p50 arrives via detached-fetch update
+      act(() => {
+        ws.onmessage?.({
+          data: JSON.stringify({
+            type: "update",
+            capture: makeCapture({
+              id: 1,
+              model: null,
+              upstream_ttft_p50_ms: 2400,
+              upstream_tps_p50: 50.6,
+            }),
+          }),
+        } as MessageEvent);
+      });
+
+      // TTFT first-chunk update: newSummary() hardcodes these to null
+      act(() => {
+        ws.onmessage?.({
+          data: JSON.stringify({
+            type: "update",
+            capture: makeCapture({
+              id: 1,
+              state: "streaming",
+              model: "umans-glm-4.6",
+              ttft_ms: 500,
+              upstream_ttft_p50_ms: null,
+              upstream_tps_p50: null,
+            }),
+          }),
+        } as MessageEvent);
+      });
+
+      expect(result.current.captures[0].model).toBe("umans-glm-4.6");
+      expect(result.current.captures[0].ttft_ms).toBe(500);
+      expect(result.current.captures[0].upstream_ttft_p50_ms).toBe(2400);
+      expect(result.current.captures[0].upstream_tps_p50).toBe(50.6);
+    });
+
+    it("done update with non-null model replaces the early value", async () => {
+      const { result, ws } = await setupSocket();
+
+      act(() => {
+        ws.onmessage?.({
+          data: JSON.stringify({
+            type: "new",
+            capture: makeCapture({ id: 1, model: "umans-glm-4.6" }),
+          }),
+        } as MessageEvent);
+      });
+
+      // Done: buildSummary extracts model from response body — replaces
+      act(() => {
+        ws.onmessage?.({
+          data: JSON.stringify({
+            type: "update",
+            capture: makeCapture({
+              id: 1,
+              state: "done",
+              model: "umans-glm-4.6-20260730",
+            }),
+          }),
+        } as MessageEvent);
+      });
+
+      expect(result.current.captures[0].model).toBe("umans-glm-4.6-20260730");
+    });
+  });
 });
