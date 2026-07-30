@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.11] - 2026-07-30
+
+### Fixed
+
+- **PerModelRuleStep: respect `canDisableThinking` + reject orphaned disabled-thinking blocks**:
+  The per-model rule step previously stamped the thinking shape
+  unconditionally on both routes, which caused 400 errors on strict upstreams
+  when an orphaned `{type:"disabled"}` thinking block was sent without a
+  matching `reasoning_effort`. Now:
+  - **OpenAI route**: only stamps `openaiThinkingShape` when a reasoning
+    signal is active (thinking enabled OR `reasoning_effort` non-disabled).
+  - **Anthropic route**: respects `canDisableThinking` from the overlay
+    policy. When thinking is disabled/absent and `canDisable=false`, revives
+    reasoning by stamping shape + `max_tokens` + `output_config` (which step 3
+    had skipped). When `canDisable=true`, leaves the request untouched — the
+    client explicitly disabled reasoning.
+- Exported `isReasoningEffortDisabled` from `stamp-reasoning.ts` for reuse.
+
+### Changed
+
+- Expanded per-model-rule unit tests in
+  `test/unit/stamp-per-model.test.ts` covering all branches (OpenAI active/
+  inactive, Anthropic canDisable true/false, reviving from disabled).
+
 ## [0.5.10] - 2026-07-30
 
 ### Fixed
