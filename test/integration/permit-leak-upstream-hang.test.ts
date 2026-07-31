@@ -46,6 +46,9 @@ beforeAll(async () => {
     // Short upstream timeout so the test doesn't take 5 minutes.
     // The watchdog fires at upstream_timeout_ms + 5s grace.
     UPSTREAM_TIMEOUT_MS: "1000",
+    // Disable TTFT watchdog (default-on since 0.6.0) — this test isolates
+    // the permit-release-on-upstream-hang path, not TTFT retry behavior.
+    EXPERIMENT_TTFT_WATCHDOG: "false",
   });
 });
 

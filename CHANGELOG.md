@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-07-31
+
+### Changed
+
+- **Default `use_hard_cap` to `true`**: the concurrency gate now enforces the
+  hard cap (`CONCURRENCY_HARD_CAP`, default `16`) by default instead of the
+  soft limit. Previously defaulted to `false` (soft limit). Toggle in the
+  dashboard Config tab; no restart required.
+- **Enable experimental flags by default**: `experiment_rewrite_ids`,
+  `experiment_strip_omo_reminder`, and `experiment_ttft_watchdog` now default
+  to `true`. This activates ID rewriting (1h TTL), oh-my-openagent reminder
+  stripping on Anthropic requests, and the TTFT watchdog retry pipeline out
+  of the box.
+- **Dashboard API-key/token state reflects disk truth**: `viewer.ts` now
+  derives `has_api_key` and `has_dashboard_token` from the on-disk config
+  rather than the in-memory runtime, so the dashboard reflects a saved value
+  immediately before the server restarts.
+
+### Added
+
+- **Stamp proxy benchmark results** added to `docs/BENCHMARKS.md`.
+
 ## [0.5.12] - 2026-07-31
 
 ### Fixed

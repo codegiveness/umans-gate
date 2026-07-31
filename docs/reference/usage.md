@@ -1,6 +1,6 @@
 # Usage Tab Reference
 
-> **Applies to:** umans-gate v0.5.12 · **Last updated:** 2026-07-31
+> **Applies to:** umans-gate v0.6.0 · **Last updated:** 2026-07-31
 
 The Usage tab visualizes raw `/v1/usage` samples polled from the upstream API.
 
