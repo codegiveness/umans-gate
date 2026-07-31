@@ -1,6 +1,6 @@
 # Proxy modifications inventory
 
-> **Applies to:** umans-gate v0.6.0 · **Last updated:** 2026-07-31
+> **Applies to:** umans-gate v0.6.1 · **Last updated:** 2026-07-31
 
 This document lists every modification the proxy applies to
 request/response traffic, grouped by layer: HTTP headers, request body,

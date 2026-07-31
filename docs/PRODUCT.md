@@ -1,6 +1,6 @@
 # Product
 
-> **Applies to:** umans-gate v0.6.0 · **Last updated:** 2026-07-31
+> **Applies to:** umans-gate v0.6.1 · **Last updated:** 2026-07-31
 
 ## What umans-gate Does
 
