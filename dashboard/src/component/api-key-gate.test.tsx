@@ -144,7 +144,7 @@ describe("ApiKeyGate", () => {
 
   describe("experimental features promotion", () => {
     function getPromotionParagraph(): HTMLElement {
-      const heading = screen.getByText("One more thing.");
+      const heading = screen.getByText("Heads up.");
       const paragraph = heading.closest("p");
       if (!paragraph) throw new Error("Promotion paragraph not found");
       return paragraph;
@@ -156,11 +156,10 @@ describe("ApiKeyGate", () => {
         loading: false,
         error: null,
       });
-      expect(screen.getByText("One more thing.")).toBeInTheDocument();
+      expect(screen.getByText("Heads up.")).toBeInTheDocument();
       const text = getPromotionParagraph().textContent ?? "";
-      expect(text).toContain("Umans-gate ships optional experimental features");
-      expect(text).toContain("Toggle them in");
-      expect(text).toContain("after saving your key");
+      expect(text).toContain("enabled by default");
+      expect(text).toContain("Config → Experimental");
     });
 
     it("does not render the promotion when the gate is hidden", () => {
@@ -169,7 +168,7 @@ describe("ApiKeyGate", () => {
         loading: false,
         error: null,
       });
-      expect(screen.queryByText("One more thing.")).not.toBeInTheDocument();
+      expect(screen.queryByText("Heads up.")).not.toBeInTheDocument();
     });
 
     it("uses the canonical 'experimental' label in the promotion copy", () => {
@@ -221,7 +220,7 @@ describe("ApiKeyGate", () => {
         error: null,
       });
       const getOneHereLink = screen.getByText("Get one here");
-      const promotionHeading = screen.getByText("One more thing.");
+      const promotionHeading = screen.getByText("Heads up.");
       const mask = getOneHereLink.compareDocumentPosition(promotionHeading);
       expect(mask & Node.DOCUMENT_POSITION_FOLLOWING).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     });

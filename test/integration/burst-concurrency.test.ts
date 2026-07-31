@@ -77,6 +77,7 @@ test("S4 dynamic-resize-honored: after limit drops 8->3, peakInFlight stays <=3"
       USAGE_REFRESH_MS: "100",
       VISION_TARGET: `${mockUrl}/v1/chat/completions`,
       VISION_STRATEGY: "always",
+      USE_HARD_CAP: "false",
     },
   });
   await waitForEffectiveLimit(proxy.baseUrl, 8);

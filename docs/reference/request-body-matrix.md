@@ -330,10 +330,10 @@ Clean passthrough. No stamps. No `thinking:{type:"disabled"}` injection.
 
 ## Experimental body modifications
 
-These flags are off by default and modify the body outside the 10-step
+These flags are on by default and modify the body outside the 10-step
 stamp pipeline.
 
-### `experiment_rewrite_ids` (default: false)
+### `experiment_rewrite_ids` (default: true)
 
 On a 502 or 529 upstream response containing `overloaded_error`, rewrites
 ID fields in the request body and retries:
@@ -350,13 +350,13 @@ ID fields in the request body and retries:
 This is a retry-path body modification, not a pre-forward stamp. It fires
 after the stamp pipeline has already run on the original attempt.
 
-### `experiment_strip_omo_reminder` (default: false)
+### `experiment_strip_omo_reminder` (default: true)
 
 See step 10 (StripOmoReminder) above. Anthropic route only. Removes
 `\n[Category+Skill Reminder]` text blocks from `messages[0].content` only;
 preserves all other blocks and cache_control breakpoints.
 
-### `experiment_ttft_watchdog` (default: false)
+### `experiment_ttft_watchdog` (default: true)
 
 Does NOT modify the request body. Aborts upstream fetches that stall
 before first byte within `ttft_timeout_ms`, then retries. The retry may

@@ -102,7 +102,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   const modelsRefreshMs = num(env.MODELS_REFRESH_MS ?? raw.models_refresh_ms, 3600000);
   const concurrencyHardCap = num(env.CONCURRENCY_HARD_CAP ?? raw.concurrency_hard_cap, 16);
   const concurrencySoftLimit = num(env.CONCURRENCY_SOFT_LIMIT ?? raw.concurrency_soft_limit, 8);
-  const useHardCap = bool(env.USE_HARD_CAP ?? raw.use_hard_cap, false);
+  const useHardCap = bool(env.USE_HARD_CAP ?? raw.use_hard_cap, true);
   const rateLimitRequests = num(env.RATE_LIMIT_REQUESTS ?? raw.rate_limit_requests, 0);
   const queueTimeoutMs = num(env.QUEUE_TIMEOUT_MS ?? raw.queue_timeout_ms, 180000);
   const maxQueueDepth = num(env.MAX_QUEUE_DEPTH ?? raw.max_queue_depth, 256);
@@ -254,7 +254,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     env.EXPERIMENT_REWRITE_IDS,
     raw,
     "experiment_rewrite_ids",
-    DEFAULT_CONFIG.experiment_rewrite_ids ?? false,
+    DEFAULT_CONFIG.experiment_rewrite_ids ?? true,
   );
   const experimentRewriteTtlMs = envOrRawNum(
     env.EXPERIMENT_REWRITE_TTL_MS,
@@ -266,13 +266,13 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     env.EXPERIMENT_STRIP_OMO_REMINDER,
     raw,
     "experiment_strip_omo_reminder",
-    DEFAULT_CONFIG.experiment_strip_omo_reminder ?? false,
+    DEFAULT_CONFIG.experiment_strip_omo_reminder ?? true,
   );
   const experimentTtftWatchdog = envOrRawBool(
     env.EXPERIMENT_TTFT_WATCHDOG,
     raw,
     "experiment_ttft_watchdog",
-    DEFAULT_CONFIG.experiment_ttft_watchdog ?? false,
+    DEFAULT_CONFIG.experiment_ttft_watchdog ?? true,
   );
   const ttftTimeoutMs = envOrRawNum(
     env.TTFT_TIMEOUT_MS,

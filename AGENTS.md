@@ -80,7 +80,7 @@ are never overwritten. All env vars have `snake_case` JSON equivalents.
 | `models_refresh_ms` | `3600000` |
 | `concurrency_hard_cap` | `16` |
 | `concurrency_soft_limit` | `8` |
-| `use_hard_cap` | `false` |
+| `use_hard_cap` | `true` |
 | `rate_limit_requests` | `0` |
 | `queue_timeout_ms` | `180000` |
 | `max_queue_depth` | `256` |
@@ -121,10 +121,10 @@ are never overwritten. All env vars have `snake_case` JSON equivalents.
 | `vision_pending_max_batch` | `50` |
 | `compression_enabled` | `true` |
 | `upstream_timeout_ms` | `1800000` |
-| `experiment_rewrite_ids` | `false` |
+| `experiment_rewrite_ids` | `true` |
 | `experiment_rewrite_ttl_ms` | `3600000` |
-| `experiment_strip_omo_reminder` | `false` |
-| `experiment_ttft_watchdog` | `false` |
+| `experiment_strip_omo_reminder` | `true` |
+| `experiment_ttft_watchdog` | `true` |
 | `ttft_timeout_ms` | `60000` |
 | `ttft_retry_max_attempts` | `3` |
 | `ttft_retry_gate_saturation_pct` | `80` |

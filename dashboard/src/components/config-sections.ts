@@ -250,7 +250,7 @@ const ID_REWRITE_FIELDS: FieldDef[] = [
     kind: "toggle",
     experimental: true,
     description:
-      "When the API returns an overload error (502/529), the proxy changes the session and tool IDs and tries again. Only works with the opencode harness. Helps avoid stuck sessions. Default: off.",
+      "When the API returns an overload error (502/529), the proxy changes the session and tool IDs and tries again. Only works with the opencode harness. Helps avoid stuck sessions. Default: on.",
   },
   {
     key: "experiment_rewrite_ttl_ms",
@@ -271,7 +271,7 @@ const OMO_INTEGRATION_FIELDS: FieldDef[] = [
     kind: "toggle",
     experimental: true,
     description:
-      "Removes a small block of text that oh-my-openagent adds to your messages. This text breaks caching and wastes money. Turn on if you use oh-my-openagent and see cache misses.",
+      "Removes a small block of text that oh-my-openagent adds to your messages. This text breaks caching and wastes money. Default: on; turn off if you don't use oh-my-openagent.",
   },
 ];
 
@@ -282,7 +282,7 @@ const TTFT_WATCHDOG_FIELDS: FieldDef[] = [
     kind: "toggle",
     experimental: true,
     description:
-      "Watches for requests where the API never sends the first byte. If stuck, it cancels and retries. Turn off to use only the basic timeout. Default: off.",
+      "Watches for requests where the API never sends the first byte. If stuck, it cancels and retries. Turn off to use only the basic timeout. Default: on.",
   },
   {
     key: "ttft_timeout_ms",

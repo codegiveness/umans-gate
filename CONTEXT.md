@@ -107,7 +107,7 @@ _Avoid_: code model, coder thinking.
 
 ## Architecture
 
-> ⚠️ Experimental: enabled by `experiment_ttft_watchdog` (default: off)
+> ⚠️ Experimental: enabled by `experiment_ttft_watchdog` (default: on)
 
 **TTFT watchdog**: a wall-clock timer started at fetch initiation; fires
 if no first chunk arrives within the threshold. The threshold is dynamic,

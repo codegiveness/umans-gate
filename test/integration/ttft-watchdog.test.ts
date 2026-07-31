@@ -149,6 +149,7 @@ describe("TTFT watchdog — feature off by default", () => {
       CONCURRENCY_SOFT_LIMIT: "1",
       RELEASE_COOLDOWN_MS: "0",
       UPSTREAM_TIMEOUT_MS: "500",
+      EXPERIMENT_TTFT_WATCHDOG: "false",
     });
   });
 
@@ -1222,7 +1223,7 @@ describe("TTFT watchdog — ticket 05 rewrite-id escalation", () => {
       CONCURRENCY_SOFT_LIMIT: "2",
       RELEASE_COOLDOWN_MS: "0",
       UPSTREAM_TIMEOUT_MS: "5000",
-      // Note: EXPERIMENT_TTFT_WATCHDOG is NOT set — TTFT watchdog off.
+      EXPERIMENT_TTFT_WATCHDOG: "false",
       EXPERIMENT_REWRITE_IDS: "true",
     });
     try {

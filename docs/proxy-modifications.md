@@ -1,6 +1,6 @@
 # Proxy modifications inventory
 
-> **Applies to:** umans-gate v0.5.11 · **Last updated:** 2026-07-30
+> **Applies to:** umans-gate v0.5.12 · **Last updated:** 2026-07-31
 
 This document lists every modification the proxy applies to
 request/response traffic, grouped by layer: HTTP headers, request body,
@@ -295,7 +295,7 @@ unconditional), and **config** that gates it.
 - **Where**: `src/proxy.ts` (retry loop), `src/status-client.ts` (p50
   fetch), `src/experiments/ttft-watchdog-state.ts` (state). See ADR-0026
   (supersedes ADR-0004).
-- **When**: Only when `experiment_ttft_watchdog: true` (default: false).
+- **When**: Only when `experiment_ttft_watchdog: true` (default: true).
   Streaming (SSE) responses only.
 - **Config** (all hot-reloadable): `experiment_ttft_watchdog` (default:
   false), `ttft_timeout_ms` (60000), `ttft_watchdog_multiplier` (5),

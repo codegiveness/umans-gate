@@ -441,8 +441,13 @@ export function createViewerRouter(options: CreateViewerRouterOptions) {
         if (!safe) return Response.json({ ok: false }, { status: 500 });
         return Response.json({
           ...safe,
-          has_api_key: Boolean(ctx.config.umansApiKey),
-          has_dashboard_token: Boolean(ctx.config.dashboardToken),
+          // umans_api_key and dashboard_token are restart-required fields:
+          // the live ProxyConfig does not reflect a just-saved value until
+          // restart. Derive has_* from disk-truth (already in `safe`) OR
+          // the live config (covers env-var override) so the dashboard
+          // reflects the save immediately.
+          has_api_key: safe.has_api_key || Boolean(ctx.config.umansApiKey),
+          has_dashboard_token: safe.has_dashboard_token || Boolean(ctx.config.dashboardToken),
         });
       },
     },

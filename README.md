@@ -88,7 +88,7 @@ umans-gate is a **local LLM API capture proxy** that sits between an agent harne
    managed service.
 7. **Default concurrency and the hard cap toggle.** `CONCURRENCY_HARD_CAP`
    defaults to `16`, `CONCURRENCY_SOFT_LIMIT` to `8`. By default
-   (`USE_HARD_CAP=false`), the effective limit is the soft limit. Both are
+   (`USE_HARD_CAP=true`), the effective limit is the hard cap. Both are
    auto-sized from `/v1/usage` when `UMANS_API_KEY` is set. Toggle in the
    dashboard Config tab. No restart needed.
 
@@ -247,7 +247,7 @@ umans-gate loads configuration from a JSON file with environment variable overri
 | `DASHBOARD_TOKEN` | _(empty)_ | Secures dashboard + `/health` + `/metrics` + WS |
 | `CONCURRENCY_HARD_CAP` | `16` | Max concurrent upstream (auto from `/v1/usage`) |
 | `CONCURRENCY_SOFT_LIMIT` | `8` | Soft limit (auto from `/v1/usage`) |
-| `USE_HARD_CAP` | `false` | `true` = use hard cap; `false` = use soft limit |
+| `USE_HARD_CAP` | `true` | `true` = use hard cap; `false` = use soft limit |
 | `VISION_STRATEGY` | `catalog` | `never`, `catalog`, or `always` |
 | `VISION_MODEL` | `umans-flash` | Vision model for image description |
 | `BREAKER_THRESHOLD` | `5` | Circuit breaker failure threshold |
@@ -391,7 +391,7 @@ A regular HTTP proxy forwards traffic. umans-gate captures every request/respons
 
 ### Does umans-gate modify my requests?
 
-Only when stamping is enabled. By default, `STAMP_CLAUDE_CODE_ENABLED` and `STAMP_REASONING_EFFORT_ENABLED` are both `false`; the proxy captures traffic without modifying it. When stamping is on, the proxy rewrites request bodies before forwarding upstream, and the stamped body is what gets captured. The proxy always forces `accept-encoding: identity` and strips `content-encoding` for capture safety.
+By default, the proxy applies minor body modifications: it strips oh-my-openagent's `[Category+Skill Reminder]` text blocks from Anthropic requests (`EXPERIMENT_STRIP_OMO_REMINDER`, default: on), and it always forces `accept-encoding: identity` and strips `content-encoding` for capture safety. Full stamping (`STAMP_CLAUDE_CODE_ENABLED` for Anthropic, `STAMP_REASONING_EFFORT_ENABLED` for OpenAI) is off by default — when enabled, the proxy rewrites request bodies (TTL, thinking, max_tokens, etc.) before forwarding upstream, and the stamped body is what gets captured. Toggle any of these in the Config tab.
 
 ### What is the ring buffer and how many captures does it store?
 

@@ -1339,7 +1339,7 @@ test("char: experiment_strip_omo_reminder — number fails", () => {
   );
 });
 
-test("char: normalized — experiment_strip_omo_reminder defaults to false", () => {
+test("char: normalized — experiment_strip_omo_reminder defaults to true", () => {
   const r = validateConfig({});
-  expect(r.normalized.experiment_strip_omo_reminder).toBe(false);
+  expect(r.normalized.experiment_strip_omo_reminder).toBe(true);
 });
