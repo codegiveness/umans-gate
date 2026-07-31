@@ -1,6 +1,6 @@
 # Performance Tab Reference
 
-> **Applies to:** umans-gate v0.5.10 · **Last updated:** 2026-07-30
+> **Applies to:** umans-gate v0.5.11 · **Last updated:** 2026-07-30
 
 The Performance tab shows per-model latency and throughput statistics from a recent sample window.
 

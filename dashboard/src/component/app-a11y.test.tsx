@@ -33,6 +33,32 @@ vi.mock("@/hooks/use-clipboard", () => ({
   }),
 }));
 
+vi.mock("@/hooks/use-usage", () => ({
+  useUsage: () => ({ data: null, loading: false, error: null, refresh: vi.fn() }),
+}));
+
+vi.mock("@/hooks/use-config", () => ({
+  useConfig: () => ({
+    config: { port: 1945 },
+    loading: false,
+    error: null,
+    reload: () => Promise.resolve(null),
+    save: () => Promise.resolve(null),
+    validate: () => Promise.resolve(null),
+    reloadFromDisk: () => Promise.resolve(null),
+  }),
+}));
+
+vi.mock("@/hooks/use-vision-calls", () => ({
+  useVisionCalls: () => ({
+    records: [],
+    loading: false,
+    error: null,
+    refresh: () => {},
+    clear: () => {},
+  }),
+}));
+
 vi.mock("@/components/mode-toggle", () => ({
   ModeToggle: () => null,
 }));

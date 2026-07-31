@@ -1,6 +1,6 @@
 # Cache Hit-Rate Benchmark
 
-> **Applies to:** umans-gate v0.5.10+ · **Harness:** OpenCode CLI (opencode
+> **Applies to:** umans-gate v0.5.11+ · **Harness:** OpenCode CLI (opencode
 > v1.18.9, non-interactive `opencode run` with `--session` continuation) ·
 > **Collector:** SQLite (`./umans-gate.db`, the proxy's own capture
 > ring buffer) · **Language:** Bun/TypeScript harness script (Bun-native,
