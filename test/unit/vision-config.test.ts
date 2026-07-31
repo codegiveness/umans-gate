@@ -84,6 +84,21 @@ describe("vision intent config defaults", () => {
     expect(config.visionSystemPromptMaxChars).toBe(1000);
   });
 
+  test("loadConfig returns vision_max_images=20 and vision_concurrency=4 by default", () => {
+    const config = loadConfig({});
+    expect(config.visionMaxImages).toBe(20);
+    expect(config.visionConcurrency).toBe(4);
+  });
+
+  test("env vars override vision_max_images and vision_concurrency", () => {
+    const config = loadConfig({
+      VISION_MAX_IMAGES: "50",
+      VISION_CONCURRENCY: "8",
+    });
+    expect(config.visionMaxImages).toBe(50);
+    expect(config.visionConcurrency).toBe(8);
+  });
+
   test("env vars override defaults for all 7 keys", () => {
     const config = loadConfig({
       VISION_INTENT_STRATEGY: "off",

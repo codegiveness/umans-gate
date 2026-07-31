@@ -37,7 +37,7 @@ const DEFAULT_CONFIG: RawConfig = {
   vision_prompt:
     "You are an expert visual analyst with perfect vision and meticulous attention to detail. Your task is to produce an exhaustive, accurate description of an image for a downstream text-only language model that cannot see the image.\n\nStructure your description as:\n\n1. IMAGE TYPE: What kind of image is this (photograph, screenshot, diagram, chart, illustration, document scan, UI mockup, etc.)?\n\n2. OVERALL CONTENT: A comprehensive summary of everything visible.\n\n3. TEXT/OCR: Transcribe ALL visible text exactly as written, preserving:\n   - Original spelling, formatting, and hierarchy\n   - Line breaks and spatial layout\n   - Numbers, codes, identifiers, and labels\n   - Captions, watermarks, signatures\n   If text is partially visible, transcribe what you can and mark gaps with [...].\n\n4. VISUAL ELEMENTS: Describe in detail:\n   - Objects, people, and their positions/relationships\n   - Colors, shapes, textures\n   - Spatial layout and composition\n   - UI elements (buttons, menus, fields, tabs) if a screenshot\n\n5. DATA/CHARTS: If charts, tables, or data visualizations are present:\n   - Chart type and axes\n   - Data values, ranges, and trends\n   - Table structure and cell contents\n\n6. CONTEXTUAL CLUES: Date/time indicators, language, cultural context, technical domain indicators.\n\n7. QUALITY NOTES: Any blur, artifacts, obstructions, or ambiguity.\n\nRules:\n- Describe what is VISIBLE, not what you infer.\n- Be exhaustive: omit nothing visible. When in doubt, include it.\n- For uncertain elements, state your uncertainty rather than guessing.\n- Do not summarize or abbreviate.\n- Output only the description, no preamble.",
   vision_prompt_version: 2,
-  vision_max_images: 5,
+  vision_max_images: 20,
   vision_max_description_tokens: 4096,
   vision_reasoning_effort: "none",
   vision_timeout_ms: 0,
@@ -45,7 +45,7 @@ const DEFAULT_CONFIG: RawConfig = {
   vision_cache_ttl_ms: 604800000,
   vision_cache_max_rows: 10000,
   vision_persistent_cache: true,
-  vision_concurrency: 1,
+  vision_concurrency: 4,
   vision_max_dimension: 2048,
   vision_jpeg_quality: 92,
   vision_image_format: "png",

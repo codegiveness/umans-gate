@@ -920,6 +920,13 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     });
 
   if (options.banner !== false) {
+    if (config.visionMaxImages < 20) {
+      console.warn(
+        `[umans-gate] vision_max_images is ${config.visionMaxImages}, which is below the recommended minimum of 20. ` +
+          "Agent harnesses may batch 10+ images in a single request; a lower cap silently drops images. " +
+          "Set vision_max_images to 20 or higher in config.json or the Config → Vision tab, then restart the proxy.",
+      );
+    }
     printBanner(config);
   }
 

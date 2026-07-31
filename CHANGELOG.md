@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-07-31
+
+### Changed
+
+- **Bump `vision_max_images` default from 5 to 20**: agent harnesses may
+  batch 10+ images in a single request; a cap of 5 silently dropped
+  images beyond the 5th. Existing configs with the old default of 5 are
+  not overwritten — a startup `console.warn` fires when
+  `vision_max_images < 20`, advising users to update their config.
+- **Bump `vision_concurrency` default from 1 to 4**: vision handoff is
+  now parallel by default, reducing latency for multi-image requests.
+
 ## [0.6.1] - 2026-07-31
 
 ### Changed

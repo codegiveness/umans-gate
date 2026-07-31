@@ -52,7 +52,7 @@ export const VISION_TUNING_FIELDS: FieldDef[] = [
     key: "vision_max_images",
     label: "Max Images",
     kind: "number",
-    description: "Most images described in one request. Extra images are ignored. Default: 5.",
+    description: "Most images described in one request. Extra images are ignored. Default: 20.",
     restartRequired: true,
     required: true,
     min: 1,
@@ -136,7 +136,7 @@ export const VISION_TUNING_FIELDS: FieldDef[] = [
     label: "Concurrency",
     kind: "number",
     description:
-      "How many images to describe at the same time. Higher = faster but more API load. Default: 1.",
+      "How many images to describe at the same time. Higher = faster but more API load. Default: 4.",
     restartRequired: true,
     required: true,
     min: 1,

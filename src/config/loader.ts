@@ -155,7 +155,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     DEFAULT_CONFIG.vision_prompt ?? "Describe this image concisely.",
   );
   const visionPromptVersion = num(env.VISION_PROMPT_VERSION ?? raw.vision_prompt_version, 2);
-  const visionMaxImages = num(env.VISION_MAX_IMAGES ?? raw.vision_max_images, 5);
+  const visionMaxImages = num(env.VISION_MAX_IMAGES ?? raw.vision_max_images, 20);
   const visionMaxDescriptionTokens = num(
     env.VISION_MAX_DESCRIPTION_TOKENS ?? raw.vision_max_description_tokens,
     4096,
@@ -173,7 +173,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     env.VISION_PERSISTENT_CACHE !== undefined
       ? env.VISION_PERSISTENT_CACHE !== "false" && env.VISION_PERSISTENT_CACHE !== "0"
       : raw.vision_persistent_cache !== false;
-  const visionConcurrency = num(env.VISION_CONCURRENCY ?? raw.vision_concurrency, 1);
+  const visionConcurrency = num(env.VISION_CONCURRENCY ?? raw.vision_concurrency, 4);
   const visionMaxDimension = num(env.VISION_MAX_DIMENSION ?? raw.vision_max_dimension, 2048);
   const visionJpegQuality = num(env.VISION_JPEG_QUALITY ?? raw.vision_jpeg_quality, 92);
   const visionImageFormat = (env.VISION_IMAGE_FORMAT ?? raw.vision_image_format ?? "png") as

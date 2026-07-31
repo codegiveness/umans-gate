@@ -312,7 +312,7 @@ deterministic triage function routes each request to one of four
 strategies (`generic`, `slotted`, `crafted`, `decomposed`) based on
 adjacent text, image count, and tool-result status. `off` forces
 `generic` only. Vision calls are serialized by the concurrency gate
-(default concurrency = 1). Descriptions are cached for 7 days in
+(default concurrency = 4). Descriptions are cached for 7 days in
 persistent SQLite storage.
 
 ### How the concurrency gate works

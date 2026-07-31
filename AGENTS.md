@@ -92,7 +92,7 @@ are never overwritten. All env vars have `snake_case` JSON equivalents.
 | `vision_model` | `umans-flash` |
 | `vision_prompt` | _(long string, see `src/config/defaults.ts`)_ |
 | `vision_prompt_version` | `2` |
-| `vision_max_images` | `5` |
+| `vision_max_images` | `20` |
 | `vision_max_description_tokens` | `4096` |
 | `vision_reasoning_effort` | `none` |
 | `vision_timeout_ms` | `0` |
@@ -100,7 +100,7 @@ are never overwritten. All env vars have `snake_case` JSON equivalents.
 | `vision_cache_ttl_ms` | `604800000` |
 | `vision_cache_max_rows` | `10000` |
 | `vision_persistent_cache` | `true` |
-| `vision_concurrency` | `1` |
+| `vision_concurrency` | `4` |
 | `vision_max_dimension` | `2048` |
 | `vision_jpeg_quality` | `92` |
 | `vision_image_format` | `png` |
