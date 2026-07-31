@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.12] - 2026-07-31
+
+### Fixed
+
+- **CI dashboard test teardown race**: `app-a11y.test.tsx` rendered `<App />`
+  without mocking `useUsage`, `useConfig`, and `useVisionCalls`. Unmocked
+  hooks fired real `fetch()` calls that escaped React `act()` scope. On slow
+  CI the pending console output outlived the vitest worker RPC channel,
+  raising `EnvironmentTeardownError` and exiting with code 1 despite all 416
+  tests passing. Added the same `vi.mock()` calls already used in
+  `app-tabs.test.tsx`.
+
 ## [0.5.11] - 2026-07-30
 
 ### Fixed
