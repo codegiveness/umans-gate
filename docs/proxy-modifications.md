@@ -1,6 +1,6 @@
 # Proxy modifications inventory
 
-> **Applies to:** umans-gate v0.5.10 · **Last updated:** 2026-07-30
+> **Applies to:** umans-gate v0.5.11 · **Last updated:** 2026-07-30
 
 This document lists every modification the proxy applies to
 request/response traffic, grouped by layer: HTTP headers, request body,
@@ -110,8 +110,8 @@ unconditional), and **config** that gates it.
   but rejects `output_config`/`context_management` (Anthropic-specific) and
   `temperature != 1.0` when reasoning is active. Stripping those prevents
   errors. The `thinking` field is left to per-model rules because some
-  OpenAI models accept a thinking shape (e.g. Kimi, Qwen via
-  `extra_body`) while others reject it.
+  OpenAI models accept a thinking shape (e.g. Kimi, Qwen via top-level
+  body fields) while others reject it.
 
 ### 2.3 Body re-serialization
 
@@ -160,10 +160,10 @@ unconditional), and **config** that gates it.
 ### 2.5 Per-model rule overrides (ADR-0029)
 
 - **What**: Overrides the thinking shape per model family on both Anthropic
-  and OpenAI routes, merges `openai_extra_body` into `body.extra_body`, and
-  sets an `openai_veto_reasoning_effort` flag consumed by
-  `OpenAiReasoningStep`. Rules match model names by glob pattern,
-  first-match-wins.
+  and OpenAI routes, merges `openai_extra_body` keys at the top level of
+  the request body, and sets an `openai_veto_reasoning_effort` flag
+  consumed by `OpenAiReasoningStep`. Rules match model names by glob
+  pattern, first-match-wins.
 - **Where**: `src/stamp-pipeline.ts` (`PerModelRuleStep`), resolves via
   `src/stamp-catalog.ts` (`resolvePerModelRule`).
 - **When**: Both routes, whenever `stamp_model_rules` is non-empty AND a

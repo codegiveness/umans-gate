@@ -176,7 +176,7 @@ export const ContextManagementStep: StampStep = {
 
 /**
  * Per-model rule step (ADR-0020). Applies config-driven per-model overrides
- * for thinking shape (Anthropic) and thinking-strip/extra_body/veto (OpenAI).
+ * for thinking shape (Anthropic) and thinking-strip/top-level-merge/veto (OpenAI).
  * Independent of stampClaudeCode and stampReasoningEffort — fires whenever
  * a matching rule exists.
  *
@@ -238,12 +238,12 @@ export const PerModelRuleStep: StampStep = {
     }
 
     if (rule.openaiExtraBody) {
-      const existing = (body as Record<string, unknown>).extra_body;
-      const merged = {
-        ...(typeof existing === "object" && existing !== null ? existing : {}),
-        ...rule.openaiExtraBody,
-      };
-      (body as Record<string, unknown>).extra_body = merged;
+      const b = body as Record<string, unknown>;
+      // Qwen-style params (enable_thinking, preserve_thinking) belong at the
+      // top level of the request body, not nested under extra_body.
+      for (const [k, v] of Object.entries(rule.openaiExtraBody)) {
+        b[k] = v;
+      }
       changed = true;
     }
 

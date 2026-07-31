@@ -447,7 +447,7 @@ export interface PerModelRule {
   anthropicThinkingShape?: ThinkingConfig;
   /** OpenAI route: force this thinkingShape onto the request. */
   openaiThinkingShape?: ThinkingConfig;
-  /** Merge this into body.extra_body on BOTH routes. */
+  /** Merge these keys at the top level of the request body on BOTH routes. */
   openaiExtraBody?: Record<string, unknown>;
   /** OpenAI route: skip reasoning_effort injection (vendor errors on it). */
   openaiVetoReasoningEffort?: boolean;

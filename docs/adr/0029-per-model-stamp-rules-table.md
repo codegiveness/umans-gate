@@ -34,7 +34,9 @@ Replace the vendor-specific flags with a **per-model rules table** in
 
 - `anthropicThinkingShape`: force the thinking shape on Anthropic routes.
 - `openaiThinkingShape`: force the thinking shape on OpenAI routes.
-- `openaiExtraBody`: merge into `body.extra_body` on BOTH routes.
+- `openaiExtraBody`: merge at the top level of the request body on BOTH routes
+  (e.g. `enable_thinking`, `preserve_thinking` for Qwen models expect these
+  fields directly on the body, not nested under `extra_body`).
 - `openaiVetoReasoningEffort`: skip `reasoning_effort` injection on OpenAI
   routes (for models that error on it).
 
@@ -92,8 +94,8 @@ This position ensures:
 ### ThinkingConfig union extension
 
 Added `{ type: "enabled" }` (bare) variant for Qwen models that use
-`enable_thinking` + `preserve_thinking` via `extra_body` rather than a
-thinking object with `keep` or `clear_thinking`.
+`enable_thinking` + `preserve_thinking` as top-level body fields rather
+than a thinking object with `keep` or `clear_thinking`.
 
 `thinkingEquals()` updated to handle bare enabled: equal only to another
 bare enabled, not to enabled-with-keep or enabled-with-clear_thinking.
@@ -122,7 +124,7 @@ override it — it stays from the resolved overlay policy.
 
 ## Target spec (all models)
 
-| umans model | Anthropic thinkingShape | OpenAI thinkingShape | OpenAI extra_body | reasoning_effort veto |
+| umans model | Anthropic thinkingShape | OpenAI thinkingShape | OpenAI top-level merge | reasoning_effort veto |
 |---|---|---|---|---|
 | umans-kimi-k2.7 | `{type:enabled, keep:all}` | `{type:enabled, keep:all}` | — | YES |
 | umans-glm-5.2 | `{type:enabled, clear_thinking:false}` | `{type:enabled, keep:all}` | — | no |

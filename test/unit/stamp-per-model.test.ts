@@ -227,7 +227,7 @@ describe("PerModelRuleStep — OpenAI route", () => {
     expect(body.thinking).toEqual({ type: "enabled", keep: "all" });
   });
 
-  it("merges extra_body when openaiExtraBody is set", () => {
+  it("merges openaiExtraBody fields at top level when openaiExtraBody is set", () => {
     const rules: PerModelRule[] = [
       {
         pattern: "umans-flash",
@@ -238,10 +238,12 @@ describe("PerModelRuleStep — OpenAI route", () => {
     const ctx = makeCtx(config, "umans-flash", true);
     const body: Record<string, unknown> = { model: "umans-flash", messages: [] };
     expect(PerModelRuleStep.apply(body, ctx)).toBe(true);
-    expect(body.extra_body).toEqual({ enable_thinking: true, preserve_thinking: true });
+    expect(body.enable_thinking).toBe(true);
+    expect(body.preserve_thinking).toBe(true);
+    expect(body.extra_body).toBeUndefined();
   });
 
-  it("merges extra_body with existing extra_body (shallow merge)", () => {
+  it("merges openaiExtraBody fields onto existing top-level keys (shallow merge)", () => {
     const rules: PerModelRule[] = [
       {
         pattern: "umans-flash",
@@ -252,14 +254,16 @@ describe("PerModelRuleStep — OpenAI route", () => {
     const ctx = makeCtx(config, "umans-flash", true);
     const body: Record<string, unknown> = {
       model: "umans-flash",
-      extra_body: { enable_thinking: true },
+      enable_thinking: true,
       messages: [],
     };
     expect(PerModelRuleStep.apply(body, ctx)).toBe(true);
-    expect(body.extra_body).toEqual({ enable_thinking: true, preserve_thinking: true });
+    expect(body.enable_thinking).toBe(true);
+    expect(body.preserve_thinking).toBe(true);
+    expect(body.extra_body).toBeUndefined();
   });
 
-  it("combines openaiThinkingShape + extra_body in one rule", () => {
+  it("combines openaiThinkingShape + openaiExtraBody in one rule", () => {
     const rules: PerModelRule[] = [
       {
         pattern: "umans-flash",
@@ -276,7 +280,9 @@ describe("PerModelRuleStep — OpenAI route", () => {
     };
     expect(PerModelRuleStep.apply(body, ctx)).toBe(true);
     expect(body.thinking).toEqual({ type: "enabled" });
-    expect(body.extra_body).toEqual({ enable_thinking: true, preserve_thinking: true });
+    expect(body.enable_thinking).toBe(true);
+    expect(body.preserve_thinking).toBe(true);
+    expect(body.extra_body).toBeUndefined();
   });
 });
 
@@ -451,7 +457,7 @@ describe("PerModelRuleStep — umans-qwen3.6-35b-a3b (bare enabled + extra_body)
     expect(body.thinking).toEqual({ type: "enabled" });
   });
 
-  it("OpenAI: merges extra_body", () => {
+  it("OpenAI: merges openaiExtraBody fields at top level", () => {
     const rules: PerModelRule[] = [
       {
         pattern: "umans-qwen*",
@@ -463,7 +469,9 @@ describe("PerModelRuleStep — umans-qwen3.6-35b-a3b (bare enabled + extra_body)
     const ctx = makeCtx(config, "umans-qwen3.6-35b-a3b", true);
     const body: Record<string, unknown> = { model: "umans-qwen3.6-35b-a3b", messages: [] };
     PerModelRuleStep.apply(body, ctx);
-    expect(body.extra_body).toEqual({ enable_thinking: true, preserve_thinking: true });
+    expect(body.enable_thinking).toBe(true);
+    expect(body.preserve_thinking).toBe(true);
+    expect(body.extra_body).toBeUndefined();
   });
 });
 

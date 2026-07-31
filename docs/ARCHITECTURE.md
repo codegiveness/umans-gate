@@ -1,6 +1,6 @@
 # Architecture
 
-> **Applies to:** umans-gate v0.5.10 · **Last updated:** 2026-07-30
+> **Applies to:** umans-gate v0.5.11 · **Last updated:** 2026-07-30
 
 umans-gate is a Bun-based capture proxy that sits between an LLM harness and
 the upstream API, intercepting traffic to capture, stamp, and optionally
@@ -107,7 +107,7 @@ stamping. A post-stamp `StripOmoReminderStep` (gated by
 │ 4. PerModelRule       │  stamp-catalog.ts (ADR-0029)
 │   overrides thinking  │  → stamp_model_rules: glob pattern, first-match
 │   shape per model     │     wins. Independent of master toggles.
-│   + openai_extra_body │  → merged into body.extra_body
+│   + openai_extra_body │  → merged at top level of request body
 └───────┬───────────────┘
         │
         ▼
@@ -147,7 +147,8 @@ stamping. A post-stamp `StripOmoReminderStep` (gated by
 ┌───────────────────────┐
 │ 4. PerModelRule       │  stamp-catalog.ts (ADR-0029)
 │   thinking shape      │  → openai_thinking_shape overrides thinking
-│   + openai_extra_body │  → openai_veto_reasoning_effort flag set
+│   + openai_extra_body │  → merged at top level of request body
+│                       │  → openai_veto_reasoning_effort flag set
 └───────┬───────────────┘
         │
         ▼

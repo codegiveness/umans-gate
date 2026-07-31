@@ -35,7 +35,7 @@ export interface RawConfig {
   /**
    * Per-model stamp rules (ADR-0020). Overrides thinking behavior for specific
    * model name patterns. Complements the static STAMP_OVERLAY — first-match-wins.
-   * Each rule can set Anthropic thinkingShape, OpenAI thinking-strip, extra_body,
+   * Each rule can set Anthropic thinkingShape, OpenAI thinking-strip, top-level body merges,
    * and reasoning_effort veto. Empty array = current behavior (overlay only).
    */
   stamp_model_rules?: StampModelRuleRaw[];
