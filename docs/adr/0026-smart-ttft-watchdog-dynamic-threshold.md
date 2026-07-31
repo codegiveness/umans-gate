@@ -72,9 +72,14 @@ design.
    No separate override config field.
 
    **Caveat:** when `upstream_timeout_ms` > 300000 and
-   `experiment_ttft_watchdog` is false (default), stalled connections hold
+   `experiment_ttft_watchdog` is false, stalled connections hold
    permits for up to 30 min with no breaker protection. Operators should enable
    the watchdog when raising the upstream timeout.
+
+   > **Update (2026-07-31):** `experiment_ttft_watchdog` default flipped to
+   > `true` in v0.5.12 (commit `772cc55`). The watchdog now runs by default,
+   > closing this caveat for fresh installs. Existing configs that explicitly
+   > set `false` are unaffected by the hot-reload change.
 
 6. **Parallel status fetch with dedup.** Each request fires a `/v1/status`
    fetch as a detached promise alongside the upstream request. Concurrent

@@ -2,7 +2,7 @@
 
 > **Applies to:** umans-gate v0.6.1 · **Last updated:** 2026-07-31
 
-This document maps umans-gate v0.5.6, a Bun-based LLM capture proxy, to the
+This document maps umans-gate v0.6.1, a Bun-based LLM capture proxy, to the
 [umans-open-stack](https://github.com/umans-ai/umans-open-stack) playbook
 categories.
 
@@ -88,7 +88,7 @@ tune decomposition and crafting timeouts.
 
 **Alignment**
 
-> ⚠️ Experimental: enabled by `stamp_claude_code_enabled` (default: off)
+> ⚠️ Experimental: enabled by `stamp_claude_code_enabled` (default: on)
 
 umans-gate stamps `ttl` onto every `cache_control` ephemeral block in
 intercepted Anthropic requests. The TTL is always set, independent of

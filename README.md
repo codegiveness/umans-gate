@@ -8,7 +8,7 @@
 
 **umans-gate** is a local capture proxy for LLM APIs that intercepts Anthropic and OpenAI-compatible traffic, stores every request and response in a SQLite ring buffer, and serves a live inspection dashboard over WebSocket. Run one command; point your agent harness at it; observe every byte on the wire.
 
-*Personal-use project, MIT-licensed, maintained by [codegiveness](https://github.com/codegiveness). Not affiliated with, endorsed by, or an official product of Umans AI. Last updated: 2026-07-29 · Version 0.5.6.*
+*Personal-use project, MIT-licensed, maintained by [codegiveness](https://github.com/codegiveness). Not affiliated with, endorsed by, or an official product of Umans AI. Last updated: 2026-07-31 · Version 0.6.1.*
 
 **Author:** [codegiveness](https://github.com/codegiveness), independent developer building LLM tooling and observability infrastructure. Source code published under MIT for transparency. No commercial support tier.
 
@@ -59,11 +59,13 @@ umans-gate is a **local LLM API capture proxy** that sits between an agent harne
 
 ## Important notes
 
-1. **The proxy modifies your requests.** When stamping is enabled
-   (`STAMP_CLAUDE_CODE_ENABLED` or `STAMP_REASONING_EFFORT_ENABLED`), the
-   proxy rewrites request bodies before forwarding upstream. The stamped
-   body is what gets sent upstream AND captured. The proxy also forces
-   `accept-encoding: identity` and strips `content-encoding` unconditionally.
+1. **The proxy modifies your requests.** Stamping is on by default
+   (`STAMP_CLAUDE_CODE_ENABLED` and `STAMP_REASONING_EFFORT_ENABLED` both
+   default to `true`), so the proxy rewrites request bodies before
+   forwarding upstream. The stamped body is what gets sent upstream AND
+   captured. The proxy also forces `accept-encoding: identity` and strips
+   `content-encoding` unconditionally. Toggle stamping off in the Config
+   tab if you need a clean passthrough.
 2. **Vision strategy and non-Claude Code harnesses.** When
    `VISION_STRATEGY` is `never`, or a vision-capable model under `catalog`,
    images pass through untouched. Do NOT configure the model as
@@ -240,8 +242,8 @@ umans-gate loads configuration from a JSON file with environment variable overri
 | `DB_PATH` | `./umans-gate.db` | SQLite database path |
 | `UPSTREAM_PROTOCOL` | `http1.1` | `http1.1` or `http2` |
 | `UPSTREAM_TIMEOUT_MS` | `1800000` | Upstream fetch timeout (30 min) |
-| `STAMP_CLAUDE_CODE_ENABLED` | `false` | Toggle Claude Code stamp bundle (Anthropic) |
-| `STAMP_REASONING_EFFORT_ENABLED` | `false` | Toggle `reasoning_effort` stamping (OpenAI) |
+| `STAMP_CLAUDE_CODE_ENABLED` | `true` | Toggle Claude Code stamp bundle (Anthropic) |
+| `STAMP_REASONING_EFFORT_ENABLED` | `true` | Toggle `reasoning_effort` stamping (OpenAI) |
 | `STAMP_MODEL_RULES` | `[]` | Per-model thinking-shape rules table (ADR-0029, hot-reloadable) |
 | `UMANS_API_KEY` | _(empty)_ | Unlocks `/v1/usage`, gate sizing, rate-limit, vision |
 | `DASHBOARD_TOKEN` | _(empty)_ | Secures dashboard + `/health` + `/metrics` + WS |
@@ -385,13 +387,13 @@ Yes. The proxy intercepts OpenAI-compatible traffic on `/v1/chat/completions`. W
 
 ### What is the difference between umans-gate and a regular HTTP proxy?
 
-> ⚠️ Experimental: enabled by `stamp_claude_code_enabled` (default: off)
+> ⚠️ Experimental: enabled by `stamp_claude_code_enabled` (default: on)
 
 A regular HTTP proxy forwards traffic. umans-gate captures every request/response pair to SQLite, stamps `ttl` onto `cache_control` ephemeral blocks, runs a vision handoff pipeline (image → text description), enforces concurrency limits with a circuit breaker, and serves a live React dashboard over WebSocket. It is purpose-built for LLM API traffic observation and optimization.
 
 ### Does umans-gate modify my requests?
 
-By default, the proxy applies minor body modifications: it strips oh-my-openagent's `[Category+Skill Reminder]` text blocks from Anthropic requests (`EXPERIMENT_STRIP_OMO_REMINDER`, default: on), and it always forces `accept-encoding: identity` and strips `content-encoding` for capture safety. Full stamping (`STAMP_CLAUDE_CODE_ENABLED` for Anthropic, `STAMP_REASONING_EFFORT_ENABLED` for OpenAI) is off by default — when enabled, the proxy rewrites request bodies (TTL, thinking, max_tokens, etc.) before forwarding upstream, and the stamped body is what gets captured. Toggle any of these in the Config tab.
+By default, the proxy applies minor body modifications: it strips oh-my-openagent's `[Category+Skill Reminder]` text blocks from Anthropic requests (`EXPERIMENT_STRIP_OMO_REMINDER`, default: on), and it always forces `accept-encoding: identity` and strips `content-encoding` for capture safety. Full stamping (`STAMP_CLAUDE_CODE_ENABLED` for Anthropic, `STAMP_REASONING_EFFORT_ENABLED` for OpenAI) is **on by default** — the proxy rewrites request bodies (TTL, thinking, max_tokens, etc.) before forwarding upstream, and the stamped body is what gets captured. Toggle any of these off in the Config tab for a clean passthrough.
 
 ### What is the ring buffer and how many captures does it store?
 

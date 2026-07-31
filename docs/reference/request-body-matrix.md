@@ -8,8 +8,8 @@ per-model rules, and experimental body modifications.
 
 | Config key | Default | Controls |
 |---|---|---|
-| `stamp_claude_code_enabled` | `false` | Anthropic route: TTL, breakpoints, max_tokens, output_config, top_k, temperature, context_management, base `thinking` shape (from `STAMP_OVERLAY`, overridable by `stamp_model_rules`) |
-| `stamp_reasoning_effort_enabled` | `false` | OpenAI route: `reasoning_effort` injection (value `"high"` when on) |
+| `stamp_claude_code_enabled` | `true` | Anthropic route: TTL, breakpoints, max_tokens, output_config, top_k, temperature, context_management, base `thinking` shape (from `STAMP_OVERLAY`, overridable by `stamp_model_rules`) |
+| `stamp_reasoning_effort_enabled` | `true` | OpenAI route: `reasoning_effort` injection (value `"high"` when on) |
 | `stamp_model_rules` | `[]` (empty) | Per-model overrides on BOTH routes. Independent of the 2 switches above. |
 
 When `stamp_model_rules` is empty → no per-model overrides, only the static

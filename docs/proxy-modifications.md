@@ -72,7 +72,7 @@ unconditional), and **config** that gates it.
   `src/stamp-temperature.ts` (temperature).
 - **When**: Anthropic route only (`/v1/messages`), gated by
   `config.stampClaudeCodeEnabled`.
-- **Config**: `stamp_claude_code_enabled` JSON (default: `false`) /
+- **Config**: `stamp_claude_code_enabled` JSON (default: `true`) /
   `STAMP_CLAUDE_CODE_ENABLED` env.
 - **Stamp values** (when enabled):
   - RestampBreakpoints: Layout B (system[0] + last user message), ADR 0002
@@ -103,7 +103,7 @@ unconditional), and **config** that gates it.
   `src/stamp-pipeline.ts` (`OpenAiReasoningStep`).
 - **When**: OpenAI-compatible route only (`/v1/chat/completions`), gated by
   `config.stampReasoningEffort !== null`.
-- **Config**: `stamp_reasoning_effort_enabled` JSON (default: `false`) /
+- **Config**: `stamp_reasoning_effort_enabled` JSON (default: `true`) /
   `STAMP_REASONING_EFFORT_ENABLED` env. Per-model veto via
   `stamp_model_rules[].openai_veto_reasoning_effort` (ADR-0029).
 - **Rationale**: The upstream OpenAI endpoint recognizes `reasoning_effort`
@@ -298,7 +298,7 @@ unconditional), and **config** that gates it.
 - **When**: Only when `experiment_ttft_watchdog: true` (default: true).
   Streaming (SSE) responses only.
 - **Config** (all hot-reloadable): `experiment_ttft_watchdog` (default:
-  false), `ttft_timeout_ms` (60000), `ttft_watchdog_multiplier` (5),
+  true), `ttft_timeout_ms` (60000), `ttft_watchdog_multiplier` (5),
   `ttft_watchdog_hard_cap_ms` (300000), `ttft_retry_max_attempts` (3),
   `ttft_retry_gate_saturation_pct` (80), `ttft_retry_cooldown_ms` (5000).
 - **Response headers** (when feature is on):

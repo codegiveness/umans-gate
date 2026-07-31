@@ -65,9 +65,9 @@ are never overwritten. All env vars have `snake_case` JSON equivalents.
 | `db_path` | `./umans-gate.db` |
 | `idle_timeout` | `255` |
 | `upstream_protocol` | `http1.1` |
-| `stamp_claude_code_enabled` | `false` |
+| `stamp_claude_code_enabled` | `true` |
 | `stamp_model_rules` | `[]` |
-| `stamp_reasoning_effort_enabled` | `false` |
+| `stamp_reasoning_effort_enabled` | `true` |
 | `warmer_enabled` | `true` |
 | `warmer_interval_ms` | `20000` |
 | `umans_api_key` | `""` |

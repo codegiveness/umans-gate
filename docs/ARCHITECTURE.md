@@ -6,7 +6,7 @@ umans-gate is a Bun-based capture proxy that sits between an LLM harness and
 the upstream API, intercepting traffic to capture, stamp, and optionally
 transform requests before forwarding.
 
-> ⚠️ Experimental: enabled by `stamp_claude_code_enabled` (default: off)
+> ⚠️ Experimental: enabled by `stamp_claude_code_enabled` (default: on)
 
 ## What is the system layout?
 
@@ -320,7 +320,9 @@ WebSocket:
 - **Bun-native**: uses `bun:sqlite`, `Bun.serve`, Bun's `fetch` with `protocol`
   option, no Node.js compatibility layer
 - **Capture-first**: the proxy never modifies the response body (only captures
-  it). Request body modifications are gated by config flags and default off
+  it). Request body modifications are gated by config flags and default on
+  (`stamp_claude_code_enabled` and `stamp_reasoning_effort_enabled` both
+  default to `true`)
 - **Non-blocking streaming**: writes are batched and offloaded to workers;
   the TransformStream never blocks the response
 

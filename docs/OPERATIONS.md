@@ -48,6 +48,19 @@ PORT=9001 umans-gate          # npm install
 PORT=9001 bun src/cli.ts      # dev
 ```
 
+### CLI reference
+
+| Command | Description |
+|---|---|
+| `umans-gate` | Start proxy in foreground (default port `1945`). |
+| `umans-gate --port <n>` | Override listen port for this run. |
+| `umans-gate --target <url>` | Override upstream target URL (bypasses `umans_api_key`-derived host). Mainly used by the test suite; not for production. |
+| `umans-gate config show` | Print current resolved config (env + JSON + defaults merged). |
+| `umans-gate config path` | Print the config file path (`$XDG_CONFIG_HOME/umans-gate/config.json` or platform equivalent). |
+| `umans-gate update [--check]` | Self-update to latest release. `--check` only reports the latest version without installing. |
+| `umans-gate uninstall [--keep-config]` | Remove the binary/service. `--keep-config` preserves `config.json` and the database. |
+| `umans-gate service install\|start\|stop\|restart\|status\|logs [-f]\|uninstall` | Managed service lifecycle (systemd / launchd / Windows Service). See [Managed service](#managed-service) above. |
+
 ## Health checks
 
 ### HTTP endpoints

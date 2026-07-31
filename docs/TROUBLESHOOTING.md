@@ -55,7 +55,7 @@ touch ~/.config/umans-gate/config.json
 
 ### Stamps not applied to requests
 
-Stamps only apply when `stamp_claude_code_enabled` is `true`:
+Stamps only apply when `stamp_claude_code_enabled` is `true` (default is now `true`; this section helps users who turned it off):
 
 ```bash
 # Via dashboard: Config tab → toggle stamp_claude_code_enabled

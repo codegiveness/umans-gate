@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted. Governs all `FieldDef.experimental: true` flags in
+Accepted. §2 superseded by ADR-0030 (stamping defaults graduated to
+`true` based on benchmark evidence). §1, §3, §4 remain in force. Governs
+all `FieldDef.experimental: true` flags in
 `dashboard/src/components/config-sections.ts` and the `experiment_*` /
 `stamp_*_enabled` defaults in `src/config/defaults.ts:6`.
 
