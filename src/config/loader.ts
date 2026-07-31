@@ -19,7 +19,7 @@ import {
   str,
 } from "./env.js";
 import { ensureConfigFile } from "./file.js";
-import type { StampModelRuleRaw } from "./types.js";
+import type { RawConfigInput, StampModelRuleRaw } from "./types.js";
 
 /**
  * Parse raw config.json `stamp_model_rules` entries into PerModelRule[].
@@ -49,9 +49,41 @@ function parseStampModelRules(raw: StampModelRuleRaw[] | undefined): PerModelRul
  * rate_limit_window_seconds) are hardcoded — app is Umans-specific.
  * Misconfigured numeric fields fall back to their defaults.
  */
+/**
+ * Detect existing installs where stamping flipped from off→on via default change.
+ * Returns true when the resolved stamping is on but the raw config file never
+ * set the field explicitly (so the user is silently upgraded). Used to emit a
+ * startup banner so the behavior change is not silent.
+ */
+function stampingImplicitlyEnabled(
+  env: Record<string, string | undefined>,
+  raw: RawConfigInput,
+): { claudeCode: boolean; reasoningEffort: boolean } {
+  const envCc = env.STAMP_CLAUDE_CODE_ENABLED;
+  const envRe = env.STAMP_REASONING_EFFORT_ENABLED;
+  const rawCc = raw.stamp_claude_code_enabled;
+  const rawRe = raw.stamp_reasoning_effort_enabled;
+  return {
+    claudeCode: envCc === undefined && rawCc === undefined,
+    reasoningEffort: envRe === undefined && rawRe === undefined,
+  };
+}
+
 export function loadConfig(env: Record<string, string | undefined> = process.env): ProxyConfig {
   const configPath = ensureConfigFile();
   const raw = loadJsonConfig(configPath);
+
+  const stampImplicit = stampingImplicitlyEnabled(env, raw);
+  if (stampImplicit.claudeCode || stampImplicit.reasoningEffort) {
+    const parts: string[] = [];
+    if (stampImplicit.claudeCode) parts.push("stamp_claude_code_enabled");
+    if (stampImplicit.reasoningEffort) parts.push("stamp_reasoning_effort_enabled");
+    console.warn(
+      `[umans-gate] Stamping is now enabled by default (${parts.join(", ")}). ` +
+        "Your requests will be modified (TTL, thinking, max_tokens, reasoning_effort, etc.). " +
+        "Set these to false in config.json or Config → Stamps to disable.",
+    );
+  }
 
   const port = num(env.PORT ?? raw.port, 1945);
   const host = "127.0.0.1";
@@ -62,12 +94,12 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   const upstreamProtocol = resolveUpstreamProtocol(env.UPSTREAM_PROTOCOL ?? raw.upstream_protocol);
   const stampClaudeCode = bool(
     env.STAMP_CLAUDE_CODE_ENABLED ?? raw.stamp_claude_code_enabled,
-    false,
+    true,
   );
   const stampModelRules = parseStampModelRules(raw.stamp_model_rules);
   const stampReasoningEffortEnabled = bool(
     env.STAMP_REASONING_EFFORT_ENABLED ?? raw.stamp_reasoning_effort_enabled,
-    false,
+    true,
   );
   const stampReasoningEffort = stampReasoningEffortEnabled ? STAMP_REASONING_EFFORT_VALUE : null;
   const openaiPath = OPENAI_CHAT_PATH;

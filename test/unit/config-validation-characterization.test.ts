@@ -1235,14 +1235,13 @@ test("char: warning — umans_api_key set does NOT produce empty-key warning", (
 // Default config produces all 4 warnings
 // ============================================================================
 
-test("char: default config (empty input) produces exactly the 2 default warnings", () => {
+test("char: default config (empty input) produces exactly the 1 default warning", () => {
   const r = validateConfig({});
   expect(r.ok).toBe(true);
   expect(r.errors).toEqual([]);
   // Default config has: warmer_enabled=true (no warning), rate_limit_requests=0 (no warning, auto-derive),
-  // stamp_claude_code_enabled=false (warning), umans_api_key="" (warning)
+  // stamp_claude_code_enabled=true (no warning), umans_api_key="" (warning)
   expect(r.warnings).toEqual([
-    "Claude Code stamping is off — TTL, top_k, max_tokens, thinking, output_config, and context_management stamps are inactive. This is informational and safe to ignore if stamping is intentionally disabled.",
     "umans_api_key is empty — proxy runs in fail-safe mode (worst-case limits, priority_low=true). Set umans_api_key in the Server section to enable usage-based limits.",
   ]);
 });

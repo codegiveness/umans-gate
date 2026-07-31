@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-07-31
+
+### Changed
+
+- **Enable stamping by default**: `stamp_claude_code_enabled` (Anthropic
+  TTL/thinking/top_k/max_tokens/output_config/context_management stamps) and
+  `stamp_reasoning_effort_enabled` (OpenAI `reasoning_effort` injection) now
+  default to `true`. Existing installs without an explicit value in
+  `config.json` are silently upgraded — a startup `console.warn` banner fires
+  when the flip is implicit. Set to `false` in Config → Stamps or `config.json`
+  to disable.
+
+### Added
+
+- **Restart-service button on the API key gate**: after saving the API key,
+  the login page now shows a "Restart Service" button. `umans_api_key` is a
+  restart-required field — the live proxy config does not pick up the saved
+  key until restart. The button calls `POST /dashboard/api/restart`, polls
+  until the server responds, then reloads the page.
+
+### Fixed
+
+- **API key not recognized until manual restart**: the dashboard saved the
+  key to disk but the gate closed without prompting for a restart, leaving
+  the user in a state where `/v1/usage` polling and gate sizing stayed
+  disabled until the next manual service restart.
+- **Promotion paragraph on API key gate now mentions stamp toggles**: the
+  "Heads up" paragraph previously pointed only to "Config → Experimental"
+  for passthrough-proxy users. It now also mentions "Config → Stamps" since
+  stamping is enabled by default and is the most impactful body-modification
+  feature.
+
 ## [0.6.0] - 2026-07-31
 
 ### Changed

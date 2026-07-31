@@ -116,7 +116,7 @@ describe("ApiKeyGate", () => {
     });
   });
 
-  it("disappears after successful save when has_api_key becomes true", async () => {
+  it("keeps the gate open after save, showing the restart prompt", async () => {
     const user = userEvent.setup();
     const saveImpl = vi.fn().mockImplementation(() => {
       Object.assign(mockConfigResult, {
@@ -137,8 +137,31 @@ describe("ApiKeyGate", () => {
       expect(saveImpl).toHaveBeenCalledWith({ umans_api_key: "umans-test-key-123" });
     });
     rerender(<ApiKeyGate />);
+    // After save, the gate stays open showing the restart prompt because
+    // umans_api_key is a restart-required field — the live config does not
+    // pick up the saved key until the service restarts.
     await waitFor(() => {
-      expect(screen.queryByText("Umans API Key Required")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /restart service/i })).toBeInTheDocument();
+    });
+  });
+
+  it("shows restart prompt after save and calls restart on click", async () => {
+    const user = userEvent.setup();
+    const restartFn = vi.fn().mockResolvedValue({ ok: true, message: "restarting" });
+    setup({
+      config: { has_api_key: false } as Record<string, unknown>,
+      loading: false,
+      error: null,
+      restart: restartFn,
+    });
+    await user.type(screen.getByPlaceholderText("sk-..."), "umans-test-key-123");
+    await user.click(screen.getByRole("button", { name: /save & continue/i }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /restart service/i })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole("button", { name: /restart service/i }));
+    await waitFor(() => {
+      expect(restartFn).toHaveBeenCalled();
     });
   });
 

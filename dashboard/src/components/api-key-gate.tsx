@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { KeyRound } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { KeyRound, RotateCw } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -19,7 +19,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export function ApiKeyGate() {
-  const { config, loading, error, save } = useConfigContext();
+  const { config, loading, error, save, restart } = useConfigContext();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -32,8 +32,17 @@ export function ApiKeyGate() {
   } = form;
 
   const dialogRef = useRef<HTMLDialogElement>(null);
+  // After a successful save, the key is on disk but the live ProxyConfig
+  // still lacks it (umans_api_key is a restart-required field). We keep the
+  // gate open and prompt the user to restart so the key takes effect.
+  const [phase, setPhase] = useState<"input" | "saved">("input");
+  const [restarting, setRestarting] = useState(false);
 
-  const showGate = config !== null && !loading && !error && !config.has_api_key;
+  const showGate =
+    config !== null &&
+    !loading &&
+    (!error || phase === "saved") &&
+    (!config.has_api_key || phase === "saved");
 
   useEffect(() => {
     if (error) {
@@ -59,11 +68,54 @@ export function ApiKeyGate() {
         });
         return;
       }
-      toast.success("API key saved. Reloading configuration…");
+      toast.success("API key saved. Restart the service to apply it.");
+      setPhase("saved");
     } catch (err) {
       toast.error("Failed to save API key", {
         description: err instanceof Error ? err.message : "Unknown error",
       });
+    }
+  };
+
+  const handleRestart = async () => {
+    setRestarting(true);
+    const r = await restart();
+    if (!r) {
+      toast.error("Restart failed", { description: "Server unreachable." });
+      setRestarting(false);
+      return;
+    }
+    if (r.ok) {
+      toast.success("Restarting", {
+        description:
+          r.message ??
+          "Server is restarting. Reconnect in a few seconds. Requires a process manager (bun --watch, systemd, pm2) to auto-restart.",
+      });
+      const poll = async (attempts = 0) => {
+        if (attempts > 20) {
+          setRestarting(false);
+          toast.error("Server did not come back", {
+            description: "Check your process manager (bun --watch, systemd, pm2).",
+          });
+          return;
+        }
+        try {
+          const res = await fetch("/dashboard/api/config", {
+            headers: { "Cache-Control": "no-cache" },
+          });
+          if (res.ok) {
+            window.location.reload();
+            return;
+          }
+        } catch {
+          // Server still restarting — keep polling.
+        }
+        setTimeout(() => poll(attempts + 1), 1500);
+      };
+      poll();
+    } else {
+      toast.error("Restart failed", { description: r.error });
+      setRestarting(false);
     }
   };
 
@@ -86,32 +138,45 @@ export function ApiKeyGate() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Form {...form}>
-              <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4">
-                <FormField
-                  control={form.control}
-                  name="umans_api_key"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>API Key</FormLabel>
-                      <FormControl>
-                        <PasswordInput
-                          placeholder="sk-..."
-                          autoComplete="off"
-                          autoFocus
-                          disabled={isSubmitting}
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Saving…" : "Save & Continue"}
+            {phase === "input" ? (
+              <Form {...form}>
+                <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4">
+                  <FormField
+                    control={form.control}
+                    name="umans_api_key"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>API Key</FormLabel>
+                        <FormControl>
+                          <PasswordInput
+                            placeholder="sk-..."
+                            autoComplete="off"
+                            autoFocus
+                            disabled={isSubmitting}
+                            {...field}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting ? "Saving…" : "Save & Continue"}
+                  </Button>
+                </form>
+              </Form>
+            ) : (
+              <div className="grid gap-4">
+                <p className="text-sm text-muted-foreground">
+                  Your API key has been saved. Restart the service so the proxy recognizes the new
+                  key.
+                </p>
+                <Button onClick={handleRestart} disabled={restarting}>
+                  <RotateCw className="mr-2 size-4" />
+                  {restarting ? "Restarting…" : "Restart Service"}
                 </Button>
-              </form>
-            </Form>
+              </div>
+            )}
             <p className="mt-3 text-center text-xs text-muted-foreground">
               Don't have a key?{" "}
               <a
@@ -124,10 +189,12 @@ export function ApiKeyGate() {
               </a>
             </p>
             <p className="mt-3 text-xs text-muted-foreground">
-              <strong>Heads up.</strong> Experimental features — OMO reminder stripping, TTFT
+              <strong>Heads up.</strong> Stamping (Claude Code TTL/thinking for Anthropic,
+              reasoning_effort for OpenAI) and experimental features — OMO reminder stripping, TTFT
               watchdog with gated retry, and 502/529 ID rewrite — are{" "}
               <strong>enabled by default</strong>. They are anecdotal, not benchmarked. Toggle them
-              off in <strong>Config → Experimental</strong> if you prefer a passthrough proxy.
+              off in <strong>Config → Stamps</strong> or <strong>Config → Experimental</strong> if
+              you prefer a passthrough proxy.
             </p>
           </CardContent>
         </Card>

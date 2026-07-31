@@ -55,7 +55,7 @@ test("ensureConfigFile creates JSON config on first run", () => {
   const content = readFileSync(path, "utf-8");
   expect(content).toContain('"port": 1945');
   expect(content).toContain('"upstream_protocol": "http1.1"');
-  expect(content).toContain('"stamp_claude_code_enabled": false');
+  expect(content).toContain('"stamp_claude_code_enabled": true');
 });
 
 test("ensureConfigFile does not overwrite existing JSON config", () => {
@@ -77,7 +77,7 @@ test("loadConfig writes JSON config on first run and returns defaults", () => {
   expect(config.host).toBe("127.0.0.1");
   expect(config.target).toBe("https://api.code.umans.ai");
   expect(config.upstreamProtocol).toBe("http1.1");
-  expect(config.stampClaudeCode).toBe(false);
+  expect(config.stampClaudeCode).toBe(true);
   expect(config.warmerEnabled).toBe(true);
 });
 
@@ -133,7 +133,7 @@ test("loadConfig falls back gracefully on malformed JSON", () => {
 test("loadConfig handles stamp_claude_code_enabled toggle", () => {
   expect(loadConfig({ STAMP_CLAUDE_CODE_ENABLED: "false" }).stampClaudeCode).toBe(false);
   expect(loadConfig({ STAMP_CLAUDE_CODE_ENABLED: "0" }).stampClaudeCode).toBe(false);
-  expect(loadConfig({ STAMP_CLAUDE_CODE_ENABLED: undefined }).stampClaudeCode).toBe(false);
+  expect(loadConfig({ STAMP_CLAUDE_CODE_ENABLED: undefined }).stampClaudeCode).toBe(true);
   expect(loadConfig({ STAMP_CLAUDE_CODE_ENABLED: "true" }).stampClaudeCode).toBe(true);
   expect(loadConfig({ STAMP_CLAUDE_CODE_ENABLED: "1" }).stampClaudeCode).toBe(true);
 });
@@ -309,7 +309,9 @@ test("validateConfig rejects non-boolean stamp_reasoning_effort_enabled", () => 
 });
 
 test("loadConfig handles stamp_reasoning_effort_enabled toggle", () => {
-  expect(loadConfig({ STAMP_REASONING_EFFORT_ENABLED: undefined }).stampReasoningEffort).toBeNull();
+  expect(loadConfig({ STAMP_REASONING_EFFORT_ENABLED: undefined }).stampReasoningEffort).toBe(
+    "high",
+  );
   expect(loadConfig({ STAMP_REASONING_EFFORT_ENABLED: "false" }).stampReasoningEffort).toBeNull();
   expect(loadConfig({ STAMP_REASONING_EFFORT_ENABLED: "0" }).stampReasoningEffort).toBeNull();
   expect(loadConfig({ STAMP_REASONING_EFFORT_ENABLED: "true" }).stampReasoningEffort).toBe("high");
