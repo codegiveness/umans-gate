@@ -619,6 +619,7 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
   let pendingRewriteEscalation = false; // next loop iter calls attemptRewriteRetry.
   let ttftTimeoutCount = 0; // number of TTFT timeouts across the lifecycle.
   let currentThreshold: number | null = null; // threshold used by the current attempt.
+  let currentP50: number | null = null; // model p50 TTFT from /v1/status for the current attempt.
 
   // Detached status fetch — fires before the upstream fetch loop so the
   // dashboard gets p50 data early. Shares the in-flight promise with the
@@ -628,6 +629,7 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
       .fetchStatus(reqModelName ?? "")
       .then((result: StatusResult | null) => {
         if (!result || result.modelP50 == null) return;
+        currentP50 = result.modelP50;
         try {
           deps.db.updateUpstreamP50(capId, result.modelP50, result.tpsP50);
           const row = deps.db.get(capId);
@@ -774,25 +776,21 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
     }
   };
 
-  /** Record a single ttft_timeout incident at the end of the capture
-   *  lifecycle, summarizing the full retry history. Called once on terminal
-   *  504 (all retries exhausted, retry suppressed, or rewrite escalation
-   *  failed). The `failureDetail` parameter, when provided, replaces the
-   *  generic "all retries exhausted" tail so the incident `reason` column
-   *  reflects the actual terminal condition (e.g. "retry suppressed:
-   *  breaker_open", "rewrite escalation failed"). */
-  const recordTtftLifecycleIncident = (succeeded: boolean, failureDetail?: string): void => {
+  /** Record one ttft_timeout incident for a single watchdog firing.
+   *  Called from handleTtftTimeout on every attempt that times out, so each
+   *  retry attempt gets its own incident row with its threshold + p50. */
+  const recordTtftAttemptIncident = (terminal: boolean): void => {
     try {
       const thresholdSec = currentThreshold !== null ? (currentThreshold / 1000).toFixed(1) : "?";
-      const reason = succeeded
-        ? `TTFT watchdog: ${ttftTimeoutCount} timeouts, succeeded on attempt ${attempt} at ${thresholdSec}s`
-        : `TTFT watchdog: ${ttftTimeoutCount} timeouts, ${failureDetail ?? "all retries exhausted"}`;
+      const p50Sec = currentP50 !== null ? (currentP50 / 1000).toFixed(1) : null;
+      const p50Part = p50Sec !== null ? ` (p50=${p50Sec}s)` : "";
+      const reason = `TTFT timeout attempt ${attempt}: no first byte within ${thresholdSec}s${p50Part}`;
       deps.db.recordIncident({
         captureId: capId,
         responsibleParty: "proxy",
         incidentType: "ttft_timeout",
         upstreamStatus: null,
-        servedStatus: succeeded ? 200 : 504,
+        servedStatus: terminal ? 504 : null,
         reason,
         retryAttempt,
         ttftExceeded: 1,
@@ -817,6 +815,7 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
     log.info("ttft_watchdog_fired", { captureId: capId, attempt });
     const decision = decideRetry();
     if (decision === "retry") {
+      recordTtftAttemptIncident(false);
       if (attempt === 2 && isRewriteEligible()) {
         attempt++;
         retryAttempt = 2;
@@ -891,7 +890,7 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
         ? "TTFT watchdog exceeded — no first byte within threshold"
         : `TTFT watchdog exceeded — no first byte within threshold (retry suppressed: ${suppressReason})`;
     queueTtftTimeout(504, ttftReason, "ttft_watchdog_exceeded");
-    recordTtftLifecycleIncident(false, `retry suppressed (${suppressReason})`);
+    recordTtftAttemptIncident(true);
     const errHeaders: Record<string, string> = { "content-type": "text/plain" };
     applyTtftHeaders(errHeaders);
     return {
@@ -1043,7 +1042,7 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
           "TTFT watchdog exceeded — no first byte within threshold (rewrite escalation failed)",
           "ttft_watchdog_exceeded",
         );
-        recordTtftLifecycleIncident(false, "rewrite escalation failed");
+        recordTtftAttemptIncident(true);
         const errHeaders: Record<string, string> = { "content-type": "text/plain" };
         applyTtftHeaders(errHeaders);
         return new Response("Gateway Timeout: TTFT exceeded", {
@@ -1471,6 +1470,7 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
   ctx.flushCaptureRef = flushCapture;
 
   const onAbort = (): void => {
+    if (ctx.permitReleased) return;
     flushCapture();
     ctx.releasePermit();
     if (req.signal?.aborted) {

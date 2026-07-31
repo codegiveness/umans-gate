@@ -284,7 +284,7 @@ describe("Incident attribution — 504 TTFT timeout (retry suppressed: cap_reach
       expect(incidents[0].incident_type).toBe("ttft_timeout");
       expect(incidents[0].upstream_status).toBe(null);
       expect(incidents[0].served_status).toBe(504);
-      expect(incidents[0].reason).toContain("retry suppressed (cap_reached)");
+      expect(incidents[0].reason).toContain("TTFT timeout attempt 1");
       expect(incidents[0].reason).not.toContain("all retries exhausted");
     } finally {
       await proxy.kill();

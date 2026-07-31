@@ -312,10 +312,12 @@ beta, unstable.
 
 **Incident**: a captured request whose final `response_status` is not
 200, attributed to exactly one responsible party. Stored in the
-`incidents` table with one row per `capture_id` (UNIQUE). Distinct from
-the capture itself (which records the full request/response). An
-incident is the attribution overlay that answers "who or what caused
-this non-200?" _Avoid_: failure record, error log entry.
+`incidents` table. TTFT-retry lifecycles write one row per watchdog
+firing (per attempt); other non-200 paths write one row per capture.
+Distinct from the capture itself (which records the full
+request/response). An incident is the attribution overlay that answers
+"who or what caused this non-200?" _Avoid_: failure record, error log
+entry.
 
 **Responsible party**: the single attribution target for a non-200
 incident. Three values: `upstream` (the LLM endpoint returned a real
@@ -338,9 +340,8 @@ response status (ambiguous with `captures.response_status`).
 
 **Incident type**: the categorical cause within a responsible party.
 Six values: `upstream_error`, `ttft_timeout`, `id_rewrite`,
-`rate_limited`, `gate_rejected`, `client_aborted`. Anchored at first
-insert; does not change if the capture transitions. The `reason` column
-carries the human-readable detail (e.g. suppression cause for
+`rate_limited`, `gate_rejected`, `client_aborted`. The `reason` column
+carries the human-readable detail (e.g. attempt number + threshold for
 `ttft_timeout`). _Avoid_: error type, failure class.
 
 **TTFT suppression reason**: the sub-cause appended to a `ttft_timeout`

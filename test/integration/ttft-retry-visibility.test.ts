@@ -221,10 +221,9 @@ describe("TTFT retry success — no incident row (200 served is not an incident)
 
       await sleep(300);
 
-      // No incident row: per CONTEXT.md, the incidents table stores only
-      // non-200 captures. A successful retry (servedStatus=200) is a
-      // near-miss, not an incident. TTFT near-miss tracking belongs in
-      // metrics/logs, not the incident table.
+      // Per-attempt incident model: attempt-1 timeout gets its own incident
+      // row even though retry succeeded and the client saw 200. The
+      // served_status on the attempt-1 incident is null (not terminal).
       const incidentsRes = await fetch(
         `${proxy.baseUrl}/dashboard/api/incidents?incident_type=ttft_timeout`,
       );
@@ -239,7 +238,8 @@ describe("TTFT retry success — no incident row (200 served is not an incident)
         retry_attempt: number | null;
         ttft_exceeded: number | null;
       }>;
-      expect(incidents.length).toBe(0);
+      expect(incidents.length).toBe(1);
+      expect(incidents[0].reason).toContain("TTFT timeout attempt 1");
     } finally {
       await proxy.kill();
       await upstream.close();

@@ -358,17 +358,53 @@ export function migrateCaptureSchema(db: Database): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS incidents (
       id                INTEGER PRIMARY KEY AUTOINCREMENT,
-      capture_id        INTEGER NOT NULL UNIQUE,
+      capture_id        INTEGER NOT NULL,
       responsible_party TEXT NOT NULL,
       incident_type     TEXT NOT NULL,
       upstream_status   INTEGER,
-      served_status     INTEGER NOT NULL,
+      served_status     INTEGER,
       reason            TEXT,
       retry_attempt     INTEGER,
       ttft_exceeded     INTEGER,
       created_at        INTEGER NOT NULL
     );
   `);
+  // Migration: drop the legacy UNIQUE constraint on capture_id (ADR-0021
+  // originally required one incident per capture; TTFT-retry per-attempt
+  // incidents now allow multiple rows per capture_id). SQLite cannot DROP
+  // CONSTRAINT in place, so recreate the table without UNIQUE when the legacy
+  // index is detected. Idempotent: a no-op on fresh or already-migrated DBs.
+  const legacyUnique = db
+    .query(
+      "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='incidents' AND sql LIKE '%capture_id%UNIQUE%'",
+    )
+    .get() as { name: string } | undefined;
+  if (legacyUnique?.name) {
+    db.exec("DROP INDEX IF EXISTS idx_incidents_capture_unique;");
+    db.exec("ALTER TABLE incidents RENAME TO incidents_legacy_unique;");
+    db.exec(`
+      CREATE TABLE incidents (
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        capture_id        INTEGER NOT NULL,
+        responsible_party TEXT NOT NULL,
+        incident_type     TEXT NOT NULL,
+        upstream_status   INTEGER,
+        served_status     INTEGER,
+        reason            TEXT,
+        retry_attempt     INTEGER,
+        ttft_exceeded     INTEGER,
+        created_at        INTEGER NOT NULL
+      );
+    `);
+    db.exec(`
+      INSERT INTO incidents (id, capture_id, responsible_party, incident_type,
+        upstream_status, served_status, reason, retry_attempt, ttft_exceeded, created_at)
+      SELECT id, capture_id, responsible_party, incident_type,
+        upstream_status, served_status, reason, retry_attempt, ttft_exceeded, created_at
+      FROM incidents_legacy_unique;
+    `);
+    db.exec("DROP TABLE incidents_legacy_unique;");
+  }
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_incidents_created
       ON incidents(created_at DESC);
@@ -380,6 +416,10 @@ export function migrateCaptureSchema(db: Database): void {
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_incidents_type
       ON incidents(incident_type, created_at DESC);
+  `);
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_incidents_capture
+      ON incidents(capture_id, created_at DESC);
   `);
 
   // Economics schema (model_pricing + daily_usage tables, usage_accounted column).
@@ -1075,7 +1115,7 @@ export class CaptureDB {
       | "gate_rejected"
       | "client_aborted";
     upstreamStatus: number | null;
-    servedStatus: number;
+    servedStatus: number | null;
     reason: string | null;
     retryAttempt?: number | null;
     ttftExceeded?: number | null;
@@ -1086,11 +1126,7 @@ export class CaptureDB {
            (capture_id, responsible_party, incident_type, upstream_status,
             served_status, reason, retry_attempt, ttft_exceeded, created_at)
          VALUES ($capture_id, $responsible_party, $incident_type, $upstream_status,
-                 $served_status, $reason, $retry_attempt, $ttft_exceeded, $created_at)
-         ON CONFLICT(capture_id) DO UPDATE SET
-           served_status = excluded.served_status,
-           reason = excluded.reason,
-           upstream_status = COALESCE(excluded.upstream_status, incidents.upstream_status)`,
+                 $served_status, $reason, $retry_attempt, $ttft_exceeded, $created_at)`,
       )
       .run({
         $capture_id: params.captureId,

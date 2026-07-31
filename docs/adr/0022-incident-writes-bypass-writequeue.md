@@ -6,9 +6,10 @@ batched-flush path that capture updates use.
 
 `WriteQueue` exists to batch the hundreds of `queueUpdate` calls that
 streaming SSE responses generate, one per chunk-batch. Incident writes
-are one-per-failed-capture, all on terminal error paths, and never in a
-hot loop. Batching them adds queue depth pressure and flush-timing
-indeterminism for zero throughput benefit.
+are low-frequency (one per non-200 event — per-attempt for TTFT-retry
+lifecycles, one per capture for other paths), all on terminal error
+paths, and never in a hot loop. Batching them adds queue depth pressure
+and flush-timing indeterminism for zero throughput benefit.
 
 The trade-off is transactional atomicity: a capture row and its incident
 row are not written in the same transaction. If the DB errors between
