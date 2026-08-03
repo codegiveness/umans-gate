@@ -39,7 +39,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.4",
     "@tailwindcss/postcss": "^4.3.3",
-    "jsdom": "30.0.0",
+    "jsdom": "30.0.1",
     "postcss": "^8.5.23",
     "react-grab": "0.1.50",
     "react-scan": "0.5.7",
