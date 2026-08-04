@@ -32,6 +32,10 @@ export interface GateRawConfig {
   concurrency_main_reservation?: number;
   concurrency_vision_reservation?: number;
   rate_limit_requests?: number;
+  request_use_hard_cap?: boolean;
+  request_hard_cap?: number;
+  request_soft_limit?: number;
+  never_limit_requests?: boolean;
   queue_timeout_ms?: number;
   max_queue_depth?: number;
   release_cooldown_ms?: number;

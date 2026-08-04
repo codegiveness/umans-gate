@@ -168,7 +168,10 @@ export interface GateStats {
   demotedUntil: number | null;
   requestsRemaining: number | null;
   requestsInWindow: number;
+  weightedRequestsInWindow: number;
+  weightedRemainingRequests: number | null;
   requestsLimit: number | null;
+  requestsHardCap: number | null;
   windowSeconds: number | null;
   usageOk: boolean;
   lastUsageFetch: number | null;

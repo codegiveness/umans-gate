@@ -42,6 +42,20 @@ export function GateStatus({
 
   const pct = stats.effectiveLimit > 0 ? (stats.active / stats.effectiveLimit) * 100 : 0;
   const tierLabel = stats.tier === "unknown" ? "no key" : stats.tier;
+  const requestCap = stats.requestsLimit ?? stats.requestsHardCap;
+  const reqPct =
+    requestCap && requestCap > 0 ? (stats.weightedRequestsInWindow / requestCap) * 100 : 0;
+  const badgeLabel = stats.requestsLimit !== null ? `${stats.requestsLimit} req` : tierLabel;
+  const resetLabel = stats.windowResetsAt
+    ? (() => {
+        const ms = stats.windowResetsAt - Date.now();
+        if (ms <= 0) return null;
+        const totalMin = Math.ceil(ms / 60000);
+        const h = Math.floor(totalMin / 60);
+        const m = totalMin % 60;
+        return h > 0 ? `reset in ${h}h${String(m).padStart(2, "0")}m` : `reset in ${m}m`;
+      })()
+    : null;
 
   return (
     <div className="border-b border-border px-4 py-2 text-xs">
@@ -50,15 +64,17 @@ export function GateStatus({
           <Tooltip>
             <TooltipTrigger render={<span className="inline-flex" />}>
               <Badge variant="secondary" className={tierBadgeClass[stats.tier]}>
-                {tierLabel}
+                {badgeLabel}
               </Badge>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="max-w-[240px]">
-              {stats.tier === "Code Max"
-                ? "Highest concurrency — no rate limit gating"
-                : stats.tier === "Code Pro"
-                  ? "Standard concurrency with rate-limit gating"
-                  : "No API key configured — upstream defaults apply"}
+              {stats.requestsLimit !== null
+                ? `Request cap: ${stats.requestsLimit} per ${stats.windowSeconds ? Math.round(stats.windowSeconds / 3600) : 5}h window`
+                : stats.tier === "Code Max"
+                  ? "Highest concurrency — no rate limit gating"
+                  : stats.tier === "Code Pro"
+                    ? "Standard concurrency with rate-limit gating"
+                    : "No API key configured — upstream defaults apply"}
             </TooltipContent>
           </Tooltip>
           <Tooltip>
@@ -125,13 +141,27 @@ export function GateStatus({
       </div>
 
       {stats.requestsLimit !== null && (
-        <div className="mt-1 flex items-center gap-2 text-muted-foreground">
-          <span>
-            requests: {stats.requestsInWindow}
-            {stats.requestsLimit ? ` / ${stats.requestsLimit}` : ""}
-          </span>
-          {stats.requestsRemaining !== null && <span>({stats.requestsRemaining} remaining)</span>}
-          {stats.windowSeconds && <span>· {Math.round(stats.windowSeconds / 3600)}h window</span>}
+        <div className="mt-1.5">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <span>
+              weighted {stats.weightedRequestsInWindow}
+              {requestCap && requestCap > 0 ? ` / ${requestCap}` : ""}
+            </span>
+            {resetLabel ? (
+              <span>· {resetLabel}</span>
+            ) : stats.windowSeconds ? (
+              <span>· {Math.round(stats.windowSeconds / 3600)}h window</span>
+            ) : null}
+          </div>
+          <div className="mt-1.5 h-1 w-full overflow-hidden rounded bg-secondary">
+            <div
+              className={cn(
+                "h-full transition-all",
+                reqPct >= 100 ? "bg-destructive" : "bg-primary",
+              )}
+              style={{ width: `${Math.min(100, reqPct)}%` }}
+            />
+          </div>
         </div>
       )}
     </div>

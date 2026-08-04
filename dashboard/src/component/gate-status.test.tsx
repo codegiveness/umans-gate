@@ -28,8 +28,10 @@ const baseStats: GateStats = {
   unitsDemoted: false,
   demotedUntil: null,
   requestsLimit: null,
+  requestsHardCap: null,
   requestsInWindow: 0,
-  requestsRemaining: null,
+  weightedRequestsInWindow: 0,
+  weightedRemainingRequests: null,
   windowSeconds: null,
   activeByIntention: {},
   queuedByIntention: {},
@@ -595,5 +597,102 @@ describe("GateStatus multi-budget usageSnapshot prop", () => {
     const badges = container.querySelectorAll("[data-slot='badge']");
     const badgeTexts = Array.from(badges).map((b) => b.textContent?.trim() ?? "");
     expect(badgeTexts).toContain("healthy");
+  });
+});
+
+describe("GateStatus request cap", () => {
+  it("badge shows the request cap instead of the tier name", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          tier: "unknown",
+          requestsLimit: 500,
+          requestsHardCap: 1000,
+          requestsInWindow: 250,
+          windowSeconds: 18000,
+        }}
+      />,
+    );
+    await flushEffects();
+    const badges = container.querySelectorAll("[data-slot='badge']");
+    const badgeTexts = Array.from(badges).map((b) => b.textContent?.trim() ?? "");
+    expect(badgeTexts).toContain("500 req");
+    expect(badgeTexts).not.toContain("no key");
+  });
+
+  it("renders request-position meter while within soft-limit budget", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          requestsLimit: 500,
+          requestsHardCap: 1000,
+          requestsInWindow: 250,
+          weightedRequestsInWindow: 120,
+          weightedRemainingRequests: 380,
+        }}
+      />,
+    );
+    await flushEffects();
+    const bars = container.querySelectorAll(".h-1");
+    expect(bars.length).toBeGreaterThanOrEqual(2);
+    expect(container).toHaveTextContent("weighted 120 / 500");
+  });
+
+  it("meter is destructive when the request window is exhausted", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          requestsLimit: 500,
+          requestsHardCap: 500,
+          requestsInWindow: 500,
+          weightedRequestsInWindow: 500,
+          weightedRemainingRequests: 0,
+        }}
+      />,
+    );
+    await flushEffects();
+    const bars = Array.from(container.querySelectorAll(".h-1"));
+    const reqBar = bars[bars.length - 1];
+    expect(reqBar?.querySelector("div")?.className).toContain("bg-destructive");
+  });
+
+  it("shows weighted usage instead of the raw request count", async () => {
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          requestsLimit: 500,
+          requestsHardCap: 1000,
+          requestsInWindow: 200,
+          weightedRequestsInWindow: 64,
+          weightedRemainingRequests: 436,
+          requestsRemaining: 300,
+        }}
+      />,
+    );
+    await flushEffects();
+    expect(container).toHaveTextContent("weighted 64 / 500");
+    expect(container).not.toHaveTextContent("requests:");
+    expect(container).not.toHaveTextContent("remaining");
+  });
+
+  it("renders reset countdown from windowResetsAt instead of window span", async () => {
+    const resetsAt = Date.now() + 70 * 60 * 1000; // ~1h10m from now
+    const { container } = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          requestsLimit: 500,
+          requestsInWindow: 163,
+          requestsRemaining: 337,
+          windowResetsAt: resetsAt,
+        }}
+      />,
+    );
+    await flushEffects();
+    expect(container).toHaveTextContent(/reset in 1h1[0-9]m/);
   });
 });

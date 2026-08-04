@@ -436,6 +436,38 @@ const CONCURRENCY_GATE_FIELDS: FieldDef[] = [
     umansSourced: true,
     refreshSource: true,
   },
+  {
+    key: "never_limit_requests",
+    label: "Never Limit Requests",
+    kind: "toggle",
+    description:
+      "On (default): do not enforce any local request cap — let upstream handle limits. Off: enforce the request cap from your API plan. Switch anytime, no restart needed.",
+  },
+  {
+    key: "request_use_hard_cap",
+    label: "Use Request Hard Cap",
+    kind: "toggle",
+    description:
+      "Pick which request cap to enforce. On = use the request hard cap (max requests per window). Off = use the soft limit (safer). Switch anytime, no restart needed.",
+  },
+  {
+    key: "request_hard_cap",
+    label: "Request Hard Cap",
+    kind: "number",
+    description:
+      "The absolute max number of requests per window. Pulled from your API plan. Use the toggle above to pick this as your cap.",
+    disabled: true,
+    umansSourced: true,
+  },
+  {
+    key: "request_soft_limit",
+    label: "Request Soft Limit",
+    kind: "number",
+    description:
+      "A gentler request cap for normal use. Pulled from your API plan. Use the toggle above to pick this as your cap.",
+    disabled: true,
+    umansSourced: true,
+  },
 ];
 
 const CIRCUIT_BREAKER_FIELDS: FieldDef[] = [
