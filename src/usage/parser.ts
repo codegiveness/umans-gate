@@ -2,6 +2,7 @@
 // Pure functions: no I/O, no mutation. Reusable by aggregator + reconciler.
 
 import type { PriorityBudgetEntry, UsageSnapshot } from "../types.js";
+import { deriveWalletTier } from "./pricing-tier.js";
 
 export interface RawPriorityBudgetEntry {
   category: string;
@@ -110,6 +111,14 @@ export function buildSnapshot(
     userId: raw.user_id ?? null,
     plan,
     planSlug: raw.plan?.slug ?? null,
+    walletTier:
+      plan === "Code Max" && raw.limits?.requests?.limit == null
+        ? "unlimited"
+        : deriveWalletTier({
+            requestsLimit: raw.limits?.requests?.limit ?? null,
+            windowSeconds: raw.limits?.requests?.window_seconds ?? null,
+            concurrencyLimit: raw.limits?.concurrency?.limit ?? null,
+          }),
     requestsLimit: raw.limits?.requests?.limit ?? null,
     requestsHardCap: raw.limits?.requests?.hard_cap ?? null,
     requestsWindowSeconds: raw.limits?.requests?.window_seconds ?? null,
@@ -149,6 +158,7 @@ export function failSafeSnapshot(): UsageSnapshot {
     userId: null,
     plan: "unknown",
     planSlug: null,
+    walletTier: "unknown",
     requestsLimit: null,
     requestsHardCap: null,
     requestsWindowSeconds: null,

@@ -18,6 +18,7 @@ const dummySnapshot: UsageSnapshot = {
   fetchedAt: Date.now(),
   userId: null,
   plan: "Code Max",
+  walletTier: "unknown",
   planSlug: "code_max",
   requestsLimit: null,
   requestsHardCap: null,

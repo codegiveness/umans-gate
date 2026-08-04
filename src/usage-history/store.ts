@@ -281,6 +281,7 @@ export class UsageHistoryStore {
         userId: last.user_id,
         plan: last.plan as UsageSnapshot["plan"],
         planSlug: last.plan_slug,
+        walletTier: "unknown",
         requestsLimit: last.requests_limit,
         requestsHardCap: last.requests_hard_cap,
         requestsWindowSeconds: last.requests_window_seconds,

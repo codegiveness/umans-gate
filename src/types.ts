@@ -9,6 +9,8 @@ export type UpstreamProtocol = "http2" | "http1.1";
 /** HTTP protocol for incoming connections (always http1.1 without TLS). */
 export type IncomingProtocol = "http1.1";
 
+export type WalletTier = 0 | 1 | 2 | 3 | "unknown" | "unlimited";
+
 /** Capture state lifecycle. `cooling_down` is a transient WS-only state —
  *  the DB never persists it (the DB state column stays `streaming` during
  *  cooldown). It is broadcast so the dashboard can show a `cooldown` badge. */
@@ -520,6 +522,7 @@ export interface UsageSnapshot {
   fetchedAt: number;
   userId: string | null;
   plan: "Code Pro" | "Code Max" | "unknown";
+  walletTier: WalletTier;
   planSlug: string | null;
   requestsLimit: number | null;
   requestsHardCap: number | null;
@@ -559,6 +562,7 @@ export interface GateStats {
   /** Current effective operating limit (soft or hard, adjusted for priorityLow/boxing). */
   effectiveLimit: number;
   tier: "Code Pro" | "Code Max" | "unknown";
+  walletTier: WalletTier;
   breaker: BreakerState;
   boxed: boolean;
   boxedReason: string | null;

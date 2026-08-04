@@ -17,6 +17,7 @@ const failSnap: UsageSnapshot = {
   ok: false,
   fetchedAt: 0,
   plan: "unknown",
+  walletTier: "unknown",
   requestsLimit: null,
   requestsHardCap: null,
   requestsWindowSeconds: null,

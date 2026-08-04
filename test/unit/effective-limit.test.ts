@@ -18,6 +18,7 @@ const snap: UsageSnapshot = {
   fetchedAt: 0,
   userId: null,
   plan: "Code Max",
+  walletTier: "unknown",
   planSlug: null,
   requestsLimit: null,
   requestsHardCap: null,
@@ -43,6 +44,12 @@ const snap: UsageSnapshot = {
   demotedUntil: null,
   serviceMode: { current: "normal", resetsAt: null },
 };
+
+test("getStats copies snapshot.walletTier verbatim (never re-derives)", () => {
+  const g = new ConcurrencyGate(opts);
+  const tiered: UsageSnapshot = { ...snap, walletTier: 2 };
+  expect(g.getStats(tiered).walletTier).toBe(2);
+});
 
 test("effectiveLimit equals resized limit", () => {
   const g = new ConcurrencyGate(opts);

@@ -32,6 +32,7 @@ const baseSnap = (): UsageSnapshot => ({
   fetchedAt: 0,
   userId: null,
   plan: "unknown",
+  walletTier: "unknown",
   planSlug: null,
   requestsLimit: null,
   requestsHardCap: null,

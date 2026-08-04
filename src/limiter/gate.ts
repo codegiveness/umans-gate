@@ -564,6 +564,7 @@ export class ConcurrencyGate {
       hardCap: this.semaphore.getHardCap() / SCALE,
       effectiveLimit: this.semaphore.getLimit() / SCALE,
       tier: snapshot.plan,
+      walletTier: snapshot.walletTier,
       breaker: this.breaker.getState(),
       boxed,
       boxedReason: snapshot.boxedReason,
