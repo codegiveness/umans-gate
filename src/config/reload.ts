@@ -99,6 +99,30 @@ const RELOAD_FIELDS: Array<{
     },
   },
   {
+    rawKey: "request_hard_cap",
+    apply: (live, fresh) => {
+      live.requestHardCap = fresh.requestHardCap;
+    },
+  },
+  {
+    rawKey: "request_soft_limit",
+    apply: (live, fresh) => {
+      live.requestSoftLimit = fresh.requestSoftLimit;
+    },
+  },
+  {
+    rawKey: "request_use_hard_cap",
+    apply: (live, fresh) => {
+      live.requestUseHardCap = fresh.requestUseHardCap;
+    },
+  },
+  {
+    rawKey: "never_limit_requests",
+    apply: (live, fresh) => {
+      live.neverLimitRequests = fresh.neverLimitRequests;
+    },
+  },
+  {
     rawKey: "queue_timeout_ms",
     apply: (live, fresh) => {
       live.queueTimeoutMs = fresh.queueTimeoutMs;

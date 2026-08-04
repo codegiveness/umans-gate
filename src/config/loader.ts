@@ -136,6 +136,10 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   const concurrencySoftLimit = num(env.CONCURRENCY_SOFT_LIMIT ?? raw.concurrency_soft_limit, 8);
   const useHardCap = bool(env.USE_HARD_CAP ?? raw.use_hard_cap, true);
   const rateLimitRequests = num(env.RATE_LIMIT_REQUESTS ?? raw.rate_limit_requests, 0);
+  const requestHardCap = num(env.REQUEST_HARD_CAP ?? raw.request_hard_cap, 1000);
+  const requestSoftLimit = num(env.REQUEST_SOFT_LIMIT ?? raw.request_soft_limit, 500);
+  const requestUseHardCap = bool(env.REQUEST_USE_HARD_CAP ?? raw.request_use_hard_cap, true);
+  const neverLimitRequests = bool(env.NEVER_LIMIT_REQUESTS ?? raw.never_limit_requests, true);
   const queueTimeoutMs = num(env.QUEUE_TIMEOUT_MS ?? raw.queue_timeout_ms, 180000);
   const maxQueueDepth = num(env.MAX_QUEUE_DEPTH ?? raw.max_queue_depth, 256);
   const releaseCooldownMs = num(env.RELEASE_COOLDOWN_MS ?? raw.release_cooldown_ms, 1000);
@@ -386,6 +390,10 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     concurrencySoftLimit,
     useHardCap,
     rateLimitRequests,
+    requestHardCap,
+    requestSoftLimit,
+    requestUseHardCap,
+    neverLimitRequests,
     queueTimeoutMs,
     maxQueueDepth,
     releaseCooldownMs,

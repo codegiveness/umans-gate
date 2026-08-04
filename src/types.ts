@@ -220,6 +220,14 @@ export interface ProxyConfig {
   useHardCap: boolean;
   /** Pro-tier rolling window: -1 = unlimited (no limiter), 0 = auto-derive from /v1/usage, >0 = explicit limit. */
   rateLimitRequests: number;
+  /** Persisted request hard cap (requests per window, from /v1/usage, editable for robustness testing). */
+  requestHardCap: number;
+  /** Persisted request soft limit (requests per window, from /v1/usage, read-only display). */
+  requestSoftLimit: number;
+  /** When true, the effective request-cap is requestHardCap; when false it is requestSoftLimit. */
+  requestUseHardCap: boolean;
+  /** When true, the local request-cap rate limiter is disabled entirely (never limit requests). */
+  neverLimitRequests: boolean;
   /** Max time a request can wait in the queue before 503, in ms. */
   queueTimeoutMs: number;
   /** Max depth of the enqueued-waiters queue before 503-on-full. */
@@ -560,7 +568,10 @@ export interface GateStats {
   demotedUntil: number | null;
   requestsRemaining: number | null;
   requestsInWindow: number;
+  weightedRequestsInWindow: number;
+  weightedRemainingRequests: number | null;
   requestsLimit: number | null;
+  requestsHardCap: number | null;
   windowSeconds: number | null;
   usageOk: boolean;
   lastUsageFetch: number | null;

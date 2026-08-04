@@ -654,6 +654,7 @@ describe("TTFT watchdog — ticket 03 same-key retry", () => {
       RELEASE_COOLDOWN_MS: "0",
       UPSTREAM_TIMEOUT_MS: "5000",
       RATE_LIMIT_REQUESTS: "1",
+      NEVER_LIMIT_REQUESTS: "false",
       EXPERIMENT_TTFT_WATCHDOG: "true",
       TTFT_TIMEOUT_MS: "200",
       TTFT_RETRY_COOLDOWN_MS: "0",

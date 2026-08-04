@@ -17,6 +17,7 @@ beforeAll(async () => {
     releaseCooldownMs: 0,
     configOverrides: {
       rateLimitRequests: 2,
+      neverLimitRequests: false,
     },
   });
   upstream.reset();
@@ -50,7 +51,7 @@ describe("handleProxy rate-limit rejection", () => {
     expect(res2.status).toBe(200);
   });
 
-  test("third request returns 429 with expected body and headers", async () => {
+  test("third request returns 503 with expected body and headers", async () => {
     const reqBody = {
       model: "umans-flash",
       max_tokens: 10,
@@ -63,7 +64,7 @@ describe("handleProxy rate-limit rejection", () => {
       body: JSON.stringify(reqBody),
     });
 
-    expect(res.status).toBe(429);
+    expect(res.status).toBe(503);
 
     const body = (await res.json()) as { error: string; retry_after: number };
     expect(body.error).toBe("rate_limit_exceeded");

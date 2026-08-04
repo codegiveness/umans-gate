@@ -195,6 +195,7 @@ describe("Incident attribution — 429 rate limit", () => {
       CONCURRENCY_SOFT_LIMIT: "2",
       RELEASE_COOLDOWN_MS: "0",
       RATE_LIMIT_REQUESTS: "1",
+      NEVER_LIMIT_REQUESTS: "false",
     });
     try {
       // First request consumes the 1-request budget (returns 500 from upstream).
@@ -204,13 +205,14 @@ describe("Incident attribution — 429 rate limit", () => {
         body: MSG_BODY,
       });
       await res1.text();
-      // Second request hits the rate limiter and is rejected with 429.
+      // Second request hits the rate limiter and is rejected with 503
+      // (Service Unavailable, matching the other gate over-capacity 503s).
       const res2 = await fetch(`${proxy.baseUrl}/v1/messages`, {
         method: "POST",
         headers: MSG_HEADERS,
         body: MSG_BODY,
       });
-      expect(res2.status).toBe(429);
+      expect(res2.status).toBe(503);
       await res2.text();
 
       const db = await waitForIncidentCount(proxy.dbPath, 1);
@@ -231,7 +233,7 @@ describe("Incident attribution — 429 rate limit", () => {
       expect(rateLimited[0].responsible_party).toBe("proxy");
       expect(rateLimited[0].incident_type).toBe("rate_limited");
       expect(rateLimited[0].upstream_status).toBe(null);
-      expect(rateLimited[0].served_status).toBe(429);
+      expect(rateLimited[0].served_status).toBe(503);
     } finally {
       await proxy.kill();
       await upstream.close();

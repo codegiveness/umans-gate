@@ -455,7 +455,7 @@ function checkRateLimit(ctx: ProxyContext, deps: ProxyDeps): Response | undefine
 
   const gateReason = `Rate limit exceeded — retry after ${rc.retryAfterSeconds}s`;
   queue.queueUpdate(ctx.capId, ctx.reqMeta, {
-    $status: 429,
+    $status: 503,
     $rh: JSON.stringify({ error: "rate_limit_exceeded" }),
     $rb: JSON.stringify({ error: "rate_limit_exceeded", retry_after: rc.retryAfterSeconds }),
     $rs: 0,
@@ -467,17 +467,14 @@ function checkRateLimit(ctx: ProxyContext, deps: ProxyDeps): Response | undefine
     $gate_reason: gateReason,
   });
   try {
-    const { responsibleParty, incidentType } = deriveIncident({
-      status: 429,
-      statusSource: "gate",
-      clientAborted: false,
-    });
+    // 503 signals capacity exhaustion to the harness, matching the other gate
+    // over-capacity 503s. Incident stays rate_limited to keep the rejection class.
     db.recordIncident({
       captureId: ctx.capId,
-      responsibleParty,
-      incidentType,
+      responsibleParty: "proxy",
+      incidentType: "rate_limited",
       upstreamStatus: null,
-      servedStatus: 429,
+      servedStatus: 503,
       reason: gateReason,
     });
   } catch {
@@ -489,7 +486,7 @@ function checkRateLimit(ctx: ProxyContext, deps: ProxyDeps): Response | undefine
       retry_after: rc.retryAfterSeconds,
     }),
     {
-      status: 429,
+      status: 503,
       headers: {
         "content-type": "application/json",
         "retry-after": String(rc.retryAfterSeconds),

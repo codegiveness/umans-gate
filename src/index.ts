@@ -259,17 +259,26 @@ const DEFAULT_RATE_WINDOW_SECONDS = 18000;
 
 function createRateLimiter(
   rateLimitRequests: number,
-  snap: { requestsHardCap: number | null; requestsWindowSeconds: number | null } | null,
+  snap: {
+    requestsHardCap: number | null;
+    requestsLimit: number | null;
+    requestsWindowSeconds: number | null;
+  } | null,
+  requestUseHardCap: boolean,
+  neverLimitRequests: boolean,
 ): SlidingWindowRateLimiter | null {
+  if (neverLimitRequests) return null;
   if (rateLimitRequests === -1) return null;
   if (rateLimitRequests > 0) {
     const windowSeconds = snap?.requestsWindowSeconds ?? DEFAULT_RATE_WINDOW_SECONDS;
     return new SlidingWindowRateLimiter({ limit: rateLimitRequests, windowSeconds });
   }
-  // rateLimitRequests === 0: auto-derive from usage snapshot
-  if (snap && snap.requestsHardCap !== null && snap.requestsHardCap > 0) {
+  // rateLimitRequests === 0: auto-derive from usage snapshot, honoring the
+  // request_use_hard_cap toggle (mirror of the concurrency effective-limit rule).
+  const limit = requestUseHardCap ? (snap?.requestsHardCap ?? null) : (snap?.requestsLimit ?? null);
+  if (snap && limit !== null && limit > 0) {
     const windowSeconds = snap.requestsWindowSeconds ?? DEFAULT_RATE_WINDOW_SECONDS;
-    return new SlidingWindowRateLimiter({ limit: snap.requestsHardCap, windowSeconds });
+    return new SlidingWindowRateLimiter({ limit, windowSeconds });
   }
   return null;
 }
@@ -361,7 +370,17 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     // Models not fetched yet — onChange will sync after first poll.
   }
   const gate = new ConcurrencyGate(gateOptionsFromConfig(config));
-  const rateRef: RateLimiterRef = { current: createRateLimiter(config.rateLimitRequests, null) };
+  const rateRef: RateLimiterRef = {
+    current: createRateLimiter(
+      config.rateLimitRequests,
+      null,
+      config.requestUseHardCap,
+      config.neverLimitRequests,
+    ),
+  };
+  // Last request-cap effective limit applied to the rate limiter, used to avoid
+  // resetting the rolling window counters on unchanged snapshots.
+  let lastRateEffectiveLimit: number | null = null;
 
   function applyEffectiveLimit(snap: {
     priorityLow: boolean;
@@ -379,6 +398,34 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     gate.resize(effective);
   }
 
+  function syncRateLimiter(snap: UsageSnapshot): void {
+    // Mirror concurrency: persist the authoritative upstream caps so a reload
+    // flag isn't needed to keep the limiter in sync with /v1/usage.
+    config.requestHardCap = snap.requestsHardCap ?? config.requestHardCap;
+    config.requestSoftLimit = snap.requestsLimit ?? config.requestSoftLimit;
+    if (config.rateLimitRequests === 0) {
+      const effective = config.requestUseHardCap
+        ? (snap.requestsHardCap ?? null)
+        : (snap.requestsLimit ?? null);
+      if (effective !== lastRateEffectiveLimit) {
+        lastRateEffectiveLimit = effective;
+        rateRef.current = createRateLimiter(
+          0,
+          snap,
+          config.requestUseHardCap,
+          config.neverLimitRequests,
+        );
+      }
+    } else if (config.rateLimitRequests > 0 && rateRef.current === null) {
+      rateRef.current = createRateLimiter(
+        config.rateLimitRequests,
+        snap,
+        config.requestUseHardCap,
+        config.neverLimitRequests,
+      );
+    }
+  }
+
   usage.onChange((snap) => {
     // Sync in-memory config from the live snapshot so applyEffectiveLimit()
     // reads the authoritative upstream values, not stale startup defaults.
@@ -389,16 +436,7 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
     gate.setHardCap(snap.concurrencyHardCap);
     gate.setSoftLimit(snap.concurrencySoftLimit);
     applyEffectiveLimit(snap);
-    // Auto-derive rate limiter from usage snapshot when rate_limit_requests=0
-    if (config.rateLimitRequests === 0 && snap.requestsHardCap !== null) {
-      if (rateRef.current === null) {
-        rateRef.current = createRateLimiter(0, snap);
-      }
-    } else if (config.rateLimitRequests > 0 && snap.requestsWindowSeconds !== null) {
-      if (rateRef.current === null) {
-        rateRef.current = createRateLimiter(config.rateLimitRequests, snap);
-      }
-    }
+    syncRateLimiter(snap);
     ws.broadcast({ type: "gate", stats: buildGateStats(snap) });
   });
   if (usageHistory) {
@@ -734,8 +772,20 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
       db.sweepIncidents();
     }
 
-    if (applied.includes("rate_limit_requests")) {
-      rateRef.current = createRateLimiter(config.rateLimitRequests, usage.getSnapshot());
+    if (
+      applied.includes("rate_limit_requests") ||
+      applied.includes("request_use_hard_cap") ||
+      applied.includes("request_hard_cap") ||
+      applied.includes("request_soft_limit") ||
+      applied.includes("never_limit_requests")
+    ) {
+      lastRateEffectiveLimit = null;
+      rateRef.current = createRateLimiter(
+        config.rateLimitRequests,
+        usage.getSnapshot(),
+        config.requestUseHardCap,
+        config.neverLimitRequests,
+      );
     }
 
     ws.broadcast({ type: "gate", stats: buildGateStats() });
@@ -767,22 +817,40 @@ export function createProxyServer(options: CreateProxyServerOptions = {}): Proxy
       const rl = await usage.fetchRequestsLimit();
       if (rl.ok) {
         const snap = usage.getSnapshot();
-        if (config.rateLimitRequests === 0 && rl.hardCap !== null && rl.hardCap > 0) {
-          rateRef.current = createRateLimiter(0, {
-            requestsHardCap: rl.hardCap,
-            requestsWindowSeconds: rl.windowSeconds,
-          });
+        config.requestHardCap = rl.hardCap ?? config.requestHardCap;
+        config.requestSoftLimit = rl.limit ?? config.requestSoftLimit;
+        if (config.rateLimitRequests === 0) {
+          if (rl.hardCap === null && rl.limit === null) {
+            // Upstream reports unlimited (e.g. Code Max) — persist -1 so the
+            // config UI reflects the effective state instead of staying at 0.
+            saveConfig({ rate_limit_requests: -1 });
+            config.rateLimitRequests = -1;
+            rateRef.current = null;
+            lastRateEffectiveLimit = null;
+          } else {
+            lastRateEffectiveLimit = config.requestUseHardCap ? rl.hardCap : rl.limit;
+            rateRef.current = createRateLimiter(
+              0,
+              {
+                requestsHardCap: rl.hardCap,
+                requestsLimit: rl.limit,
+                requestsWindowSeconds: rl.windowSeconds,
+              },
+              config.requestUseHardCap,
+              config.neverLimitRequests,
+            );
+          }
         } else if (config.rateLimitRequests > 0 && rl.windowSeconds !== null) {
-          rateRef.current = createRateLimiter(config.rateLimitRequests, {
-            requestsHardCap: rl.hardCap,
-            requestsWindowSeconds: rl.windowSeconds,
-          });
-        } else if (config.rateLimitRequests === 0 && rl.hardCap === null) {
-          // Upstream reports unlimited (e.g. Code Max) — persist -1 so the
-          // config UI reflects the effective state instead of staying at 0.
-          saveConfig({ rate_limit_requests: -1 });
-          config.rateLimitRequests = -1;
-          rateRef.current = null;
+          rateRef.current = createRateLimiter(
+            config.rateLimitRequests,
+            {
+              requestsHardCap: rl.hardCap,
+              requestsLimit: rl.limit,
+              requestsWindowSeconds: rl.windowSeconds,
+            },
+            config.requestUseHardCap,
+            config.neverLimitRequests,
+          );
         }
         ws.broadcast({ type: "gate", stats: buildGateStats(snap) });
         return {

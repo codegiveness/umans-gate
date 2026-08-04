@@ -193,6 +193,8 @@ export const FIELD_RULES: FieldRule[] = [
       "stamp_reasoning_effort_enabled",
       "compression_enabled",
       "use_hard_cap",
+      "request_use_hard_cap",
+      "never_limit_requests",
       "experiment_strip_omo_reminder",
       "experiment_ttft_watchdog",
       "usage_history_enabled",
@@ -294,6 +296,22 @@ export const FIELD_RULES: FieldRule[] = [
       n.concurrency_soft_limit !== undefined &&
       (!Number.isInteger(n.concurrency_soft_limit) || n.concurrency_soft_limit < 1)
         ? ["concurrency_soft_limit must be an integer >= 1"]
+        : [],
+  },
+  {
+    name: "request_hard_cap",
+    errors: (n) =>
+      n.request_hard_cap !== undefined &&
+      (!Number.isInteger(n.request_hard_cap) || n.request_hard_cap < 1)
+        ? ["request_hard_cap must be an integer >= 1"]
+        : [],
+  },
+  {
+    name: "request_soft_limit",
+    errors: (n) =>
+      n.request_soft_limit !== undefined &&
+      (!Number.isInteger(n.request_soft_limit) || n.request_soft_limit < 1)
+        ? ["request_soft_limit must be an integer >= 1"]
         : [],
   },
   {

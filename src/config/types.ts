@@ -62,6 +62,14 @@ export interface RawConfig {
   use_hard_cap?: boolean;
   /** Pro-tier rolling-window request limit. -1 = unlimited (no limiter), 0 = auto-derive from /v1/usage, >0 = explicit limit. */
   rate_limit_requests?: number;
+  /** Request hard cap (requests per window, from /v1/usage). Effective limit when request_use_hard_cap is true. */
+  request_hard_cap?: number;
+  /** Request soft limit (requests per window, from /v1/usage). Effective limit when request_use_hard_cap is false. */
+  request_soft_limit?: number;
+  /** When true, the local request-cap rate limiter is disabled entirely (never limit requests). Default: true. */
+  never_limit_requests?: boolean;
+  /** When true, the effective request-cap is request_hard_cap; when false it is request_soft_limit. */
+  request_use_hard_cap?: boolean;
   queue_timeout_ms?: number;
   max_queue_depth?: number;
   release_cooldown_ms?: number;
