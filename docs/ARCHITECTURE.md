@@ -288,11 +288,22 @@ src/rate.ts: SlidingWindowRateLimiter
 └── peek(): checks without recording
 ```
 
-The rate limiter is a sliding-window weighted counter with three modes:
+The rate limiter is a sliding-window weighted counter that governs request-per-window
+caps. It mirrors the concurrency gate's soft/hard mechanism:
 
-- `rate_limit_requests: 0`: auto-derive window and limit from `/v1/usage`
-- `-1`: disabled (no limiter)
-- `>0`: explicit limit with sliding window
+- `never_limit_requests` (default `true`): disables the local request-cap limiter
+  entirely — upstream handles limits. Off lets the proxy enforce a local cap.
+- `request_use_hard_cap` (default `true`): pick which cap to enforce (hard vs soft).
+- `request_hard_cap` / `request_soft_limit`: requests-per-window caps, normally
+  pulled from `/v1/usage` (`limits.requests.hard_cap` / `.limit`).
+- `rate_limit_requests`: `0` auto-derives window+limit from `/v1/usage`
+  (honoring the hard/soft toggle), `-1` disabled, `>0` explicit limit.
+
+When the local cap is enforced and hit, the proxy rejects with `503` (matching the
+other gate over-capacity responses) plus a `Retry-After` header and an
+`error: "rate_limit_exceeded"` body. GateStats exposes both raw and weighted
+usage (`weightedRequestsInWindow`, `weightedRemainingRequests`) because models
+carry different request weights — the dashboard displays the weighted position.
 
 ## How does the dashboard work?
 

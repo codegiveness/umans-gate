@@ -54,7 +54,9 @@ The Config tab edits proxy settings and applies hot-reloadable fields without a 
 Notable hot-reloadable fields: `stamp_claude_code_enabled`,
 `stamp_model_rules` (per-model thinking-shape rules table, ADR-0029),
 `stamp_reasoning_effort_enabled`, all `concurrency_*` and `breaker_*`
-fields, all `ttft_*` fields, `experiment_*` toggles,
+fields, all `request_*` request-cap fields (`request_hard_cap`,
+`request_soft_limit`, `request_use_hard_cap`, `never_limit_requests`,
+`rate_limit_requests`), all `ttft_*` fields, `experiment_*` toggles,
 `capture_body_max_bytes`, `compression_enabled`, `upstream_timeout_ms`,
 `performance_sample_count`, `incident_retention_days`, and the
 vision intent-aware fields (`vision_intent_strategy`,

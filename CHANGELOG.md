@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`never_limit_requests` request-cap toggle (default `true`)**: the local
+  request-per-window limiter is off by default; set it to `false` to enforce a
+  local cap derived from `/v1/usage`.
+- **Configurable request caps**: `request_use_hard_cap` / `request_hard_cap` /
+  `request_soft_limit` mirror the concurrency gate, pulled from
+  `/v1/usage` (`limits.requests`). Hot-reloadable.
+
+### Changed
+
+- **Local request-cap rejection returns `503` (was `429`)**: when a local cap is
+  enforced and hit, the proxy serves `503` with `error: "rate_limit_exceeded"`
+  and a `Retry-After` header, matching the other gate over-capacity responses.
+- **Weighted request usage exposed on GateStats**: `weightedRequestsInWindow` /
+  `weightedRemainingRequests` reflect per-model request weights; the dashboard
+  displays the weighted position against the request cap.
+
+### Fixed
+
+- **Model lifecycle parsing**: parse `production_start_date` from
+  `/v1/models/info` lifecycle (previously only `playground_start_date`).
+
 ## [0.6.2] - 2026-07-31
 
 ### Changed

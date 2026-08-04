@@ -157,11 +157,26 @@ The circuit breaker opens after 5 HTTP 429 responses within 5 minutes
 
 ### Rate limiter blocking requests
 
-If `rate_limit_requests` is `0` (auto), the limiter derives the limit from
-`/v1/usage`. If `UMANS_API_KEY` is not set, the limiter cannot fetch usage and
-may not function correctly.
+The local request-cap limiter is **off by default** (`never_limit_requests: true`).
+With it on, the proxy performs no local request-per-window rejection and lets
+upstream enforce its own limits.
 
-To disable rate limiting entirely, set `rate_limit_requests` to `-1`:
+To enable a local request cap, set `never_limit_requests` to `false`:
+
+```json
+{
+  "never_limit_requests": false,
+  "rate_limit_requests": 0
+}
+```
+
+With it enabled and `rate_limit_requests` set to `0` (auto), the limiter derives
+the limit from `/v1/usage`. If `UMANS_API_KEY` is not set, the limiter cannot fetch
+usage and may not function correctly. When the local cap is hit, the proxy returns
+`503` with `error: "rate_limit_exceeded"` and a `Retry-After` header.
+
+To disable limiting entirely, set `never_limit_requests` back to `true` (default)
+or `rate_limit_requests` to `-1`:
 
 ```json
 {
