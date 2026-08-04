@@ -226,4 +226,16 @@ describe("WalletTierBadge", () => {
     await flushEffects();
     expect(pill()).toHaveTextContent("T0");
   });
+
+  it("never crashes on an unrecognized walletTier — renders T— instead of destructuring undefined", async () => {
+    // A divergent snapshot can carry a runtime walletTier outside the union
+    // (e.g. undefined from an older producer). tierStyle must stay total.
+    const divergent = snapshot() as unknown as UsageSnapshot;
+    divergent.walletTier = 7 as unknown as UsageSnapshot["walletTier"];
+    const { container, unmount } = render(<WalletTierBadge snapshot={divergent} />);
+    await flushEffects();
+    expect(pill()).toHaveTextContent("T—");
+    expect(container).toHaveTextContent("Wallet tier unavailable");
+    unmount();
+  });
 });

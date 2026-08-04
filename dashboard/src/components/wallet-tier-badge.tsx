@@ -17,7 +17,7 @@ function burstStatus(primaryPct: number): BurstStatus {
   return "normal";
 }
 
-function tierStyle(tier: WalletTier): {
+function tierStyle(tier: WalletTier | undefined | null): {
   label: string;
   variant: "secondary" | "outline";
   className?: string;
@@ -31,10 +31,11 @@ function tierStyle(tier: WalletTier): {
       return { label: "T2", variant: "secondary", className: badgeViolet };
     case 3:
       return { label: "T3", variant: "secondary", className: badgeGold };
-    case "unknown":
-      return { label: "T—", variant: "outline", className: "text-muted-foreground" };
     case "unlimited":
       return { label: "unlimited", variant: "secondary" };
+    case "unknown":
+    default:
+      return { label: "T—", variant: "outline", className: "text-muted-foreground" };
   }
 }
 
@@ -64,6 +65,12 @@ export function WalletTierBadge({ snapshot }: { snapshot: UsageSnapshot | null }
   }
 
   const { walletTier } = snapshot;
+  const isUnknown =
+    walletTier !== 0 &&
+    walletTier !== 1 &&
+    walletTier !== 2 &&
+    walletTier !== 3 &&
+    walletTier !== "unlimited";
 
   const rawPrimaryPct =
     snapshot.requestsHardCap != null && snapshot.requestsHardCap > 0
@@ -120,7 +127,7 @@ export function WalletTierBadge({ snapshot }: { snapshot: UsageSnapshot | null }
             </p>
           )}
           {walletTier === "unlimited" && <p>No request limit (Code Max / unlimited plan)</p>}
-          {walletTier === "unknown" && <p>Wallet tier unavailable</p>}
+          {isUnknown && <p>Wallet tier unavailable</p>}
           <p className="text-background/60">
             Concurrency {snapshot.concurrentSessions} / {snapshot.concurrencySoftLimit} /{" "}
             {snapshot.concurrencyHardCap} concurrent
