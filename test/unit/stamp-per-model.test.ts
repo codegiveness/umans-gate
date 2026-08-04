@@ -716,3 +716,35 @@ describe("PerModelRuleStep — OpenAI reasoning_effort → thinking shape resolu
     expect(body.thinking).toEqual({ type: "enabled", keep: "all" });
   });
 });
+
+describe("PerModelRuleStep — umans-deepseek-v4-flash-0731 (thinking {type:enabled} on both routes)", () => {
+  const deepseekRule: PerModelRule = {
+    pattern: "umans-deepseek-v4-flash-0731",
+    anthropicThinkingShape: { type: "enabled" },
+    openaiThinkingShape: { type: "enabled" },
+  };
+
+  it("Anthropic: force bare enabled thinking shape", () => {
+    const config = makeConfig({ stampModelRules: [deepseekRule] });
+    const ctx = makeCtx(config, "umans-deepseek-v4-flash-0731", false);
+    const body: Record<string, unknown> = {
+      model: "umans-deepseek-v4-flash-0731",
+      thinking: { type: "adaptive" },
+      messages: [],
+    };
+    PerModelRuleStep.apply(body, ctx);
+    expect(body.thinking).toEqual({ type: "enabled" });
+  });
+
+  it("OpenAI: reasoning active → force bare enabled thinking shape", () => {
+    const config = makeConfig({ stampModelRules: [deepseekRule] });
+    const ctx = makeCtx(config, "umans-deepseek-v4-flash-0731", true);
+    const body: Record<string, unknown> = {
+      model: "umans-deepseek-v4-flash-0731",
+      reasoning_effort: "high",
+      messages: [],
+    };
+    PerModelRuleStep.apply(body, ctx);
+    expect(body.thinking).toEqual({ type: "enabled" });
+  });
+});

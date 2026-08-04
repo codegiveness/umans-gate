@@ -28,6 +28,7 @@ const SEED_PRICING: Record<string, { input: number; output: number; cache_read: 
   "umans-coder": { input: 0.95, output: 4.0, cache_read: 0.19 },
   "umans-flash": { input: 0.15, output: 1.0, cache_read: 0.05 },
   "umans-qwen3.6-35b-a3b": { input: 0.15, output: 1.0, cache_read: 0.05 },
+  "umans-deepseek-v4-flash-0731": { input: 0.14, output: 0.28, cache_read: 0.0028 },
 };
 
 /** SQL DDL for economics tables. Idempotent — safe to run on every startup. */

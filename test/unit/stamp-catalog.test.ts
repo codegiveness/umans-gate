@@ -65,6 +65,18 @@ describe("resolveStampPolicy", () => {
     });
   });
 
+  it("resolves umans-deepseek-v4-flash-0731 to the high-effort thinking policy with enabled shape", () => {
+    const catalog = catalogWith("umans-deepseek-v4-flash-0731");
+    expect(resolveStampPolicy("umans-deepseek-v4-flash-0731", catalog)).toEqual({
+      max_tokens: 32767,
+      effort: "high",
+      thinking: true,
+      top_k: null,
+      canDisableThinking: false,
+      thinkingShape: { type: "enabled" },
+    });
+  });
+
   it("resolves umans-qwen* to the high-effort thinking policy with adaptive shape", () => {
     const catalog = catalogWith("umans-qwen-baz");
     expect(resolveStampPolicy("umans-qwen-baz", catalog)).toEqual({
@@ -103,6 +115,7 @@ describe("matchStampOverlay", () => {
     ["umans-glm", STAMP_OVERLAY["umans-glm*"]],
     ["umans-coder", STAMP_OVERLAY["umans-coder"]],
     ["umans-flash", STAMP_OVERLAY["umans-flash"]],
+    ["umans-deepseek-v4-flash-0731", STAMP_OVERLAY["umans-deepseek-v4-flash-0731"]],
     ["umans-kimi-x", STAMP_OVERLAY["umans-kimi*"]],
     ["umans-qwen-y", STAMP_OVERLAY["umans-qwen*"]],
     ["umans-legacy", STAMP_OVERLAY["*"]],

@@ -10,7 +10,13 @@ const DEFAULT_CONFIG: RawConfig = {
   idle_timeout: 255,
   upstream_protocol: "http1.1",
   stamp_claude_code_enabled: true,
-  stamp_model_rules: [],
+  stamp_model_rules: [
+    {
+      pattern: "umans-deepseek-v4-flash-0731",
+      anthropic_thinking_shape: { type: "enabled" },
+      openai_thinking_shape: { type: "enabled" },
+    },
+  ],
   stamp_reasoning_effort_enabled: true,
   warmer_enabled: true,
   warmer_interval_ms: 20000,

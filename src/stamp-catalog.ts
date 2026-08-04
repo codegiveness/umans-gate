@@ -69,6 +69,14 @@ export const STAMP_OVERLAY: Record<string, StampPolicy> = {
     canDisableThinking: true,
     thinkingShape: { type: "adaptive" },
   },
+  "umans-deepseek-v4-flash-0731": {
+    max_tokens: 32767,
+    effort: "high",
+    thinking: true,
+    top_k: null,
+    canDisableThinking: true,
+    thinkingShape: { type: "enabled" },
+  },
   "umans-kimi-k3": {
     max_tokens: 131071,
     effort: "max",

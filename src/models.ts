@@ -1,6 +1,8 @@
 // Upstream /v1/models client — fetches the model list and derives per-model
-// concurrency weights. Models with output pricing below the cheap-threshold
-// (default 2.0) get a reduced weight (default 0.5); all others default to 1.0.
+// concurrency weights from output pricing. Tiers:
+//   output <  CHEAPEST_OUTPUT_THRESHOLD (0.9) → CHEAPEST_MODEL_WEIGHT (0.25)
+//   output <  CHEAP_OUTPUT_THRESHOLD (2.0)   → CHEAP_MODEL_WEIGHT (0.5)
+//   otherwise                                 → DEFAULT_MODEL_WEIGHT (1.0)
 
 import { createLogger } from "./logger.js";
 import type { ParsedModelInfo } from "./model-info-parser.js";
@@ -15,6 +17,10 @@ const DEFAULT_MODELS_INFO_PATH = "/v1/models/info";
 const CHEAP_OUTPUT_THRESHOLD = 2;
 /** Weight assigned to cheap models (output pricing < threshold). */
 const CHEAP_MODEL_WEIGHT = 0.5;
+/** Pricing output threshold below which a model is considered "cheapest". */
+const CHEAPEST_OUTPUT_THRESHOLD = 0.9;
+/** Weight assigned to cheapest models (output pricing < threshold). */
+const CHEAPEST_MODEL_WEIGHT = 0.25;
 /** Default weight for models without cheap pricing. */
 const DEFAULT_MODEL_WEIGHT = 1;
 
@@ -267,9 +273,11 @@ export class ModelsClient implements VisionLookup {
               }
             : null;
         const weight =
-          pricing && pricing.output < CHEAP_OUTPUT_THRESHOLD
-            ? CHEAP_MODEL_WEIGHT
-            : DEFAULT_MODEL_WEIGHT;
+          pricing && pricing.output < CHEAPEST_OUTPUT_THRESHOLD
+            ? CHEAPEST_MODEL_WEIGHT
+            : pricing && pricing.output < CHEAP_OUTPUT_THRESHOLD
+              ? CHEAP_MODEL_WEIGHT
+              : DEFAULT_MODEL_WEIGHT;
         next.set(id, {
           id,
           context_length: typeof raw.context_length === "number" ? raw.context_length : 0,
