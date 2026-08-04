@@ -20,6 +20,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { UsageHeatmap } from "@/components/usage-heatmap";
 import { UsageTimeline } from "@/components/usage-timeline";
 import { UsageTimelineOld } from "@/components/usage-timeline-old";
+import { WalletTierBadge } from "@/components/wallet-tier-badge";
 import { useConfig } from "@/hooks/use-config";
 import { useUsageDaily } from "@/hooks/use-usage-daily";
 import { useUsageDay } from "@/hooks/use-usage-day";
@@ -181,6 +182,7 @@ export function UsageTab({ usageSnapshot = null }: { usageSnapshot?: UsageSnapsh
       <ScrollArea className="min-h-0 flex-1">
         <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col gap-4 p-4">
           <PenaltyBadge input={mergePenaltyInput(null, usageSnapshot)} />
+          <WalletTierBadge snapshot={usageSnapshot ?? null} />
           {usageSnapshot?.priorityBudget?.length ? (
             <PriorityBudgetCards entries={usageSnapshot.priorityBudget} />
           ) : null}

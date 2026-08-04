@@ -1,5 +1,7 @@
 export type CaptureState = "enqueued" | "streaming" | "cooling_down" | "done";
 
+export type WalletTier = 0 | 1 | 2 | 3 | "unknown" | "unlimited";
+
 // Keep in sync with src/incidents.ts
 export type ResponsibleParty = "upstream" | "proxy" | "client";
 
@@ -159,6 +161,7 @@ export interface GateStats {
   hardCap: number;
   effectiveLimit: number;
   tier: "Code Pro" | "Code Max" | "unknown";
+  walletTier: WalletTier;
   breaker: BreakerState;
   boxed: boolean;
   boxedReason: string | null;
@@ -257,6 +260,7 @@ export interface UsageSnapshot {
   fetchedAt: number;
   userId: string | null;
   plan: "Code Pro" | "Code Max" | "unknown";
+  walletTier: WalletTier;
   planSlug: string | null;
   requestsLimit: number | null;
   requestsHardCap: number | null;

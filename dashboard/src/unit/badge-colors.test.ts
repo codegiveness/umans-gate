@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { badgeGold, badgeInfo, badgeSuccess, badgeWarning, budgetTier } from "@/lib/badge-colors";
+import {
+  badgeGold,
+  badgeInfo,
+  badgeSuccess,
+  badgeViolet,
+  badgeWarning,
+  budgetTier,
+} from "@/lib/badge-colors";
 
 // ─── Light-theme Badge Tint Tier (ADR 0012) ───
 // Light-theme badge backgrounds use *-100 (gold *-200) for figure-ground
@@ -25,6 +32,11 @@ describe("badge light-theme tint tiers", () => {
   it("badgeGold uses yellow-200 bg (not yellow-100)", () => {
     expect(badgeGold).toContain("bg-yellow-200");
     expect(badgeGold).not.toContain("bg-yellow-100");
+  });
+
+  it("badgeViolet uses violet-100 bg (not violet-50)", () => {
+    expect(badgeViolet).toContain("bg-violet-100");
+    expect(badgeViolet).not.toContain("bg-violet-50");
   });
 
   it("all badge text shades remain *-900", () => {

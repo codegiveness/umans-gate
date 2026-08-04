@@ -15,6 +15,7 @@ function snapshot(overrides: Partial<UsageSnapshot> = {}): UsageSnapshot {
     fetchedAt: 0,
     userId: null,
     plan: "Code Max",
+    walletTier: "unknown",
     planSlug: null,
     requestsLimit: null,
     requestsHardCap: null,

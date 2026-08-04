@@ -22,6 +22,10 @@ export const badgeGold =
 export const badgeInfo =
   "border-transparent bg-blue-100 dark:bg-blue-800 text-blue-900 dark:text-blue-100";
 
+/** Violet — tier 2, mid-high wallet tier. */
+export const badgeViolet =
+  "border-transparent bg-violet-100 dark:bg-violet-800 text-violet-900 dark:text-violet-100";
+
 /** Dot color for success indicators (e.g. WebSocket live dot). */
 export const dotSuccess = "bg-green-500 dark:bg-green-400";
 

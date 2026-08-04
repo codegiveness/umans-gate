@@ -20,6 +20,7 @@ const baseStats: GateStats = {
   effectiveLimit: 4,
   queued: 0,
   tier: "Code Max",
+  walletTier: "unknown",
   breaker: "closed",
   priorityLow: false,
   boxed: false,

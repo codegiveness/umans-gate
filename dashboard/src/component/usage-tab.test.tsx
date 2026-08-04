@@ -115,6 +115,7 @@ function snapshotWith(entries: PriorityBudgetEntry[]): UsageSnapshot {
     fetchedAt: Date.now(),
     userId: null,
     plan: "Code Pro",
+    walletTier: "unknown",
     planSlug: "code-pro",
     requestsLimit: null,
     requestsHardCap: null,
