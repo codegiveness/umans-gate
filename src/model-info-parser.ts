@@ -44,7 +44,9 @@ export interface ParsedModelInfo {
     hf_url: string | undefined;
   };
   stage: string | undefined;
-  lifecycle: { playground_start_date: string | undefined } | undefined;
+  lifecycle:
+    | { production_start_date: string | undefined; playground_start_date: string | undefined }
+    | undefined;
   /**
    * Stamp tuning resolved from the local `STAMP_OVERLAY` (ADR-0006).
    * Populated by matching the model name against overlay patterns; not
@@ -84,7 +86,10 @@ interface RawModelInfo {
     hf_url?: unknown;
   };
   stage?: unknown;
-  lifecycle?: { playground_start_date?: unknown };
+  lifecycle?: {
+    production_start_date?: unknown;
+    playground_start_date?: unknown;
+  };
 }
 
 /**
@@ -147,6 +152,10 @@ export function parseModelInfoResponse(body: unknown): Map<string, ParsedModelIn
       stage: typeof v.stage === "string" ? v.stage : undefined,
       lifecycle: v.lifecycle
         ? {
+            production_start_date:
+              typeof v.lifecycle.production_start_date === "string"
+                ? v.lifecycle.production_start_date
+                : undefined,
             playground_start_date:
               typeof v.lifecycle.playground_start_date === "string"
                 ? v.lifecycle.playground_start_date

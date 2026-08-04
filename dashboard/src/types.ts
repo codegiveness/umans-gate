@@ -123,6 +123,7 @@ export interface ModelInfo {
   };
   stage?: string;
   lifecycle?: {
+    production_start_date?: string;
     playground_start_date?: string;
   };
 }
