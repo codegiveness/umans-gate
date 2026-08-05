@@ -1,6 +1,6 @@
 # What works with umans-gate
 
-> **Applies to:** umans-gate v0.6.1 · **Last updated:** 2026-07-31
+> **Applies to:** umans-gate v0.6.2 · **Last updated:** 2026-08-05
 
 This document maps umans-gate v0.6.1, a Bun-based LLM capture proxy, to the
 [umans-open-stack](https://github.com/umans-ai/umans-open-stack) playbook
