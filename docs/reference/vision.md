@@ -4,6 +4,14 @@
 
 The Vision Calls tab inspects image-bearing requests and their model-generated text descriptions.
 
+> **Vision handoff temporarily disabled (2026-08).** umans.ai discontinued
+> its subscription plan; `vision_strategy` now defaults to `never` and all
+> vision config fields are rendered read-only in the dashboard. The Vision
+> Calls tab will show no new records while disabled. The pipeline code
+> remains intact and can be reactivated by flipping the default back to
+> `catalog` or `always` once umans.ai publishes a new subscription plan or
+> a cheaper multimodal model becomes available.
+
 ## Tab
 
 - **Name**: Vision Calls

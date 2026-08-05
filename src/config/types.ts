@@ -13,6 +13,7 @@ export type StampModelRuleRaw = {
   openai_thinking_shape?: PerModelRule["openaiThinkingShape"];
   openai_extra_body?: Record<string, unknown>;
   openai_veto_reasoning_effort?: boolean;
+  force_thinking_when_absent?: boolean;
 };
 
 /**
@@ -70,6 +71,8 @@ export interface RawConfig {
   never_limit_requests?: boolean;
   /** When true, the effective request-cap is request_hard_cap; when false it is request_soft_limit. */
   request_use_hard_cap?: boolean;
+  /** Safety margin subtracted from the effective request hard-cap before local rejection. Non-negative integer. */
+  request_rate_margin?: number;
   queue_timeout_ms?: number;
   max_queue_depth?: number;
   release_cooldown_ms?: number;

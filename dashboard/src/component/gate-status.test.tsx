@@ -506,6 +506,7 @@ function snapshotWith(entries: PriorityBudgetEntry[]): UsageSnapshot {
     fetchedAt: Date.now(),
     userId: null,
     plan: "Code Pro",
+    walletTier: "unknown",
     planSlug: "code-pro",
     requestsLimit: null,
     requestsHardCap: null,
@@ -602,24 +603,29 @@ describe("GateStatus multi-budget usageSnapshot prop", () => {
 });
 
 describe("GateStatus request cap", () => {
-  it("badge shows the request cap instead of the tier name", async () => {
+  it("badge shows the wallet tier instead of the request cap", async () => {
     const { container } = render(
       <GateStatus
         stats={{
           ...baseStats,
-          tier: "unknown",
           requestsLimit: 500,
           requestsHardCap: 1000,
           requestsInWindow: 250,
-          windowSeconds: 18000,
+        }}
+        usageSnapshot={{
+          ...snapshotWith([]),
+          walletTier: 0,
+          requestsLimit: 500,
+          requestsHardCap: 1000,
+          requestsRemaining: 750,
         }}
       />,
     );
     await flushEffects();
     const badges = container.querySelectorAll("[data-slot='badge']");
     const badgeTexts = Array.from(badges).map((b) => b.textContent?.trim() ?? "");
-    expect(badgeTexts).toContain("500 req");
-    expect(badgeTexts).not.toContain("no key");
+    expect(badgeTexts).toContain("Tier 0");
+    expect(badgeTexts).not.toContain("500 req");
   });
 
   it("renders request-position meter while within soft-limit budget", async () => {
@@ -638,7 +644,8 @@ describe("GateStatus request cap", () => {
     await flushEffects();
     const bars = container.querySelectorAll(".h-1");
     expect(bars.length).toBeGreaterThanOrEqual(2);
-    expect(container).toHaveTextContent("weighted 120 / 500");
+    expect(container).toHaveTextContent(/250 \/ 1000/);
+    expect(container).not.toHaveTextContent(/weighted \d+/);
   });
 
   it("meter is destructive when the request window is exhausted", async () => {
@@ -649,8 +656,7 @@ describe("GateStatus request cap", () => {
           requestsLimit: 500,
           requestsHardCap: 500,
           requestsInWindow: 500,
-          weightedRequestsInWindow: 500,
-          weightedRemainingRequests: 0,
+          requestsRemaining: 0,
         }}
       />,
     );
@@ -660,7 +666,7 @@ describe("GateStatus request cap", () => {
     expect(reqBar?.querySelector("div")?.className).toContain("bg-destructive");
   });
 
-  it("shows weighted usage instead of the raw request count", async () => {
+  it("shows the raw request count against the hard-cap-preferred cap", async () => {
     const { container } = render(
       <GateStatus
         stats={{
@@ -675,9 +681,46 @@ describe("GateStatus request cap", () => {
       />,
     );
     await flushEffects();
-    expect(container).toHaveTextContent("weighted 64 / 500");
-    expect(container).not.toHaveTextContent("requests:");
+    expect(container).toHaveTextContent(/200 \/ 1000/);
+    expect(container).toHaveTextContent("(unweighted)");
+    expect(container).not.toHaveTextContent(/weighted \d+/);
     expect(container).not.toHaveTextContent("remaining");
+  });
+
+  it("admonishes when requests approach the hard-cap margin and stays calm just below it", async () => {
+    const near = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          requestsLimit: 500,
+          requestsHardCap: 1000,
+          requestsInWindow: 950,
+        }}
+      />,
+    );
+    await flushEffects();
+    expect(near.container).toHaveTextContent(/950 \/ 1000/);
+    const nearBars = Array.from(near.container.querySelectorAll(".h-1"));
+    expect(nearBars[nearBars.length - 1]?.querySelector("div")?.className).toContain(
+      "bg-destructive",
+    );
+    near.unmount();
+
+    const calm = render(
+      <GateStatus
+        stats={{
+          ...baseStats,
+          requestsLimit: 500,
+          requestsHardCap: 1000,
+          requestsInWindow: 949,
+        }}
+      />,
+    );
+    await flushEffects();
+    const calmBars = Array.from(calm.container.querySelectorAll(".h-1"));
+    expect(calmBars[calmBars.length - 1]?.querySelector("div")?.className).not.toContain(
+      "bg-destructive",
+    );
   });
 
   it("renders reset countdown from windowResetsAt instead of window span", async () => {

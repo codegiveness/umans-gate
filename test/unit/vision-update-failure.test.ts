@@ -8,6 +8,7 @@ import { DescriptionCache } from "../../src/vision/cache.js";
 import { type VisionConfig, VisionHandoff } from "../../src/vision/handoff.js";
 
 const RED_PNG_B64 =
+  // biome-ignore lint/security/noSecrets: 1x1 red PNG test fixture, not a secret.
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 
 function makeConfig(target: string, overrides: Partial<VisionConfig> = {}): VisionConfig {

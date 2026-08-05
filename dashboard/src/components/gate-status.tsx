@@ -2,16 +2,14 @@ import { ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
 import { PenaltyBadge } from "@/components/penalty-badge";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { badgeGold, badgeInfo, badgeWarning } from "@/lib/badge-colors";
+import { WalletTierBadge } from "@/components/wallet-tier-badge";
+import { badgeWarning } from "@/lib/badge-colors";
 import { mergePenaltyInput } from "@/lib/gate-health";
 import { cn } from "@/lib/utils";
 import type { GateStats, UsageSnapshot } from "@/types";
 
-const tierBadgeClass: Record<GateStats["tier"], string | undefined> = {
-  "Code Max": badgeGold,
-  "Code Pro": badgeInfo,
-  unknown: undefined,
-};
+/** Requests-needed-to-hard-cap margin at which the unweighted gate starts rejecting. */
+const REQUEST_MARGIN = 50;
 
 const BREAKER_DESC: Record<string, string> = {
   closed: "Upstream healthy — requests flow normally",
@@ -41,11 +39,13 @@ export function GateStatus({
   if (!stats) return null;
 
   const pct = stats.effectiveLimit > 0 ? (stats.active / stats.effectiveLimit) * 100 : 0;
-  const tierLabel = stats.tier === "unknown" ? "no key" : stats.tier;
-  const requestCap = stats.requestsLimit ?? stats.requestsHardCap;
-  const reqPct =
-    requestCap && requestCap > 0 ? (stats.weightedRequestsInWindow / requestCap) * 100 : 0;
-  const badgeLabel = stats.requestsLimit !== null ? `${stats.requestsLimit} req` : tierLabel;
+  // Prefer the hard cap — the unweighted gate enforces hardCap - margin.
+  const requestCap = stats.requestsHardCap ?? stats.requestsLimit;
+  const reqPct = requestCap && requestCap > 0 ? (stats.requestsInWindow / requestCap) * 100 : 0;
+  const requestExhausted =
+    stats.requestsHardCap != null
+      ? stats.requestsInWindow >= stats.requestsHardCap - REQUEST_MARGIN
+      : reqPct >= 100;
   const resetLabel = stats.windowResetsAt
     ? (() => {
         const ms = stats.windowResetsAt - Date.now();
@@ -61,22 +61,7 @@ export function GateStatus({
     <div className="border-b border-border px-4 py-2 text-xs">
       <div className="flex items-center gap-2 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap flex-1">
-          <Tooltip>
-            <TooltipTrigger render={<span className="inline-flex" />}>
-              <Badge variant="secondary" className={tierBadgeClass[stats.tier]}>
-                {badgeLabel}
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="max-w-[240px]">
-              {stats.requestsLimit !== null
-                ? `Request cap: ${stats.requestsLimit} per ${stats.windowSeconds ? Math.round(stats.windowSeconds / 3600) : 5}h window`
-                : stats.tier === "Code Max"
-                  ? "Highest concurrency — no rate limit gating"
-                  : stats.tier === "Code Pro"
-                    ? "Standard concurrency with rate-limit gating"
-                    : "No API key configured — upstream defaults apply"}
-            </TooltipContent>
-          </Tooltip>
+          <WalletTierBadge snapshot={usageSnapshot} />
           <Tooltip>
             <TooltipTrigger render={<span className="cursor-help" />}>
               <span className={cn("font-mono", stats.breaker === "open" && "text-destructive")}>
@@ -144,8 +129,9 @@ export function GateStatus({
         <div className="mt-1.5">
           <div className="flex items-center gap-2 text-muted-foreground">
             <span>
-              weighted {stats.weightedRequestsInWindow}
+              {stats.requestsInWindow}
               {requestCap && requestCap > 0 ? ` / ${requestCap}` : ""}
+              <span className="opacity-70"> (unweighted)</span>
             </span>
             {resetLabel ? (
               <span>· {resetLabel}</span>
@@ -157,7 +143,7 @@ export function GateStatus({
             <div
               className={cn(
                 "h-full transition-all",
-                reqPct >= 100 ? "bg-destructive" : "bg-primary",
+                requestExhausted ? "bg-destructive" : "bg-primary",
               )}
               style={{ width: `${Math.min(100, reqPct)}%` }}
             />

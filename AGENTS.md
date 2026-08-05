@@ -86,13 +86,14 @@ are never overwritten. All env vars have `snake_case` JSON equivalents.
 | `request_hard_cap` | `1000` |
 | `request_soft_limit` | `500` |
 | `never_limit_requests` | `true` |
+| `request_rate_margin` | `50` |
 | `queue_timeout_ms` | `180000` |
 | `max_queue_depth` | `256` |
 | `release_cooldown_ms` | `1000` |
 | `breaker_threshold` | `5` |
 | `breaker_window_ms` | `300000` |
 | `breaker_cooldown_ms` | `60000` |
-| `vision_strategy` | `catalog` |
+| `vision_strategy` | `never` |
 | `vision_model` | `umans-flash` |
 | `vision_prompt` | _(long string, see `src/config/defaults.ts`)_ |
 | `vision_prompt_version` | `2` |
@@ -116,6 +117,15 @@ are never overwritten. All env vars have `snake_case` JSON equivalents.
 | `vision_adjacent_text_max_chars` | `500` |
 | `vision_recent_messages_count` | `6` |
 | `vision_system_prompt_max_chars` | `1000` |
+
+> **Vision handoff temporarily disabled (2026-08).** umans.ai discontinued
+> its subscription plan; only the wallet mechanism remains. `vision_strategy`
+> now defaults to `never` and all vision config fields are rendered
+> read-only in the dashboard. The vision pipeline code remains intact and
+> can be reactivated by flipping the default back to `catalog` or `always`
+> once umans.ai publishes a new subscription plan or a cheaper multimodal
+> model becomes available. No existing workflow or functionality is
+> affected — images pass through untouched.
 | `concurrency_main_reservation` | `1` |
 | `concurrency_vision_reservation` | `1` |
 | `capture_body_max_bytes` | `10000000` |

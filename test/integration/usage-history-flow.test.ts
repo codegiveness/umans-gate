@@ -57,7 +57,7 @@ describe("Integration: usage history samples (in-process, deterministic)", () =>
     const rows = await fetchSamples(today());
     expect(rows.length).toBeGreaterThanOrEqual(1);
     const row = rows[0];
-    expect(row.plan).toBe("Code Pro");
+    expect(row.plan).toBe("unknown");
     expect(row.concurrency_hard_cap).toBe(16);
     expect(row.concurrency_soft_limit).toBe(8);
     expect(row.service_mode_current).toBe("normal");

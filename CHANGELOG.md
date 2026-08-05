@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Vision handoff temporarily disabled (default `vision_strategy: never`)**
+  (2026-08): umans.ai discontinued its subscription plan; only the wallet
+  mechanism remains. `vision_strategy` now defaults to `never` and all
+  vision config fields are rendered read-only in the dashboard so users
+  cannot change them. The vision pipeline code remains intact and can be
+  reactivated by flipping the default back to `catalog` or `always` once
+  umans.ai publishes a new subscription plan or a cheaper multimodal model
+  becomes available. No existing workflow or functionality is affected —
+  images pass through untouched.
+
 ### Added
 
 - **`never_limit_requests` request-cap toggle (default `true`)**: the local

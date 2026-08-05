@@ -30,7 +30,7 @@ describe("Integration: usage polling applies limit to gate (deterministic, no po
     await proxy.usage.refresh();
     const snap = proxy.usage.getSnapshot();
     expect(snap.ok).toBe(true);
-    expect(snap.plan).toBe("Code Max");
+    expect(snap.plan).toBe("unknown");
     expect(snap.concurrencySoftLimit).toBe(4);
     expect(snap.concurrencyHardCap).toBe(8);
     // Gate effective limit should match the upstream soft limit.

@@ -47,10 +47,13 @@ and failure isolation as live, hot-reloadable building blocks:
   `concurrency_vision_reservation`): separate budgets per traffic class
 - Circuit breaker (`breaker_threshold`, `breaker_window_ms`,
   `breaker_cooldown_ms`) for failure isolation
-- Rate limiter (`rate_limit_requests`, request caps pulled from `/v1/usage`)
-  for request-per-window caps; off by default via `never_limit_requests`;
-  rejects with `503` when a local cap is enforced and hit
-- Live gate stats broadcast over WebSocket (`type: "gate"`, weighted request
+- Rate limiter: upstream snapshot gate compares `requests_in_window`
+  (unweighted, from `/v1/usage`) against `requestsHardCap −
+  request_rate_margin` (default 50) and rejects locally before
+  forwarding when the wallet is near its cap; local burst fallback
+  (off by default via `never_limit_requests`) for inter-poll smoothing,
+  rejects with `503` when the gate fires
+- Live gate stats broadcast over WebSocket (`type: "gate"`, request
   usage included)
 
 The gate is observable in the dashboard at `GET /dashboard/api/gate` and

@@ -82,6 +82,7 @@ function SelectRenderer({ def, value, onChange, id, isInvalid }: RendererProps) 
     <Select
       value={String(value ?? "")}
       onValueChange={(v) => onChange(def.nullable && v === "" ? null : v)}
+      disabled={def.disabled}
     >
       <SelectTrigger id={id} aria-invalid={isInvalid || undefined}>
         <SelectValue placeholder={def.placeholder ?? "Select…"} />
@@ -97,14 +98,22 @@ function SelectRenderer({ def, value, onChange, id, isInvalid }: RendererProps) 
   );
 }
 
-function TextareaRenderer({ def, value, onChange, id, isInvalid, placeholder }: RendererProps) {
+function TextareaRenderer({
+  def,
+  value,
+  onChange,
+  id,
+  isInvalid,
+  placeholder,
+  disabled,
+}: RendererProps) {
   return (
     <Textarea
       id={id}
       value={valueToString(value, def.nullable)}
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
-      rows={3}
+      disabled={disabled}
       aria-invalid={isInvalid || undefined}
     />
   );
@@ -139,11 +148,20 @@ function NumberRenderer({ def, value, onChange, id, isInvalid, placeholder }: Re
   );
 }
 
-function JsonRenderer({ def, value, onChange, id, isInvalid }: RendererProps) {
-  return <JsonFieldRow def={def} value={value} onChange={onChange} id={id} isInvalid={isInvalid} />;
+function JsonRenderer({ def, value, onChange, id, isInvalid, disabled }: RendererProps) {
+  return (
+    <JsonFieldRow
+      def={def}
+      value={value}
+      onChange={onChange}
+      id={id}
+      isInvalid={isInvalid}
+      disabled={disabled}
+    />
+  );
 }
 
-function ModelRulesRenderer({ id, value, onChange }: RendererProps) {
+function ModelRulesRenderer({ id, value, onChange, disabled }: RendererProps) {
   const rules = Array.isArray(value) ? (value as StampModelRuleEntry[]) : [];
   const canonicalByPattern = new Map(CANONICAL_STAMP_MODEL_RULES.map((c) => [c.pattern, c.rule]));
   const enabledPatterns = new Set(rules.map((r) => r.pattern));
@@ -172,6 +190,7 @@ function ModelRulesRenderer({ id, value, onChange }: RendererProps) {
               id={`${id}-${c.pattern}`}
               checked={enabledPatterns.has(c.pattern)}
               onCheckedChange={(v) => toggleRule(c.pattern, v)}
+              disabled={disabled}
             />
           </div>
           <div className="flex flex-1 flex-col gap-0.5">
@@ -232,12 +251,14 @@ function JsonFieldRow({
   onChange,
   id,
   isInvalid,
+  disabled,
 }: {
   def: FieldDef;
   value: unknown;
   onChange: (v: unknown) => void;
   id: string;
   isInvalid: boolean;
+  disabled: boolean;
 }) {
   const [text, setText] = useState(() => serializeJson(value));
   const [parseError, setParseError] = useState<string | null>(null);
@@ -281,6 +302,7 @@ function JsonFieldRow({
         placeholder={def.placeholder ?? "JSON object"}
         onChange={(e) => handleChange(e.target.value)}
         rows={6}
+        disabled={disabled}
         aria-invalid={isInvalid || Boolean(parseError) || undefined}
         className="font-mono text-xs"
       />

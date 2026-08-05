@@ -81,6 +81,18 @@ export const CANONICAL_STAMP_MODEL_RULES: CanonicalModelRule[] = [
       openai_extra_body: { enable_thinking: true, preserve_thinking: true },
     },
   },
+  {
+    pattern: "umans-deepseek-v4-flash-0731",
+    label: "DeepSeek V4 Flash 0731",
+    description:
+      'Sends thinking {type:"enabled"} on both routes. Anthropic is also force-stamped by the built-in policy; this rule is what enables bare enabled thinking on OpenAI and makes it configurable.',
+    rule: {
+      pattern: "umans-deepseek-v4-flash-0731",
+      anthropic_thinking_shape: { type: "enabled" },
+      openai_thinking_shape: { type: "enabled" },
+      force_thinking_when_absent: true,
+    },
+  },
 ];
 
 /**

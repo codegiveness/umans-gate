@@ -3,7 +3,7 @@
 // are hot-reloadable (NOT in RESTART_REQUIRED_FIELDS), and apply to live ProxyConfig.
 
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { RawConfig } from "../../src/config/types.js";
@@ -169,5 +169,36 @@ describe("vision intent config hot-reload", () => {
       expect(r.applied).not.toContain(key);
       expect(r.restartRequired).not.toContain(key);
     }
+  });
+});
+
+describe("vision strategy force-disable", () => {
+  function writeRawConfig(raw: Partial<RawConfig>): void {
+    const dir = join(tmpConfigDir, "umans-gate");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "config.json"), JSON.stringify(raw));
+  }
+
+  test("loadConfig forces visionStrategy to 'never' even when raw config has 'catalog'", () => {
+    writeRawConfig({ vision_strategy: "catalog" });
+    const config = loadConfig({});
+    expect(config.visionStrategy).toBe("never");
+  });
+
+  test("loadConfig forces visionStrategy to 'never' even when raw config has 'always'", () => {
+    writeRawConfig({ vision_strategy: "always" });
+    const config = loadConfig({});
+    expect(config.visionStrategy).toBe("never");
+  });
+
+  test("loadConfig forces visionStrategy to 'never' even when env sets VISION_STRATEGY=catalog", () => {
+    writeRawConfig({ vision_strategy: "catalog" });
+    const config = loadConfig({ VISION_STRATEGY: "catalog" });
+    expect(config.visionStrategy).toBe("never");
+  });
+
+  test("loadConfig forces visionStrategy to 'never' when env and raw are both unset", () => {
+    const config = loadConfig({});
+    expect(config.visionStrategy).toBe("never");
   });
 });

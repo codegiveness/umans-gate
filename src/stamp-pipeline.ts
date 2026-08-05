@@ -203,14 +203,17 @@ export const PerModelRuleStep: StampStep = {
         // On OpenAI routes, reasoning_effort (non-disabled) is the canonical
         // "reasoning active" signal — equivalent to an enabled thinking block
         // on Anthropic. Apply openaiThinkingShape only when a reasoning
-        // signal is active. When no signal is present (both thinking and
-        // reasoning_effort absent/disabled), leave thinking untouched —
+        // signal is active, OR when forceThinkingWhenAbsent is set and the
+        // body carries NO reasoning signal at all (thinking and reasoning_effort
+        // both absent). An explicitly-present disabled signal (thinking:{type:
+        // "disabled"} or reasoning_effort: none/off) is always respected —
         // stamping {type:"disabled"} without reasoning_effort causes 400 on
         // strict upstreams that reject orphaned disabled-thinking blocks.
         const reasoningEffort = (body as Record<string, unknown>).reasoning_effort;
         const reasoningActive =
           isThinkingEnabled(existing) || !isReasoningEffortDisabled(reasoningEffort);
-        if (reasoningActive) {
+        const reasoningTrulyAbsent = reasoningEffort == null && existing == null;
+        if (reasoningActive || (rule.forceThinkingWhenAbsent === true && reasoningTrulyAbsent)) {
           (body as Record<string, unknown>).thinking = { ...shape };
           changed = true;
         }
@@ -224,7 +227,11 @@ export const PerModelRuleStep: StampStep = {
         //   No max_tokens, no output_config, no context_mgmt, no top_k, no temp.
         //   The client explicitly disabled reasoning; respect it.
         const policy = resolveStampPolicy(ctx.modelName, ctx.catalog);
-        if (isThinkingEnabled(existing) || !policy.canDisableThinking) {
+        if (
+          isThinkingEnabled(existing) ||
+          !policy.canDisableThinking ||
+          (rule.forceThinkingWhenAbsent === true && existing == null)
+        ) {
           (body as Record<string, unknown>).thinking = { ...shape };
           if (!isThinkingEnabled(existing)) {
             // Reviving from disabled/absent — step 3 skipped max_tokens + output_config.

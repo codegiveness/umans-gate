@@ -183,7 +183,9 @@ proxy.ts → vision/handoff.ts → detect images → extract context → triage 
 ```
 
 When `vision_strategy` is `catalog` or `always`, vision handoff runs in six
-steps:
+steps. (Note: `vision_strategy` defaults to `never` while umans.ai's
+subscription plan is unavailable — the pipeline below stays in code and
+can be reactivated by flipping the default back.)
 
 1. `detect.ts` finds image blocks in Anthropic or OpenAI request bodies and
    extracts context (`adjacentText`, `isToolResult`, `positionInBatch`,
@@ -280,30 +282,62 @@ Usage tracking polls the upstream account state and resizes local limits:
 
 ## How does rate limiting work?
 
+``
+Upstream gate (authoritative):
+  GET /v1/usage → limits.requests.limit (wallet tier) + usage.requests_in_window
+  If requestsInWindow >= requestsHardCap − request_rate_margin → REJECT locally
+
+Local burst fallback (SlidingWindowRateLimiter):
+  Short-horizon sliding window between /v1/usage polls
+  NOT the authoritative budget; catches bursts between snapshots
 ```
-src/rate.ts: SlidingWindowRateLimiter
-├── Weighted entries (each request consumes `weight` units)
-├── Binary-search pruning for expired entries
-├── check(): records and returns allow/deny
-└── peek(): checks without recording
-```
 
-The rate limiter is a sliding-window weighted counter that governs request-per-window
-caps. It mirrors the concurrency gate's soft/hard mechanism:
+### Upstream snapshot gate
 
-- `never_limit_requests` (default `true`): disables the local request-cap limiter
-  entirely — upstream handles limits. Off lets the proxy enforce a local cap.
-- `request_use_hard_cap` (default `true`): pick which cap to enforce (hard vs soft).
-- `request_hard_cap` / `request_soft_limit`: requests-per-window caps, normally
-  pulled from `/v1/usage` (`limits.requests.hard_cap` / `.limit`).
-- `rate_limit_requests`: `0` auto-derives window+limit from `/v1/usage`
-  (honoring the hard/soft toggle), `-1` disabled, `>0` explicit limit.
+The **single source of truth** for request budget is the upstream account
+snapshot fetched from `GET /v1/usage` at `usage_refresh_ms` intervals.
+The proxy compares `usage.requests_in_window` (unweighted, raw count of
+all requests in the rolling window) against the effective hard cap and
+rejects *before* forwarding upstream when the wallet is about to exceed
+its limit:
 
-When the local cap is enforced and hit, the proxy rejects with `503` (matching the
-other gate over-capacity responses) plus a `Retry-After` header and an
-`error: "rate_limit_exceeded"` body. GateStats exposes both raw and weighted
-usage (`weightedRequestsInWindow`, `weightedRemainingRequests`) because models
-carry different request weights — the dashboard displays the weighted position.
+- **Effective cap** = `requestsHardCap` when `request_use_hard_cap` is
+  `true`, or `requestsLimit` when `false`.
+- **Gate threshold** = effective cap − `request_rate_margin` (default
+  `50`, non-negative integer). E.g. at hardCap 1000 and margin 50,
+  requests are blocked at 950 so the wallet never hits the upstream cap.
+- **Rejection**: HTTP `503` with `error: "rate_limit_exceeded"` and a
+  `Retry-After` header, *before* the request reaches upstream.
+- `rate_limit_requests`: `0` auto-derives from `/v1/usage` (default),
+  `-1` disables the *local* limiter, `>0` is unused (legacy; prefer the
+  upstream gate). This knob does **not** disable the upstream snapshot
+  gate.
+- `never_limit_requests` (default `true`): disables the *local* burst
+  limiter only. The upstream snapshot gate is **independent** — it stays
+  active regardless of `rate_limit_requests` / `never_limit_requests` and
+  always protects the wallet from exceeding the upstream hard cap.
+
+### Wallet tier
+
+Wallet tier is derived from `limits.requests.limit` returned by
+`/v1/usage`. All keys on a wallet (automation keys, wallet-funded cloud
+agents) share the same tier. Tier is set by lifetime paid top-ups and
+never decreases; bonus credits count toward balance but not tier.
+
+| Tier | Lifetime top-up | Requests per 5-hour window | Max in flight |
+|------|-----------------|----------------------------|---------------|
+| 0 | First top-up | 500 | 4 |
+| 1 | $50 | 1,000 | 8 |
+| 2 | $250 | 2,000 | 12 |
+| 3 | $1,000 | 4,000 | 16 |
+
+### Local burst limiter
+
+The `SlidingWindowRateLimiter` in `src/rate.ts` remains as a
+short-horizon burst fallback between `/v1/usage` polls. It is *not*
+the authoritative budget. GateStats exposes both raw and weighted
+usage (`weightedRequestsInWindow`, `weightedRemainingRequests`)
+for the dashboard.
 
 ## How does the dashboard work?
 

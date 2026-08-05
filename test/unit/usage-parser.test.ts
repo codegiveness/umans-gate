@@ -132,7 +132,9 @@ test("buildSnapshot converts ISO date strings to epoch ms", () => {
 test("buildSnapshot captures enriched fields", () => {
   const snap = buildSnapshot(validRawResponse, true, 8, 4);
   expect(snap.userId).toBe("test-user-123");
-  expect(snap.planSlug).toBe("code_max");
+  expect(snap.plan).toBe("unknown");
+  expect(snap.planSlug).toBeNull();
+  expect(snap.walletTier).toBe("unknown");
   expect(snap.tokensIn).toBe(1200000);
   expect(snap.tokensOut).toBe(340000);
   expect(snap.tokensCached).toBe(50000);
@@ -140,4 +142,34 @@ test("buildSnapshot captures enriched fields", () => {
   expect(snap.windowRemainingMinutes).toBe(206);
   expect(snap.windowStartedAt).toBe(Date.parse("2026-07-16T04:51:53.756363+00:00"));
   expect(snap.windowResetsAt).toBe(Date.parse("2026-07-16T09:51:53.756363+00:00"));
+});
+
+test("plan is always unknown regardless of display_name (deprecated-plan contract)", () => {
+  const snap = buildSnapshot(validRawResponse, true, 8, 4);
+  expect(snap.plan).toBe("unknown");
+});
+
+test("walletTier maps an on-table requests limit to its tier", () => {
+  for (const [limit, tier] of [
+    [500, 0],
+    [1000, 1],
+    [2000, 2],
+    [4000, 3],
+  ] as Array<[number, 0 | 1 | 2 | 3]>) {
+    const raw = { ...validRawResponse, limits: { requests: { limit } } };
+    const snap = buildSnapshot(raw, true, 8, 4);
+    expect(snap.walletTier).toBe(tier);
+  }
+});
+
+test("walletTier is unknown for an off-table requests limit", () => {
+  const raw = { ...validRawResponse, limits: { requests: { limit: 200 } } };
+  const snap = buildSnapshot(raw, true, 8, 4);
+  expect(snap.walletTier).toBe("unknown");
+});
+
+test("walletTier is never unlimited when requests limit is missing", () => {
+  const raw = { ...validRawResponse, limits: { requests: { limit: null } } };
+  const snap = buildSnapshot(raw, true, 8, 4);
+  expect(snap.walletTier).toBe("unknown");
 });

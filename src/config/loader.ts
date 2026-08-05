@@ -38,6 +38,7 @@ function parseStampModelRules(raw: StampModelRuleRaw[] | undefined): PerModelRul
       openaiThinkingShape: r.openai_thinking_shape,
       openaiExtraBody: r.openai_extra_body,
       openaiVetoReasoningEffort: r.openai_veto_reasoning_effort,
+      forceThinkingWhenAbsent: r.force_thinking_when_absent,
     }));
 }
 
@@ -140,6 +141,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   const requestSoftLimit = num(env.REQUEST_SOFT_LIMIT ?? raw.request_soft_limit, 500);
   const requestUseHardCap = bool(env.REQUEST_USE_HARD_CAP ?? raw.request_use_hard_cap, true);
   const neverLimitRequests = bool(env.NEVER_LIMIT_REQUESTS ?? raw.never_limit_requests, true);
+  const requestRateMargin = num(env.REQUEST_RATE_MARGIN ?? raw.request_rate_margin, 50);
   const queueTimeoutMs = num(env.QUEUE_TIMEOUT_MS ?? raw.queue_timeout_ms, 180000);
   const maxQueueDepth = num(env.MAX_QUEUE_DEPTH ?? raw.max_queue_depth, 256);
   const releaseCooldownMs = num(env.RELEASE_COOLDOWN_MS ?? raw.release_cooldown_ms, 1000);
@@ -147,10 +149,13 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   const breakerWindowMs = num(env.BREAKER_WINDOW_MS ?? raw.breaker_window_ms, 300000);
   const breakerCooldownMs = num(env.BREAKER_COOLDOWN_MS ?? raw.breaker_cooldown_ms, 60000);
 
-  const visionStrategy = str(env.VISION_STRATEGY ?? raw.vision_strategy, "catalog") as
-    | "never"
-    | "catalog"
-    | "always";
+  // Vision handoff temporarily disabled (2026-08). Forced to "never"
+  // regardless of env or config.json so existing installs with
+  // vision_strategy: "catalog" on disk are also disabled. Reactivate by
+  // restoring the env/raw resolution:
+  //   str(env.VISION_STRATEGY ?? raw.vision_strategy, "never") as
+  //     | "never" | "catalog" | "always";
+  const visionStrategy = "never" as "never" | "catalog" | "always";
   const visionTarget =
     env.VISION_TARGET ?? `${UPSTREAM_TARGET.replace(/\/+$/, "")}${VISION_TARGET_PATH}`;
   const visionModel = env.VISION_MODEL ?? raw.vision_model ?? "umans-flash";
@@ -394,6 +399,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     requestSoftLimit,
     requestUseHardCap,
     neverLimitRequests,
+    requestRateMargin,
     queueTimeoutMs,
     maxQueueDepth,
     releaseCooldownMs,

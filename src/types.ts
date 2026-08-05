@@ -9,7 +9,12 @@ export type UpstreamProtocol = "http2" | "http1.1";
 /** HTTP protocol for incoming connections (always http1.1 without TLS). */
 export type IncomingProtocol = "http1.1";
 
-export type WalletTier = 0 | 1 | 2 | 3 | "unknown" | "unlimited";
+/** Wallet tier derived from limits.requests.limit (T0–T3), or "unknown".
+ *  Subscription plans are deprecated: there is no Code Pro / Code Max, and
+ *  no unlimited tier. Every key is a wallet/pay-by-token key, so the only
+ *  authoritative tier signal is limits.requests.limit mapped via
+ *  deriveWalletTier to the T0–T3 table. */
+export type WalletTier = 0 | 1 | 2 | 3 | "unknown";
 
 /** Capture state lifecycle. `cooling_down` is a transient WS-only state —
  *  the DB never persists it (the DB state column stays `streaming` during
@@ -228,6 +233,8 @@ export interface ProxyConfig {
   requestSoftLimit: number;
   /** When true, the effective request-cap is requestHardCap; when false it is requestSoftLimit. */
   requestUseHardCap: boolean;
+  /** Safety margin subtracted from the effective request hard-cap before local rejection. */
+  requestRateMargin: number;
   /** When true, the local request-cap rate limiter is disabled entirely (never limit requests). */
   neverLimitRequests: boolean;
   /** Max time a request can wait in the queue before 503, in ms. */
@@ -376,6 +383,9 @@ export interface GateConfig {
   concurrencySoftLimit: ProxyConfig["concurrencySoftLimit"];
   useHardCap: ProxyConfig["useHardCap"];
   rateLimitRequests: ProxyConfig["rateLimitRequests"];
+  requestUseHardCap: ProxyConfig["requestUseHardCap"];
+  requestRateMargin: ProxyConfig["requestRateMargin"];
+  neverLimitRequests: ProxyConfig["neverLimitRequests"];
   queueTimeoutMs: ProxyConfig["queueTimeoutMs"];
   maxQueueDepth: ProxyConfig["maxQueueDepth"];
   releaseCooldownMs: ProxyConfig["releaseCooldownMs"];
@@ -461,6 +471,12 @@ export interface PerModelRule {
   openaiExtraBody?: Record<string, unknown>;
   /** OpenAI route: skip reasoning_effort injection (vendor errors on it). */
   openaiVetoReasoningEffort?: boolean;
+  /** When true, inject the configured thinking shape even when the client sent no
+   * reasoning field (absent thinking on Anthropic; absent thinking AND reasoning_effort
+   * on OpenAI). Explicitly-disabled thinking is still respected. Scoped per-rule;
+   * unset (undefined/false) keeps the repo-wide "respect absence" default.
+   */
+  forceThinkingWhenAbsent?: boolean;
 }
 
 /** Anthropic request body shape (subset we care about for TTL stamping). */
@@ -521,6 +537,7 @@ export interface UsageSnapshot {
   ok: boolean;
   fetchedAt: number;
   userId: string | null;
+  /** Deprecated plan naming, retained for DB/fixture compat; production always emits "unknown". */
   plan: "Code Pro" | "Code Max" | "unknown";
   walletTier: WalletTier;
   planSlug: string | null;

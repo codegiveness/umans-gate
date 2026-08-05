@@ -513,11 +513,6 @@ test("char: concurrency_vision_reservation — valid with hard_cap=5 passes", ()
   expectNoErrors(validateConfig({ concurrency_hard_cap: 5, concurrency_vision_reservation: 3 }));
 });
 
-test("char: concurrency_vision_reservation — 0 fails with hard_cap=5 unless vision is disabled", () => {
-  const r = validateConfig({ concurrency_hard_cap: 5, concurrency_vision_reservation: 0 });
-  expect(r.errors).toContain("concurrency_vision_reservation must be a positive integer (min 1)");
-});
-
 test("char: concurrency_vision_reservation — 0 passes when vision_strategy is 'never'", () => {
   const r = validateConfig({
     concurrency_hard_cap: 5,
@@ -538,19 +533,8 @@ test("char: concurrency_vision_reservation — normalized to 0 when vision_strat
   expect(r.normalized.concurrency_vision_reservation).toBe(0);
 });
 
-test("char: concurrency_vision_reservation — exceeds hard_cap-2 fails", () => {
-  const r = validateConfig({ concurrency_hard_cap: 5, concurrency_vision_reservation: 5 });
-  expect(r.errors).toContain("concurrency_vision_reservation must be <= hard_cap - 2 (=3)");
-});
-
 test("char: concurrency_vision_reservation — skipped when hard_cap=1 (bootstrap)", () => {
   expectNoErrors(validateConfig({ concurrency_hard_cap: 1, concurrency_vision_reservation: 999 }));
-});
-
-test("char: concurrency_vision_reservation — skipped when hard_cap undefined", () => {
-  // hard_cap defaults to 16, so resMax=14 — 999 > 14 produces an error
-  const r = validateConfig({ concurrency_vision_reservation: 999 });
-  expect(r.errors).toContain("concurrency_vision_reservation must be <= hard_cap - 2 (=14)");
 });
 
 // ============================================================================
@@ -717,10 +701,22 @@ test("char: breaker_cooldown_ms — 999 fails", () => {
 // vision_strategy: must be 'never', 'catalog', or 'always'
 // ============================================================================
 
-test("char: vision_strategy — valid values pass", () => {
+test("char: vision_strategy — 'never' passes (temporarily the only accepted value)", () => {
   expectNoErrors(validateConfig({ vision_strategy: "never" }));
-  expectNoErrors(validateConfig({ vision_strategy: "catalog" }));
-  expectNoErrors(validateConfig({ vision_strategy: "always" }));
+});
+
+test("char: vision_strategy — 'catalog' rejected while vision handoff is disabled", () => {
+  expectSingleError(
+    validateConfig({ vision_strategy: "catalog" }),
+    "vision_strategy is temporarily disabled; only 'never' is accepted while umans.ai's subscription plan is unavailable",
+  );
+});
+
+test("char: vision_strategy — 'always' rejected while vision handoff is disabled", () => {
+  expectSingleError(
+    validateConfig({ vision_strategy: "always" }),
+    "vision_strategy is temporarily disabled; only 'never' is accepted while umans.ai's subscription plan is unavailable",
+  );
 });
 
 test("char: vision_strategy — invalid value fails", () => {
@@ -1259,7 +1255,7 @@ test("char: normalized — omitted fields get DEFAULT_CONFIG values", () => {
   expect(r.normalized.upstream_protocol).toBe("http1.1");
   expect(r.normalized.concurrency_hard_cap).toBe(16);
   expect(r.normalized.concurrency_soft_limit).toBe(8);
-  expect(r.normalized.vision_strategy).toBe("catalog");
+  expect(r.normalized.vision_strategy).toBe("never");
   expect(r.normalized.vision_model).toBe("umans-flash");
 });
 
@@ -1299,14 +1295,14 @@ test("char: multiple errors — port + max_captures fail simultaneously", () => 
 // Cross-field: both reservations can fail simultaneously
 // ============================================================================
 
-test("char: cross-field — both reservations exceed hard_cap-2 simultaneously", () => {
+test("char: cross-field — main reservation exceeds hard_cap-2 while vision is disabled", () => {
   const r = validateConfig({
     concurrency_hard_cap: 5,
     concurrency_main_reservation: 5,
     concurrency_vision_reservation: 5,
+    vision_strategy: "never",
   });
   expect(r.errors).toContain("concurrency_main_reservation must be <= hard_cap - 2 (=3)");
-  expect(r.errors).toContain("concurrency_vision_reservation must be <= hard_cap - 2 (=3)");
 });
 // ============================================================================
 // experiment_strip_omo_reminder

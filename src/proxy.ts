@@ -29,6 +29,7 @@ import { createLogger } from "./logger.js";
 import { extractModelName } from "./models/name.js";
 import type { WriteQueue } from "./queue.js";
 import type { SlidingWindowRateLimiter } from "./rate.js";
+import { computeRequestGateDecision } from "./request-gate.js";
 import {
   CacheTtlStep,
   parseJsonBody,
@@ -448,51 +449,111 @@ function checkRateLimit(ctx: ProxyContext, deps: ProxyDeps): Response | undefine
   ctx.weight = weight;
   ctx.reqMeta.request_size = ctx.reqBuf ? ctx.reqBuf.byteLength : 0;
 
-  const rate = deps.rateRef.current;
-  if (!rate) return;
-  const rc = rate.check(weight);
-  if (rc.allowed) return;
-
-  const gateReason = `Rate limit exceeded — retry after ${rc.retryAfterSeconds}s`;
-  queue.queueUpdate(ctx.capId, ctx.reqMeta, {
-    $status: 503,
-    $rh: JSON.stringify({ error: "rate_limit_exceeded" }),
-    $rb: JSON.stringify({ error: "rate_limit_exceeded", retry_after: rc.retryAfterSeconds }),
-    $rs: 0,
-    $ct: "application/json",
-    $sse: 0,
-    $dur: Date.now() - ctx.startedAt,
-    $fin: Date.now(),
-    $status_source: "gate",
-    $gate_reason: gateReason,
-  });
-  try {
-    // 503 signals capacity exhaustion to the harness, matching the other gate
-    // over-capacity 503s. Incident stays rate_limited to keep the rejection class.
-    db.recordIncident({
-      captureId: ctx.capId,
-      responsibleParty: "proxy",
-      incidentType: "rate_limited",
-      upstreamStatus: null,
-      servedStatus: 503,
-      reason: gateReason,
-    });
-  } catch {
-    // Non-blocking: incident persistence failure must not break the response path.
+  // PRIMARY gate: upstream UNWEIGHTED snapshot (requestsInWindow vs cap - margin).
+  // Decoupled from rateLimitRequests/never_limit_requests — the upstream snapshot
+  // is the single source of truth for request-limit gating whether or not the
+  // local weighted limiter is enabled. rateLimitRequests === -1 only disables the
+  // LOCAL fallback limiter below; it must not bypass the upstream safety gate
+  // (which protects the wallet from upstream penalty). Guarded on getGateStats
+  // being absent.
+  {
+    const stats = deps.getGateStats?.();
+    if (stats) {
+      const decision = computeRequestGateDecision(
+        {
+          requestsInWindow: stats.requestsInWindow,
+          requestsHardCap: stats.requestsHardCap,
+          requestsLimit: stats.requestsLimit,
+        },
+        deps.config.requestRateMargin,
+        deps.config.requestUseHardCap,
+      );
+      if (decision.block) {
+        const retryAfter = stats.windowSeconds ?? 60;
+        const gateReason = `Rate limit exceeded — retry after ${retryAfter}s`;
+        queue.queueUpdate(ctx.capId, ctx.reqMeta, {
+          $status: 503,
+          $rh: JSON.stringify({ error: "rate_limit_exceeded" }),
+          $rb: JSON.stringify({ error: "rate_limit_exceeded", retry_after: retryAfter }),
+          $rs: 0,
+          $ct: "application/json",
+          $sse: 0,
+          $dur: Date.now() - ctx.startedAt,
+          $fin: Date.now(),
+          $status_source: "gate",
+          $gate_reason: gateReason,
+        });
+        try {
+          db.recordIncident({
+            captureId: ctx.capId,
+            responsibleParty: "proxy",
+            incidentType: "rate_limited",
+            upstreamStatus: null,
+            servedStatus: 503,
+            reason: gateReason,
+          });
+        } catch {
+          // Non-blocking: incident persistence failure must not break the response path.
+        }
+        return new Response(
+          JSON.stringify({ error: "rate_limit_exceeded", retry_after: retryAfter }),
+          {
+            status: 503,
+            headers: {
+              "content-type": "application/json",
+              "retry-after": String(retryAfter),
+            },
+          },
+        );
+      }
+    }
   }
-  return new Response(
-    JSON.stringify({
-      error: "rate_limit_exceeded",
-      retry_after: rc.retryAfterSeconds,
-    }),
-    {
-      status: 503,
-      headers: {
-        "content-type": "application/json",
-        "retry-after": String(rc.retryAfterSeconds),
+
+  // FALLBACK: local weighted sliding-window limiter. never_limit_requests disables
+  // ONLY this local limiter, never the upstream snapshot gate. rateLimitRequests
+  // === -1 yields a null rateRef so this branch no-ops.
+  if (!deps.config.neverLimitRequests) {
+    const rate = deps.rateRef.current;
+    if (!rate) return;
+    const rc = rate.check(weight);
+    if (rc.allowed) return;
+
+    const gateReason = `Rate limit exceeded — retry after ${rc.retryAfterSeconds}s`;
+    queue.queueUpdate(ctx.capId, ctx.reqMeta, {
+      $status: 503,
+      $rh: JSON.stringify({ error: "rate_limit_exceeded" }),
+      $rb: JSON.stringify({ error: "rate_limit_exceeded", retry_after: rc.retryAfterSeconds }),
+      $rs: 0,
+      $ct: "application/json",
+      $sse: 0,
+      $dur: Date.now() - ctx.startedAt,
+      $fin: Date.now(),
+      $status_source: "gate",
+      $gate_reason: gateReason,
+    });
+    try {
+      db.recordIncident({
+        captureId: ctx.capId,
+        responsibleParty: "proxy",
+        incidentType: "rate_limited",
+        upstreamStatus: null,
+        servedStatus: 503,
+        reason: gateReason,
+      });
+    } catch {
+      // Non-blocking.
+    }
+    return new Response(
+      JSON.stringify({ error: "rate_limit_exceeded", retry_after: rc.retryAfterSeconds }),
+      {
+        status: 503,
+        headers: {
+          "content-type": "application/json",
+          "retry-after": String(rc.retryAfterSeconds),
+        },
       },
-    },
-  );
+    );
+  }
 }
 
 // ─── Phase 7: concurrency gate acquire + error mapping ────────────────────

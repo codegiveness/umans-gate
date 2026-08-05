@@ -63,6 +63,7 @@ export const INT_FIELDS: (keyof RawConfig)[] = [
   "concurrency_hard_cap",
   "concurrency_soft_limit",
   "rate_limit_requests",
+  "request_rate_margin",
   "queue_timeout_ms",
   "max_queue_depth",
   "release_cooldown_ms",
@@ -315,6 +316,14 @@ export const FIELD_RULES: FieldRule[] = [
         : [],
   },
   {
+    name: "request_rate_margin",
+    errors: (n) =>
+      n.request_rate_margin !== undefined &&
+      (!Number.isInteger(n.request_rate_margin) || n.request_rate_margin < 0)
+        ? ["request_rate_margin must be a non-negative integer"]
+        : [],
+  },
+  {
     // Cross-field: only checked when hard_cap is an integer >= 3.
     name: "concurrency_main_reservation",
     errors: (n) => {
@@ -428,10 +437,21 @@ export const FIELD_RULES: FieldRule[] = [
   },
   {
     name: "vision_strategy",
-    errors: (n) =>
-      n.vision_strategy !== undefined && !["never", "catalog", "always"].includes(n.vision_strategy)
-        ? ["vision_strategy must be 'never', 'catalog', or 'always'"]
-        : [],
+    errors: (n) => {
+      if (n.vision_strategy === undefined) return [];
+      if (!["never", "catalog", "always"].includes(n.vision_strategy)) {
+        return ["vision_strategy must be 'never', 'catalog', or 'always'"];
+      }
+      // Vision handoff temporarily disabled (2026-08). Only "never" is
+      // accepted while umans.ai's subscription plan is unavailable.
+      // Reactivate by removing this guard.
+      if (n.vision_strategy !== "never") {
+        return [
+          "vision_strategy is temporarily disabled; only 'never' is accepted while umans.ai's subscription plan is unavailable",
+        ];
+      }
+      return [];
+    },
   },
   {
     name: "vision_model",

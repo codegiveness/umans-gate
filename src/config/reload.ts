@@ -123,6 +123,12 @@ const RELOAD_FIELDS: Array<{
     },
   },
   {
+    rawKey: "request_rate_margin",
+    apply: (live, fresh) => {
+      live.requestRateMargin = fresh.requestRateMargin;
+    },
+  },
+  {
     rawKey: "queue_timeout_ms",
     apply: (live, fresh) => {
       live.queueTimeoutMs = fresh.queueTimeoutMs;

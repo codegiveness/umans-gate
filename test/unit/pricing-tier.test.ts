@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import type { WalletTier } from "../../src/types.js";
+import { WALLET_TIERS, type WalletTierRow } from "../../src/usage/limits-schema.js";
 import type { WalletTierInput } from "../../src/usage/pricing-tier.js";
 import { deriveWalletTier } from "../../src/usage/pricing-tier.js";
 
@@ -14,17 +15,28 @@ describe("deriveWalletTier", () => {
   });
 
   it("exact-matches each table requests.limit to its tier", () => {
-    const cases: Array<{ limit: number; expected: Exclude<WalletTier, "unknown" | "unlimited"> }> =
-      [
-        { limit: 500, expected: 0 },
-        { limit: 1000, expected: 1 },
-        { limit: 2000, expected: 2 },
-        { limit: 4000, expected: 3 },
-      ];
+    const cases: Array<{ limit: number; expected: Exclude<WalletTier, "unknown"> }> = [
+      { limit: 500, expected: 0 },
+      { limit: 1000, expected: 1 },
+      { limit: 2000, expected: 2 },
+      { limit: 4000, expected: 3 },
+    ];
     for (const { limit, expected } of cases) {
       expect(
         deriveWalletTier({ requestsLimit: limit, windowSeconds: null, concurrencyLimit: null }),
       ).toBe(expected);
+    }
+  });
+
+  it("factors: every WALLET_TIERS row derives to its own tier", () => {
+    for (const row of WALLET_TIERS as readonly WalletTierRow[]) {
+      expect(
+        deriveWalletTier({
+          requestsLimit: row.requestsLimit,
+          windowSeconds: row.windowSeconds ?? null,
+          concurrencyLimit: null,
+        }),
+      ).toBe(row.tier);
     }
   });
 
@@ -37,13 +49,19 @@ describe("deriveWalletTier", () => {
     }
   });
 
-  it("returns unknown when window contradicts the row window (row window 18000)", () => {
-    const input: WalletTierInput = {
-      requestsLimit: 500,
-      windowSeconds: 3600,
-      concurrencyLimit: null,
-    };
-    expect(deriveWalletTier(input)).toBe("unknown");
+  it("regression: ignores window_seconds - a 500-limit wallet stays tier 0 (was: unknown)", () => {
+    // /v1/usage declares the tier via limits.requests.limit ONLY per
+    // https://app.umans.ai/offers/code/docs#limits. Upstream returns
+    // window_seconds inconsistently (e.g. 3600, 1020), which used to flip a
+    // 500-limit T0 wallet to "unknown" despite the limit being authoritative.
+    for (const windowSeconds of [3600, 1020, 18000]) {
+      const input: WalletTierInput = {
+        requestsLimit: 500,
+        windowSeconds,
+        concurrencyLimit: null,
+      };
+      expect(deriveWalletTier(input)).toBe(0);
+    }
   });
 
   it("tiers when window matches the row window", () => {
@@ -74,9 +92,9 @@ describe("deriveWalletTier", () => {
   });
 
   // Regression guard, deliberately locked at "unknown":
-  // The unlimited producer lives ONLY in buildSnapshot (a later wave). This pure fn
-  // parses live /v1/usage soft limits and must NEVER surface "unlimited"; a null
-  // requestsLimit means no limit was observed, hence unknown.
+  // The wallet table carries only numeric tiers (T0-T3); deriveWalletTier
+  // never returns an unlimited value. A null requestsLimit means no limit was
+  // observed, hence unknown.
   it("regression guard: never returns unlimited from this fn", () => {
     const input: WalletTierInput = {
       requestsLimit: null,

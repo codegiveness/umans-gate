@@ -61,17 +61,6 @@ export interface RawUsage {
   };
 }
 
-/** Classify a plan display name into one of the known tiers.
- *  Uses substring matching so variants like "Code Max (Founding Seat)"
- *  still resolve to "Code Max". */
-function classifyPlan(name: string | undefined): "Code Pro" | "Code Max" | "unknown" {
-  if (!name) return "unknown";
-  const lower = name.toLowerCase();
-  if (lower.includes("code max")) return "Code Max";
-  if (lower.includes("code pro")) return "Code Pro";
-  return "unknown";
-}
-
 /** Convert a raw date value (ISO string or epoch number) to epoch ms.
  *  Returns null for null/undefined/invalid values. */
 function toEpochMs(v: string | number | null | undefined): number | null {
@@ -103,22 +92,20 @@ export function buildSnapshot(
   lastConcurrencyHardCap: number,
   lastConcurrencySoftLimit: number,
 ): UsageSnapshot {
-  const planName = raw.plan?.display_name;
-  const plan = classifyPlan(planName);
   return {
     ok,
     fetchedAt: Date.now(),
     userId: raw.user_id ?? null,
-    plan,
-    planSlug: raw.plan?.slug ?? null,
-    walletTier:
-      plan === "Code Max" && raw.limits?.requests?.limit == null
-        ? "unlimited"
-        : deriveWalletTier({
-            requestsLimit: raw.limits?.requests?.limit ?? null,
-            windowSeconds: raw.limits?.requests?.window_seconds ?? null,
-            concurrencyLimit: raw.limits?.concurrency?.limit ?? null,
-          }),
+    // Deprecated: /v1/usage never returns a plan tier. Production always
+    // emits "unknown"; the plan union is retained only for fixture + DB-row
+    // compatibility. The only authoritative tier signal is limits.requests.limit.
+    plan: "unknown",
+    planSlug: null,
+    walletTier: deriveWalletTier({
+      requestsLimit: raw.limits?.requests?.limit ?? null,
+      windowSeconds: raw.limits?.requests?.window_seconds ?? null,
+      concurrencyLimit: raw.limits?.concurrency?.limit ?? null,
+    }),
     requestsLimit: raw.limits?.requests?.limit ?? null,
     requestsHardCap: raw.limits?.requests?.hard_cap ?? null,
     requestsWindowSeconds: raw.limits?.requests?.window_seconds ?? null,

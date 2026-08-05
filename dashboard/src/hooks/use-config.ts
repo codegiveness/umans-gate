@@ -17,6 +17,7 @@ export interface StampModelRuleEntry {
     | { type: "enabled" };
   openai_extra_body?: Record<string, unknown>;
   openai_veto_reasoning_effort?: boolean;
+  force_thinking_when_absent?: boolean;
 }
 
 export interface StampRawConfig {

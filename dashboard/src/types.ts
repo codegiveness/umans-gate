@@ -1,6 +1,6 @@
 export type CaptureState = "enqueued" | "streaming" | "cooling_down" | "done";
 
-export type WalletTier = 0 | 1 | 2 | 3 | "unknown" | "unlimited";
+export type WalletTier = 0 | 1 | 2 | 3 | "unknown";
 
 // Keep in sync with src/incidents.ts
 export type ResponsibleParty = "upstream" | "proxy" | "client";
@@ -259,6 +259,7 @@ export interface UsageSnapshot {
   ok: boolean;
   fetchedAt: number;
   userId: string | null;
+  /** Deprecated plan naming, retained for DB/fixture compat; production always emits "unknown". */
   plan: "Code Pro" | "Code Max" | "unknown";
   walletTier: WalletTier;
   planSlug: string | null;

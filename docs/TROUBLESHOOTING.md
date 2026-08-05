@@ -157,11 +157,31 @@ The circuit breaker opens after 5 HTTP 429 responses within 5 minutes
 
 ### Rate limiter blocking requests
 
-The local request-cap limiter is **off by default** (`never_limit_requests: true`).
-With it on, the proxy performs no local request-per-window rejection and lets
-upstream enforce its own limits.
+The proxy enforces an **upstream snapshot gate** that rejects requests
+locally *before* forwarding upstream, based on the real-time usage
+snapshot from `GET /v1/usage`. This gate is active by default and is
+**independent** of the local burst limiter (`never_limit_requests`).
 
-To enable a local request cap, set `never_limit_requests` to `false`:
+When `requestsInWindow >= requestsHardCap − request_rate_margin`
+(default margin: 50), the proxy returns `503` with
+`error: "rate_limit_exceeded"` and a `Retry-After` header. This keeps
+the wallet below the upstream cap so you are never penalized.
+
+The local burst limiter (`never_limit_requests`, default `true`)
+is a separate, short-horizon fallback between usage polls. Disabling
+it does not disable the upstream gate. The upstream snapshot gate
+cannot be disabled — it always protects the wallet from exceeding the
+upstream hard cap. `rate_limit_requests` only controls the *local*
+limiter; set it to `-1` to disable that local fallback (the upstream
+gate stays active):
+
+```json
+{
+  "rate_limit_requests": -1
+}
+```
+
+To enable the *local* burst limiter on top of the upstream gate:
 
 ```json
 {
@@ -170,19 +190,9 @@ To enable a local request cap, set `never_limit_requests` to `false`:
 }
 ```
 
-With it enabled and `rate_limit_requests` set to `0` (auto), the limiter derives
-the limit from `/v1/usage`. If `UMANS_API_KEY` is not set, the limiter cannot fetch
-usage and may not function correctly. When the local cap is hit, the proxy returns
-`503` with `error: "rate_limit_exceeded"` and a `Retry-After` header.
-
-To disable limiting entirely, set `never_limit_requests` back to `true` (default)
-or `rate_limit_requests` to `-1`:
-
-```json
-{
-  "rate_limit_requests": -1
-}
-```
+With `rate_limit_requests` set to `0` (auto), the local limiter
+derives its limit from `/v1/usage`. If `UMANS_API_KEY` is not set,
+the limiter cannot fetch usage and may not function correctly.
 
 ## What to do if the dashboard is not working
 

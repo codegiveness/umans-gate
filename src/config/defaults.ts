@@ -15,6 +15,7 @@ const DEFAULT_CONFIG: RawConfig = {
       pattern: "umans-deepseek-v4-flash-0731",
       anthropic_thinking_shape: { type: "enabled" },
       openai_thinking_shape: { type: "enabled" },
+      force_thinking_when_absent: true,
     },
   ],
   stamp_reasoning_effort_enabled: true,
@@ -35,6 +36,7 @@ const DEFAULT_CONFIG: RawConfig = {
   request_use_hard_cap: true,
   request_hard_cap: 1000,
   request_soft_limit: 500,
+  request_rate_margin: 50,
   never_limit_requests: true,
   queue_timeout_ms: 180000,
   max_queue_depth: 256,
@@ -42,7 +44,11 @@ const DEFAULT_CONFIG: RawConfig = {
   breaker_threshold: 5,
   breaker_window_ms: 300000,
   breaker_cooldown_ms: 60000,
-  vision_strategy: "catalog",
+  // Vision disabled by default (umans.ai subscription discontinued 2026-08).
+  // Reactivate when umans.ai publishes a new subscription plan or a cheaper
+  // multimodal model. Keep all vision_* config fields so they can be toggled
+  // back on without code changes.
+  vision_strategy: "never",
   vision_model: "umans-flash",
   vision_prompt:
     "You are an expert visual analyst with perfect vision and meticulous attention to detail. Your task is to produce an exhaustive, accurate description of an image for a downstream text-only language model that cannot see the image.\n\nStructure your description as:\n\n1. IMAGE TYPE: What kind of image is this (photograph, screenshot, diagram, chart, illustration, document scan, UI mockup, etc.)?\n\n2. OVERALL CONTENT: A comprehensive summary of everything visible.\n\n3. TEXT/OCR: Transcribe ALL visible text exactly as written, preserving:\n   - Original spelling, formatting, and hierarchy\n   - Line breaks and spatial layout\n   - Numbers, codes, identifiers, and labels\n   - Captions, watermarks, signatures\n   If text is partially visible, transcribe what you can and mark gaps with [...].\n\n4. VISUAL ELEMENTS: Describe in detail:\n   - Objects, people, and their positions/relationships\n   - Colors, shapes, textures\n   - Spatial layout and composition\n   - UI elements (buttons, menus, fields, tabs) if a screenshot\n\n5. DATA/CHARTS: If charts, tables, or data visualizations are present:\n   - Chart type and axes\n   - Data values, ranges, and trends\n   - Table structure and cell contents\n\n6. CONTEXTUAL CLUES: Date/time indicators, language, cultural context, technical domain indicators.\n\n7. QUALITY NOTES: Any blur, artifacts, obstructions, or ambiguity.\n\nRules:\n- Describe what is VISIBLE, not what you infer.\n- Be exhaustive: omit nothing visible. When in doubt, include it.\n- For uncertain elements, state your uncertainty rather than guessing.\n- Do not summarize or abbreviate.\n- Output only the description, no preamble.",

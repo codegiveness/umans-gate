@@ -208,21 +208,20 @@ describe("ConfigTab", () => {
     });
   });
 
-  it("shows error when editing a number below min", async () => {
+  it("vision fields are disabled while vision handoff is deactivated", async () => {
     const user = userEvent.setup();
     render(<ConfigTab />);
     await flushEffects();
     await user.click(screen.getByRole("tab", { name: "Advanced" }));
     await flushEffects();
     const maxDescTokensInput = screen.getByLabelText("Max Description Tokens");
-    await user.clear(maxDescTokensInput);
-    await user.type(maxDescTokensInput, "0");
+    expect(maxDescTokensInput).toBeDisabled();
+    const timeoutInput = screen.getByLabelText("Timeout");
+    expect(timeoutInput).toBeDisabled();
+    await user.click(screen.getByRole("tab", { name: "General" }));
     await flushEffects();
-    await waitFor(() => {
-      expect(screen.getByText(/Max Description Tokens must be ≥ 1/i)).toBeInTheDocument();
-    });
-    const saveBtn = screen.getByRole("button", { name: "Save" });
-    expect(saveBtn).toBeDisabled();
+    const strategySelect = screen.getByLabelText("Strategy");
+    expect(strategySelect).toBeDisabled();
   });
 
   it("Reset Draft reverts changes", async () => {
@@ -270,25 +269,14 @@ describe("ConfigTab", () => {
     expect(screen.queryByText(/Timeout must be ≥/i)).toBeNull();
   });
 
-  it("vision_timeout_ms accepts 0 without blocking save", async () => {
+  it("vision_timeout_ms field is disabled while vision handoff is deactivated", async () => {
     const user = userEvent.setup();
     render(<ConfigTab />);
     await flushEffects();
     await user.click(screen.getByRole("tab", { name: "Advanced" }));
     await flushEffects();
     const timeoutInput = screen.getByLabelText("Timeout");
-    await user.clear(timeoutInput);
-    await user.type(timeoutInput, "0");
-    await flushEffects();
-    await user.click(screen.getByRole("tab", { name: "General" }));
-    await flushEffects();
-    const portInput = screen.getByLabelText("Port");
-    await user.clear(portInput);
-    await user.type(portInput, "9001");
-    await flushEffects();
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Save" })).not.toBeDisabled();
-    });
+    expect(timeoutInput).toBeDisabled();
   });
 
   it("shows warning toast when reloadFromDisk fails after save", async () => {

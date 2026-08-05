@@ -59,7 +59,7 @@ test("successful refresh populates snapshot with ok=true", async () => {
     await client.refresh();
     const snap = client.getSnapshot();
     expect(snap.ok).toBe(true);
-    expect(snap.plan).toBe("Code Max");
+    expect(snap.plan).toBe("unknown");
     expect(snap.concurrencySoftLimit).toBe(4);
     expect(snap.concurrencyHardCap).toBe(8);
     expect(snap.requestsInWindow).toBe(48);
@@ -103,7 +103,7 @@ test("fetch failure with LKG keeps last snapshot but marks ok=false", async () =
     await client.refresh();
     const snap = client.getSnapshot();
     expect(snap.ok).toBe(false);
-    expect(snap.plan).toBe("Code Max");
+    expect(snap.plan).toBe("unknown");
     expect(snap.concurrencySoftLimit).toBe(4);
   } finally {
     globalThis.fetch = originalFetch;
@@ -149,7 +149,7 @@ test("onChange callback fires on snapshot change", async () => {
   }
 });
 
-test("Code Pro plan detected correctly", async () => {
+test("snapshot plan is unknown for Code Pro display_name (deprecated-plan contract)", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = mock(
     async () =>
@@ -161,13 +161,13 @@ test("Code Pro plan detected correctly", async () => {
     const client = new UmansUsageClient(baseConfig);
     await client.refresh();
     const snap = client.getSnapshot();
-    expect(snap.plan).toBe("Code Pro");
+    expect(snap.plan).toBe("unknown");
   } finally {
     globalThis.fetch = originalFetch;
   }
 });
 
-test("Code Max (Founding Seat) variant is classified as Code Max", async () => {
+test("Code Max (Founding Seat) display_name still yields plan unknown", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = mock(
     async () =>
@@ -180,13 +180,13 @@ test("Code Max (Founding Seat) variant is classified as Code Max", async () => {
     const client = new UmansUsageClient(baseConfig);
     await client.refresh();
     const snap = client.getSnapshot();
-    expect(snap.plan).toBe("Code Max");
+    expect(snap.plan).toBe("unknown");
   } finally {
     globalThis.fetch = originalFetch;
   }
 });
 
-test("Code Pro (Annual) variant is classified as Code Pro", async () => {
+test("Code Pro (Annual) display_name still yields plan unknown", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = mock(
     async () =>
@@ -199,7 +199,7 @@ test("Code Pro (Annual) variant is classified as Code Pro", async () => {
     const client = new UmansUsageClient(baseConfig);
     await client.refresh();
     const snap = client.getSnapshot();
-    expect(snap.plan).toBe("Code Pro");
+    expect(snap.plan).toBe("unknown");
   } finally {
     globalThis.fetch = originalFetch;
   }

@@ -144,7 +144,9 @@ unconditional), and **config** that gates it.
     sub-questions (DecoVQA+)
   Gated by `vision_intent_strategy` (default `auto`). Failures fall back to
   `slotted`.
-- **Config**: `vision_strategy` (default: `catalog`), `vision_model`
+- **Config**: `vision_strategy` (default: `never` — temporarily disabled
+  while umans.ai's subscription plan is unavailable; can be reactivated by
+  flipping back to `catalog` or `always`), `vision_model`
   (default: `umans-flash`), `vision_concurrency` (default: `1`),
   `vision_max_images`, `vision_timeout_ms`, `vision_cache_size`,
   `vision_intent_strategy` (default: `auto`),

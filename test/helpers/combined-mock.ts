@@ -23,6 +23,15 @@ export interface CombinedMockHandle {
   setServiceMode(state: { current?: string; resetsAt?: number | null }): void;
   setTokens(state: { tokensIn?: number; tokensOut?: number; tokensCached?: number }): void;
   setPriorityBudget(entries: RawPriorityBudgetEntry[] | null): void;
+  /** Set the unweighted requests-window usage the /v1/usage endpoint reports.
+   *  Backs the rate-gate data source (requestsInWindow + requests limits).
+   *  Only the fields passed are changed; omitted fields keep their current value.
+   */
+  setUsage(state: {
+    requestsInWindow?: number;
+    requestsHardCap?: number | null;
+    requestsLimit?: number | null;
+  }): void;
   close(): Promise<void>;
 }
 
@@ -43,6 +52,11 @@ interface RawUsage {
       limit: number;
       hard_cap: number;
       burst_pct: number;
+    };
+    requests?: {
+      limit?: number;
+      hard_cap?: number;
+      window_seconds?: number;
     };
   };
   usage: {
@@ -85,6 +99,17 @@ export function startCombinedMock(config: CombinedMockConfig): CombinedMockHandl
   let tokensCached = 0;
   let priorityBudget: RawPriorityBudgetEntry[] | null = null;
 
+  // Unweighted requests-window state backing the rate-gate data source.
+  // Set via setUsage(). The limits.requests block is emitted only once setUsage
+  // supplied at least one request-limit field — before that, /v1/usage reports
+  // no requests limits (parser leaves requestsHardCap/requestsLimit null),
+  // preserving the pre-existing concurrency-only behavior of other tests.
+  let requestsInWindow = 0;
+  let requestsHardCap: number | null = null;
+  let requestsLimit: number | null = null;
+  let requestsHardCapSet = false;
+  let requestsLimitSet = false;
+
   const buildUsage = (): RawUsage => ({
     plan: { display_name: config.planName ?? "Code Pro" },
     limits: {
@@ -93,9 +118,18 @@ export function startCombinedMock(config: CombinedMockConfig): CombinedMockHandl
         hard_cap: hardCap,
         burst_pct: 0,
       },
+      ...(requestsHardCapSet || requestsLimitSet
+        ? {
+            requests: {
+              ...(requestsHardCapSet ? { hard_cap: requestsHardCap ?? null } : {}),
+              ...(requestsLimitSet ? { limit: requestsLimit ?? null } : {}),
+              window_seconds: 60,
+            },
+          }
+        : {}),
     },
     usage: {
-      requests_in_window: 0,
+      requests_in_window: requestsInWindow,
       remaining_requests: null,
       concurrent_sessions: 0,
       tokens_in: tokensIn,
@@ -208,6 +242,21 @@ export function startCombinedMock(config: CombinedMockConfig): CombinedMockHandl
     },
     setPriorityBudget(entries: RawPriorityBudgetEntry[] | null) {
       priorityBudget = entries;
+    },
+    setUsage(state: {
+      requestsInWindow?: number;
+      requestsHardCap?: number | null;
+      requestsLimit?: number | null;
+    }) {
+      if (state.requestsInWindow !== undefined) requestsInWindow = state.requestsInWindow;
+      if (state.requestsHardCap !== undefined) {
+        requestsHardCap = state.requestsHardCap;
+        requestsHardCapSet = true;
+      }
+      if (state.requestsLimit !== undefined) {
+        requestsLimit = state.requestsLimit;
+        requestsLimitSet = true;
+      }
     },
     close(): Promise<void> {
       return new Promise((resolve) => {

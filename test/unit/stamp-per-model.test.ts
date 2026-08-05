@@ -747,4 +747,68 @@ describe("PerModelRuleStep — umans-deepseek-v4-flash-0731 (thinking {type:enab
     PerModelRuleStep.apply(body, ctx);
     expect(body.thinking).toEqual({ type: "enabled" });
   });
+
+  it("Anthropic: forceThinkingWhenAbsent=true forces enabled even when thinking absent (revives max_tokens+output_config)", () => {
+    const config = makeConfig({
+      stampModelRules: [{ ...deepseekRule, forceThinkingWhenAbsent: true }],
+    });
+    const ctx = makeCtx(config, "umans-deepseek-v4-flash-0731", false);
+    const body: Record<string, unknown> = {
+      model: "umans-deepseek-v4-flash-0731",
+      messages: [],
+    };
+    PerModelRuleStep.apply(body, ctx);
+    expect(body.thinking).toEqual({ type: "enabled" });
+    expect(body.max_tokens).toBe(32767);
+    expect(body.output_config).toEqual({ effort: "high" });
+  });
+
+  it("Anthropic: forceThinkingWhenAbsent unset → absent thinking left untouched (respect-absence default)", () => {
+    const config = makeConfig({ stampModelRules: [deepseekRule] });
+    const ctx = makeCtx(config, "umans-deepseek-v4-flash-0731", false);
+    const body: Record<string, unknown> = {
+      model: "umans-deepseek-v4-flash-0731",
+      messages: [],
+    };
+    PerModelRuleStep.apply(body, ctx);
+    expect("thinking" in body).toBe(false);
+  });
+
+  it("OpenAI: forceThinkingWhenAbsent=true forces enabled with no reasoning signal at all", () => {
+    const config = makeConfig({
+      stampModelRules: [{ ...deepseekRule, forceThinkingWhenAbsent: true }],
+    });
+    const ctx = makeCtx(config, "umans-deepseek-v4-flash-0731", true);
+    const body: Record<string, unknown> = {
+      model: "umans-deepseek-v4-flash-0731",
+      messages: [],
+    };
+    PerModelRuleStep.apply(body, ctx);
+    expect(body.thinking).toEqual({ type: "enabled" });
+  });
+
+  it("OpenAI: forceThinkingWhenAbsent unset → no reasoning signal leaves thinking untouched", () => {
+    const config = makeConfig({ stampModelRules: [deepseekRule] });
+    const ctx = makeCtx(config, "umans-deepseek-v4-flash-0731", true);
+    const body: Record<string, unknown> = {
+      model: "umans-deepseek-v4-flash-0731",
+      messages: [],
+    };
+    PerModelRuleStep.apply(body, ctx);
+    expect("thinking" in body).toBe(false);
+  });
+
+  it("OpenAI: forceThinkingWhenAbsent=true respects explicitly-disabled reasoning_effort (no force on reasoning_effort:none)", () => {
+    const config = makeConfig({
+      stampModelRules: [{ ...deepseekRule, forceThinkingWhenAbsent: true }],
+    });
+    const ctx = makeCtx(config, "umans-deepseek-v4-flash-0731", true);
+    const body: Record<string, unknown> = {
+      model: "umans-deepseek-v4-flash-0731",
+      reasoning_effort: "none",
+      messages: [],
+    };
+    PerModelRuleStep.apply(body, ctx);
+    expect("thinking" in body).toBe(false);
+  });
 });
