@@ -9,15 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Vision handoff temporarily disabled (default `vision_strategy: never`)**
-  (2026-08): umans.ai discontinued its subscription plan; only the wallet
-  mechanism remains. `vision_strategy` now defaults to `never` and all
-  vision config fields are rendered read-only in the dashboard so users
-  cannot change them. The vision pipeline code remains intact and can be
-  reactivated by flipping the default back to `catalog` or `always` once
-  umans.ai publishes a new subscription plan or a cheaper multimodal model
-  becomes available. No existing workflow or functionality is affected —
-  images pass through untouched.
+- **Vision handoff defaults to `never` (2026-08)** but is fully configurable:
+  umans.ai discontinued its subscription plan; only the wallet mechanism
+  remains, so a fresh install ships with `vision_strategy: never` (no image
+  handling). The pipeline is not disabled — set `vision_strategy` to `catalog`
+  or `always` in the dashboard Config tab, config.json, or `VISION_STRATEGY`
+  env to opt in. All vision config fields remain editable. No existing workflow
+  is affected — with the default, images pass through untouched.
 - **Bump `vision_max_images` default from 5 to 20**: agent harnesses may
   batch 10+ images in a single request; a cap of 5 silently dropped
   images beyond the 5th. Existing configs with the old default of 5 are

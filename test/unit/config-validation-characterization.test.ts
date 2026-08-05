@@ -701,22 +701,16 @@ test("char: breaker_cooldown_ms — 999 fails", () => {
 // vision_strategy: must be 'never', 'catalog', or 'always'
 // ============================================================================
 
-test("char: vision_strategy — 'never' passes (temporarily the only accepted value)", () => {
+test("char: vision_strategy — 'never' passes", () => {
   expectNoErrors(validateConfig({ vision_strategy: "never" }));
 });
 
-test("char: vision_strategy — 'catalog' rejected while vision handoff is disabled", () => {
-  expectSingleError(
-    validateConfig({ vision_strategy: "catalog" }),
-    "vision_strategy is temporarily disabled; only 'never' is accepted while umans.ai's subscription plan is unavailable",
-  );
+test("char: vision_strategy — 'catalog' passes", () => {
+  expectNoErrors(validateConfig({ vision_strategy: "catalog" }));
 });
 
-test("char: vision_strategy — 'always' rejected while vision handoff is disabled", () => {
-  expectSingleError(
-    validateConfig({ vision_strategy: "always" }),
-    "vision_strategy is temporarily disabled; only 'never' is accepted while umans.ai's subscription plan is unavailable",
-  );
+test("char: vision_strategy — 'always' passes", () => {
+  expectNoErrors(validateConfig({ vision_strategy: "always" }));
 });
 
 test("char: vision_strategy — invalid value fails", () => {

@@ -171,33 +171,32 @@ describe("vision intent config hot-reload", () => {
     }
   });
 });
-
-describe("vision strategy force-disable", () => {
+describe("vision strategy resolution", () => {
   function writeRawConfig(raw: Partial<RawConfig>): void {
     const dir = join(tmpConfigDir, "umans-gate");
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, "config.json"), JSON.stringify(raw));
   }
 
-  test("loadConfig forces visionStrategy to 'never' even when raw config has 'catalog'", () => {
+  test("loadConfig honors vision_strategy 'catalog' from raw config", () => {
     writeRawConfig({ vision_strategy: "catalog" });
     const config = loadConfig({});
-    expect(config.visionStrategy).toBe("never");
+    expect(config.visionStrategy).toBe("catalog");
   });
 
-  test("loadConfig forces visionStrategy to 'never' even when raw config has 'always'", () => {
+  test("loadConfig honors vision_strategy 'always' from raw config", () => {
     writeRawConfig({ vision_strategy: "always" });
     const config = loadConfig({});
-    expect(config.visionStrategy).toBe("never");
+    expect(config.visionStrategy).toBe("always");
   });
 
-  test("loadConfig forces visionStrategy to 'never' even when env sets VISION_STRATEGY=catalog", () => {
+  test("loadConfig honors VISION_STRATEGY env override over raw config", () => {
     writeRawConfig({ vision_strategy: "catalog" });
-    const config = loadConfig({ VISION_STRATEGY: "catalog" });
-    expect(config.visionStrategy).toBe("never");
+    const config = loadConfig({ VISION_STRATEGY: "always" });
+    expect(config.visionStrategy).toBe("always");
   });
 
-  test("loadConfig forces visionStrategy to 'never' when env and raw are both unset", () => {
+  test("loadConfig defaults visionStrategy to 'never' when env and raw are unset", () => {
     const config = loadConfig({});
     expect(config.visionStrategy).toBe("never");
   });

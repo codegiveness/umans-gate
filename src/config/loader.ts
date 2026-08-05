@@ -149,13 +149,10 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   const breakerWindowMs = num(env.BREAKER_WINDOW_MS ?? raw.breaker_window_ms, 300000);
   const breakerCooldownMs = num(env.BREAKER_COOLDOWN_MS ?? raw.breaker_cooldown_ms, 60000);
 
-  // Vision handoff temporarily disabled (2026-08). Forced to "never"
-  // regardless of env or config.json so existing installs with
-  // vision_strategy: "catalog" on disk are also disabled. Reactivate by
-  // restoring the env/raw resolution:
-  //   str(env.VISION_STRATEGY ?? raw.vision_strategy, "never") as
-  //     | "never" | "catalog" | "always";
-  const visionStrategy = "never" as "never" | "catalog" | "always";
+  const visionStrategy = str(env.VISION_STRATEGY ?? raw.vision_strategy, "never") as
+    | "never"
+    | "catalog"
+    | "always";
   const visionTarget =
     env.VISION_TARGET ?? `${UPSTREAM_TARGET.replace(/\/+$/, "")}${VISION_TARGET_PATH}`;
   const visionModel = env.VISION_MODEL ?? raw.vision_model ?? "umans-flash";

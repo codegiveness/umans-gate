@@ -64,9 +64,7 @@ export function WalletTierBadge({ snapshot }: { snapshot: UsageSnapshot | null }
 
   const ceiling = snapshot.requestsHardCap ?? snapshot.requestsLimit;
   const rawPrimaryPct =
-    ceiling != null && ceiling > 0
-      ? Math.round((snapshot.requestsInWindow / ceiling) * 100)
-      : 0;
+    ceiling != null && ceiling > 0 ? Math.round((snapshot.requestsInWindow / ceiling) * 100) : 0;
   const primaryPct = Math.min(100, Math.max(0, rawPrimaryPct));
   const { label, variant, className } = tierStyle(walletTier);
   const suffix = imminentLabel(snapshot.requestsInWindow, ceiling);

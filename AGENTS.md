@@ -118,14 +118,17 @@ are never overwritten. All env vars have `snake_case` JSON equivalents.
 | `vision_recent_messages_count` | `6` |
 | `vision_system_prompt_max_chars` | `1000` |
 
-> **Vision handoff temporarily disabled (2026-08).** umans.ai discontinued
-> its subscription plan; only the wallet mechanism remains. `vision_strategy`
-> now defaults to `never` and all vision config fields are rendered
-> read-only in the dashboard. The vision pipeline code remains intact and
-> can be reactivated by flipping the default back to `catalog` or `always`
-> once umans.ai publishes a new subscription plan or a cheaper multimodal
-> model becomes available. No existing workflow or functionality is
-> affected — images pass through untouched.
+> **Vision handoff defaults to `never` (2026-08).** umans.ai discontinued
+> its subscription plan; only the wallet mechanism remains, so a fresh install
+> ships with `vision_strategy: never` (no image handling). The pipeline is
+> fully configurable — set `vision_strategy` to `catalog` or `always` in the
+> dashboard Config tab or via config.json/env to opt in. No existing workflow
+> is affected: with the default, images pass through untouched.
+>
+> **`VISION_STRATEGY` is env/config-resolvable (not hard-coded)** — see loader
+> `str(env.VISION_STRATEGY ?? raw.vision_strategy, "never")`. Tests must set
+> `VISION_STRATEGY` env (real-CLI path) or pass `visionStrategy` to the
+> in-process proxy when exercising the vision pipeline.
 | `concurrency_main_reservation` | `1` |
 | `concurrency_vision_reservation` | `1` |
 | `capture_body_max_bytes` | `10000000` |

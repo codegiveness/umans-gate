@@ -442,14 +442,6 @@ export const FIELD_RULES: FieldRule[] = [
       if (!["never", "catalog", "always"].includes(n.vision_strategy)) {
         return ["vision_strategy must be 'never', 'catalog', or 'always'"];
       }
-      // Vision handoff temporarily disabled (2026-08). Only "never" is
-      // accepted while umans.ai's subscription plan is unavailable.
-      // Reactivate by removing this guard.
-      if (n.vision_strategy !== "never") {
-        return [
-          "vision_strategy is temporarily disabled; only 'never' is accepted while umans.ai's subscription plan is unavailable",
-        ];
-      }
       return [];
     },
   },

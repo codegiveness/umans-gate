@@ -208,20 +208,20 @@ describe("ConfigTab", () => {
     });
   });
 
-  it("vision fields are disabled while vision handoff is deactivated", async () => {
+  it("vision fields are editable (vision_strategy no longer hard-disables)", async () => {
     const user = userEvent.setup();
     render(<ConfigTab />);
     await flushEffects();
     await user.click(screen.getByRole("tab", { name: "Advanced" }));
     await flushEffects();
     const maxDescTokensInput = screen.getByLabelText("Max Description Tokens");
-    expect(maxDescTokensInput).toBeDisabled();
+    expect(maxDescTokensInput).not.toBeDisabled();
     const timeoutInput = screen.getByLabelText("Timeout");
-    expect(timeoutInput).toBeDisabled();
+    expect(timeoutInput).not.toBeDisabled();
     await user.click(screen.getByRole("tab", { name: "General" }));
     await flushEffects();
     const strategySelect = screen.getByLabelText("Strategy");
-    expect(strategySelect).toBeDisabled();
+    expect(strategySelect).not.toBeDisabled();
   });
 
   it("Reset Draft reverts changes", async () => {
@@ -269,14 +269,14 @@ describe("ConfigTab", () => {
     expect(screen.queryByText(/Timeout must be ≥/i)).toBeNull();
   });
 
-  it("vision_timeout_ms field is disabled while vision handoff is deactivated", async () => {
+  it("vision_timeout_ms field is editable (no longer hard-disabled)", async () => {
     const user = userEvent.setup();
     render(<ConfigTab />);
     await flushEffects();
     await user.click(screen.getByRole("tab", { name: "Advanced" }));
     await flushEffects();
     const timeoutInput = screen.getByLabelText("Timeout");
-    expect(timeoutInput).toBeDisabled();
+    expect(timeoutInput).not.toBeDisabled();
   });
 
   it("shows warning toast when reloadFromDisk fails after save", async () => {

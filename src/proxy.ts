@@ -675,7 +675,6 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
   let retryAttempt = 0; // 0 = no retry; 1 = same-key retry; 2 = rewrite escalation.
   let ttftFired = false; // true if the watchdog fired on any attempt.
   let pendingRewriteEscalation = false; // next loop iter calls attemptRewriteRetry.
-  let ttftTimeoutCount = 0; // number of TTFT timeouts across the lifecycle.
   let currentThreshold: number | null = null; // threshold used by the current attempt.
   let currentP50: number | null = null; // model p50 TTFT from /v1/status for the current attempt.
 
@@ -869,7 +868,6 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
    */
   const handleTtftTimeout = (): { continue: true } | { response: Response } => {
     ttftFired = true;
-    ttftTimeoutCount++;
     log.info("ttft_watchdog_fired", { captureId: capId, attempt });
     const decision = decideRetry();
     if (decision === "retry") {
@@ -1093,7 +1091,6 @@ async function forwardUpstream(ctx: ProxyContext, deps: ProxyDeps): Promise<Resp
         }
         if (ttftController?.signal.aborted) {
           ttftFired = true;
-          ttftTimeoutCount++;
         }
         queueTtftTimeout(
           504,
