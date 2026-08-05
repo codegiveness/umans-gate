@@ -147,7 +147,7 @@ unconditional), and **config** that gates it.
 - **Config**: `vision_strategy` (default: `never` — temporarily disabled
   while umans.ai's subscription plan is unavailable; can be reactivated by
   flipping back to `catalog` or `always`), `vision_model`
-  (default: `umans-flash`), `vision_concurrency` (default: `1`),
+  (default: `umans-flash`), `vision_concurrency` (default: `4`),
   `vision_max_images`, `vision_timeout_ms`, `vision_cache_size`,
   `vision_intent_strategy` (default: `auto`),
   `vision_decomposition_enabled` (default: `true`),
@@ -157,7 +157,8 @@ unconditional), and **config** that gates it.
 - **Rationale**: Enables text-only models to process image-bearing requests.
   Text is KV-cacheable; image bytes are not.
 - **Serialization**: Vision calls are serialized by a `ConcurrencyGate`
-  (default concurrency = 1) because the upstream has limited vision slots.
+  - **Serialization**: Vision calls are serialized by a `ConcurrencyGate`
+  (default concurrency = 4) because the upstream has limited vision slots.
 
 ### 2.5 Per-model rule overrides (ADR-0029)
 

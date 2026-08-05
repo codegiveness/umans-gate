@@ -109,12 +109,12 @@ per-model rules spec and target table.
 2. For `catalog` strategy: verify the model is in the "no vision" catalog,
    or use `always` to intercept all images regardless of model.
 3. Check `UMANS_API_KEY` is set. Vision calls require it.
-4. Check `vision_concurrency`. At 1 (default), vision calls are serialized.
+4. Check `vision_concurrency`. At 4 (default), vision calls are serialized.
 5. Check the dashboard for vision errors in the capture detail.
 
 ### Vision descriptions are slow
 
-- Vision calls are serialized (concurrency = 1 by default). Increase
+- Vision calls are serialized (concurrency = 4 by default). Increase
   `vision_concurrency` if the upstream supports more vision slots.
 - Descriptions are cached for 7 days. First requests are slow; subsequent
   requests with the same image are fast.

@@ -317,6 +317,10 @@ its limit:
   active regardless of `rate_limit_requests` / `never_limit_requests` and
   always protects the wallet from exceeding the upstream hard cap.
 
+The upstream gate decision is computed by `computeRequestGateDecision`
+in `src/request-gate.ts`, fed live `RequestGateStats` from the proxy;
+wallet-tier limits live in `src/usage/limits-schema.ts` (`WALLET_TIERS`)
+and drive `pricing-tier.ts`.
 ### Wallet tier
 
 Wallet tier is derived from `limits.requests.limit` returned by
@@ -334,6 +338,10 @@ never decreases; bonus credits count toward balance but not tier.
 ### Local burst limiter
 
 The `SlidingWindowRateLimiter` in `src/rate.ts` remains as a
+short-horizon burst fallback between `/v1/usage` polls. It is *not*
+the authoritative budget. GateStats exposes both raw and weighted
+usage (`weightedRequestsInWindow`, `weightedRemainingRequests`)
+for the dashboard.
 short-horizon burst fallback between `/v1/usage` polls. It is *not*
 the authoritative budget. GateStats exposes both raw and weighted
 usage (`weightedRequestsInWindow`, `weightedRemainingRequests`)

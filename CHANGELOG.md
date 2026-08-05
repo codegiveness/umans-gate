@@ -5,7 +5,7 @@ umans-gate changelog: version history for the Bun-based LLM API capture proxy.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.6.2] - 2026-08-05
 
 ### Changed
 
@@ -18,6 +18,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   umans.ai publishes a new subscription plan or a cheaper multimodal model
   becomes available. No existing workflow or functionality is affected —
   images pass through untouched.
+- **Bump `vision_max_images` default from 5 to 20**: agent harnesses may
+  batch 10+ images in a single request; a cap of 5 silently dropped
+  images beyond the 5th. Existing configs with the old default of 5 are
+  not overwritten — a startup `console.warn` fires when
+  `vision_max_images < 20`, advising users to update their config.
+- **Bump `vision_concurrency` default from 1 to 4**: vision handoff is
+  now parallel by default, reducing latency for multi-image requests.
+- **Local request-cap rejection returns `503` (was `429`)**: when a local cap is
+  enforced and hit, the proxy serves `503` with `error: "rate_limit_exceeded"`
+  and a `Retry-After` header, matching the other gate over-capacity responses.
+- **Weighted request usage exposed on GateStats**: `weightedRequestsInWindow` /
+  `weightedRemainingRequests` reflect per-model request weights; the dashboard
+  displays the weighted position against the request cap.
 
 ### Added
 
@@ -28,31 +41,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `request_soft_limit` mirror the concurrency gate, pulled from
   `/v1/usage` (`limits.requests`). Hot-reloadable.
 
-### Changed
-
-- **Local request-cap rejection returns `503` (was `429`)**: when a local cap is
-  enforced and hit, the proxy serves `503` with `error: "rate_limit_exceeded"`
-  and a `Retry-After` header, matching the other gate over-capacity responses.
-- **Weighted request usage exposed on GateStats**: `weightedRequestsInWindow` /
-  `weightedRemainingRequests` reflect per-model request weights; the dashboard
-  displays the weighted position against the request cap.
-
 ### Fixed
 
 - **Model lifecycle parsing**: parse `production_start_date` from
   `/v1/models/info` lifecycle (previously only `playground_start_date`).
-
-## [0.6.2] - 2026-07-31
-
-### Changed
-
-- **Bump `vision_max_images` default from 5 to 20**: agent harnesses may
-  batch 10+ images in a single request; a cap of 5 silently dropped
-  images beyond the 5th. Existing configs with the old default of 5 are
-  not overwritten — a startup `console.warn` fires when
-  `vision_max_images < 20`, advising users to update their config.
-- **Bump `vision_concurrency` default from 1 to 4**: vision handoff is
-  now parallel by default, reducing latency for multi-image requests.
 
 ## [0.6.1] - 2026-07-31
 

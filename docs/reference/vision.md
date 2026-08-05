@@ -56,8 +56,8 @@ The Vision Calls tab shows image-bearing requests with their model-generated des
 
 ## Config (hot-reloadable)
 
-- `vision_strategy` (catalog), `vision_model` (umans-flash)
-- `vision_max_images` (5), `vision_max_description_tokens` (4096)
+- `vision_strategy` (never — temporarily disabled), `vision_model` (umans-flash)
+- `vision_max_images` (20), `vision_max_description_tokens` (4096)
 - `vision_cache_size` (1000), `vision_cache_ttl_ms` (7d)
 - 7 intent-aware fields: `vision_intent_strategy`, `vision_decomposition_*`,
   `vision_adjacent_text_max_chars`, `vision_recent_messages_count`,
